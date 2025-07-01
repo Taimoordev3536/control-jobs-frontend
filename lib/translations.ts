@@ -1,0 +1,1056 @@
+import { create } from "domain"
+import { access } from "fs"
+import next from "next"
+
+const translations: Record<string, Record<string, string>> = {
+  en: {
+
+    //common observation
+    registered_at: "Registered_at",
+    // Navigation
+    merchants: "Merchants",
+    partners: "Partners",
+    employers: "Employers",
+    billing: "Billing",
+    invoices: "Invoices",
+    commissions: "Commissions",
+    rates: "Rates",
+    information: "Information",
+    utilities: "Utilities",
+    invite: "Invite",
+    payments: "Payments",
+    export: "Export",
+    aid: "Aid",
+
+    // New navigation items Work centers
+    jobs: "Jobs",
+    control: "Control",
+    consultations: "Consultations",
+    all: "All",
+    occupation: "Occupation",
+    surveys: "Surveys",
+    clients: "Clients",
+    workers: "Workers",
+    wall: "Wall",
+
+    // Information items
+    "signings-info": "Signings Info",
+    "wages-info": "Wages Info",
+    "services-info": "Services Info",
+    "invoices-info": "Invoices Info",
+    "employers-info": "Employers Info",
+    "partners-info": "Partners Info",
+    "commissions-info": "Commissions Info",
+
+    // Theme
+    light: "Light",
+    dark: "Dark",
+    system: "System",
+
+    // User dropdown
+    mydata: "My Data",
+    configuration: "Configuration",
+    users: "Users",
+    wages: "Wages",
+    profile: "Profile",
+    settings: "Settings",
+    logout: "Log out",
+
+    // New additions
+    ListofPartners: "List of Partners",
+    type: "Type",
+    listOfEmployers: "List of Employers",
+
+    // Control page translations
+    controlCenter: "Control Center",
+    alerts: "Alerts",
+    signings: "Signings",
+    tasks: "Tasks",
+
+    // Control tab translations
+    calendar:"Calendar",
+    data:"Data",
+    holder: "Holder",
+    job: "Job",
+    workCenter: "Work Center",
+    worker: "Worker",
+    notification: "Notification",
+    hours: "Hours",
+    respondent: "Respondent",
+    worth: "Worth",
+    noAlertDataAvailable: "No alert data available",
+    noSigningsDataAvailable: "No signings data available",
+    noTasksDataAvailable: "No tasks data available",
+    noSurveysDataAvailable: "No surveys data available",
+
+    // Clients page translations
+    clientList: "Client List",
+    name: "Name",
+    locality: "Locality",
+    type: "Type",
+    responsible: "Responsible",
+    telephones: "Telephones",
+    asset: "Asset",
+    addClient: "Add Client",
+    addPartner: "Add Partner",
+    filterClients: "Filter clients",
+    noClientsFound: "No clients found",
+    company: "Company",
+    particular: "Particular",
+    yeah: "Yes",
+    no: "No",
+    filter: "Filter",
+    exportExcel: "Export Excel",
+    exportCsv: "Export CSV",
+    exportPdf: "Export PDF",
+
+    // Workers page translations
+    listOfWorkers: "List of Workers",
+    namePseudonym: "Name/Pseudonym",
+    population: "Population",
+    postalCode: "Postal Code",
+    addWorker: "Add Worker",
+    filterWorkers: "Filter workers",
+    noWorkersFound: "No workers found",
+    cleaner: "Cleaner",
+    gardener: "Gardener",
+
+    // Aid page translations
+    aidCenter: "Aid Center",
+    helpTopics: "Help Topics",
+    index: "Index",
+    issue: "Issue",
+    addAid: "Add Aid",
+    filterAid: "Filter Aid",
+    exportAid: "Export Aid",
+    downloadAid: "Download Aid",
+    noHelpTopicsAvailable: "No help topics available",
+    questionTest: "Question Test",
+    admin: "Admin",
+    partner: "Partner",
+    employer: "Employer",
+
+    // Partner tabs translations
+    date: "Date",
+    invoiceNo: "Invoice No.",
+    concept: "Concept",
+    total: "Total",
+    paid: "Paid",
+    noCommissionDataAvailable: "No commission data available",
+
+    class: "Class",
+    fee: "Fee",
+    discount: "Disc. %",
+    highDate: "High Date",
+    billing: "Billing",
+    noEmployerDataAvailable: "No employer data available",
+
+    noInvoiceDataAvailable: "No invoice data available",
+
+    messages: "Messages",
+    noWallMessagesAvailable: "No wall messages available",
+
+    // Partner data form translations
+    nif: "NIF",
+    address: "Address",
+    number: "No.",
+    floorDoor: "Floor/Door...",
+    province: "Province",
+    country: "Country",
+    vatIctServices: "% VAT ICT Services",
+    phone: "Phone",
+    mobile: "Mobile",
+    email: "E-mail",
+    observations: "Observations",
+    chooseFile: "Choose File | No file chosen",
+    bronze: "Bronze",
+    silver: "Silver",
+    gold: "Gold",
+    commission: "% Commission",
+    retention: "% Retention",
+    paymentMethod: "Payment method",
+    transfer: "Transfer",
+    card: "Card",
+    paypal: "PayPal",
+    accountIban: "Account IBAN",
+    bicSwift: "BIC/SWIFT",
+    keep: "Keep",
+    cancel: "Cancel",
+    delete: "Delete",
+    login: "Login",
+
+    // Employer tabs translations
+    landline: "Landline",
+    subType: "Sub Type",
+    probationPeriod: "Probation Period",
+
+    // Pages translations
+    listOfInvoices: "List of Invoices",
+    noInvoicesAvailable: "No invoices available",
+    listOfCommissions: "List of Commissions",
+    noCommissionsAvailable: "No commissions available",
+    selfInvoiceNo: "Self-Invoice No.",
+
+    // Rates page translations
+    // home: "HOME",
+    // static: "STATIC",
+    // remote: "REMOTE",
+    fixedFee: "Fixed fee",
+    workCenters: "Work Centers",
+    employees: "Employees",
+    vatNotIncluded: "(VAT not included)",
+
+    // Invite page translations
+    userRegistration: "User registration",
+    customers: "Customers",
+    select: "Select",
+    selectUsers: "Select users...",
+
+    // Export page translations
+    period: "Period",
+    file: "File",
+    Export: "Export",
+
+    // Client tabs translations
+    code: "Code",
+    winterSchedule: "Winter schedule",
+    summerTime: "Summer time",
+    denomination: "Denomination",
+    noDataAvailableInTable: "No data available in table",
+
+    // Worker tabs translations
+    nifNie: "NIF/NIE",
+    naf: "NAF",
+    lastNames: "Last names",
+    sex: "Sex",
+    birthDate: "F. Birth",
+    active: "Active",
+    man: "Man",
+    woman: "Woman",
+    noCustomersAvailable: "No customers available",
+    noJobsAvailable: "No jobs available",
+    noMessagesAvailable: "No messages available",
+
+    // Calendar translations
+    january: "January",
+    february: "February",
+    march: "March",
+    april: "April",
+    may: "May",
+    june: "June",
+    july: "July",
+    august: "August",
+    september: "September",
+    october: "October",
+    november: "November",
+    december: "December",
+    mon: "Mon",
+    tue: "Tue",
+    wed: "Wed",
+    thu: "Thu",
+    fri: "Fri",
+    sat: "Sat",
+    sun: "Sun",
+    workingDays: "Working days",
+    holidays: "Holidays",
+    vacation: "Vacation",
+    permissions: "Permissions",
+    lows: "Lows",
+    compensation: "Compensation",
+    today: "Today",
+    year: "Year",
+    month: "Month",
+
+    // Survey page translations
+    addSurvey: "Add Survey",
+    surveyClients: "Survey Clients",
+    surveyWorkers: "Survey Workers",
+    clientSurveys: "Client Surveys",
+    workerSurveys: "Worker Surveys",
+
+
+    //buttons
+    back: "Back",
+    next: "Next",
+    create: "Create",
+    
+    //add page
+    Id: "Id",
+    access: "Access",
+  },
+  es: {
+// common
+    registered_at: "F.Alta",
+
+    // Navigation
+    merchants: "Comerciantes",
+    partners: "Socios",
+    employers: "Empleadores",
+    billing: "Facturación",
+    invoices: "Facturas",
+    commissions: "Comisiones",
+    rates: "Tarifas",
+    information: "Información",
+    utilities: "Utilidades",
+    invite: "Invitar",
+    payments: "Pagos",
+    export: "Exportar",
+    aid: "Ayuda",
+
+    // New navigation items
+    jobs: "Trabajos",
+    control: "Control",
+    consultations: "Consultas",
+    all: "Todos",
+    occupation: "Ocupación",
+    surveys: "Encuestas",
+    clients: "Clientes",
+    workers: "Trabajadores",
+    wall: "Muro",
+
+    // Information items
+    "signings-info": "Info de Firmas",
+    "wages-info": "Info de Salarios",
+    "services-info": "Info de Servicios",
+    "invoices-info": "Info de Facturas",
+    "employers-info": "Info de Empleadores",
+    "partners-info": "Info de Socios",
+    "commissions-info": "Info de Comisiones",
+
+    // Theme
+    light: "Claro",
+    dark: "Oscuro",
+    system: "Sistema",
+
+    // User dropdown
+    mydata: "Mis Datos",
+    configuration: "Configuración",
+    users: "Usuarios",
+    wages: "Salarios",
+    profile: "Perfil",
+    settings: "Configuración",
+    logout: "Cerrar sesión",
+
+    // New additions
+    ListofPartners: "Lista de Socios",
+    type: "Tipo",
+    listOfEmployers: "Lista de Empleadores",
+
+    // Control page translations
+    controlCenter: "Centro de Control",
+    alerts: "Alertas",
+    signings: "Fichajes",
+    tasks: "Tareas",
+
+    // Control tab translations
+    calendar:"Calendario",
+    data:"Datos",
+    holder: "Titular",
+    job: "Trabajo",
+    workCenter: "Centro de Trabajo",
+    worker: "Trabajador",
+    notification: "Notificación",
+    hours: "Horas",
+    respondent: "Encuestado",
+    worth: "Valor",
+    noAlertDataAvailable: "No hay datos de alertas disponibles",
+    noSigningsDataAvailable: "No hay datos de fichajes disponibles",
+    noTasksDataAvailable: "No hay datos de tareas disponibles",
+    noSurveysDataAvailable: "No hay datos de encuestas disponibles",
+
+    // Clients page translations former
+    clientList: "Lista de Clientes",
+    name: "Nombre",
+    locality: "Localidad",
+    Type: "Tipo",
+    responsible: "Responsable",
+    telephones: "Teléfonos",
+    asset: "Activo",
+    addClient: "Añadir Cliente",
+    addPartner: "Añadir Socio",
+    filterClients: "Filtrar clientes",
+    noClientsFound: "No se encontraron clientes",
+    company: "Empresa",
+    particular: "Particular",
+    yeah: "Sí",
+    no: "No",
+    filter: "Filtrar",
+    exportExcel: "Exportar Excel",
+    exportCsv: "Exportar CSV",
+    exportPdf: "Exportar PDF",
+
+    // Workers page translations
+    listOfWorkers: "Lista de Trabajadores",
+    namePseudonym: "Nombre/Pseudónimo",
+    population: "Población",
+    postalCode: "Código Postal",
+    addWorker: "Añadir Trabajador",
+    filterWorkers: "Filtrar trabajadores",
+    noWorkersFound: "No se encontraron trabajadores",
+    cleaner: "Limpiador/a",
+    gardener: "Jardinero/a",
+
+    // Aid page translations
+    aidCenter: "Centro de Ayuda",
+    helpTopics: "Temas de Ayuda",
+    index: "Índice",
+    issue: "Tema",
+    addAid: "Añadir Ayuda",
+    filterAid: "Filtrar Ayuda",
+    exportAid: "Exportar Ayuda",
+    downloadAid: "Descargar Ayuda",
+    noHelpTopicsAvailable: "No hay temas de ayuda disponibles",
+    questionTest: "Pregunta Prueba",
+    admin: "Admin",
+    partner: "Partner",
+    employer: "Empleador",
+
+    // Partner tabs translations
+    date: "Fecha",
+    invoiceNo: "No. Factura",
+    concept: "Concepto",
+    total: "Total",
+    paid: "Pagado",
+    noCommissionDataAvailable: "No hay datos de comisiones disponibles",
+
+    class: "Clase",
+    fee: "Tarifa",
+    discount: "Desc. %",
+    highDate: "Fecha Alta",
+    Billing: "Facturación",
+    noEmployerDataAvailable: "No hay datos de empleadores disponibles",
+
+    noInvoiceDataAvailable: "No hay datos de facturas disponibles",
+
+    messages: "Mensajes",
+    noWallMessagesAvailable: "No hay mensajes del muro disponibles",
+
+    // Partner data form translations
+    nif: "NIF",
+    address: "Dirección",
+    number: "No.",
+    floorDoor: "Piso/Puerta...",
+    province: "Provincia",
+    country: "País",
+    vatIctServices: "% IVA Servicios TIC",
+    phone: "Teléfono",
+    mobile: "Móvil",
+    email: "E-mail",
+    observations: "Observaciones",
+    chooseFile: "Elegir Archivo | Ningún archivo elegido",
+    bronze: "Bronce",
+    silver: "Plata",
+    gold: "Oro",
+    commission: "% Comisión",
+    retention: "% Retención",
+    paymentMethod: "Método de pago",
+    transfer: "Transferencia",
+    card: "Tarjeta",
+    paypal: "PayPal",
+    accountIban: "Cuenta IBAN",
+    bicSwift: "BIC/SWIFT",
+    keep: "Guardar",
+    cancel: "Cancelar",
+    delete: "Eliminar",
+    login: "Iniciar sesión",
+
+    // Employer tabs translations
+    landline: "Teléfono fijo",
+    subType: "Sub Tipo",
+    probationPeriod: "Período de prueba",
+
+    // Pages translations wall
+    listOfInvoices: "Lista de Facturas",
+    noInvoicesAvailable: "No hay facturas disponibles",
+    listOfCommissions: "Lista de Comisiones",
+    noCommissionsAvailable: "No hay comisiones disponibles",
+    selfInvoiceNo: "No. Auto-factura",
+
+    // Rates page translations
+    home: "CASA",
+    static: "ESTÁTICO",
+    remote: "REMOTO",
+    fixedFee: "Tarifa fija",
+    workCenters: "Centros de trabajo",
+    employees: "Empleados",
+    vatNotIncluded: "(IVA no incluido)",
+
+    // Invite page translations
+    userRegistration: "Registro de usuario",
+    customers: "Clientes",
+    select: "Seleccionar",
+    selectUsers: "Seleccionar usuarios...",
+
+    // Export page translations
+    period: "Período",
+    file: "Fichero",
+    Export: "Exportar",
+
+    // Client tabs translations
+    code: "Código",
+    winterSchedule: "Horario de invierno",
+    summerTime: "Horario de verano",
+    denomination: "Denominación",
+    noDataAvailableInTable: "No hay datos disponibles en la tabla",
+
+    // Worker tabs translations
+    nifNie: "NIF/NIE",
+    naf: "NAF",
+    lastNames: "Apellidos",
+    sex: "Sexo",
+    birthDate: "F. Nacimiento",
+    active: "Activo",
+    man: "Hombre",
+    woman: "Mujer",
+    noCustomersAvailable: "No hay clientes disponibles",
+    noJobsAvailable: "No hay trabajos disponibles",
+    noMessagesAvailable: "No hay mensajes disponibles",
+
+    // Calendar translations   aid
+    january: "Enero",
+    february: "Febrero",
+    march: "Marzo",
+    april: "Abril",
+    may: "Mayo",
+    june: "Junio",
+    july: "Julio",
+    august: "Agosto",
+    september: "Septiembre",
+    october: "Octubre",
+    november: "Noviembre",
+    december: "Diciembre",
+    mon: "Lun",
+    tue: "Mar",
+    wed: "Mié",
+    thu: "Jue",
+    fri: "Vie",
+    sat: "Sáb",
+    sun: "Dom",
+    workingDays: "Días laborables",
+    holidays: "Festivos",
+    vacation: "Vacaciones",
+    permissions: "Permisos",
+    lows: "Bajas",
+    compensation: "Compensación",
+    today: "Hoy",
+    year: "Año",
+    month: "Mes",
+
+    // Survey page translations
+    addSurvey: "Añadir Encuesta",
+    surveyClients: "Encuestas de Clientes",
+    surveyWorkers: "Encuestas de Trabajadores",
+    clientSurveys: "Encuestas de Clientes",
+    workerSurveys: "Encuestas de Trabajadores",
+
+    //buttons
+    back: "Anterior",
+    next: "Siguiente",
+    create: "Crear",
+
+    //add page
+    Id: "identificación",
+    Access: "Acceso",
+  },
+  de: {
+    // Navigation
+    merchants: "Händler",
+    partners: "Partner",
+    employers: "Arbeitgeber",
+    billing: "Abrechnung",
+    invoices: "Rechnungen",
+    commissions: "Provisionen",
+    rates: "Tarife",
+    information: "Informationen",
+    utilities: "Dienstprogramme",
+    invite: "Einladen",
+    payments: "Zahlungen",
+    export: "Exportieren",
+    aid: "Hilfe",
+
+    // New navigation items
+    jobs: "Jobs",
+    control: "Kontrolle",
+    consultations: "Beratungen",
+    all: "Alle",
+    occupation: "Beruf",
+    surveys: "Umfragen",
+    clients: "Kunden",
+    workers: "Arbeiter",
+
+    // Information items
+    "signings-info": "Unterschriften Info",
+    "wages-info": "Lohn Info",
+    "services-info": "Service Info",
+    "invoices-info": "Rechnungen Info",
+    "employers-info": "Arbeitgeber Info",
+    "partners-info": "Partner Info",
+    "commissions-info": "Provisionen Info",
+
+    // Theme
+    light: "Hell",
+    dark: "Dunkel",
+    system: "System",
+
+    // User dropdown
+    mydata: "Meine Daten",
+    configuration: "Konfiguration",
+    users: "Benutzer",
+    wages: "Löhne",
+    profile: "Profil",
+    settings: "Einstellungen",
+    logout: "Abmelden",
+
+    // New additions
+    ListofPartners: "Liste der Partner",
+    listOfEmployers: "Liste der Arbeitgeber",
+
+    // Partner tabs translations
+    date: "Datum",
+    invoiceNo: "Rechnungs-Nr.",
+    concept: "Konzept",
+    total: "Gesamt",
+    paid: "Bezahlt",
+    noCommissionDataAvailable: "Keine Provisionsdaten verfügbar",
+
+    class: "Klasse",
+    fee: "Gebühr",
+    discount: "Rabatt %",
+    highDate: "Hochdatum",
+    billing: "Abrechnung",
+    noEmployerDataAvailable: "Keine Arbeitgeberdaten verfügbar",
+
+    employer: "Arbeitgeber",
+    noInvoiceDataAvailable: "Keine Rechnungsdaten verfügbar",
+
+    message: "Nachricht",
+    noWallMessagesAvailable: "Keine Wandnachrichten verfügbar",
+
+    // Partner data form translations
+    nif: "NIF",
+    name: "Name",
+    responsible: "Verantwortlich",
+    address: "Adresse",
+    number: "Nr.",
+    floorDoor: "Etage/Tür...",
+    locality: "Ort",
+    province: "Provinz",
+    country: "Land",
+    vatIctServices: "% MwSt. IKT-Dienste",
+    phone: "Telefon",
+    mobile: "Mobil",
+    email: "E-Mail",
+    observations: "Beobachtungen",
+    chooseFile: "Datei wählen | Keine Datei gewählt",
+    type: "Typ",
+    bronze: "Bronze",
+    silver: "Silber",
+    gold: "Gold",
+    commission: "% Provision",
+    retention: "% Einbehaltung",
+    paymentMethod: "Zahlungsmethode",
+    transfer: "Überweisung",
+    card: "Karte",
+    paypal: "PayPal",
+    accountIban: "Konto IBAN",
+    bicSwift: "BIC/SWIFT",
+    keep: "Behalten",
+    cancel: "Abbrechen",
+    eliminate: "Eliminieren",
+    login: "Anmelden",
+    filter: "Filter",
+    exportExcel: "Excel exportieren",
+    exportCsv: "CSV exportieren",
+    exportPdf: "PDF exportieren",
+
+    // Employer tabs translations
+    landline: "Festnetz",
+    subType: "Untertyp",
+    probationPeriod: "Probezeit",
+
+    // Pages translations
+    listOfInvoices: "Liste der Rechnungen",
+    noInvoicesAvailable: "Keine Rechnungen verfügbar",
+    listOfCommissions: "Liste der Provisionen",
+    noCommissionsAvailable: "Keine Provisionen verfügbar",
+    selfInvoiceNo: "Selbstrechnung Nr.",
+
+    // Rates page translations
+    home: "ZUHAUSE",
+    static: "STATISCH",
+    remote: "REMOTE",
+    fixedFee: "Feste Gebühr",
+    workCenters: "Arbeitszentren",
+    employees: "Mitarbeiter",
+    vatNotIncluded: "(MwSt. nicht enthalten)",
+
+    // Invite page translations
+    userRegistration: "Benutzerregistrierung",
+    customers: "Kunden",
+    select: "Auswählen",
+    selectUsers: "Benutzer auswählen...",
+
+    // Export page translations
+    period: "Zeitraum",
+    file: "Datei",
+
+    // Client tabs translations
+    code: "Code",
+    winterSchedule: "Winterplan",
+    summerTime: "Sommerzeit",
+    denomination: "Bezeichnung",
+    noDataAvailableInTable: "Keine Daten in der Tabelle verfügbar",
+
+    // Worker tabs translations
+    nifNie: "NIF/NIE",
+    naf: "NAF",
+    lastNames: "Nachnamen",
+    sex: "Geschlecht",
+    birthDate: "Geburtsdatum",
+    active: "Aktiv",
+    man: "Mann",
+    woman: "Frau",
+    noCustomersAvailable: "Keine Kunden verfügbar",
+    noJobsAvailable: "Keine Jobs verfügbar",
+    noMessagesAvailable: "Keine Nachrichten verfügbar",
+
+    // Calendar translations
+    january: "Januar",
+    february: "Februar",
+    march: "März",
+    april: "April",
+    may: "Mai",
+    june: "Juni",
+    july: "Juli",
+    august: "August",
+    september: "September",
+    october: "Oktober",
+    november: "November",
+    december: "Dezember",
+    mon: "Mo",
+    tue: "Di",
+    wed: "Mi",
+    thu: "Do",
+    fri: "Fr",
+    sat: "Sa",
+    sun: "So",
+    workingDays: "Arbeitstage",
+    holidays: "Feiertage",
+    vacation: "Urlaub",
+    permissions: "Berechtigungen",
+    lows: "Tiefs",
+    compensation: "Entschädigung",
+    today: "Heute",
+    year: "Jahr",
+    month: "Monat",
+
+    // Survey page translations
+    addSurvey: "Umfrage hinzufügen",
+    surveyClients: "Kundenumfragen",
+    surveyWorkers: "Arbeiterumfragen",
+    clientSurveys: "Kundenumfragen",
+    workerSurveys: "Arbeiterumfragen",
+  },
+}
+
+export default translations
+
+
+
+
+
+
+// const translations: Record<string, Record<string, string>> = {
+//   en: {
+//     // Navigation
+//     merchants: "Merchants",
+//     partners: "Partners",
+//     employers: "Employers",
+//     billing: "Billing",
+//     invoices: "Invoices",
+//     commissions: "Commissions",
+//     rates: "Rates",
+//     information: "Information",
+//     utilities: "Utilities",
+//     invite: "Invite",
+//     payments: "Payments",
+//     export: "Export",
+//     aid: "Aid",
+
+//     // New navigation items
+//     jobs: "Jobs",
+//     control: "Control",
+//     consultations: "Consultations",
+//     all: "All",
+//     occupation: "Occupation",
+//     surveys: "Surveys",
+//     clients: "Clients",
+//     workers: "Workers",
+
+//     // Information items
+//     "signings-info": "Signings Info",
+//     "wages-info": "Wages Info",
+//     "services-info": "Services Info",
+//     "invoices-info": "Invoices Info",
+//     "employers-info": "Employers Info",
+//     "partners-info": "Partners Info",
+//     "commissions-info": "Commissions Info",
+
+//     // Theme
+//     light: "Light",
+//     dark: "Dark",
+//     system: "System",
+
+//     // User dropdown
+//     mydata: "My Data",
+//     configuration: "Configuration",
+//     users: "Users",
+//     wages: "Wages",
+//     profile: "Profile",
+//     settings: "Settings",
+//     logout: "Log out",
+
+//     // New additions
+//     "ListofPartners": "List of Partners",
+//     "listOfEmployers": "List of Employers",
+
+//   // Control page translations
+//     controlCenter: "Control Center",
+//     alerts: "Alerts",
+//     signings: "Signings",
+//     tasks: "Tasks",
+//     surveys: "Surveys",
+
+//     // Control tab translations
+//     holder: "Holder",
+//     job: "Job",
+//     workCenter: "Work Center",
+//     worker: "Worker",
+//     notification: "Notification",
+//     hours: "Hours",
+//     respondent: "Respondent",
+//     worth: "Worth",
+//     noAlertDataAvailable: "No alert data available",
+//     noSigningsDataAvailable: "No signings data available",
+//     noTasksDataAvailable: "No tasks data available",
+//     noSurveysDataAvailable: "No surveys data available",
+
+//     // Clients page translations
+//     clientList: "Client List",
+//     name: "Name",
+//     locality: "Locality",
+//     type: "Type",
+//     responsible: "Responsible",
+//     telephones: "Telephones",
+//     asset: "Asset",
+//     addClient: "Add Client",
+//     filterClients: "Filter clients",
+//     noClientsFound: "No clients found",
+//     company: "Company",
+//     particular: "Particular",
+//     yeah: "Yes",
+//     no: "No",
+
+//     // Workers page translations
+//     listOfWorkers: "List of Workers",
+//     namePseudonym: "Name/Pseudonym",
+//     occupation: "Occupation",
+//     population: "Population",
+//     postalCode: "Postal Code",
+//     addWorker: "Add Worker",
+//     filterWorkers: "Filter workers",
+//     noWorkersFound: "No workers found",
+//     cleaner: "Cleaner",
+//     gardener: "Gardener",
+
+//      // Aid page translations
+//     aidCenter: "Aid Center",
+//     helpTopics: "Help Topics",
+//     index: "Index",
+//     issue: "Issue",
+//     addAid: "Add Aid",
+//     filterAid: "Filter Aid",
+//     exportAid: "Export Aid",
+//     downloadAid: "Download Aid",
+//     noHelpTopicsAvailable: "No help topics available",
+//     questionTest: "Question Test",
+//     admin: "Admin",
+//     partner: "Partner",
+//     employer: "Employer",
+    
+
+//   },
+//   es: {
+//     // Navigation
+//     merchants: "Comerciantes",
+//     partners: "Socios",
+//     employers: "Empleadores",
+//     billing: "Facturación",
+//     invoices: "Facturas",
+//     commissions: "Comisiones",
+//     rates: "Tarifas",
+//     information: "Información",
+//     utilities: "Utilidades",
+//     invite: "Invitar",
+//     payments: "Pagos",
+//     export: "Exportar",
+//     aid: "Ayuda",
+
+//     // New navigation items
+//     jobs: "Trabajos",
+//     control: "Control",
+//     consultations: "Consultas",
+//     all: "Todos",
+//     occupation: "Ocupación",
+//     surveys: "Encuestas",
+//     clients: "Clientes",
+//     workers: "Trabajadores",
+
+//     // Information items
+//     "signings-info": "Info de Firmas",
+//     "wages-info": "Info de Salarios",
+//     "services-info": "Info de Servicios",
+//     "invoices-info": "Info de Facturas",
+//     "employers-info": "Info de Empleadores",
+//     "partners-info": "Info de Socios",
+//     "commissions-info": "Info de Comisiones",
+
+//     // Theme
+//     light: "Claro",
+//     dark: "Oscuro",
+//     system: "Sistema",
+
+//     // User dropdown
+//     mydata: "Mis Datos",
+//     configuration: "Configuración",
+//     users: "Usuarios",
+//     wages: "Salarios",
+//     profile: "Perfil",
+//     settings: "Configuración",
+//     logout: "Cerrar sesión",
+
+//     // New additions
+//     "ListofPartners": "Lista de Socios",
+//     "listOfEmployers": "Lista de Empleadores",
+
+//     // Control page translations
+//     controlCenter: "Centro de Control",
+//     alerts: "Alertas",
+//     signings: "Fichajes",
+//     tasks: "Tareas",
+//     surveys: "Encuestas",
+
+//     // Control tab translations
+//     holder: "Titular",
+//     job: "Trabajo",
+//     workCenter: "Centro de Trabajo",
+//     worker: "Trabajador",
+//     notification: "Notificación",
+//     hours: "Horas",
+//     respondent: "Encuestado",
+//     worth: "Valor",
+//     noAlertDataAvailable: "No hay datos de alertas disponibles",
+//     noSigningsDataAvailable: "No hay datos de fichajes disponibles",
+//     noTasksDataAvailable: "No hay datos de tareas disponibles",
+//     noSurveysDataAvailable: "No hay datos de encuestas disponibles",
+
+//     // Clients page translations
+//     clientList: "Lista de Clientes",
+//     name: "Nombre",
+//     locality: "Localidad",
+//     type: "Tipo",
+//     responsible: "Responsable",
+//     telephones: "Teléfonos",
+//     asset: "Activo",
+//     addClient: "Añadir Cliente",
+//     filterClients: "Filtrar clientes",
+//     noClientsFound: "No se encontraron clientes",
+//     company: "Empresa",
+//     particular: "Particular",
+//     yeah: "Sí",
+//     no: "No",
+
+//     // Workers page translations
+//     listOfWorkers: "Lista de Trabajadores",
+//     namePseudonym: "Nombre/Pseudónimo",
+//     occupation: "Ocupación",
+//     population: "Población",
+//     postalCode: "Código Postal",
+//     addWorker: "Añadir Trabajador",
+//     filterWorkers: "Filtrar trabajadores",
+//     noWorkersFound: "No se encontraron trabajadores",
+//     cleaner: "Limpiador/a",
+//     gardener: "Jardinero/a",
+
+// // Aid page translations
+//     aidCenter: "Centro de Ayuda",
+//     helpTopics: "Temas de Ayuda",
+//     index: "Índice",
+//     issue: "Problema",
+//     addAid: "Añadir Ayuda",
+//     filterAid: "Filtrar Ayuda",
+//     exportAid: "Exportar Ayuda",
+//     downloadAid: "Descargar Ayuda",
+//     noHelpTopicsAvailable: "No hay temas de ayuda disponibles",
+//     questionTest: "Pregunta de Prueba",
+//     admin: "Administrador",
+//     partner: "Socio",
+//     employer: "Empleador",
+
+//   },
+//   de: {
+//     // Navigation
+//     merchants: "Händler",
+//     partners: "Partner",
+//     employers: "Arbeitgeber",
+//     billing: "Abrechnung",
+//     invoices: "Rechnungen",
+//     commissions: "Provisionen",
+//     rates: "Tarife",
+//     information: "Informationen",
+//     utilities: "Dienstprogramme",
+//     invite: "Einladen",
+//     payments: "Zahlungen",
+//     export: "Exportieren",
+//     aid: "Hilfe",
+
+//     // New navigation items
+//     jobs: "Jobs",
+//     control: "Kontrolle",
+//     consultations: "Beratungen",
+//     all: "Alle",
+//     occupation: "Beruf",
+//     surveys: "Umfragen",
+//     clients: "Kunden",
+//     workers: "Arbeiter",
+
+//     // Information items
+//     "signings-info": "Unterschriften Info",
+//     "wages-info": "Lohn Info",
+//     "services-info": "Service Info",
+//     "invoices-info": "Rechnungen Info",
+//     "employers-info": "Arbeitgeber Info",
+//     "partners-info": "Partner Info",
+//     "commissions-info": "Provisionen Info",
+
+//     // Theme
+//     light: "Hell",
+//     dark: "Dunkel",
+//     system: "System",
+
+//     // User dropdown
+//     mydata: "Meine Daten",
+//     configuration: "Konfiguration",
+//     users: "Benutzer",
+//     wages: "Löhne",
+//     profile: "Profil",
+//     settings: "Einstellungen",
+//     logout: "Abmelden",
+
+//     // New additions
+//     "ListofPartners": "Liste der Partner",
+//     "listOfEmployers": "Liste der Arbeitgeber"
+//   },
+// }
+
+// export default translations

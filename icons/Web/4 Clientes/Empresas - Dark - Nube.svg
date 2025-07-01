@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generator: Adobe Illustrator 22.1.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<svg version="1.1" id="Capa_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+	 viewBox="0 0 1256 1561.5" style="enable-background:new 0 0 1256 1561.5;" xml:space="preserve">
+<style type="text/css">
+	.st0{fill:none;}
+	.st1{fill:#333333;}
+	.st2{fill:#FFFFFF;}
+</style>
+<image style="display:none;overflow:visible;enable-background:new    ;" width="144" height="183" xlink:href="../../icono_empresas.png"  transform="matrix(8.7104 0 0 8.7104 0.1844 -32.5)">
+</image>
+<path class="st0" d="M318.6,948.5c-2.6,1.5-5.1,3-7.6,4.5v-4.5H318.6z"/>
+<path class="st0" d="M787.9,948.5c-1,0.6-1.9,1.1-2.9,1.7v-1.7H787.9z"/>
+<path class="st1" d="M1256,750.5c0,90,0,320,0,320l-2-0.3v491.3H0v-1122c0-6.6,5.4-12,12-12h287c6.6,0,12,5.4,12,12V950
+	c2.5-1.5,5-3,7.6-4.5c142-83,406.4-236,406.4-236s60-48,60,42v195.7c1-0.6,1.9-1.1,2.9-1.7c141.6-82.8,408.1-237,408.1-237
+	S1256,660.5,1256,750.5z"/>
+<rect x="175" y="1115.5" class="st2" width="144" height="108"/>
+<rect x="428" y="1115.5" class="st2" width="144" height="108"/>
+<rect x="681" y="1115.5" class="st2" width="144" height="108"/>
+<rect x="934" y="1115.5" class="st2" width="144" height="108"/>
+<rect x="176" y="1332.5" class="st2" width="144" height="108"/>
+<rect x="429" y="1332.5" class="st2" width="144" height="108"/>
+<rect x="682" y="1332.5" class="st2" width="144" height="108"/>
+<rect x="935" y="1332.5" class="st2" width="144" height="108"/>
+<circle class="st1" cx="140" cy="309.5" r="29.5"/>
+<path class="st1" d="M217.5,250h-127c-36.3,0-66-29.7-66-66v0c0-36.3,29.7-66,66-66h127c36.3,0,66,29.7,66,66v0
+	C283.5,220.3,253.8,250,217.5,250z"/>
+<path class="st1" d="M328.8,280H219.5c-36.3,0-66-29.7-66-66v0c0-36.3,29.7-66,66-66h109.3c36.3,0,66,29.7,66,66v0
+	C394.8,250.3,365.1,280,328.8,280z"/>
+<circle class="st1" cx="117.5" cy="375" r="22"/>
+<circle class="st1" cx="238.5" cy="77" r="22"/>
+<path class="st1" d="M449.8,132H340.5c-36.3,0-66-29.7-66-66v0c0-36.3,29.7-66,66-66l109.3,0c36.3,0,66,29.7,66,66v0
+	C515.8,102.3,486.1,132,449.8,132z"/>
+</svg>
