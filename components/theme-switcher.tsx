@@ -23,7 +23,7 @@ export function ThemeSwitcher() {
     <div className="relative">
       <button className="header-icon-button" onClick={toggleDropdown}>
         {theme === "dark" ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
-        <span className="tooltip">Theme</span>
+        <span className="tooltip">{t("theme")}</span>
       </button>
 
       {showDropdown && (

@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Code Scanner</title>
+    <!-- Load jsQR library for QR code scanning -->
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 20px;
+            background-color: #f0f0f0;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 500px;
+            text-align: center;
+            display: none; /* Hidden until scanner starts */
+        }
+        h1 {
+            color: #333;
+        }
+        button {
+            margin: 10px 0;
+            padding: 10px;
+            width: 100%;
+            box-sizing: border-box;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #video {
+            width: 100%;
+            max-width: 400px;
+            border: 2px solid #333;
+            border-radius: 5px;
+        }
+        #scan-result {
+            margin-top: 10px;
+            color: #333;
+            word-break: break-all;
+        }
+    </style>
+</head>
+<body>
+    <button onclick="startScanner()">Start QR Scanner</button>
+    <div class="container" id="scanner">
+        <h1>QR Code Scanner</h1>
+        <video id="video" autoplay></video>
+        <button onclick="stopScanner()">Stop Scanner</button>
+        <div id="scan-result">Scan result will appear here</div>
+    </div>
+
+    <script>
+        let video = null; // Video element for scanning
+        let stream = null; // Camera stream
+        let canvas = null; // Canvas for capturing video frames
+        let context = null; // Canvas context
+        let scanning = false; // Scanner state
+
+        // Start QR Code Scanner
+        async function startScanner() {
+            try {
+                document.getElementById('scanner').style.display = 'block';
+                video = document.getElementById('video');
+                // Request camera access
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'environment' } // Prefer rear camera
+                });
+                video.srcObject = stream;
+                video.play();
+
+                // Set up canvas for scanning
+                canvas = document.createElement('canvas');
+                context = canvas.getContext('2d');
+                scanning = true;
+                scanQRCode();
+            } catch (err) {
+                console.error('Error accessing camera:', err);
+                alert('Unable to access camera. Please ensure permissions are granted.');
+                document.getElementById('scanner').style.display = 'none';
+            }
+        }
+
+        // Scan QR Code from video feed
+        function scanQRCode() {
+            if (!scanning || !video || !stream) return;
+
+            // Capture video frame
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+            // Analyze frame for QR code
+            const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                inversionAttempts: 'dontInvert'
+            });
+
+            if (code) {
+                // QR code found, display result
+                document.getElementById('scan-result').textContent = `Scanned: ${code.data}`;
+                stopScanner();
+            } else {
+                // Continue scanning
+                document.getElementById('scan-result').textContent = 'Scanning...';
+                requestAnimationFrame(scanQRCode);
+            }
+        }
+
+        // Stop QR Code Scanner
+        function stopScanner() {
+            scanning = false;
+            if (stream) {
+                // Release camera
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
+            if (video) {
+                video.srcObject = null;
+            }
+            document.getElementById('scanner').style.display = 'none';
+            document.getElementById('scan-result').textContent = 'Scan result will appear here';
+        }
+    </script>
+</body>
+</html>

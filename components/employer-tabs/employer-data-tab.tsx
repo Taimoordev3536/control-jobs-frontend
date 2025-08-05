@@ -123,7 +123,7 @@ export default function EmployerDataTab({ employer, getTypeLabel, getSubTypeLabe
           <Input value={employer.taxId || ""} className="bg-background border-input" readOnly />
         </div>
         <div>
-          <label className="block text-sm font-medium text-foreground mb-2">CCC</label>
+          <label className="block text-sm font-medium text-foreground mb-2">C.C.C</label>
           <Input value={ccc} onChange={(e) => setCcc(e.target.value)} className="bg-background border-input" />
         </div>
         <div>
@@ -143,15 +143,15 @@ export default function EmployerDataTab({ employer, getTypeLabel, getSubTypeLabe
           <Input value={addressParts.street} className="bg-background border-input" readOnly />
         </div>
         <div>
-          <label className="block text-sm font-medium text-foreground mb-2">No.</label>
+          <label className="block text-sm font-medium text-foreground mb-2">{t("No")}</label>
           <Input value={addressParts.number} className="bg-background border-input" readOnly />
         </div>
         <div>
-          <label className="block text-sm font-medium text-foreground mb-2">Floor/Door...</label>
+          <label className="block text-sm font-medium text-foreground mb-2">{t("floorDoor")}</label>
           <Input value={addressParts.floorDoor} className="bg-background border-input" readOnly />
         </div>
         <div>
-          <label className="block text-sm font-medium text-foreground mb-2">Postal Code</label>
+          <label className="block text-sm font-medium text-foreground mb-2">{t("PostalCode")}</label>
           <Input
             value={postalCode}
             onChange={(e) => setPostalCode(e.target.value)}
@@ -207,7 +207,7 @@ export default function EmployerDataTab({ employer, getTypeLabel, getSubTypeLabe
           <Input value={employer.landline || ""} className="bg-background border-input" readOnly />
         </div>
         <div>
-          <label className="block text-sm font-medium text-foreground mb-2">Mobile</label>
+          <label className="block text-sm font-medium text-foreground mb-2">{t("Mobile")}</label>
           <Input value={employer.phone || ""} className="bg-background border-input" readOnly />
         </div>
         <div className="flex gap-2">
@@ -281,7 +281,7 @@ export default function EmployerDataTab({ employer, getTypeLabel, getSubTypeLabe
             </Select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-foreground mb-2">Fee</label>
+            <label className="block text-sm font-medium text-foreground mb-2">{t("Fee")}</label>
             <Select value={selectedFee} onValueChange={setSelectedFee}>
               <SelectTrigger className="bg-background border-input">
                 <SelectValue />
@@ -296,7 +296,7 @@ export default function EmployerDataTab({ employer, getTypeLabel, getSubTypeLabe
             </Select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-foreground mb-2">Disc. %</label>
+            <label className="block text-sm font-medium text-foreground mb-2">{t("discount")}</label>
             <Input
               value={discountValue}
               onChange={(e) => setDiscountValue(e.target.value)}
@@ -307,7 +307,7 @@ export default function EmployerDataTab({ employer, getTypeLabel, getSubTypeLabe
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-foreground mb-2">Payment method</label>
+            <label className="block text-sm font-medium text-foreground mb-2">{t("paymentMethod")}</label>
             <Select value={selectedPaymentMethod} onValueChange={setSelectedPaymentMethod}>
               <SelectTrigger className="bg-background border-input">
                 <SelectValue />

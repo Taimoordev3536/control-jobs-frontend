@@ -3,8 +3,10 @@
 import { useParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Building2, Users, FileText, ChevronDown } from "lucide-react"
+import { useTranslation } from "@/hooks/use-translation"
 
 export default function InvoiceDetailPage() {
+  const { t } = useTranslation()
   const params = useParams()
   const invoiceId = params.id
 
@@ -15,7 +17,7 @@ export default function InvoiceDetailPage() {
         <div className="flex items-start justify-between px-8 py-8 bg-muted/50">
           {/* Left Side - Company Info */}
           <div className="flex-1 max-w-md">
-            <h1 className="text-lg font-normal text-muted-foreground mb-8">Bill</h1>
+            <h1 className="text-lg font-normal text-muted-foreground mb-8">{t("Bill")}</h1>
 
             <div className="space-y-2">
               <div className="flex items-center">
@@ -39,12 +41,12 @@ export default function InvoiceDetailPage() {
 
             <div className="mt-8 space-y-1 text-sm">
               <div className="flex items-center">
-                <span className="font-semibold text-foreground">Invoice No.:</span>
+                <span className="font-semibold text-foreground">{t("invoiceNo")}:</span>
               </div>
               <div className="flex items-center">
-                <span className="font-semibold text-foreground">Date:</span>
+                <span className="font-semibold text-foreground">{t("date")}</span>
               </div>
-              <div className="text-muted-foreground mt-2">Payment by XXXX card</div>
+              <div className="text-muted-foreground mt-2">{t("payments")} by XXXX card</div>
             </div>
           </div>
 
@@ -56,7 +58,7 @@ export default function InvoiceDetailPage() {
             </Button>
 
             <div className="text-right mb-6">
-              <h2 className="text-3xl font-normal text-foreground">BILL</h2>
+              <h2 className="text-3xl font-normal text-foreground">{t("Bill")}</h2>
             </div>
 
             <div className="w-80">
@@ -68,7 +70,7 @@ export default function InvoiceDetailPage() {
               </div>
 
               <div className="border-t-0">
-                <div className="bg-primary text-primary-foreground px-4 py-3 text-sm font-medium">Customer data</div>
+                <div className="bg-primary text-primary-foreground px-4 py-3 text-sm font-medium">{t("clientData")}</div>
                 <div className="border border-t-0 border-border bg-background px-4 py-4 space-y-2 text-sm">
                   <div className="text-muted-foreground italic">Name</div>
                   <div className="text-muted-foreground italic">CIF</div>
@@ -92,10 +94,10 @@ export default function InvoiceDetailPage() {
           <div className="w-full">
             {/* Table Header */}
                 <div className="flex mb-4 bg-purple-50 dark:bg-purple-950/50 border-b-2 border-purple-600 pb-2">
-                  <div className="w-[60%] pt-2 text-center font-semibold text-foreground">Billing Summary</div>
-                  <div className="w-[13%] pt-2 text-center font-semibold text-foreground">Amount</div>
-                  <div className="w-[13%] pt-2 text-center font-semibold text-foreground">Price</div>
-                  <div className="w-[13%] pt-2 text-center font-semibold text-foreground">Total</div>
+                  <div className="w-[60%] pt-2 text-center font-semibold text-foreground">{t("billingSummary")}</div>
+                  <div className="w-[13%] pt-2 text-center font-semibold text-foreground">{t("amount")}</div>
+                  <div className="w-[13%] pt-2 text-center font-semibold text-foreground">{t("price")}</div>
+                  <div className="w-[13%] pt-2 text-center font-semibold text-foreground">{t("total")}</div>
                   <div className="w-[1%]"></div>
                 </div>
 
@@ -169,14 +171,14 @@ export default function InvoiceDetailPage() {
             <div className="space-y-3">
               {/* Tax Breakdown Header */}
                   <div className="flex justify-center mb-4 bg-purple-50 dark:bg-purple-950/50 border-b-2 border-purple-600 pb-2">
-                    <span className=" pt-2 font-semibold text-foreground">Tax breakdown</span>
+                    <span className=" pt-2 font-semibold text-foreground">{t("taxBreakdown")}</span>
                   </div>
 
               {/* Tax Base Row */}
               <div className="flex items-center gap-4">
                 <div className="w-[70%]"></div>
                 <div className="w-[10%]"></div>
-                <div className="w-[10%] text-center text-foreground">Tax Base</div>
+                <div className="w-[10%] text-center text-foreground">{t("taxBase")}</div>
                 <div className="w-[10%] text-center">
                   <div className="bg-muted/50 rounded px-3 py-2 text-foreground">7.00</div>
                 </div>
@@ -196,7 +198,7 @@ export default function InvoiceDetailPage() {
               <div className="flex items-center gap-4">
                 <div className="w-[70%]"></div>
                 <div className="w-[10%]"></div>
-                <div className="w-[10%] text-center font-bold text-foreground">TOTAL TO PAY</div>
+                <div className="w-[10%] text-center font-bold text-foreground">{t("totalToPay")}</div>
                 <div className="w-[10%] text-center">
                   <div className="bg-muted/50 rounded px-3 py-2 font-bold text-foreground">7</div>
                 </div>
@@ -209,7 +211,7 @@ export default function InvoiceDetailPage() {
         <div className="px-8 py-4">
                 <div>
                   <div className="flex justify-center mb-4 bg-purple-50 dark:bg-purple-950/50 border-b-2 border-purple-600 pb-2">
-                    <span className=" pt-2 font-semibold text-foreground">Service details</span>
+                    <span className=" pt-2 font-semibold text-foreground">{t("serviceDetails")}</span>
                   </div>
             <div className="px-8 py-8 bg-card">
               <div className="flex items-start gap-6 mb-8">
@@ -217,7 +219,7 @@ export default function InvoiceDetailPage() {
                   <Building2 className="h-8 w-8 text-muted-foreground stroke-[1.5]" />
                 </div>
                 <div>
-                  <div className="text-card-foreground font-normal">• Center 1</div>
+                  <div className="text-card-foreground font-normal">• {t("center")} 1</div>
                 </div>
               </div>
 
@@ -226,8 +228,8 @@ export default function InvoiceDetailPage() {
                   <Users className="h-8 w-8 text-muted-foreground stroke-[1.5]" />
                 </div>
                 <div className="space-y-2">
-                  <div className="text-card-foreground font-normal">• Worker 1</div>
-                  <div className="text-card-foreground font-normal">• Worker 2</div>
+                  <div className="text-card-foreground font-normal">• {t("worker")} 1</div>
+                  <div className="text-card-foreground font-normal">• {t("worker")} 2</div>
                 </div>
               </div>
             </div>

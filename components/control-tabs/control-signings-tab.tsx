@@ -1,13 +1,18 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import TabTableTemplate, { type TabTableColumn } from "@/components/ui/tab-table-template"
 import { useTranslation } from "@/hooks/use-translation"
+import { useAuth } from "@/hooks/use-auth"
 
 export default function ControlSigningsTab() {
   const { t } = useTranslation()
+  const { session } = useAuth()
+  const [isLoading, setIsLoading] = useState(true)
+  const [signingsData, setSigningsData] = useState<any[]>([])
 
   const columns: TabTableColumn[] = [
-    { key: "holder", label: t("holder"), sortable: true },
+    { key: "holder", label: t("client"), sortable: true },
     { key: "job", label: t("job"), sortable: true },
     { key: "workCenter", label: t("workCenter"), sortable: true },
     { key: "worker", label: t("worker"), sortable: true },
@@ -15,8 +20,50 @@ export default function ControlSigningsTab() {
     { key: "notification", label: t("notification"), sortable: false, align: "center" },
   ]
 
-  // Sample data - replace with actual data from API
-  const data: any[] = []
+  useEffect(() => {
+    const fetchSignings = async () => {
+      if (!session?.accessToken) return
+      setIsLoading(true)
 
-  return <TabTableTemplate columns={columns} data={data} emptyMessage={t("noSigningsDataAvailable")} />
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/tasks-tab`, {
+          headers: {
+            Authorization: `Bearer ${session.accessToken}`,
+            "Content-Type": "application/json",
+          },
+        })
+
+        if (!res.ok) throw new Error("Failed to fetch signings")
+
+        const result = await res.json()
+
+        const formatted = (result.data || []).map((item: any) => ({
+          id: item.id,
+          holder: item.client?.name || "-",
+          job: item.jobName || "-",
+          workCenter: item.workCenter?.name || "-",
+          worker: item.workers?.map((w: any) => w.name || w.code).join(", ") || "-",
+          hours: "-", // Placeholder until backend returns hours (check-in/out logic)
+          notification: "", // Optional logic for notifications
+        }))
+
+        setSigningsData(formatted)
+      } catch (error) {
+        setSigningsData([])
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchSignings()
+  }, [session?.accessToken])
+
+  return (
+    <TabTableTemplate
+      columns={columns}
+      data={signingsData}
+      isLoading={isLoading}
+      emptyMessage={t("noSigningsDataAvailable")}
+    />
+  )
 }

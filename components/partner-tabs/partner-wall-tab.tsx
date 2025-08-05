@@ -10,7 +10,7 @@ export default function PartnerWallTab() {
     { key: "name", label: t("name"), sortable: true },
     {
       key: "message",
-      label: t("message"),
+      label: t("messages"),
       sortable: false,
       render: (value: string) => (
         <div className="max-w-xs truncate" title={value}>

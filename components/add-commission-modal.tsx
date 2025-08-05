@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState } from "react"
@@ -6,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Plus, Trash2 } from "lucide-react"
+import { useTranslation } from "@/hooks/use-translation"
 
 interface InvoiceLine {
   id: string
@@ -21,6 +23,7 @@ interface AddInvoicesModalProps {
 }
 
 export default function AddInvoicesModal({ open, onOpenChange }: AddInvoicesModalProps) {
+  const { t } = useTranslation()
   const [selectedEmployer, setSelectedEmployer] = useState("")
   const [invoiceLines, setInvoiceLines] = useState<InvoiceLine[]>([])
   const [partnerDiscount, setPartnerDiscount] = useState(0)
@@ -114,7 +117,7 @@ export default function AddInvoicesModal({ open, onOpenChange }: AddInvoicesModa
             <div className="flex items-start justify-between px-8 py-8 bg-muted/50">
               {/* Left Side - Company Info */}
               <div className="flex-1 max-w-md">
-                <h1 className="text-lg font-normal text-muted-foreground mb-8">Bill</h1>
+                <h1 className="text-lg font-normal text-muted-foreground mb-8">{t("Bill")}</h1>
 
                 <div className="space-y-2">
                   <div className="flex items-center">
@@ -138,7 +141,7 @@ export default function AddInvoicesModal({ open, onOpenChange }: AddInvoicesModa
 
                 <div className="mt-8 space-y-3 text-sm">
                   <div className="flex items-center gap-2">
-                    <span className="font-semibold text-foreground">Date:</span>
+                    <span className="font-semibold text-foreground">{t("date")}</span>
                     <Input
                       type="date"
                       value={date}
@@ -193,11 +196,11 @@ export default function AddInvoicesModal({ open, onOpenChange }: AddInvoicesModa
             <div className="px-8 py-4">
               <div className="w-full">
                 {/* Table Header */}
-                <div className="flex mb-4 border-b-2 border-primary pb-2">
-                  <div className="w-[60%] text-center font-semibold text-foreground">Billing Summary</div>
-                  <div className="w-[13%] text-center font-semibold text-foreground">Amount</div>
-                  <div className="w-[13%] text-center font-semibold text-foreground">Price</div>
-                  <div className="w-[13%] text-center font-semibold text-foreground">Total</div>
+                <div className="flex mb-4 bg-purple-50 dark:bg-purple-950/50 border-b-2 border-purple-600 pb-2">
+                  <div className="w-[60%] pt-2 text-center font-semibold text-foreground">{t("billingSummary")}</div>
+                  <div className="w-[13%] pt-2 text-center font-semibold text-foreground">{t("amount")}</div>
+                  <div className="w-[13%] pt-2 text-center font-semibold text-foreground">{t("price")}</div>
+                  <div className="w-[13%] pt-2 text-center font-semibold text-foreground">{t("total")}</div>
                   <div className="w-[1%]"></div>
                 </div>
 
@@ -287,15 +290,15 @@ export default function AddInvoicesModal({ open, onOpenChange }: AddInvoicesModa
                 {/* Tax Breakdown Section */}
                 <div className="space-y-3">
                   {/* Tax Breakdown Header */}
-                  <div className="flex justify-center items-center border-b-2 border-primary pb-2">
-                    <span className="font-semibold text-foreground">Tax breakdown</span>
+                  <div className="flex justify-center mb-4 bg-purple-50 dark:bg-purple-950/50 border-b-2 border-purple-600 pb-2">
+                    <span className=" pt-2 font-semibold text-foreground">{t("taxBreakdown")}</span>
                   </div>
 
                   {/* Tax Base Row */}
                   <div className="flex items-center gap-4">
                     <div className="w-[60%]"></div>
                     <div className="w-[13%]"></div>
-                    <div className="w-[13%] text-center text-foreground">Tax base</div>
+                    <div className="w-[13%] text-center text-foreground">{t("taxBase")}</div>
                     <div className="w-[13%] text-center">
                       <div className="bg-muted/50 rounded px-3 py-2 text-foreground">{totals.taxBase.toFixed(2)}</div>
                     </div>
@@ -317,7 +320,7 @@ export default function AddInvoicesModal({ open, onOpenChange }: AddInvoicesModa
                   <div className="flex items-center gap-4">
                     <div className="w-[60%]"></div>
                     <div className="w-[13%]"></div>
-                    <div className="w-[13%] text-center font-bold text-foreground">TOTAL TO PAY</div>
+                    <div className="w-[13%] text-center font-bold text-foreground">{t("totalToPay")}</div>
                     <div className="w-[13%] text-center">
                       <div className="bg-muted/50 rounded px-3 py-2 font-bold text-foreground">
                         {totals.totalToPay.toFixed(2)}
