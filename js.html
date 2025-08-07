@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Code Generator</title>
+    <!-- Load qrcode.js library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 20px;
+            background-color: #f0f0f0;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 500px;
+            text-align: center;
+        }
+        h1 {
+            color: #333;
+        }
+        input, button {
+            margin: 10px 0;
+            padding: 10px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #qrcode {
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>QR Code Generator</h1>
+        <input type="text" id="qrText" placeholder="Enter text or URL">
+        <button onclick="generateQRCode()">Generate QR Code</button>
+        <div id="qrcode"></div>
+    </div>
+
+    <script>
+        let qrCode = null; // Store QR code instance
+
+        // Generate QR Code from input text
+        function generateQRCode() {
+            const qrText = document.getElementById('qrText').value;
+            if (!qrText) {
+                alert('Please enter text or URL');
+                return;
+            }
+            // Clear previous QR code
+            if (qrCode) {
+                document.getElementById('qrcode').innerHTML = '';
+            }
+            // Create new QR code
+            qrCode = new QRCode(document.getElementById('qrcode'), {
+                text: qrText,
+                width: 256,
+                height: 256,
+                colorDark: '#000000',
+                colorLight: '#ffffff',
+                correctLevel: QRCode.CorrectLevel.H // High error correction
+            });
+        }
+
+        // Allow Enter key to generate QR code
+        window.onload = () => {
+            document.getElementById('qrText').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') generateQRCode();
+            });
+        };
+    </script>
+</body>
+</html>

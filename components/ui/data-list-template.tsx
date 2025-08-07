@@ -1,9 +1,8 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
-import { ChevronUp, ChevronDown } from "lucide-react"
+import { ChevronUp, ChevronDown, MoreVertical } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useTranslation } from "@/hooks/use-translation"
 
@@ -15,9 +14,8 @@ import CsvIcon1 from "../../icons/Controles/csv1.svg"
 import CsvIcon2 from "../../icons/Controles/csv2.svg"
 import ExcelIcon1 from "../../icons/Controles/xls1.svg"
 import ExcelIcon2 from "../../icons/Controles/xls2.svg"
-import PdfIcon1 from "../../icons/Controles/pdf1.svg" 
+import PdfIcon1 from "../../icons/Controles/pdf1.svg"
 import PdfIcon2 from "../../icons/Controles/pdf2.svg"
-
 
 interface Column {
   key: string
@@ -46,28 +44,6 @@ interface DataListTemplateProps {
   showPagination?: boolean
   emptyMessage?: string
 }
-
-// Default action button icons
-const ExcelIcon = () => (
-  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-    <path d="M14 2v6h6M8 13h8M8 17h8" />
-  </svg>
-)
-
-const CsvIcon = () => (
-  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-    <path d="M14 2v6h6M12 18v-6M9 15l3 3 3-3" />
-  </svg>
-)
-
-const PdfIcon = () => (
-  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-    <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" />
-  </svg>
-)
 
 export default function DataListTemplate({
   title,
@@ -102,20 +78,18 @@ export default function DataListTemplate({
     }
   }
 
-  const getSortIcon = (column: string) => {
-    return (
-      <div className="ml-1 flex flex-col">
-        <ChevronUp
-          size={14}
-          className={`text-muted-foreground ${sortColumn === column && sortDirection === "asc" ? "text-purple-600" : ""}`}
-        />
-        <ChevronDown
-          size={14}
-          className={`text-muted-foreground -mt-1 ${sortColumn === column && sortDirection === "desc" ? "text-purple-600" : ""}`}
-        />
-      </div>
-    )
-  }
+  const getSortIcon = (column: string) => (
+    <div className="ml-1 flex flex-col">
+      <ChevronUp
+        size={14}
+        className={`text-muted-foreground ${sortColumn === column && sortDirection === "asc" ? "text-purple-600" : ""}`}
+      />
+      <ChevronDown
+        size={14}
+        className={`text-muted-foreground -mt-1 ${sortColumn === column && sortDirection === "desc" ? "text-purple-600" : ""}`}
+      />
+    </div>
+  )
 
   const handleRowClick = (row: any) => {
     if (onRowClick && row.id) {
@@ -134,32 +108,18 @@ export default function DataListTemplate({
     }
   }
 
-  if (isLoading) {
-    return (
-      <div className="p-6 bg-background min-h-screen">
-        <div className="bg-card rounded-lg shadow-sm border border-border">
-          <div className="animate-pulse space-y-4 p-6">
-            <div className="h-8 bg-muted rounded w-1/4"></div>
-            <div className="h-96 bg-muted rounded"></div>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  // ActionIconButton component to handle hover state for icons
   function ActionIconButton({
     IconDefault,
     IconHover,
     onClick,
     title
   }: {
-    IconDefault: React.ComponentType<{ className?: string }>,
-    IconHover: React.ComponentType<{ className?: string }>,
-    onClick: () => void,
+    IconDefault: React.ComponentType<{ className?: string }>
+    IconHover: React.ComponentType<{ className?: string }>
+    onClick: () => void
     title: string
   }) {
-    const [hovered, setHovered] = useState(false);
+    const [hovered, setHovered] = useState(false)
     return (
       <button
         onClick={onClick}
@@ -170,7 +130,57 @@ export default function DataListTemplate({
       >
         {hovered ? <IconHover className="w-5 h-5" /> : <IconDefault className="w-5 h-5" />}
       </button>
-    );
+    )
+  }
+
+  function MobileDropdown({ actionButtons }: { actionButtons: ActionButton[] }) {
+    const [open, setOpen] = useState(false)
+
+    const getIcons = (title: string) => {
+      const lower = title.toLowerCase()
+      if (lower.includes("csv")) return { IconDefault: CsvIcon1, IconHover: CsvIcon2 }
+      if (lower.includes("excel")) return { IconDefault: ExcelIcon1, IconHover: ExcelIcon2 }
+      if (lower.includes("pdf")) return { IconDefault: PdfIcon1, IconHover: PdfIcon2 }
+      if (lower.includes("filter")) return { IconDefault: FilterIcon1, IconHover: FilterIcon2 }
+      return { IconDefault: AddIcon1, IconHover: AddIcon2 }
+    }
+
+    // Include filter and export buttons in mobile dropdown
+    const mobileButtons = actionButtons.filter((button) => {
+      const lowerTitle = button.title.toLowerCase()
+      return ["csv", "excel", "pdf", "filter"].some((type) => lowerTitle.includes(type))
+    })
+
+    return (
+      <div className="relative sm:hidden">
+        <button
+          onClick={() => setOpen(!open)}
+          className="p-2 text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-950 rounded-md border border-purple-200 dark:border-purple-800"
+        >
+          <MoreVertical className="w-5 h-5" />
+        </button>
+        {open && (
+          <div className="absolute right-0 mt-2 bg-white dark:bg-gray-800 rounded shadow-lg z-50 w-40">
+            {mobileButtons.map((button, index) => {
+              const { IconDefault } = getIcons(button.title)
+              return (
+                <div
+                  key={index}
+                  onClick={() => {
+                    setOpen(false)
+                    button.onClick()
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer"
+                >
+                  <IconDefault className="w-4 h-4" />
+                  {button.title}
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    )
   }
 
   return (
@@ -182,31 +192,39 @@ export default function DataListTemplate({
           {actionButtons.length > 0 && (
             <div className="flex items-center gap-2">
               {actionButtons.map((button, index) => {
-                let IconDefault = AddIcon1;
-                let IconHover = AddIcon2;
-                if (button.title.toLowerCase().includes("filter")) {
-                  IconDefault = FilterIcon1;
-                  IconHover = FilterIcon2;
-                } else if (button.title.toLowerCase().includes("csv")) {
-                  IconDefault = CsvIcon1;
-                  IconHover = CsvIcon2;
-                } else if (button.title.toLowerCase().includes("excel")) {
-                  IconDefault = ExcelIcon1;
-                  IconHover = ExcelIcon2;
-                } else if (button.title.toLowerCase().includes("pdf")) {
-                  IconDefault = PdfIcon1;
-                  IconHover = PdfIcon2;
+                const lowerTitle = button.title.toLowerCase()
+                const isMobileButton = ["csv", "excel", "pdf", "filter"].some((type) => 
+                  lowerTitle.includes(type)
+                )
+
+                let IconDefault = AddIcon1
+                let IconHover = AddIcon2
+                if (lowerTitle.includes("filter")) {
+                  IconDefault = FilterIcon1
+                  IconHover = FilterIcon2
+                } else if (lowerTitle.includes("csv")) {
+                  IconDefault = CsvIcon1
+                  IconHover = CsvIcon2
+                } else if (lowerTitle.includes("excel")) {
+                  IconDefault = ExcelIcon1
+                  IconHover = ExcelIcon2
+                } else if (lowerTitle.includes("pdf")) {
+                  IconDefault = PdfIcon1
+                  IconHover = PdfIcon2
                 }
+
                 return (
-                  <ActionIconButton
-                    key={index}
-                    IconDefault={IconDefault}
-                    IconHover={IconHover}
-                    onClick={button.onClick}
-                    title={button.title}
-                  />
-                );
+                  <div key={index} className={isMobileButton ? "hidden sm:block" : ""}>
+                    <ActionIconButton
+                      IconDefault={IconDefault}
+                      IconHover={IconHover}
+                      onClick={button.onClick}
+                      title={button.title}
+                    />
+                  </div>
+                )
               })}
+              <MobileDropdown actionButtons={actionButtons} />
             </div>
           )}
         </div>
@@ -300,6 +318,3 @@ export default function DataListTemplate({
     </div>
   )
 }
-
-// Export commonly used icons for convenience
-export { ExcelIcon, CsvIcon, PdfIcon }

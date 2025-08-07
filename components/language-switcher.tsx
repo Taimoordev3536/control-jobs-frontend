@@ -7,6 +7,7 @@ import { useState } from "react"
 export function LanguageSwitcher() {
   const { language, setLanguage } = useTranslation()
   const [showDropdown, setShowDropdown] = useState(false)
+  const { t } = useTranslation()
 
   const languages = [
     { code: "en", label: "English" },
@@ -32,7 +33,7 @@ export function LanguageSwitcher() {
     <div className="relative">
       <button className="header-icon-button flex items-center gap-2" onClick={toggleDropdown}>
         <Languages className="h-5 w-5" />
-        <span className="tooltip">Translate</span>
+        <span className="tooltip">{t("translate")}</span>
       </button>
 
       {showDropdown && (
