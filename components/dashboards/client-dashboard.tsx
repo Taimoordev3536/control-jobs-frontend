@@ -1,7 +1,31 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Building, Clock, CheckCircle, Eye, MapPin, Activity, Timer, Calendar, Shield, QrCode, Wifi, Navigation, Camera, Smartphone, ClipboardList, Search, User, ArrowLeft, MessageSquare, Star, AlertCircle, RefreshCw, XCircle, Pause } from 'lucide-react'
+import {
+  Building,
+  Clock,
+  CheckCircle,
+  Eye,
+  MapPin,
+  Activity,
+  Timer,
+  Calendar,
+  Shield,
+  QrCode,
+  Wifi,
+  Navigation,
+  Camera,
+  Smartphone,
+  ClipboardList,
+  Search,
+  User,
+  ArrowLeft,
+  Star,
+  AlertCircle,
+  RefreshCw,
+  XCircle,
+  Pause,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
@@ -20,7 +44,7 @@ interface ApiJob {
   workCenter: string
   status: string
   startDate: string // Now comes from API
-  endDate: string   // Now comes from API
+  endDate: string // Now comes from API
   workers: Array<{
     id: number
     code: string
@@ -112,7 +136,7 @@ interface Job {
     radius: number
     center: { lat: number; lng: number }
   }
-  checklist: Array<{ 
+  checklist: Array<{
     id: number
     task: string
     completed: boolean
@@ -143,7 +167,7 @@ interface ClientStats {
 }
 
 export default function ClientDashboard() {
-  const { t } = useTranslation()
+  const { t } = useTranslation("dashboard") // Use dashboard translations
   const { session } = useAuth()
   const [currentTime, setCurrentTime] = useState(new Date())
   const [loading, setLoading] = useState(true)
@@ -170,11 +194,11 @@ export default function ClientDashboard() {
   // Transform API data to Job interface
   const transformApiJobToJob = (apiJob: ApiJob): Job => {
     const currentDate = new Date()
-    
+
     // Parse start and end dates from API response (now guaranteed to exist)
-    const startDate = new Date(apiJob.startDate)
-    const endDate = new Date(apiJob.endDate)
-    
+    const startDate = new Date(apiJob.startDate + "T00:00:00")
+    const endDate = new Date(apiJob.endDate + "T00:00:00")
+
     // Calculate job duration in days
     const jobDurationDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
 
@@ -191,15 +215,16 @@ export default function ClientDashboard() {
     }
 
     // Check if there are any attendance records (check-in + check-out pairs)
-    const hasAttendanceRecord = Boolean(
-      apiJob.attendanceRecords && 
-      apiJob.attendanceRecords.length > 0 && 
-      apiJob.attendanceRecords.some(record => record.checkInTime && record.checkOutTime)
-    ) || Boolean(apiJob.workSession?.checkInTime && apiJob.workSession?.checkOutTime)
+    const hasAttendanceRecord =
+      Boolean(
+        apiJob.attendanceRecords &&
+          apiJob.attendanceRecords.length > 0 &&
+          apiJob.attendanceRecords.some((record) => record.checkInTime && record.checkOutTime),
+      ) || Boolean(apiJob.workSession?.checkInTime && apiJob.workSession?.checkOutTime)
 
     // Determine job status based on the new logic (same as worker dashboard)
-    let status: "scheduled" | "in_progress" | "completed"
-    
+    let status: "scheduled" | "pending" | "in_progress" | "completed"
+
     if (currentDate > endDate) {
       // End date has passed
       if (hasAttendanceRecord) {
@@ -225,16 +250,18 @@ export default function ClientDashboard() {
       id: task.id,
       task: task.name,
       completed: task.isCompleted || false,
-      time: task.completedAt ? new Date(task.completedAt).toLocaleTimeString("en-US", {
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: true,
-      }) : undefined,
+      time: task.completedAt
+        ? new Date(task.completedAt).toLocaleTimeString("en-US", {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true,
+          })
+        : undefined,
     }))
 
     // Calculate total expected duration from tasks or shifts
-    const totalExpectedDuration = firstShift?.totalHours || 
-      apiJob.tasks.reduce((sum, task) => sum + (task.expectedDuration || 0), 0) || 8
+    const totalExpectedDuration =
+      firstShift?.totalHours || apiJob.tasks.reduce((sum, task) => sum + (task.expectedDuration || 0), 0) || 8
 
     return {
       id: apiJob.jobId,
@@ -321,8 +348,8 @@ export default function ClientDashboard() {
 
         // Update stats based on real data
         const totalJobs = transformedJobs.length
-        const activeJobs = transformedJobs.filter((job: Job) => 
-          job.status === "scheduled" || job.status === "pending" || job.status === "in_progress"
+        const activeJobs = transformedJobs.filter(
+          (job: Job) => job.status === "scheduled" || job.status === "pending" || job.status === "in_progress",
         ).length
         const completedJobs = transformedJobs.filter((job: Job) => job.status === "completed").length
 
@@ -379,12 +406,12 @@ export default function ClientDashboard() {
   const formatDateRange = (startDate: Date, endDate: Date) => {
     const start = formatDateOnly(startDate)
     const end = formatDateOnly(endDate)
-    
+
     // If same date, show only once
     if (start === end) {
       return start
     }
-    
+
     return `${start} - ${end}`
   }
 
@@ -467,59 +494,59 @@ export default function ClientDashboard() {
   // Generate QR code using the QRCode library (same as qr-scanner.tsx)
   const generateQRCodeFromData = async (qrData: any): Promise<string> => {
     console.log("🎯 generateQRCodeFromData called with:", qrData)
-    
+
     try {
       // Import QRCode library (same approach as qr-scanner.tsx)
-      const QRCode = require('qrcode')
-      
+      const QRCode = require("qrcode")
+
       // Convert data to JSON string
       const dataString = JSON.stringify(qrData)
       console.log("🎯 QR data string:", dataString)
-      
+
       // Generate QR code using the same method as qr-scanner.tsx
       const qrCodeUrl = await QRCode.toDataURL(dataString, {
         width: 256,
         margin: 2,
         color: {
-          dark: '#000000',
-          light: '#FFFFFF'
-        }
+          dark: "#000000",
+          light: "#FFFFFF",
+        },
       })
-      
+
       console.log("✅ QR code generated successfully with QRCode library")
       console.log("✅ QR code URL length:", qrCodeUrl.length)
-      
+
       return qrCodeUrl
     } catch (error) {
       console.error("❌ Error in generateQRCodeFromData:", error)
-      
+
       // Fallback to simple SVG if QRCode library fails
       const fallbackSVG = `
-        <svg width="256" height="256" xmlns="http://www.w3.org/2000/svg">
-          <rect width="256" height="256" fill="white" stroke="#000" strokeWidth="2"/>
-          
-          <!-- QR-like pattern -->
-          <rect x="20" y="20" width="60" height="60" fill="none" stroke="black" strokeWidth="4"/>
-          <rect x="30" y="30" width="40" height="40" fill="black"/>
-          <rect x="40" y="40" width="20" height="20" fill="white"/>
-          
-          <rect x="176" y="20" width="60" height="60" fill="none" stroke="black" strokeWidth="4"/>
-          <rect x="186" y="30" width="40" height="40" fill="black"/>
-          <rect x="196" y="40" width="20" height="20" fill="white"/>
-          
-          <rect x="20" y="176" width="60" height="60" fill="none" stroke="black" strokeWidth="4"/>
-          <rect x="30" y="186" width="40" height="40" fill="black"/>
-          <rect x="40" y="196" width="20" height="20" fill="white"/>
-          
-          <text x="128" y="130" textAnchor="middle" fontFamily="Arial" fontSize="12" fill="black">
-            Job: ${qrData.jobId || 'N/A'}
-          </text>
-          <text x="128" y="150" textAnchor="middle" fontFamily="Arial" fontSize="10" fill="gray">
-            ${(qrData.jobName || 'Unknown').substring(0, 20)}
-          </text>
-        </svg>
-      `
-      
+      <svg width="256" height="256" xmlns="http://www.w3.org/2000/svg">
+        <rect width="256" height="256" fill="white" stroke="#000" strokeWidth="2"/>
+        
+         QR-like pattern 
+        <rect x="20" y="20" width="60" height="60" fill="none" stroke="black" strokeWidth="4"/>
+        <rect x="30" y="30" width="40" height="40" fill="black"/>
+        <rect x="40" y="40" width="20" height="20" fill="white"/>
+        
+        <rect x="176" y="20" width="60" height="60" fill="none" stroke="black" strokeWidth="4"/>
+        <rect x="186" y="30" width="40" height="40" fill="black"/>
+        <rect x="196" y="40" width="20" height="20" fill="white"/>
+        
+        <rect x="20" y="176" width="60" height="60" fill="none" stroke="black" strokeWidth="4"/>
+        <rect x="30" y="186" width="40" height="40" fill="black"/>
+        <rect x="40" y="196" width="20" height="20" fill="white"/>
+        
+        <text x="128" y="130" textAnchor="middle" fontFamily="Arial" fontSize="12" fill="black">
+          Job: ${qrData.jobId || "N/A"}
+        </text>
+        <text x="128" y="150" textAnchor="middle" fontFamily="Arial" fontSize="10" fill="gray">
+          ${(qrData.jobName || "Unknown").substring(0, 20)}
+        </text>
+      </svg>
+    `
+
       return "data:image/svg+xml;base64," + btoa(fallbackSVG)
     }
   }
@@ -534,7 +561,7 @@ export default function ClientDashboard() {
 
       const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001"
       console.log("🎯 API Base URL:", baseUrl)
-      
+
       const response = await fetch(`${baseUrl}/jobs/generate-qr`, {
         method: "POST",
         headers: {
@@ -556,16 +583,16 @@ export default function ClientDashboard() {
       if (result.qrData) {
         // Generate QR code image from the data using QRCode library (async)
         const qrImage = await generateQRCodeFromData(result.qrData)
-        
+
         const updatedJob = {
           code: JSON.stringify(result.qrData),
           image: qrImage,
           generatedAt: new Date().toISOString(),
           expiresAt: new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString(),
         }
-        
-        console.log("✅ QR code generated successfully:", updatedJob.image.substring(0, 50) + '...')
-        
+
+        console.log("✅ QR code generated successfully:", updatedJob.image.substring(0, 50) + "...")
+
         setJobs((currentJobs) =>
           currentJobs.map((job) =>
             job.id === jobId
@@ -576,15 +603,15 @@ export default function ClientDashboard() {
               : job,
           ),
         )
-        
+
         // Also update selectedJobDetails if it's the same job
-        setSelectedJobDetails((current) => 
-          current?.id === jobId 
+        setSelectedJobDetails((current) =>
+          current?.id === jobId
             ? {
                 ...current,
                 qrCode: updatedJob,
               }
-            : current
+            : current,
         )
       }
     } catch (error) {
@@ -599,25 +626,25 @@ export default function ClientDashboard() {
     console.log("🎯 handleViewDetails called for job:", job.id)
     setSelectedJobDetails(job)
     setCurrentView("jobDetails")
-    
+
     // IMMEDIATELY generate QR code as soon as we set the selected job
     console.log("🎯 IMMEDIATE QR generation for job:", job.id)
-    
+
     const immediateQRData = {
       jobId: job.id,
       jobName: job.title,
       clientName: job.client.name,
       timestamp: new Date().toISOString(),
-      token: `IMMEDIATE-${job.id}-${Date.now()}`
+      token: `IMMEDIATE-${job.id}-${Date.now()}`,
     }
-    
+
     console.log("🎯 Immediate QR data:", immediateQRData)
-    
+
     try {
       // FIXED: Add await for async QR generation
       const qrImage = await generateQRCodeFromData(immediateQRData)
-      console.log("🎯 QR image generated:", qrImage.substring(0, 50) + '...')
-      
+      console.log("🎯 QR image generated:", qrImage.substring(0, 50) + "...")
+
       // Update the job with QR code IMMEDIATELY
       const updatedJobWithQR = {
         ...job,
@@ -626,27 +653,22 @@ export default function ClientDashboard() {
           image: qrImage,
           generatedAt: new Date().toISOString(),
           expiresAt: new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString(),
-        }
+        },
       }
-      
+
       console.log("🎯 Setting selectedJobDetails with QR code...")
       setSelectedJobDetails(updatedJobWithQR)
-      
+
       // Also update the jobs array
-      setJobs((currentJobs) =>
-        currentJobs.map((j) =>
-          j.id === job.id ? updatedJobWithQR : j
-        )
-      )
-      
+      setJobs((currentJobs) => currentJobs.map((j) => (j.id === job.id ? updatedJobWithQR : j)))
+
       console.log("✅ QR code set immediately! Should be visible now.")
-      
     } catch (error) {
       console.error("❌ Immediate QR generation failed:", error)
       // Set job details without QR code as fallback
       setSelectedJobDetails(job)
     }
-    
+
     // Then try backend generation in the background (optional enhancement)
     try {
       console.log("🎯 Trying backend QR generation in background...")
@@ -660,26 +682,26 @@ export default function ClientDashboard() {
   const generateMockQRCode = async (jobId: number) => {
     try {
       console.log("🎯 Generating mock QR code for job ID:", jobId)
-      
+
       const mockData = {
         jobId: jobId,
         type: "check-in",
         timestamp: new Date().toISOString(),
-        code: `SECURE-JOB-${String(jobId).padStart(3, "0")}-${Date.now()}`
+        code: `SECURE-JOB-${String(jobId).padStart(3, "0")}-${Date.now()}`,
       }
-      
+
       // Generate QR code using the same library for consistency (async)
       const qrImage = await generateQRCodeFromData(mockData)
-      
+
       const updatedJob = {
         code: JSON.stringify(mockData),
         image: qrImage,
         generatedAt: new Date().toISOString(),
         expiresAt: new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString(),
       }
-      
-      console.log("✅ Mock QR code generated:", updatedJob.image.substring(0, 50) + '...')
-      
+
+      console.log("✅ Mock QR code generated:", updatedJob.image.substring(0, 50) + "...")
+
       setJobs((currentJobs) =>
         currentJobs.map((job) =>
           job.id === jobId
@@ -690,17 +712,17 @@ export default function ClientDashboard() {
             : job,
         ),
       )
-      
+
       // Also update selectedJobDetails if it's the same job
-      setSelectedJobDetails((current) => 
-        current?.id === jobId 
+      setSelectedJobDetails((current) =>
+        current?.id === jobId
           ? {
               ...current,
               qrCode: updatedJob,
             }
-          : current
+          : current,
       )
-      
+
       console.log("✅ Mock QR code set successfully!")
     } catch (error) {
       console.error("❌ Failed to generate mock QR code:", error)
@@ -752,7 +774,7 @@ export default function ClientDashboard() {
             <div className="w-16 h-16 border-4 border-gray-200 dark:border-gray-800 rounded-full animate-spin border-t-purple-600"></div>
             <div className="absolute inset-0 w-16 h-16 border-4 border-transparent rounded-full animate-ping border-t-purple-400"></div>
           </div>
-          <p className="text-gray-600 dark:text-gray-400">Loading your jobs...</p>
+          <p className="text-gray-600 dark:text-gray-400">{t("loadingJobs")}</p>
         </div>
       </div>
     )
@@ -767,12 +789,12 @@ export default function ClientDashboard() {
             <div className="text-red-500 mb-4">
               <AlertCircle className="w-12 h-12 mx-auto" />
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Error Loading Jobs</h3>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">{t("errorLoadingJobs")}</h3>
             <p className="text-gray-600 dark:text-gray-400 mb-4">{error}</p>
             <div className="flex gap-2">
               <Button onClick={handleRetry} className="flex-1 bg-purple-600 hover:bg-purple-700 text-white">
                 <RefreshCw className="w-4 h-4 mr-2" />
-                Try Again
+                {t("tryAgain")}
               </Button>
             </div>
           </CardContent>
@@ -781,7 +803,71 @@ export default function ClientDashboard() {
     )
   }
 
+  // Transform Job to JobAssignment for JobAttendanceDetail component
+  const transformJobToJobAssignment = (job: Job) => {
+    return {
+      id: job.id,
+      jobId: job.jobId,
+      title: job.title,
+      client: {
+        id: 1, // Mock client ID
+        name: job.client.name,
+      },
+      workCenter: {
+        id: 1, // Mock work center ID
+        name: job.client.address.split(",")[0] || job.client.address,
+        address: job.client.address,
+        coordinates: { lat: 40.7128, lng: -74.006 }, // Mock coordinates
+      },
+      shift: {
+        type: "morning" as const,
+        startTime: job.schedule.startTime,
+        endTime: job.schedule.endTime,
+        duration: `${job.expectedHours}h`,
+        scheduleType: job.schedule.scheduleType as "fixed" | "flexible",
+      },
+      status: job.status as "scheduled" | "in_progress" | "completed",
+      startDate: job.startDate,
+      endDate: job.endDate,
+      signingMethods: {
+        qrCode: job.verificationMethods.includes("qr-code"),
+        gps: job.verificationMethods.includes("gps-location"),
+        wifi: job.verificationMethods.includes("wifi-network"),
+        ip: job.verificationMethods.includes("ip-address"),
+        callerId: false,
+      },
+      tasks: job.checklist.map((item) => ({
+        id: item.id,
+        name: item.task,
+        description: item.task,
+        completed: item.completed,
+        duration: "1h", // Mock duration
+        timing: "during" as const,
+      })),
+      checkInTime: job.checkin ? new Date(job.checkin.time) : undefined,
+      checkOutTime: job.checkout ? new Date(job.checkout.time) : undefined,
+      breakTime: 0, // Mock break time
+      workedTime: 0, // Mock worked time
+      expectedHours: job.expectedHours,
+      totalHours: job.expectedHours,
+      breakStartTime: undefined,
+      totalBreakTime: 0,
+      isOnBreak: false,
+      tags: [], // Mock tags
+      hasAttendanceRecord: job.hasAttendanceRecord,
+      survey: job.clientSurvey
+        ? {
+            rating: job.clientSurvey.rating,
+            comments: job.clientSurvey.comments,
+            submitted: job.clientSurvey.submitted,
+            submittedAt: job.clientSurvey.submittedAt,
+          }
+        : undefined,
+    }
+  }
+
   const handleViewAttendanceDetails = (job: Job) => {
+    const jobAssignment = transformJobToJobAssignment(job)
     setSelectedJobDetails(job)
     setCurrentView("attendanceDetails")
   }
@@ -800,7 +886,7 @@ export default function ClientDashboard() {
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <div>
-            <h1 className="text-xl font-semibold text-gray-900 dark:text-white">Job Details</h1>
+            <h1 className="text-xl font-semibold text-gray-900 dark:text-white">{t("viewDetails")}</h1>
             <p className="text-gray-600 dark:text-gray-400 text-sm">{selectedJobDetails?.title}</p>
           </div>
         </div>
@@ -829,7 +915,9 @@ export default function ClientDashboard() {
               </div>
               <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
                 <User className="w-4 h-4" />
-                <span className="text-sm">Worker: {selectedJobDetails?.worker.name}</span>
+                <span className="text-sm">
+                  {t("worker")}: {selectedJobDetails?.worker.name}
+                </span>
               </div>
               <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
                 <Calendar className="w-4 h-4" />
@@ -837,7 +925,8 @@ export default function ClientDashboard() {
                   {selectedJobDetails && formatDateRange(selectedJobDetails.startDate, selectedJobDetails.endDate)}
                   {selectedJobDetails && selectedJobDetails.jobDurationDays > 1 && (
                     <span className="ml-2 text-xs bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 px-2 py-1 rounded">
-                      {selectedJobDetails.jobDurationDays} days
+                      {selectedJobDetails.jobDurationDays}{" "}
+                      {selectedJobDetails.jobDurationDays === 1 ? t("day") : t("days")}
                     </span>
                   )}
                 </span>
@@ -848,19 +937,19 @@ export default function ClientDashboard() {
 
         {/* QR Code Section - Simple and Clean */}
         <div>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Job QR Code</h2>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">{t("generateQR")}</h2>
           <Card className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
             <CardContent className="p-6">
               <div className="text-center">
                 {selectedJobDetails?.qrCode.image ? (
                   <div>
-                    <img 
-                      src={selectedJobDetails.qrCode.image || "/placeholder.svg"} 
-                      alt="Job QR Code" 
+                    <img
+                      src={selectedJobDetails.qrCode.image || "/placeholder.svg"}
+                      alt="Job QR Code"
                       className="w-64 h-64 mx-auto mb-4 border border-gray-200 rounded"
                     />
                     <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Worker scans this code to check in/out
+                      {t("worker")} scans this code to {t("checkIn")}/{t("checkOut")}
                     </p>
                   </div>
                 ) : (
@@ -952,7 +1041,9 @@ export default function ClientDashboard() {
                             {task.task}
                           </span>
                           {task.completed && task.time && (
-                            <p className="text-xs text-green-600 dark:text-green-400 mt-1">Completed at {task.time}</p>
+                            <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                              {t("completed")} at {task.time}
+                            </p>
                           )}
                         </div>
                       </div>
@@ -981,18 +1072,24 @@ export default function ClientDashboard() {
                   <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2">Time Summary</h4>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                     <div>
-                      <span className="text-blue-800 dark:text-blue-200 font-medium">Expected:</span>
-                      <p className="text-blue-900 dark:text-blue-100">{selectedJobDetails.expectedHours}h</p>
-                    </div>
-                    <div>
-                      <span className="text-blue-800 dark:text-blue-200 font-medium">Duration:</span>
+                      <span className="text-blue-800 dark:text-blue-200 font-medium">{t("expectedHours")}:</span>
                       <p className="text-blue-900 dark:text-blue-100">
-                        {selectedJobDetails.jobDurationDays} day{selectedJobDetails.jobDurationDays !== 1 ? 's' : ''}
+                        {selectedJobDetails.expectedHours}
+                        {t("hour")}
                       </p>
                     </div>
                     <div>
-                      <span className="text-blue-800 dark:text-blue-200 font-medium">Status:</span>
-                      <p className="text-blue-900 dark:text-blue-100 capitalize">{selectedJobDetails.status}</p>
+                      <span className="text-blue-800 dark:text-blue-200 font-medium">{t("duration")}:</span>
+                      <p className="text-blue-900 dark:text-blue-100">
+                        {selectedJobDetails.jobDurationDays}{" "}
+                        {selectedJobDetails.jobDurationDays !== 1 ? t("days") : t("day")}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-blue-800 dark:text-blue-200 font-medium">{t("status")}:</span>
+                      <p className="text-blue-900 dark:text-blue-100 capitalize">
+                        {t(selectedJobDetails.status.replace("_", ""))}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -1009,7 +1106,7 @@ export default function ClientDashboard() {
             onClick={() => handleViewDetails(selectedJobDetails)}
           >
             <QrCode className="w-3 h-3 mr-1" />
-            Scan QR
+            {t("scanQR")}
           </Button>
           <Button
             size="sm"
@@ -1018,7 +1115,7 @@ export default function ClientDashboard() {
             onClick={() => handleViewAttendanceDetails(selectedJobDetails)}
           >
             <Eye className="w-3 h-3 mr-1" />
-            View Details
+            {t("viewDetails")}
           </Button>
         </div>
       </div>
@@ -1026,17 +1123,9 @@ export default function ClientDashboard() {
   )
 
   // Render attendance details view
-  if (currentView === "attendanceDetails") {
-    return (
-      <JobAttendanceDetail
-        jobId={selectedJobDetails?.id || 0}
-        jobTitle={selectedJobDetails?.title || ""}
-        workerName={selectedJobDetails?.worker.name || ""}
-        startDate={selectedJobDetails?.startDate || new Date()}
-        endDate={selectedJobDetails?.endDate || new Date()}
-        onBack={() => setCurrentView("dashboard")}
-      />
-    )
+  if (currentView === "attendanceDetails" && selectedJobDetails) {
+    const jobAssignment = transformJobToJobAssignment(selectedJobDetails)
+    return <JobAttendanceDetail job={jobAssignment} onBack={() => setCurrentView("dashboard")} />
   }
 
   // Render different views based on current state
@@ -1070,7 +1159,7 @@ export default function ClientDashboard() {
                   <User className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Client Dashboard</h1>
+                  <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t("clientDashboard")}</h1>
                   <p className="text-gray-600 dark:text-gray-400 text-sm">
                     {formatTime(currentTime)} •{" "}
                     {currentTime.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
@@ -1082,7 +1171,7 @@ export default function ClientDashboard() {
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                   <Input
-                    placeholder="Search jobs..."
+                    placeholder={t("searchJobs")}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-9 w-64 h-9"
@@ -1104,10 +1193,20 @@ export default function ClientDashboard() {
 
         {/* Stats Cards - Removed Total Spent */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-3">
-          <StatsCard label="ACTIVE JOBS" value={clientStats.activeJobs} icon={Activity} color="gray-500" />
-          <StatsCard label="COMPLETED JOBS" value={clientStats.completedJobs} icon={CheckCircle} color="gray-500" />
           <StatsCard
-            label="SATISFACTION RATE"
+            label={t("activeJobs").toUpperCase()}
+            value={clientStats.activeJobs}
+            icon={Activity}
+            color="gray-500"
+          />
+          <StatsCard
+            label={t("completedJobs").toUpperCase()}
+            value={clientStats.completedJobs}
+            icon={CheckCircle}
+            color="gray-500"
+          />
+          <StatsCard
+            label={t("averageRating").toUpperCase()}
             value={`${clientStats.satisfactionRate}%`}
             icon={Star}
             color="gray-500"
@@ -1127,7 +1226,13 @@ export default function ClientDashboard() {
                     : "border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
                 }`}
               >
-                Jobs ({jobs.filter((job) => job.status === "scheduled" || job.status === "pending" || job.status === "in_progress").length})
+                {t("jobs")} (
+                {
+                  jobs.filter(
+                    (job) => job.status === "scheduled" || job.status === "pending" || job.status === "in_progress",
+                  ).length
+                }
+                )
               </button>
               <button
                 onClick={() => setActiveTab("history")}
@@ -1137,7 +1242,13 @@ export default function ClientDashboard() {
                     : "border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
                 }`}
               >
-                History ({jobs.filter((job) => job.status === "completed" || job.status === "cancelled" || job.status === "on_hold").length})
+                History (
+                {
+                  jobs.filter(
+                    (job) => job.status === "completed" || job.status === "cancelled" || job.status === "on_hold",
+                  ).length
+                }
+                )
               </button>
               <button
                 onClick={() => setActiveTab("surveys")}
@@ -1147,7 +1258,7 @@ export default function ClientDashboard() {
                     : "border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
                 }`}
               >
-                Surveys ({jobs.filter((job) => job.clientSurvey?.submitted).length})
+                {t("surveys")} ({jobs.filter((job) => job.clientSurvey?.submitted).length})
               </button>
             </div>
 
@@ -1155,7 +1266,9 @@ export default function ClientDashboard() {
             {activeTab === "jobs" && (
               <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
                 {filteredJobs
-                  .filter((job) => job.status === "scheduled" || job.status === "pending" || job.status === "in_progress")
+                  .filter(
+                    (job) => job.status === "scheduled" || job.status === "pending" || job.status === "in_progress",
+                  )
                   .map((job) => {
                     const statusConfig = getStatusConfig(job.status)
                     const StatusIcon = statusConfig.icon
@@ -1200,14 +1313,14 @@ export default function ClientDashboard() {
                                 <Badge className={`${statusConfig.color} flex items-center gap-1 h-6 text-xs`}>
                                   <StatusIcon className="w-3 h-3" />
                                   {job.status === "in_progress"
-                                    ? "In Progress"
+                                    ? t("inProgress")
                                     : job.status === "pending"
-                                      ? "Pending"
+                                      ? t("pending")
                                       : job.status === "scheduled"
-                                        ? "Scheduled"
+                                        ? t("scheduled")
                                         : job.status === "on_hold"
-                                          ? "On Hold"
-                                          : job.status.charAt(0).toUpperCase() + job.status.slice(1)}
+                                          ? t("onHold")
+                                          : t(job.status)}
                                 </Badge>
                               </div>
                             </div>
@@ -1220,7 +1333,7 @@ export default function ClientDashboard() {
                             <div className="space-y-1">
                               <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400">
                                 <User className="w-3 h-3" />
-                                <span className="text-xs font-medium uppercase tracking-wide">Worker</span>
+                                <span className="text-xs font-medium uppercase tracking-wide">{t("worker")}</span>
                               </div>
                               <div className="text-xs font-semibold text-gray-900 dark:text-white truncate">
                                 {job.worker.name}
@@ -1229,7 +1342,7 @@ export default function ClientDashboard() {
                             <div className="space-y-1">
                               <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400">
                                 <MapPin className="w-3 h-3" />
-                                <span className="text-xs font-medium uppercase tracking-wide">Location</span>
+                                <span className="text-xs font-medium uppercase tracking-wide">{t("location")}</span>
                               </div>
                               <div className="text-xs font-semibold text-gray-900 dark:text-white truncate">
                                 {job.client.address}
@@ -1247,7 +1360,8 @@ export default function ClientDashboard() {
                                     {formatDateRange(job.startDate, job.endDate)}
                                   </span>
                                   <span className="text-xs text-gray-500 dark:text-gray-400">
-                                    Duration: {job.jobDurationDays} day{job.jobDurationDays !== 1 ? 's' : ''}
+                                    {t("duration")}: {job.jobDurationDays}{" "}
+                                    {job.jobDurationDays !== 1 ? t("days") : t("day")}
                                   </span>
                                 </div>
                               </div>
@@ -1255,7 +1369,8 @@ export default function ClientDashboard() {
                                 variant="secondary"
                                 className="text-xs bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
                               >
-                                {job.expectedHours}h
+                                {job.expectedHours}
+                                {t("hour")}
                               </Badge>
                             </div>
                           </div>
@@ -1274,7 +1389,7 @@ export default function ClientDashboard() {
                                   variant="secondary"
                                   className="text-xs bg-blue-200 dark:bg-blue-800 text-blue-700 dark:text-blue-300"
                                 >
-                                  Fixed Schedule
+                                  {t("fixedSchedule")}
                                 </Badge>
                               </div>
                             </div>
@@ -1287,7 +1402,7 @@ export default function ClientDashboard() {
                                 <div className="flex items-center gap-2">
                                   <Clock className="w-4 h-4 text-orange-600 dark:text-orange-400" />
                                   <span className="text-sm font-medium text-orange-900 dark:text-orange-100">
-                                    Flexible Schedule
+                                    {t("flexibleSchedule")}
                                   </span>
                                 </div>
                               </div>
@@ -1298,10 +1413,11 @@ export default function ClientDashboard() {
                           <div className="grid grid-cols-1 gap-2">
                             <div className="bg-gray-100 dark:bg-gray-800 p-2 rounded-md text-center">
                               <div className="text-xs text-gray-600 dark:text-gray-400 font-medium mb-0.5">
-                                Expected Hours
+                                {t("expectedHours")}
                               </div>
                               <div className="text-xs font-bold text-gray-900 dark:text-white">
-                                {job.expectedHours}h
+                                {job.expectedHours}
+                                {t("hour")}
                               </div>
                             </div>
                           </div>
@@ -1314,7 +1430,7 @@ export default function ClientDashboard() {
                               onClick={() => handleViewDetails(job)}
                             >
                               <QrCode className="w-3 h-3 mr-1" />
-                              Scan QR
+                              {t("scanQR")}
                             </Button>
                             <Button
                               size="sm"
@@ -1323,7 +1439,7 @@ export default function ClientDashboard() {
                               onClick={() => handleViewAttendanceDetails(job)}
                             >
                               <Eye className="w-3 h-3 mr-1" />
-                              View Details
+                              {t("viewDetails")}
                             </Button>
                           </div>
                         </CardContent>
@@ -1331,16 +1447,18 @@ export default function ClientDashboard() {
                     )
                   })}
 
-                {filteredJobs.filter((job) => job.status === "scheduled" || job.status === "pending" || job.status === "in_progress").length === 0 && (
+                {filteredJobs.filter(
+                  (job) => job.status === "scheduled" || job.status === "pending" || job.status === "in_progress",
+                ).length === 0 && (
                   <div className="col-span-full">
                     <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900">
                       <CardContent className="p-8 text-center">
                         <ClipboardList className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                        <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-2">No Active Jobs</h3>
+                        <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-2">
+                          {t("activeJobs")}
+                        </h3>
                         <p className="text-gray-600 dark:text-gray-400 text-sm">
-                          {searchTerm
-                            ? "No jobs match your search criteria."
-                            : "You don't have any active jobs right now."}
+                          {searchTerm ? "No jobs match your search criteria." : t("noJobsCreated")}
                         </p>
                       </CardContent>
                     </Card>
@@ -1378,7 +1496,7 @@ export default function ClientDashboard() {
                                 </Badge>
                                 <Badge className={`${statusConfig.color} flex items-center gap-1 text-xs font-medium`}>
                                   <StatusIcon className="w-3 h-3" />
-                                  Completed
+                                  {t("completed")}
                                 </Badge>
                               </div>
                             </div>
@@ -1393,7 +1511,7 @@ export default function ClientDashboard() {
                                 {formatDateRange(job.startDate, job.endDate)}
                                 {job.jobDurationDays > 1 && (
                                   <span className="ml-2 text-xs bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-2 py-1 rounded">
-                                    {job.jobDurationDays} days
+                                    {job.jobDurationDays} {job.jobDurationDays === 1 ? t("day") : t("days")}
                                   </span>
                                 )}
                               </span>
@@ -1401,13 +1519,14 @@ export default function ClientDashboard() {
                             <div className="flex items-center gap-2">
                               <Timer className="w-4 h-4 text-gray-500 dark:text-gray-400" />
                               <span className="text-sm text-gray-600 dark:text-gray-400">
-                                {job.expectedHours}h completed
+                                {job.expectedHours}
+                                {t("hour")} {t("completed")}
                               </span>
                             </div>
                             <div className="flex items-center gap-2">
                               <User className="w-4 h-4 text-gray-500 dark:text-gray-400" />
                               <span className="text-sm text-gray-600 dark:text-gray-400">
-                                Worker: {job.worker.name}
+                                {t("worker")}: {job.worker.name}
                               </span>
                             </div>
                           </div>
@@ -1418,11 +1537,11 @@ export default function ClientDashboard() {
                               <div className="flex items-center gap-2 mb-2">
                                 <Star className="w-4 h-4 text-green-600 dark:text-green-400" />
                                 <span className="text-sm font-medium text-green-700 dark:text-green-400">
-                                  Survey Completed
+                                  {t("surveyCompleted")}
                                 </span>
                               </div>
                               <div className="flex items-center gap-2 mb-2">
-                                <span className="text-sm text-green-600 dark:text-green-400">Rating:</span>
+                                <span className="text-sm text-green-600 dark:text-green-400">{t("rating")}:</span>
                                 <div className="flex gap-1">
                                   {[1, 2, 3, 4, 5].map((star) => (
                                     <Star
@@ -1454,7 +1573,7 @@ export default function ClientDashboard() {
                               onClick={() => handleViewDetails(job)}
                             >
                               <QrCode className="w-3 h-3 mr-1" />
-                              Scan QR
+                              {t("scanQR")}
                             </Button>
                             <Button
                               size="sm"
@@ -1463,7 +1582,7 @@ export default function ClientDashboard() {
                               onClick={() => handleViewAttendanceDetails(job)}
                             >
                               <Eye className="w-3 h-3 mr-1" />
-                              View Details
+                              {t("viewDetails")}
                             </Button>
                           </div>
                         </CardContent>
@@ -1471,13 +1590,15 @@ export default function ClientDashboard() {
                     )
                   })}
 
-                {filteredJobs.filter((job) => job.status === "completed" || job.status === "cancelled" || job.status === "on_hold").length === 0 && (
+                {filteredJobs.filter(
+                  (job) => job.status === "completed" || job.status === "cancelled" || job.status === "on_hold",
+                ).length === 0 && (
                   <div className="col-span-full">
                     <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900">
                       <CardContent className="p-8 text-center">
                         <CheckCircle className="w-12 h-12 text-gray-400 mx-auto mb-3" />
                         <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-2">
-                          No Completed Jobs
+                          {t("completedJobs")}
                         </h3>
                         <p className="text-gray-600 dark:text-gray-400 text-sm">
                           {searchTerm
@@ -1495,7 +1616,7 @@ export default function ClientDashboard() {
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                   <ClipboardList className="w-5 h-5" />
-                  My Surveys
+                  {t("surveys")}
                 </h3>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -1510,10 +1631,10 @@ export default function ClientDashboard() {
                   <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900">
                     <CardContent className="p-8 text-center">
                       <ClipboardList className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                      <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-2">No Surveys Yet</h3>
-                      <p className="text-gray-600 dark:text-gray-400 text-sm">
-                        Your completed surveys will appear here after you submit them.
-                      </p>
+                      <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-2">
+                        {t("noSurveysYet")}
+                      </h3>
+                      <p className="text-gray-600 dark:text-gray-400 text-sm">{t("surveysDescription")}</p>
                     </CardContent>
                   </Card>
                 )}

@@ -30,12 +30,17 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { useTranslation } from "@/hooks/use-translation"
 import { useAuth } from "@/hooks/use-auth"
 import AddJobModal from "@/components/add-job-modal"
+import { JobAttendanceDetail } from "@/components/job-attendance-detail"
+import JobDetailView from "@/components/job-detail-view"
 
 interface ApiJob {
   jobId: number
   jobName: string
   clientName: string
   workCenter: string
+  startDate: string
+  endDate: string
+  status: string
   totalShifts: number
   expectedDuration: number
   tasks: string[]
@@ -44,6 +49,21 @@ interface ApiJob {
     code: string
     name: string | null
   }>
+  attendanceRecords?: Array<{
+    id: number
+    checkInTime: string
+    checkOutTime?: string
+    date: string
+  }>
+  workSession?: {
+    id: number
+    checkInTime: string
+    checkOutTime?: string
+    isOnBreak: boolean
+    currentBreakStart?: string
+    totalWorkMinutes: number
+    totalBreakMinutes: number
+  } | null
 }
 
 interface ApiResponse {
@@ -65,20 +85,54 @@ interface Job {
   workCenter: {
     id: number
     name: string
+    address: string
+    coordinates: { lat: number; lng: number }
   }
   workers: Array<{
     id: number
     name: string
     avatar?: string
   }>
-  status: "in_progress" | "pending" | "completed"
-  progress: number
-  startDate: string
-  endDate?: string
+  status: "scheduled" | "in_progress" | "completed"
+  startDate: Date
+  endDate: Date
   duration: string
   shifts: number
   occupation: string
   tags: string[]
+  hasAttendanceRecord: boolean
+  jobDurationDays: number
+  expectedHours: number
+  shift: {
+    type: "morning" | "afternoon" | "evening"
+    startTime?: string
+    endTime?: string
+    duration: string
+    scheduleType: "fixed" | "flexible"
+  }
+  tasks: Array<{
+    id: number
+    name: string
+    description: string
+    completed: boolean
+    duration: string
+    timing: "during" | "after"
+  }>
+  checkInTime?: Date
+  checkOutTime?: Date
+  breakTime: number
+  workedTime: number
+  totalHours?: number
+  breakStartTime?: Date
+  totalBreakTime: number
+  isOnBreak: boolean
+  signingMethods: {
+    qrCode?: boolean
+    gps?: boolean
+    wifi?: boolean
+    ip?: boolean
+    callerId?: boolean
+  }
 }
 
 interface Stats {
@@ -96,7 +150,7 @@ interface Stats {
 
 export default function EmployerDashboard() {
   const router = useRouter()
-  const { t } = useTranslation()
+  const { t } = useTranslation("employer-dashboard")
   const { session } = useAuth()
 
   const [jobs, setJobs] = useState<Job[]>([])
@@ -120,48 +174,100 @@ export default function EmployerDashboard() {
   const [loading, setLoading] = useState(true)
   const [showAddJobModal, setShowAddJobModal] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [selectedJobForAttendance, setSelectedJobForAttendance] = useState<Job | null>(null)
+  const [selectedJobForEdit, setSelectedJobForEdit] = useState<string | null>(null)
 
-  const occupations = ["Cleaning", "Security", "Maintenance", "Delivery", "IT Support", "Landscaping"]
+  const occupations = [t("cleaning"), t("security"), t("maintenance"), t("delivery"), t("itSupport"), t("landscaping")]
 
   // Get unique work centers from jobs data
   const workCenters = Array.from(new Set(jobs.map((job) => job.workCenter.name))).filter(Boolean)
 
+  // Format date for display
+  const formatDateOnly = (date: Date) => {
+    return date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    })
+  }
+
+  const formatDateRange = (startDate: Date, endDate: Date) => {
+    const start = formatDateOnly(startDate)
+    const end = formatDateOnly(endDate)
+
+    // If same date, show only once
+    if (start === end) {
+      return start
+    }
+
+    return `${start} - ${end}`
+  }
+
   // Transform API job data to frontend job format
   const transformApiJobToJob = (apiJob: ApiJob): Job => {
-    // Generate status based on shifts - if no shifts, it's pending
-    let status: "in_progress" | "pending" | "completed"
-    let progress = 0
+    const currentDate = new Date()
 
-    if (apiJob.totalShifts === 0) {
-      status = "pending"
-      progress = 0
-    } else if (apiJob.totalShifts > 0 && apiJob.totalShifts < 5) {
-      status = "in_progress"
-      progress = Math.min((apiJob.totalShifts / 5) * 100, 90) // Progress based on shifts
+    // Parse start and end dates from API response
+    const startDate = new Date(apiJob.startDate)
+    const endDate = new Date(apiJob.endDate)
+
+    // Calculate job duration in days
+    const jobDurationDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
+
+    // Check if there are any attendance records (check-in + check-out pairs)
+    const hasAttendanceRecord =
+      Boolean(
+        apiJob.attendanceRecords &&
+          apiJob.attendanceRecords.length > 0 &&
+          apiJob.attendanceRecords.some((record) => record.checkInTime && record.checkOutTime),
+      ) || Boolean(apiJob.workSession?.checkInTime && apiJob.workSession?.checkOutTime)
+
+    // Determine job status based on the same logic as client dashboard
+    let status: "scheduled" | "in_progress" | "completed"
+
+    if (currentDate > endDate) {
+      // End date has passed
+      if (hasAttendanceRecord) {
+        status = "completed"
+      } else {
+        // End date passed but no attendance - still show as scheduled for potential late check-in
+        status = "scheduled"
+      }
     } else {
-      status = "completed"
-      progress = 100
+      // Before end date
+      if (hasAttendanceRecord || apiJob.workSession?.checkInTime) {
+        status = "in_progress"
+      } else {
+        status = "scheduled"
+      }
     }
-
-    // Generate dates based on expected duration
-    const startDate = new Date()
-    startDate.setDate(startDate.getDate() - Math.floor(Math.random() * 7)) // Started within last week
-
-    const endDate = new Date(startDate)
-    endDate.setDate(endDate.getDate() + apiJob.expectedDuration)
 
     // Infer occupation from tasks
-    let occupation = "General"
+    let occupation = t("general")
     const taskString = apiJob.tasks.join(" ").toLowerCase()
     if (taskString.includes("clean") || taskString.includes("sweep")) {
-      occupation = "Cleaning"
+      occupation = t("cleaning")
     } else if (taskString.includes("security") || taskString.includes("guard")) {
-      occupation = "Security"
+      occupation = t("security")
     } else if (taskString.includes("maintain") || taskString.includes("repair")) {
-      occupation = "Maintenance"
+      occupation = t("maintenance")
     } else if (taskString.includes("deliver") || taskString.includes("transport")) {
-      occupation = "Delivery"
+      occupation = t("delivery")
+    } else if (taskString.includes("paint")) {
+      occupation = t("maintenance")
+    } else if (taskString.includes("garden") || taskString.includes("plant")) {
+      occupation = t("landscaping")
     }
+
+    // Create mock tasks for the job
+    const mockTasks = apiJob.tasks.map((task, index) => ({
+      id: index + 1,
+      name: task,
+      description: `Complete ${task.toLowerCase()} task`,
+      completed: Math.random() > 0.5,
+      duration: "2 hours",
+      timing: "during" as const,
+    }))
 
     return {
       id: apiJob.jobId,
@@ -174,26 +280,51 @@ export default function EmployerDashboard() {
       workCenter: {
         id: Math.floor(Math.random() * 10) + 1,
         name: apiJob.workCenter,
+        address: `${apiJob.workCenter}, Business District`,
+        coordinates: { lat: 40.7128, lng: -74.006 },
       },
       workers: apiJob.workers.map((worker) => ({
         id: worker.id,
-        name: worker.name || `Worker ${worker.code}`, // Fallback to code if name is null
+        name: worker.name || `${t("worker")} ${worker.code}`, // Fallback to code if name is null
       })),
       status,
-      progress,
-      startDate: startDate.toISOString().split("T")[0],
-      endDate: endDate.toISOString().split("T")[0],
-      duration: `${apiJob.expectedDuration} ${apiJob.expectedDuration === 1 ? "day" : "days"}`,
+      startDate,
+      endDate,
+      duration: `${jobDurationDays} ${jobDurationDays === 1 ? t("day") : t("days")}`,
       shifts: apiJob.totalShifts,
       occupation,
       tags: apiJob.tasks.slice(0, 3), // Use first 3 tasks as tags
+      hasAttendanceRecord,
+      jobDurationDays,
+      expectedHours: apiJob.expectedDuration || 8, // Default to 8 hours if not provided
+      shift: {
+        type: "morning",
+        startTime: "09:00",
+        endTime: "17:00",
+        duration: "8 hours",
+        scheduleType: "fixed",
+      },
+      tasks: mockTasks,
+      checkInTime: hasAttendanceRecord ? new Date(startDate.getTime() + 9 * 60 * 60 * 1000) : undefined,
+      checkOutTime: hasAttendanceRecord ? new Date(startDate.getTime() + 17 * 60 * 60 * 1000) : undefined,
+      breakTime: 30,
+      workedTime: hasAttendanceRecord ? 8 * 60 : 0,
+      totalBreakTime: 30,
+      isOnBreak: false,
+      signingMethods: {
+        qrCode: true,
+        gps: true,
+        wifi: false,
+        ip: false,
+        callerId: false,
+      },
     }
   }
 
   // Fetch jobs from API
   const fetchJobs = async () => {
     if (!session?.accessToken) {
-      setError("No authentication token available")
+      setError(t("unauthorized"))
       setLoading(false)
       return
     }
@@ -223,7 +354,7 @@ export default function EmployerDashboard() {
         // Calculate stats from real data
         const totalJobs = transformedJobs.length
         const inProgressJobs = transformedJobs.filter((job) => job.status === "in_progress").length
-        const pendingJobs = transformedJobs.filter((job) => job.status === "pending").length
+        const scheduledJobs = transformedJobs.filter((job) => job.status === "scheduled").length
         const completedJobs = transformedJobs.filter((job) => job.status === "completed").length
         const totalWorkers = new Set(transformedJobs.flatMap((job) => job.workers.map((w) => w.id))).size
         const uniqueClients = new Set(transformedJobs.map((job) => job.client.name)).size
@@ -235,17 +366,17 @@ export default function EmployerDashboard() {
           completionRate: totalJobs > 0 ? Math.round((completedJobs / totalJobs) * 100) : 0,
           avgRating: 4.8, // Static for now
           totalClients: uniqueClients,
-          pendingJobs,
+          pendingJobs: scheduledJobs, // Use scheduled instead of pending
           completedJobs,
           totalRevenue: 2450000, // Static for now
           monthlyGrowth: 18.5, // Static for now
         })
       } else {
-        throw new Error(data.developerError || data.message || "Failed to fetch jobs")
+        throw new Error(data.developerError || data.message || t("failedToLoadJobs"))
       }
     } catch (error) {
       console.error("Error fetching jobs:", error)
-      setError(error instanceof Error ? error.message : "Failed to fetch jobs")
+      setError(error instanceof Error ? error.message : t("failedToLoadJobs"))
       setJobs([])
     } finally {
       setLoading(false)
@@ -256,17 +387,25 @@ export default function EmployerDashboard() {
     fetchJobs()
   }, [session?.accessToken])
 
-  const handleViewDetail = (jobId: number) => {
-    router.push(`/jobs/${jobId}`)
+  const handleViewAttendance = (job: Job) => {
+    setSelectedJobForAttendance(job)
   }
 
   const handleEditJob = (jobId: number) => {
-    console.log("Edit job:", jobId)
+    setSelectedJobForEdit(jobId.toString())
   }
 
   const handleJobAdded = (newJob: any) => {
     // Refresh jobs list after adding a new job
     fetchJobs()
+  }
+
+  const handleBackFromAttendance = () => {
+    setSelectedJobForAttendance(null)
+  }
+
+  const handleBackFromEdit = () => {
+    setSelectedJobForEdit(null)
   }
 
   const filteredJobs = jobs.filter((job) => {
@@ -287,23 +426,37 @@ export default function EmployerDashboard() {
         return {
           color: "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400",
           icon: PlayCircle,
+          label: t("inProgress"),
         }
-      case "pending":
+      case "scheduled":
         return {
-          color: "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400",
+          color: "bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400",
           icon: Clock,
+          label: t("scheduled"),
         }
       case "completed":
         return {
           color: "bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400",
           icon: CheckCircle,
+          label: t("completed"),
         }
       default:
         return {
           color: "bg-gray-100 text-gray-600 dark:bg-gray-800/50 dark:text-gray-400",
           icon: AlertCircle,
+          label: status,
         }
     }
+  }
+
+  // Show attendance detail view
+  if (selectedJobForAttendance) {
+    return <JobAttendanceDetail job={selectedJobForAttendance} onBack={handleBackFromAttendance} />
+  }
+
+  // Show job edit view
+  if (selectedJobForEdit) {
+    return <JobDetailView jobId={selectedJobForEdit} onBack={handleBackFromEdit} />
   }
 
   if (loading) {
@@ -325,12 +478,10 @@ export default function EmployerDashboard() {
             <div className="w-16 h-16 bg-red-100 dark:bg-red-800/20 rounded-full flex items-center justify-center mx-auto mb-4">
               <AlertCircle className="w-8 h-8 text-red-500" />
             </div>
-            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
-              {t("errorLoadingJobs") || "Error Loading Jobs"}
-            </h3>
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">{t("errorLoadingJobs")}</h3>
             <p className="text-gray-600 dark:text-gray-400 mb-4 text-sm">{error}</p>
             <Button size="sm" className="bg-purple-600 hover:bg-purple-700 text-white" onClick={fetchJobs}>
-              {t("tryAgain") || "Try Again"}
+              {t("tryAgain")}
             </Button>
           </CardContent>
         </Card>
@@ -350,19 +501,15 @@ export default function EmployerDashboard() {
                   <Briefcase className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {t("jobsManagement") || "Jobs Management"}
-                  </h1>
-                  <p className="text-gray-600 dark:text-gray-400 text-sm">
-                    {t("manageWorkforceAssignments") || "Manage workforce assignments"}
-                  </p>
+                  <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t("jobsManagement")}</h1>
+                  <p className="text-gray-600 dark:text-gray-400 text-sm">{t("manageWorkforceAssignments")}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                   <Input
-                    placeholder={t("searchJobs") || "Search jobs..."}
+                    placeholder={t("searchJobs")}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-9 w-64 h-9 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800"
@@ -374,7 +521,7 @@ export default function EmployerDashboard() {
                   onClick={() => setShowAddJobModal(true)}
                 >
                   <Plus className="w-4 h-4 mr-0 sm:mr-2" />
-                  <span className="hidden sm:inline">{t("newJob") || "New Job"}</span>
+                  <span className="hidden sm:inline">{t("newJob")}</span>
                 </Button>
               </div>
             </div>
@@ -385,27 +532,27 @@ export default function EmployerDashboard() {
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
           {[
             {
-              label: t("totalJobs") || "Total Jobs",
+              label: t("totalJobs"),
               value: stats.totalJobs,
               icon: Briefcase,
             },
             {
-              label: t("inProgressJobs") || "In Progress Jobs",
+              label: t("inProgressJobs"),
               value: stats.inProgressJobs,
               icon: Activity,
             },
             {
-              label: t("pendingJobs") || "Pending Jobs",
-              value: stats.pendingJobs,
+              label: t("scheduledJobs"),
+              value: stats.pendingJobs, // This now contains scheduled jobs
               icon: Clock,
             },
             {
-              label: t("completedJobs") || "Completed Jobs",
+              label: t("completedJobs"),
               value: stats.completedJobs,
               icon: CheckCircle,
             },
             {
-              label: t("totalClients") || "Total Clients",
+              label: t("totalClients"),
               value: stats.totalClients,
               icon: Building,
             },
@@ -442,38 +589,38 @@ export default function EmployerDashboard() {
                 <div className="p-1.5 bg-purple-600 rounded-md">
                   <Filter className="w-4 h-4 text-white" />
                 </div>
-                <span className="text-sm font-semibold text-gray-900 dark:text-white">{t("filters") || "Filters"}</span>
+                <span className="text-sm font-semibold text-gray-900 dark:text-white">{t("filters")}</span>
               </div>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
               <div className="space-y-1">
                 <label className="text-xs font-medium text-gray-600 dark:text-gray-400 flex items-center gap-1">
                   <PlayCircle className="w-3 h-3" />
-                  {t("status") || "Status"}
+                  {t("status")}
                 </label>
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
                   <SelectTrigger className="h-8 text-xs border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-                    <SelectValue placeholder={t("allStatuses") || "All Statuses"} />
+                    <SelectValue placeholder={t("allStatuses")} />
                   </SelectTrigger>
                   <SelectContent className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
-                    <SelectItem value="all">{t("allStatuses") || "All Statuses"}</SelectItem>
-                    <SelectItem value="in_progress">{t("inProgress") || "In Progress"}</SelectItem>
-                    <SelectItem value="pending">{t("pending") || "Pending"}</SelectItem>
-                    <SelectItem value="completed">{t("completed") || "Completed"}</SelectItem>
+                    <SelectItem value="all">{t("allStatuses")}</SelectItem>
+                    <SelectItem value="in_progress">{t("inProgress")}</SelectItem>
+                    <SelectItem value="scheduled">{t("scheduled")}</SelectItem>
+                    <SelectItem value="completed">{t("completed")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-medium text-gray-600 dark:text-gray-400 flex items-center gap-1">
                   <Briefcase className="w-3 h-3" />
-                  {t("occupation") || "Occupation"}
+                  {t("occupation")}
                 </label>
                 <Select value={occupationFilter} onValueChange={setOccupationFilter}>
                   <SelectTrigger className="h-8 text-xs border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-                    <SelectValue placeholder={t("allOccupations") || "All Occupations"} />
+                    <SelectValue placeholder={t("allOccupations")} />
                   </SelectTrigger>
                   <SelectContent className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
-                    <SelectItem value="all">{t("allOccupations") || "All Occupations"}</SelectItem>
+                    <SelectItem value="all">{t("allOccupations")}</SelectItem>
                     {occupations.map((occupation) => (
                       <SelectItem key={occupation} value={occupation}>
                         {occupation}
@@ -485,14 +632,14 @@ export default function EmployerDashboard() {
               <div className="space-y-1">
                 <label className="text-xs font-medium text-gray-600 dark:text-gray-400 flex items-center gap-1">
                   <Building className="w-3 h-3" />
-                  {t("workCenter") || "Work Center"}
+                  {t("workCenter")}
                 </label>
                 <Select value={workCenterFilter} onValueChange={setWorkCenterFilter}>
                   <SelectTrigger className="h-8 text-xs border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-                    <SelectValue placeholder={t("allWorkCenters") || "All Centers"} />
+                    <SelectValue placeholder={t("allWorkCenters")} />
                   </SelectTrigger>
                   <SelectContent className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
-                    <SelectItem value="all">{t("allWorkCenters") || "All Work Centers"}</SelectItem>
+                    <SelectItem value="all">{t("allWorkCenters")}</SelectItem>
                     {workCenters.map((center) => (
                       <SelectItem key={center} value={center}>
                         {center}
@@ -504,17 +651,17 @@ export default function EmployerDashboard() {
               <div className="space-y-1">
                 <label className="text-xs font-medium text-gray-600 dark:text-gray-400 flex items-center gap-1">
                   <Calendar className="w-3 h-3" />
-                  {t("dateRange") || "Date Range"}
+                  {t("dateRange")}
                 </label>
                 <Select value={dateFilter} onValueChange={setDateFilter}>
                   <SelectTrigger className="h-8 text-xs border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-                    <SelectValue placeholder={t("allDates") || "All Dates"} />
+                    <SelectValue placeholder={t("allDates")} />
                   </SelectTrigger>
                   <SelectContent className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
-                    <SelectItem value="all">{t("allDates") || "All Dates"}</SelectItem>
-                    <SelectItem value="today">{t("today") || "Today"}</SelectItem>
-                    <SelectItem value="week">{t("thisWeek") || "This Week"}</SelectItem>
-                    <SelectItem value="month">{t("thisMonth") || "This Month"}</SelectItem>
+                    <SelectItem value="all">{t("allDates")}</SelectItem>
+                    <SelectItem value="today">{t("today")}</SelectItem>
+                    <SelectItem value="week">{t("thisWeek")}</SelectItem>
+                    <SelectItem value="month">{t("thisMonth")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -536,8 +683,8 @@ export default function EmployerDashboard() {
                 {/* Status Indicator Line */}
                 <div
                   className={`w-full h-0.5 ${
-                    job.status === "pending"
-                      ? "bg-red-500"
+                    job.status === "scheduled"
+                      ? "bg-blue-500"
                       : job.status === "in_progress"
                         ? "bg-green-500"
                         : job.status === "completed"
@@ -563,9 +710,7 @@ export default function EmployerDashboard() {
                     <div className="flex items-center gap-1">
                       <Badge className={`${statusConfig.color} flex items-center gap-1 h-6 text-xs`}>
                         <StatusIcon className="w-3 h-3" />
-                        {job.status === "in_progress"
-                          ? "In Progress"
-                          : job.status.charAt(0).toUpperCase() + job.status.slice(1)}
+                        {statusConfig.label}
                       </Badge>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -583,21 +728,21 @@ export default function EmployerDashboard() {
                         >
                           <DropdownMenuItem
                             className="text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                            onClick={() => handleViewDetail(job.id)}
+                            onClick={() => handleViewAttendance(job)}
                           >
                             <Eye className="h-3 w-3 mr-2" />
-                            {t("viewDetails") || "View Details"}
+                            {t("viewAttendance")}
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             className="text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
                             onClick={() => handleEditJob(job.id)}
                           >
                             <Edit className="h-3 w-3 mr-2" />
-                            {t("editJob") || "Edit Job"}
+                            {t("editJob")}
                           </DropdownMenuItem>
                           <DropdownMenuItem className="text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
                             <BarChart3 className="h-3 w-3 mr-2" />
-                            {t("analytics") || "Analytics"}
+                            {t("analytics")}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -611,7 +756,7 @@ export default function EmployerDashboard() {
                     <div className="space-y-1">
                       <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400">
                         <Building className="w-3 h-3" />
-                        <span className="text-xs font-medium uppercase tracking-wide">{t("client") || "Client"}</span>
+                        <span className="text-xs font-medium uppercase tracking-wide">{t("client")}</span>
                       </div>
                       <div className="text-xs font-semibold text-gray-900 dark:text-white truncate">
                         {job.client.name}
@@ -620,9 +765,7 @@ export default function EmployerDashboard() {
                     <div className="space-y-1">
                       <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400">
                         <MapPin className="w-3 h-3" />
-                        <span className="text-xs font-medium uppercase tracking-wide">
-                          {t("location") || "Location"}
-                        </span>
+                        <span className="text-xs font-medium uppercase tracking-wide">{t("location")}</span>
                       </div>
                       <div className="text-xs font-semibold text-gray-900 dark:text-white truncate">
                         {job.workCenter.name}
@@ -630,37 +773,27 @@ export default function EmployerDashboard() {
                     </div>
                   </div>
 
-                  {/* Job Details Grid */}
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="bg-gray-100 dark:bg-gray-800 p-2 rounded-md text-center">
-                      <div className="text-xs text-gray-600 dark:text-gray-400 font-medium mb-0.5">
-                        {t("duration") || "Duration"}
+                  {/* Job Duration - Single Box like Client Dashboard */}
+                  <div className="bg-gray-100 dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                        <div className="flex flex-col">
+                          <span className="text-sm font-medium text-gray-900 dark:text-white">
+                            {formatDateRange(job.startDate, job.endDate)}
+                          </span>
+                          <span className="text-xs text-gray-500 dark:text-gray-400">
+                            {t("duration")}: {job.jobDurationDays} {job.jobDurationDays !== 1 ? t("days") : t("day")}
+                          </span>
+                        </div>
                       </div>
-                      <div className="text-xs font-bold text-gray-900 dark:text-white">{job.duration}</div>
-                    </div>
-                    <div className="bg-gray-100 dark:bg-gray-800 p-2 rounded-md text-center">
-                      <div className="text-xs text-gray-600 dark:text-gray-400 font-medium mb-0.5">
-                        {t("shifts") || "Shifts"}
-                      </div>
-                      <div className="text-xs font-bold text-gray-900 dark:text-white">{job.shifts}</div>
-                    </div>
-                  </div>
-
-                  {/* Progress Section */}
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
-                        {t("progress") || "Progress"}
-                      </span>
-                      <span className="text-xs font-bold text-purple-600 dark:text-purple-400">{job.progress}%</span>
-                    </div>
-                    <div className="relative">
-                      <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
-                        <div
-                          className="bg-purple-600 h-1.5 rounded-full transition-all duration-1000 ease-out"
-                          style={{ width: `${job.progress}%` }}
-                        ></div>
-                      </div>
+                      <Badge
+                        variant="secondary"
+                        className="text-xs bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+                      >
+                        {job.expectedHours}
+                        {t("hour")}
+                      </Badge>
                     </div>
                   </div>
 
@@ -720,10 +853,10 @@ export default function EmployerDashboard() {
                     <Button
                       size="sm"
                       className="flex-1 h-7 text-xs bg-purple-600 hover:bg-purple-700 text-white"
-                      onClick={() => handleViewDetail(job.id)}
+                      onClick={() => handleViewAttendance(job)}
                     >
                       <Eye className="w-3 h-3 mr-1" />
-                      {t("viewDetails") || "View"}
+                      {t("viewAttendance")}
                     </Button>
                     <Button
                       size="sm"
@@ -731,8 +864,8 @@ export default function EmployerDashboard() {
                       className="flex-1 h-7 text-xs bg-transparent border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
                       onClick={() => handleEditJob(job.id)}
                     >
-                      <Edit className="w-3 h-3 mr-1" />
-                      {t("edit") || "Edit"}
+                      <Edit className="w-3 w-3 mr-1" />
+                      {t("edit")}
                     </Button>
                   </div>
                 </CardContent>
@@ -748,12 +881,9 @@ export default function EmployerDashboard() {
               <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Search className="w-8 h-8 text-gray-400" />
               </div>
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
-                {t("noJobsFound") || "No Jobs Found"}
-              </h3>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">{t("noJobsFound")}</h3>
               <p className="text-gray-600 dark:text-gray-400 mb-4 max-w-md mx-auto text-sm">
-                {t("noJobsMatchFilters") ||
-                  "No jobs match your current search criteria. Try adjusting your filters or search terms."}
+                {t("noJobsMatchFilters")}
               </p>
               <Button
                 size="sm"
@@ -766,7 +896,7 @@ export default function EmployerDashboard() {
                   setDateFilter("all")
                 }}
               >
-                {t("clearAllFilters") || "Clear All Filters"}
+                {t("clearAllFilters")}
               </Button>
             </CardContent>
           </Card>
