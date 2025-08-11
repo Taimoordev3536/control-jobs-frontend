@@ -425,6 +425,8 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
   const handleCreate = async () => {
     setIsLoading(true)
     try {
+        // Set default end date if not provided
+    const endDate = formData.endDate || "2126-08-01";
       // Build shifts array from schedules
       const shifts: any[] = []
       Object.entries(formData.schedules).forEach(([day, schedule]) => {
@@ -570,7 +572,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
       const payload = {
         jobName: formData.denomination,
         startDate: formData.startDate,
-        endDate: formData.endDate,
+        endDate,
         clientId: Number.parseInt(formData.clientId),
         workCenterId: Number.parseInt(formData.workCenterId),
         workerIds: formData.workerIds.map((id) => Number.parseInt(id)),

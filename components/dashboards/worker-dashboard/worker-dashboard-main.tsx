@@ -1,18 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import {
-  Calendar,
-  CheckCircle,
-  Timer,
-  Target,
-  CheckSquare,
-  User,
-  MapPin,
-  Navigation,
-  ClipboardList,
-  AlertCircle,
-} from "lucide-react"
+import { Calendar, CheckCircle, Timer, Target, CheckSquare, User, MapPin, Navigation, ClipboardList, AlertCircle } from 'lucide-react'
 import { Card, CardContent } from "@/components/ui/card"
 import { StatsCard } from "@/components/ui/stats-card"
 import { JobCard } from "./job-card"
@@ -20,10 +9,10 @@ import { CurrentJobCard } from "./current-job-card"
 import { SurveyCard } from "@/components/ui/survey-card"
 import { CheckInMethods } from "@/components/dashboards/worker-dashboard/check-in-methods"
 import { CheckInProcess } from "@/components/dashboards/worker-dashboard/check-in-process"
+import { JobAttendanceDetail } from "@/components/job-attendance-detail"
 import { useTranslation } from "@/hooks/use-translation"
 import { useAuth } from "@/hooks/use-auth"
 import { Button } from "@/components/ui/button"
-import { QRScanner } from "@/components/qr-scanner"
 
 interface JobAssignment {
   id: number
@@ -46,7 +35,9 @@ interface JobAssignment {
     duration: string
     scheduleType: "fixed" | "flexible"
   }
-  status: "scheduled" | "in_progress" | "completed" | "missed" | "on_break"
+  status: "scheduled" | "in_progress" | "completed"
+  startDate: Date
+  endDate: Date
   signingMethods: {
     qrCode?: boolean
     gps?: boolean
@@ -72,6 +63,7 @@ interface JobAssignment {
   totalBreakTime: number
   isOnBreak: boolean
   tags: string[]
+  hasAttendanceRecord: boolean
   survey?: {
     rating: number
     comments: string
@@ -103,10 +95,20 @@ interface ApiWorkerJob {
   jobName: string
   clientName: string
   workCenter: string
-  status: string // Add status field from backend
+  status: string
   totalShifts: number
   expectedDuration: number
-  tasks: string[]
+  startDate?: string
+  endDate?: string
+  tasks: Array<{
+    id: number
+    name: string
+    note?: string
+    expectedDuration?: number
+    isCompleted: boolean
+    completedAt?: string
+    completedByWorkerId?: number
+  }>
   shifts: Array<{
     shiftType: string
     startTime: string
@@ -117,6 +119,21 @@ interface ApiWorkerJob {
     methodType: string
     methodDetails: string[]
     verifyIdentity: boolean
+  }>
+  workSession?: {
+    id: number
+    checkInTime: string
+    checkOutTime?: string
+    isOnBreak: boolean
+    currentBreakStart?: string
+    totalWorkMinutes: number
+    totalBreakMinutes: number
+  } | null
+  attendanceRecords?: Array<{
+    id: number
+    checkInTime: string
+    checkOutTime?: string
+    date: string
   }>
 }
 
@@ -162,33 +179,55 @@ export default function WorkerDashboardMain() {
   // Survey states
   const [surveyJob, setSurveyJob] = useState<JobAssignment | null>(null)
 
-  // QR Scanner state
-  const [showQRScanner, setShowQRScanner] = useState(false)
-  const [scannerLoading, setScannerLoading] = useState(false)
-  const [selectedJobForScan, setSelectedJobForScan] = useState<JobAssignment | null>(null)
+  // Job detail view state
+  const [detailJob, setDetailJob] = useState<JobAssignment | null>(null)
 
   // Transform API job data to frontend job format
   const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => {
-    // Map backend status to worker dashboard status
-    const mapStatus = (backendStatus: string): "scheduled" | "in_progress" | "completed" | "missed" | "on_break" => {
-      switch (backendStatus?.toLowerCase()) {
-        case 'scheduled':
-        case 'pending':
-          return 'scheduled'
-        case 'in_progress':
-          return 'in_progress'
-        case 'completed':
-          return 'completed'
-        case 'cancelled':
-          return 'missed'
-        case 'on_hold':
-          return 'on_break'
-        default:
-          return 'scheduled'
-      }
+    const currentDate = new Date()
+    
+    // Parse start and end dates from API response
+    let startDate = new Date()
+    let endDate = new Date()
+    
+    if (apiJob.startDate) {
+      startDate = new Date(apiJob.startDate)
+    }
+    
+    if (apiJob.endDate) {
+      endDate = new Date(apiJob.endDate)
+    } else {
+      // If no end date provided, calculate based on expected duration
+      endDate = new Date(startDate)
+      endDate.setDate(endDate.getDate() + Math.ceil(apiJob.expectedDuration / 8)) // Assuming 8 hours per day
     }
 
-    const status = mapStatus(apiJob.status)
+    // Check if there are any attendance records (check-in + check-out pairs)
+    const hasAttendanceRecord = Boolean(
+      apiJob.attendanceRecords && 
+      apiJob.attendanceRecords.length > 0 && 
+      apiJob.attendanceRecords.some(record => record.checkInTime && record.checkOutTime)
+    ) || Boolean(apiJob.workSession?.checkInTime && apiJob.workSession?.checkOutTime)
+
+    // Determine job status based on the new logic
+    let status: "scheduled" | "in_progress" | "completed"
+    
+    if (currentDate > endDate) {
+      // End date has passed
+      if (hasAttendanceRecord) {
+        status = "completed"
+      } else {
+        // End date passed but no attendance - still show as scheduled for potential late check-in
+        status = "scheduled"
+      }
+    } else {
+      // Before end date
+      if (hasAttendanceRecord || apiJob.workSession?.checkInTime) {
+        status = "in_progress"
+      } else {
+        status = "scheduled"
+      }
+    }
 
     // Get the first shift for timing info, or create default
     const firstShift = apiJob.shifts[0]
@@ -212,7 +251,7 @@ export default function WorkerDashboardMain() {
     // Transform signing methods
     const signingMethods = apiJob.signingMethods[0] || { methodDetails: [], verifyIdentity: false }
     const methods = {
-      qrCode: signingMethods.methodDetails.includes("qrcode"),
+      qrCode: signingMethods.methodDetails.includes("qrcode") || signingMethods.methodDetails.includes("qr-code") || true,
       gps: signingMethods.methodDetails.includes("gps"),
       wifi: signingMethods.methodDetails.includes("wifi"),
       ip: signingMethods.methodDetails.includes("ip"),
@@ -220,20 +259,14 @@ export default function WorkerDashboardMain() {
     }
 
     // Create tasks from API tasks
-    const tasks = apiJob.tasks.map((task, index) => ({
-      id: index + 1,
-      name: task,
-      description: `Complete ${task.toLowerCase()}`,
-      completed: status === "completed" ? true : Math.random() > 0.5,
-      duration: "30 min",
+    const tasks = apiJob.tasks.map((task) => ({
+      id: task.id,
+      name: task.name,
+      description: task.note || `Complete ${task.name.toLowerCase()}`,
+      completed: task.isCompleted,
+      duration: task.expectedDuration ? `${task.expectedDuration} min` : "30 min",
       timing: "during" as const,
     }))
-
-    // Generate dates
-    const startDate = new Date()
-    if (status === "completed") {
-      startDate.setDate(startDate.getDate() - 1)
-    }
 
     return {
       id: apiJob.jobId,
@@ -251,17 +284,21 @@ export default function WorkerDashboardMain() {
       },
       shift: shiftInfo,
       status,
+      startDate, // Use the actual start date from API
+      endDate,   // Use the actual end date from API
       signingMethods: methods,
       tasks,
-      checkInTime: status !== "scheduled" ? new Date(startDate.getTime() + Math.random() * 3600000) : undefined,
-      checkOutTime: status === "completed" ? new Date(startDate.getTime() + 4 * 3600000) : undefined,
-      breakTime: status === "completed" ? 15 : 0,
-      workedTime: status === "completed" ? 240 : status === "in_progress" ? 120 : 0,
+      checkInTime: apiJob.workSession?.checkInTime ? new Date(apiJob.workSession.checkInTime) : undefined,
+      checkOutTime: apiJob.workSession?.checkOutTime ? new Date(apiJob.workSession.checkOutTime) : undefined,
+      breakTime: apiJob.workSession?.totalBreakMinutes || 0,
+      workedTime: apiJob.workSession?.totalWorkMinutes || 0,
       expectedHours: firstShift?.totalHours || apiJob.expectedDuration,
       totalHours: status === "completed" ? firstShift?.totalHours || apiJob.expectedDuration : undefined,
-      totalBreakTime: status === "completed" ? 15 : 0,
-      isOnBreak: status === "on_break",
-      tags: apiJob.tasks.slice(0, 2),
+      totalBreakTime: apiJob.workSession?.totalBreakMinutes || 0,
+      isOnBreak: apiJob.workSession?.isOnBreak || false,
+      breakStartTime: apiJob.workSession?.currentBreakStart ? new Date(apiJob.workSession.currentBreakStart) : undefined,
+      tags: apiJob.tasks.slice(0, 2).map(task => task.name),
+      hasAttendanceRecord,
       survey:
         status === "completed"
           ? {
@@ -304,9 +341,24 @@ export default function WorkerDashboardMain() {
         const transformedJobs = data.data.map(transformApiJobToJobAssignment)
         setTodayAssignments(transformedJobs)
 
-        // Set current job to in-progress job
-        const inProgressJob = transformedJobs.find((job) => job.status === "in_progress")
-        setCurrentJob(inProgressJob || null)
+        // Set current job - only jobs that are in_progress and currently active
+        let newCurrentJob = transformedJobs.find((job) => {
+          return job.status === "in_progress" && 
+                 job.checkInTime && 
+                 !job.checkOutTime && 
+                 new Date() <= job.endDate
+        })
+
+        // If no active current job, keep existing one if still valid
+        if (!newCurrentJob && currentJob) {
+          const existingCurrentJob = transformedJobs.find((job) => job.id === currentJob.id)
+          if (existingCurrentJob && existingCurrentJob.status === "in_progress" && existingCurrentJob.checkInTime && !existingCurrentJob.checkOutTime) {
+            newCurrentJob = existingCurrentJob
+          }
+        }
+
+        setCurrentJob(newCurrentJob || null)
+        console.log('🎯 Current job set:', newCurrentJob ? `${newCurrentJob.title} (${newCurrentJob.status}, attendance: ${newCurrentJob.hasAttendanceRecord})` : 'None')
 
         // Update stats based on real data
         const completedJobs = transformedJobs.filter((job) => job.status === "completed").length
@@ -318,8 +370,8 @@ export default function WorkerDashboardMain() {
           todayShifts: transformedJobs.length,
           completedJobs,
           totalHours,
-          onTimeRate: 95, // Static for now
-          taskCompletionRate: 88, // Static for now
+          onTimeRate: 95,
+          taskCompletionRate: 88,
         })
       } else {
         throw new Error(data.developerError || data.message || "Failed to fetch worker jobs")
@@ -331,177 +383,6 @@ export default function WorkerDashboardMain() {
     } finally {
       setLoading(false)
     }
-  }
-
-  // Helper function to get status badge color and text
-  const getStatusConfig = (status: string) => {
-    switch (status?.toLowerCase()) {
-      case 'scheduled':
-      case 'pending':
-        return { color: 'bg-blue-100 text-blue-800', text: 'Scheduled' }
-      case 'in_progress':
-        return { color: 'bg-yellow-100 text-yellow-800', text: 'In Progress' }
-      case 'completed':
-        return { color: 'bg-green-100 text-green-800', text: 'Completed' }
-      case 'missed':
-      case 'cancelled':
-        return { color: 'bg-red-100 text-red-800', text: 'Missed' }
-      case 'on_break':
-      case 'on_hold':
-        return { color: 'bg-gray-100 text-gray-800', text: 'On Break' }
-      default:
-        return { color: 'bg-gray-100 text-gray-800', text: 'Unknown' }
-    }
-  }
-
-  // QR Code scan handling functions
-  const handleQRScan = async (scannedData: string) => {
-    try {
-      setScannerLoading(true)
-      
-      // Parse QR code data
-      let qrData
-      try {
-        qrData = JSON.parse(scannedData)
-      } catch (e) {
-        throw new Error('Invalid QR code format. Please scan a valid job QR code.')
-      }
-
-      // Validate QR code structure - Check for required backend format
-      if (!qrData.jobId || !qrData.jobName || !qrData.timestamp) {
-        throw new Error('Invalid job QR code. Missing required job information.')
-      }
-
-      const scannedJobId = parseInt(qrData.jobId)
-      
-      // Find the job in worker's assignments to validate access
-      const assignedJob = todayAssignments.find(job => job.id === scannedJobId)
-      if (!assignedJob) {
-        throw new Error(`Job "${qrData.jobName}" is not assigned to you. Please contact your supervisor.`)
-      }
-
-      // Check if worker is scanning the correct job (if one was pre-selected)
-      const jobToCheck = selectedJobForScan || selectedJob
-      if (jobToCheck && scannedJobId !== jobToCheck.id) {
-        throw new Error(`QR code is for "${qrData.jobName}" but you selected "${jobToCheck.title}". Please scan the correct QR code.`)
-      }
-
-      // Determine scan type based on current job status
-      const currentStatus = assignedJob.status
-      let scanType: 'check-in' | 'check-out'
-      
-      if (currentStatus === 'scheduled') {
-        scanType = 'check-in'
-      } else if (currentStatus === 'in_progress' || currentStatus === 'on_break') {
-        scanType = 'check-out'
-      } else {
-        throw new Error(`Cannot scan QR code. Job "${assignedJob.title}" is already ${currentStatus}.`)
-      }
-
-      // Validate QR code timestamp (optional security check)
-      const qrTimestamp = new Date(qrData.timestamp)
-      const now = new Date()
-      const hoursDiff = Math.abs(now.getTime() - qrTimestamp.getTime()) / (1000 * 60 * 60)
-      if (hoursDiff > 24) {
-        console.warn('QR code is older than 24 hours, but proceeding with scan')
-      }
-
-      // Call backend API to record the scan
-      const token = localStorage.getItem("workerToken")
-      if (!token) {
-        throw new Error("Authentication required. Please log in again.")
-      }
-
-      const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001"
-      const response = await fetch(`${baseUrl}/jobs/scan`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          jobId: scannedJobId,
-          scanType: scanType,
-          location: `QR Scan - ${qrData.workCenter || 'Unknown Location'}`,
-          notes: `Scanned QR code for ${qrData.jobName} at ${new Date().toLocaleString()}`,
-          qrCodeData: qrData // Include original QR data for audit trail
-        })
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        const errorMessage = errorData.message || errorData.developerError || `Server error: ${response.status}`
-        throw new Error(errorMessage)
-      }
-
-      const result = await response.json()
-      const scanData = result.data || result
-      
-      // Update job status locally based on scan type
-      const newStatus = scanType === 'check-in' ? 'in_progress' : 'completed'
-      const updatedJob = {
-        ...assignedJob,
-        status: newStatus,
-        checkInTime: scanType === 'check-in' ? new Date() : assignedJob.checkInTime,
-        checkOutTime: scanType === 'check-out' ? new Date() : undefined
-      }
-
-      // Update the job in the assignments list
-      setTodayAssignments(prev => 
-        prev.map(job => 
-          job.id === scannedJobId ? updatedJob : job
-        )
-      )
-      
-      // Set as current job if checking in
-      if (scanType === 'check-in') {
-        setCurrentJob(updatedJob)
-        
-        // Show success message with navigation prompt
-        alert(`✅ Successfully checked in to "${assignedJob.title}"!\n\nYou can now see your current job details and manage tasks.`)
-      } else {
-        // Checking out - clear current job
-        setCurrentJob(null)
-        alert(`✅ Successfully checked out of "${assignedJob.title}"!\n\nJob completed. Thank you for your work!`)
-      }
-
-      // Close scanner and reset states
-      setShowQRScanner(false)
-      setSelectedJobForScan(null)
-      
-      // Navigate back to main dashboard view to show current job card
-      setCurrentView("dashboard")
-      setSelectedJob(null)
-      setSelectedCheckInMethod("")
-      
-      // Refresh jobs data to get latest status from server
-      fetchWorkerJobs()
-      
-    } catch (error) {
-      console.error('QR scan error:', error)
-      const errorMessage = error instanceof Error ? error.message : 'QR scan failed'
-      setError(errorMessage)
-      
-      // Keep scanner open on error so user can try again
-      // Don't close scanner or reset states on error
-      
-      // Re-throw the error so check-in process can handle it
-      throw error
-    } finally {
-      setScannerLoading(false)
-    }
-  }
-
-  const handleStartQRScan = (job: JobAssignment) => {
-    setSelectedJobForScan(job)
-    setShowQRScanner(true)
-    setError(null)
-  }
-
-  const handleCloseQRScanner = () => {
-    setShowQRScanner(false)
-    setSelectedJobForScan(null)
-    setScannerLoading(false)
   }
 
   // Update the useEffect to call the real API
@@ -522,7 +403,6 @@ export default function WorkerDashboardMain() {
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
           (position) => {
-            // Mock location verification
             setLocationData({
               isAtWorkCenter: true,
               distance: 15,
@@ -552,55 +432,212 @@ export default function WorkerDashboardMain() {
   }, [])
 
   const handleCheckIn = (job: JobAssignment) => {
-    // Always go to method selection first, regardless of available methods
     setSelectedJob(job)
     setCurrentView("checkInMethods")
   }
 
-  const handleCheckOut = (job: JobAssignment) => {
-    const now = new Date()
-    const updatedJob = {
-      ...job,
-      status: "completed" as const,
-      checkOutTime: now,
-      totalHours: job.checkInTime
-        ? Math.round(((now.getTime() - job.checkInTime.getTime()) / 1000 / 60 / 60 - job.totalBreakTime / 60) * 10) / 10
-        : job.expectedHours,
-    }
+  const handleCheckOut = async (job: JobAssignment) => {
+    try {
+      setLoading(true)
+      
+      if (!session?.accessToken) {
+        throw new Error('No access token found')
+      }
 
-    setTodayAssignments((prev) => prev.map((j) => (j.id === job.id ? updatedJob : j)))
-    setCurrentJob(null)
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/scan`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          jobId: job.id,
+          scanType: 'check-out',
+          location: job.workCenter.name,
+          notes: 'Work session completed',
+        }),
+      })
+
+      const data = await response.json()
+      console.log('✅ Check-out response:', data)
+
+      if (response.ok) {
+        const now = new Date()
+        
+        // Update job with checkout time and attendance record
+        const updatedJob = {
+          ...job,
+          checkOutTime: now,
+          hasAttendanceRecord: true, // Now has a complete attendance record
+        }
+
+        // Update local state immediately
+        setTodayAssignments((prev) => prev.map((j) => (j.id === job.id ? updatedJob : j)))
+        setCurrentJob(null)
+        
+        console.log('🎯 Job checked out, refreshing data to get updated status...')
+        // Refresh job data to get latest status
+        await fetchWorkerJobs()
+      } else {
+        throw new Error(data.message || 'Failed to check out')
+      }
+    } catch (error) {
+      console.error('Error checking out:', error)
+      setError(error instanceof Error ? error.message : 'Failed to check out')
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const handleTakeBreak = (job: JobAssignment, breakType: string) => {
-    const now = new Date()
-    const updatedJob = {
-      ...job,
-      status: "on_break" as const,
-      isOnBreak: true,
-      breakStartTime: now,
-    }
+  const handleCompleteTask = async (job: JobAssignment, taskId: number) => {
+    try {
+      setLoading(true)
+      
+      if (!session?.accessToken) {
+        throw new Error('No access token found')
+      }
 
-    setTodayAssignments((prev) => prev.map((j) => (j.id === job.id ? updatedJob : j)))
-    setCurrentJob(updatedJob)
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/tasks/${taskId}/complete`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        // Update the local state
+        setTodayAssignments((prev) => 
+          prev.map((j) => {
+            if (j.id === job.id) {
+              return {
+                ...j,
+                tasks: j.tasks.map((task) => 
+                  task.id === taskId ? { ...task, completed: true } : task
+                )
+              }
+            }
+            return j
+          })
+        )
+
+        // Also update current job if it exists
+        if (currentJob?.id === job.id) {
+          setCurrentJob({
+            ...currentJob,
+            tasks: currentJob.tasks.map((task) => 
+              task.id === taskId ? { ...task, completed: true } : task
+            )
+          })
+        }
+      } else {
+        throw new Error(data.message || 'Failed to complete task')
+      }
+    } catch (error) {
+      console.error('Error completing task:', error)
+      setError(error instanceof Error ? error.message : 'Failed to complete task')
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const handleBackToWork = (job: JobAssignment) => {
-    const now = new Date()
-    const breakDuration = job.breakStartTime
-      ? Math.floor((now.getTime() - job.breakStartTime.getTime()) / 1000 / 60)
-      : 0
+  const handleTakeBreak = async (job: JobAssignment, breakType: string) => {
+    try {
+      setLoading(true)
+      
+      if (!session?.accessToken) {
+        throw new Error('No access token found')
+      }
 
-    const updatedJob = {
-      ...job,
-      status: "in_progress" as const,
-      isOnBreak: false,
-      totalBreakTime: job.totalBreakTime + breakDuration,
-      breakStartTime: undefined,
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/scan`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          jobId: job.id,
+          scanType: 'break-start',
+          location: job.workCenter.name,
+          notes: `Break started: ${breakType}`,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        const now = new Date()
+        const updatedJob = {
+          ...job,
+          status: "in_progress" as const,
+          isOnBreak: true,
+          breakStartTime: now,
+        }
+
+        setTodayAssignments((prev) => prev.map((j) => (j.id === job.id ? updatedJob : j)))
+        setCurrentJob(updatedJob)
+      } else {
+        throw new Error(data.message || 'Failed to start break')
+      }
+    } catch (error) {
+      console.error('Error starting break:', error)
+      setError(error instanceof Error ? error.message : 'Failed to start break')
+    } finally {
+      setLoading(false)
     }
+  }
 
-    setTodayAssignments((prev) => prev.map((j) => (j.id === job.id ? updatedJob : j)))
-    setCurrentJob(updatedJob)
+  const handleBackToWork = async (job: JobAssignment) => {
+    try {
+      setLoading(true)
+      
+      if (!session?.accessToken) {
+        throw new Error('No access token found')
+      }
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/scan`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          jobId: job.id,
+          scanType: 'break-end',
+          location: job.workCenter.name,
+          notes: 'Break ended, back to work',
+        }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        const now = new Date()
+        const breakDuration = job.breakStartTime
+          ? Math.floor((now.getTime() - job.breakStartTime.getTime()) / 1000 / 60)
+          : 0
+
+        const updatedJob = {
+          ...job,
+          status: "in_progress" as const,
+          isOnBreak: false,
+          totalBreakTime: job.totalBreakTime + breakDuration,
+          breakStartTime: undefined,
+        }
+
+        setTodayAssignments((prev) => prev.map((j) => (j.id === job.id ? updatedJob : j)))
+        setCurrentJob(updatedJob)
+      } else {
+        throw new Error(data.message || 'Failed to end break')
+      }
+    } catch (error) {
+      console.error('Error ending break:', error)
+      setError(error instanceof Error ? error.message : 'Failed to end break')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleCheckInMethodSelect = (method: string) => {
@@ -644,7 +681,6 @@ export default function WorkerDashboardMain() {
 
     setTodayAssignments((prev) => prev.map((job) => (job.id === surveyJob.id ? { ...job, survey: newSurvey } : job)))
 
-    // Reset survey form and go back to dashboard
     setSurveyJob(null)
     setCurrentView("dashboard")
   }
@@ -652,6 +688,11 @@ export default function WorkerDashboardMain() {
   const handleFillSurvey = (job: JobAssignment) => {
     setSurveyJob(job)
     setCurrentView("survey")
+  }
+
+  const handleViewDetail = (job: JobAssignment) => {
+    setDetailJob(job)
+    setCurrentView("jobDetail")
   }
 
   const formatTime = (date: Date) => {
@@ -687,7 +728,6 @@ export default function WorkerDashboardMain() {
       totalWorkingSeconds -= job.totalBreakTime * 60
     }
 
-    // Ensure we don't show negative time
     totalWorkingSeconds = Math.max(0, totalWorkingSeconds)
 
     const hours = Math.floor(totalWorkingSeconds / 3600)
@@ -710,7 +750,7 @@ export default function WorkerDashboardMain() {
     return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`
   }
 
-  const completeCheckIn = () => {
+  const completeCheckIn = async () => {
     if (selectedJob) {
       const now = new Date()
       const updatedJob = {
@@ -722,8 +762,16 @@ export default function WorkerDashboardMain() {
       setTodayAssignments((prev) => prev.map((j) => (j.id === selectedJob.id ? updatedJob : j)))
       setCurrentJob(updatedJob)
       setCurrentView("dashboard")
+      
       setSelectedJob(null)
       setSelectedCheckInMethod("")
+
+      try {
+        await fetchWorkerJobs()
+        console.log('✅ Job data refreshed after check-in')
+      } catch (error) {
+        console.error('❌ Failed to refresh job data after check-in:', error)
+      }
     }
   }
 
@@ -738,7 +786,6 @@ export default function WorkerDashboardMain() {
     )
   }
 
-  // Add error display in the loading section
   if (error) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
@@ -760,7 +807,6 @@ export default function WorkerDashboardMain() {
     )
   }
 
-  // Render different views based on current state
   if (currentView === "checkInMethods" && selectedJob) {
     return (
       <CheckInMethods
@@ -776,9 +822,9 @@ export default function WorkerDashboardMain() {
       <CheckInProcess
         job={selectedJob}
         method={selectedCheckInMethod}
+        token={session?.accessToken || ''}
         onBack={() => setCurrentView("checkInMethods")}
         onComplete={completeCheckIn}
-        onQRScan={(data) => handleQRScan(data)}
       />
     )
   }
@@ -794,11 +840,18 @@ export default function WorkerDashboardMain() {
     )
   }
 
-  // Main Dashboard View
+  if (currentView === "jobDetail" && detailJob) {
+    return (
+      <JobAttendanceDetail
+        job={detailJob}
+        onBack={() => setCurrentView("dashboard")}
+      />
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       <div className="max-w-[1400px] mx-auto p-4 space-y-4">
-        {/* Header */}
         <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900">
           <CardContent className="p-4">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
@@ -840,7 +893,6 @@ export default function WorkerDashboardMain() {
           </CardContent>
         </Card>
 
-        {/* Stats Cards */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
           <StatsCard label="TODAY'S SHIFTS" value={workerStats.todayShifts} icon={Calendar} />
           <StatsCard label="COMPLETED JOBS" value={workerStats.completedJobs} icon={CheckCircle} />
@@ -849,7 +901,6 @@ export default function WorkerDashboardMain() {
           <StatsCard label="TASK COMPLETION" value={`${workerStats.taskCompletionRate}%`} icon={CheckSquare} />
         </div>
 
-        {/* Current Job Status */}
         {currentJob && (
           <CurrentJobCard
             job={currentJob}
@@ -863,10 +914,8 @@ export default function WorkerDashboardMain() {
           />
         )}
 
-        {/* Main Content Tabs */}
         <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900">
           <CardContent className="p-4">
-            {/* Custom Tab Navigation */}
             <div className="flex border-b border-gray-200 dark:border-gray-700 mb-4">
               <button
                 onClick={() => setActiveTab("assignments")}
@@ -900,7 +949,6 @@ export default function WorkerDashboardMain() {
               </button>
             </div>
 
-            {/* Tab Content */}
             {activeTab === "assignments" && (
               <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
                 {todayAssignments.map((job) => (
@@ -910,6 +958,8 @@ export default function WorkerDashboardMain() {
                     onCheckIn={handleCheckIn}
                     onCheckOut={handleCheckOut}
                     onFillSurvey={handleFillSurvey}
+                    onCompleteTask={handleCompleteTask}
+                    onViewDetail={handleViewDetail}
                   />
                 ))}
               </div>
@@ -920,7 +970,13 @@ export default function WorkerDashboardMain() {
                 {todayAssignments
                   .filter((job) => job.status === "completed")
                   .map((job) => (
-                    <JobCard key={job.id} job={job} onFillSurvey={handleFillSurvey} showActions={false} />
+                    <JobCard 
+                      key={job.id} 
+                      job={job} 
+                      onFillSurvey={handleFillSurvey} 
+                      onViewDetail={handleViewDetail}
+                      showActions={true} 
+                    />
                   ))}
               </div>
             )}
@@ -956,16 +1012,6 @@ export default function WorkerDashboardMain() {
           </CardContent>
         </Card>
       </div>
-
-      {/* QR Scanner Modal */}
-      <QRScanner
-        isOpen={showQRScanner}
-        onScan={handleQRScan}
-        onClose={handleCloseQRScanner}
-        loading={scannerLoading}
-        title="Scan Job QR Code"
-        subtitle={selectedJobForScan ? `Check ${selectedJobForScan.status === 'scheduled' ? 'in' : 'out'} for: ${selectedJobForScan.title}` : undefined}
-      />
     </div>
   )
 }

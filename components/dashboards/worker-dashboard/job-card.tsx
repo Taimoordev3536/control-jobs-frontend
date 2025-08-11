@@ -3,22 +3,7 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import {
-  Building,
-  MapPin,
-  Clock,
-  QrCode,
-  Navigation,
-  Wifi,
-  Globe,
-  PhoneCall,
-  Fingerprint,
-  CheckCircle,
-  Star,
-  PlayCircle,
-  Coffee,
-  AlertCircle,
-} from "lucide-react"
+import { Building, MapPin, Clock, QrCode, Navigation, Wifi, Globe, PhoneCall, Fingerprint, CheckCircle, Star, Calendar, Activity, Eye } from 'lucide-react'
 
 interface JobAssignment {
   id: number
@@ -41,7 +26,9 @@ interface JobAssignment {
     duration: string
     scheduleType: "fixed" | "flexible"
   }
-  status: "scheduled" | "in_progress" | "completed" | "missed" | "on_break"
+  status: "scheduled" | "in_progress" | "completed"
+  startDate: Date
+  endDate: Date
   signingMethods: {
     qrCode?: boolean
     gps?: boolean
@@ -67,6 +54,7 @@ interface JobAssignment {
   totalBreakTime: number
   isOnBreak: boolean
   tags: string[]
+  hasAttendanceRecord: boolean
   survey?: {
     rating: number
     comments: string
@@ -80,41 +68,39 @@ interface JobCardProps {
   onCheckIn?: (job: JobAssignment) => void
   onCheckOut?: (job: JobAssignment) => void
   onFillSurvey?: (job: JobAssignment) => void
+  onCompleteTask?: (job: JobAssignment, taskId: number) => void
+  onViewDetail?: (job: JobAssignment) => void
   showActions?: boolean
 }
 
-export function JobCard({ job, onCheckIn, onCheckOut, onFillSurvey, showActions = true }: JobCardProps) {
+export function JobCard({ 
+  job, 
+  onCheckIn, 
+  onCheckOut, 
+  onFillSurvey, 
+  onCompleteTask, 
+  onViewDetail,
+  showActions = true 
+}: JobCardProps) {
   const getStatusConfig = (status: string) => {
     switch (status) {
       case "in_progress":
         return {
           color: "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400",
-          icon: PlayCircle,
+          icon: Activity,
           badgeColor: "bg-green-500",
-        }
-      case "on_break":
-        return {
-          color: "bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400",
-          icon: Coffee,
-          badgeColor: "bg-orange-500",
         }
       case "scheduled":
         return {
-          color: "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400",
-          icon: Clock,
-          badgeColor: "bg-red-500",
+          color: "bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400",
+          icon: Calendar,
+          badgeColor: "bg-blue-500",
         }
       case "completed":
         return {
           color: "bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400",
           icon: CheckCircle,
           badgeColor: "bg-purple-500",
-        }
-      case "missed":
-        return {
-          color: "bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400",
-          icon: AlertCircle,
-          badgeColor: "bg-gray-500",
         }
       default:
         return {
@@ -127,7 +113,28 @@ export function JobCard({ job, onCheckIn, onCheckOut, onFillSurvey, showActions 
 
   const statusConfig = getStatusConfig(job.status)
   const StatusIcon = statusConfig.icon
-  const completedTasks = job.tasks.filter((task) => task.completed).length
+
+  const formatDate = (date: Date) => {
+    return date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    })
+  }
+
+  const formatDateOnly = (date: Date) => {
+    return date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    })
+  }
+
+  const isBeforeEndDate = () => {
+    return new Date() <= job.endDate
+  }
 
   return (
     <Card className="group border border-gray-200 dark:border-gray-800 hover:shadow-lg transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1 bg-white dark:bg-gray-900">
@@ -135,7 +142,7 @@ export function JobCard({ job, onCheckIn, onCheckOut, onFillSurvey, showActions 
       <div
         className={`w-full h-0.5 ${
           job.status === "scheduled"
-            ? "bg-red-500"
+            ? "bg-blue-500"
             : job.status === "in_progress"
               ? "bg-green-500"
               : job.status === "completed"
@@ -159,13 +166,11 @@ export function JobCard({ job, onCheckIn, onCheckOut, onFillSurvey, showActions 
               </Badge>
               <Badge className={`${statusConfig.color} flex items-center gap-1 h-6 text-xs`}>
                 <StatusIcon className="w-3 h-3" />
-                {job.status === "on_break"
-                  ? "On Break"
-                  : job.status === "in_progress"
-                    ? "In Progress"
-                    : job.status === "scheduled"
-                      ? "Scheduled"
-                      : job.status.charAt(0).toUpperCase() + job.status.slice(1)}
+                {job.status === "in_progress"
+                  ? "In Progress"
+                  : job.status === "scheduled"
+                    ? "Scheduled"
+                    : "Completed"}
               </Badge>
             </div>
           </div>
@@ -191,16 +196,19 @@ export function JobCard({ job, onCheckIn, onCheckOut, onFillSurvey, showActions 
           </div>
         </div>
 
-        {/* Shift Time */}
+        {/* Job Duration */}
         <div className="bg-gray-100 dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Clock className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-              <span className="text-sm font-medium text-gray-900 dark:text-white">
-                {job.shift.scheduleType === "fixed" && job.shift.startTime && job.shift.endTime
-                  ? `${job.shift.startTime} - ${job.shift.endTime}`
-                  : "Flexible Schedule"}
-              </span>
+              <div className="flex flex-col">
+                <span className="text-sm font-medium text-gray-900 dark:text-white">
+                  {formatDateOnly(job.startDate)} - {formatDateOnly(job.endDate)}
+                </span>
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                  Duration: {Math.ceil((job.endDate.getTime() - job.startDate.getTime()) / (1000 * 60 * 60 * 24))} days
+                </span>
+              </div>
             </div>
             <Badge
               variant="secondary"
@@ -218,33 +226,9 @@ export function JobCard({ job, onCheckIn, onCheckOut, onFillSurvey, showActions 
             <div className="text-xs font-bold text-gray-900 dark:text-white">{job.expectedHours}h</div>
           </div>
           <div className="bg-gray-100 dark:bg-gray-800 p-2 rounded-md text-center">
-            <div className="text-xs text-gray-600 dark:text-gray-400 font-medium mb-0.5">Total Hours</div>
+            <div className="text-xs text-gray-600 dark:text-gray-400 font-medium mb-0.5">Status</div>
             <div className="text-xs font-bold text-gray-900 dark:text-white">
-              {job.status === "completed" && job.totalHours
-                ? `${job.totalHours}h`
-                : job.status === "in_progress"
-                  ? "In Progress"
-                  : job.status === "scheduled"
-                    ? "---"
-                    : "---"}
-            </div>
-          </div>
-        </div>
-
-        {/* Tasks Progress */}
-        <div className="space-y-2">
-          <div className="flex justify-between items-center">
-            <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Tasks Progress</span>
-            <span className="text-xs font-bold text-purple-600 dark:text-purple-400">
-              {completedTasks}/{job.tasks.length}
-            </span>
-          </div>
-          <div className="relative">
-            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
-              <div
-                className="bg-purple-600 h-1.5 rounded-full transition-all duration-1000 ease-out"
-                style={{ width: `${(completedTasks / job.tasks.length) * 100}%` }}
-              ></div>
+              {job.hasAttendanceRecord ? "Has Attendance" : "No Attendance"}
             </div>
           </div>
         </div>
@@ -305,27 +289,55 @@ export function JobCard({ job, onCheckIn, onCheckOut, onFillSurvey, showActions 
         {/* Action Buttons */}
         {showActions && (
           <div className="flex gap-2 pt-1">
-            {job.status === "scheduled" && onCheckIn && (
-              <Button
-                size="sm"
-                className="flex-1 h-7 text-xs bg-purple-600 hover:bg-purple-700 text-white"
-                onClick={() => onCheckIn(job)}
-              >
-                <Fingerprint className="w-3 h-3 mr-1" />
-                Check In
-              </Button>
-            )}
-            {(job.status === "in_progress" || job.status === "on_break") && (
+            {/* Scheduled Status - Show Check In and View Details */}
+            {job.status === "scheduled" && (
               <>
-                {onCheckOut && (
+                {onCheckIn && (
                   <Button
                     size="sm"
-                    className="flex-1 h-7 text-xs bg-green-600 hover:bg-green-700 text-white"
-                    onClick={() => onCheckOut(job)}
-                    disabled={job.isOnBreak}
+                    className="flex-1 h-7 text-xs bg-purple-600 hover:bg-purple-700 text-white"
+                    onClick={() => onCheckIn(job)}
                   >
-                    <CheckCircle className="w-3 h-3 mr-1" />
-                    Check Out
+                    <Fingerprint className="w-3 h-3 mr-1" />
+                    Check In
+                  </Button>
+                )}
+                {onViewDetail && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-1 h-7 text-xs bg-transparent border-gray-300 text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-800"
+                    onClick={() => onViewDetail(job)}
+                  >
+                    <Eye className="w-3 h-3 mr-1" />
+                    View Details
+                  </Button>
+                )}
+              </>
+            )}
+
+            {/* In Progress Status - Show Check In (if before end date), View Details, Fill Survey */}
+            {job.status === "in_progress" && (
+              <>
+                {isBeforeEndDate() && onCheckIn && (
+                  <Button
+                    size="sm"
+                    className="flex-1 h-7 text-xs bg-purple-600 hover:bg-purple-700 text-white"
+                    onClick={() => onCheckIn(job)}
+                  >
+                    <Fingerprint className="w-3 h-3 mr-1" />
+                    Check In
+                  </Button>
+                )}
+                {onViewDetail && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-1 h-7 text-xs bg-transparent border-gray-300 text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-800"
+                    onClick={() => onViewDetail(job)}
+                  >
+                    <Eye className="w-3 h-3 mr-1" />
+                    View Details
                   </Button>
                 )}
                 {onFillSurvey && (
@@ -341,19 +353,26 @@ export function JobCard({ job, onCheckIn, onCheckOut, onFillSurvey, showActions 
                 )}
               </>
             )}
+
+            {/* Completed Status - Show View Details and Fill Survey */}
             {job.status === "completed" && (
               <>
-                <div className="flex-1 text-center py-2">
-                  <div className="flex items-center justify-center gap-2 text-green-600 dark:text-green-400">
-                    <CheckCircle className="w-4 h-4" />
-                    <span className="text-sm font-medium">Completed</span>
-                  </div>
-                </div>
-                {!job.survey?.submitted && onFillSurvey && (
+                {onViewDetail && (
                   <Button
                     size="sm"
                     variant="outline"
-                    className="h-7 text-xs bg-transparent border-purple-300 text-purple-600 hover:bg-purple-50 dark:border-purple-800 dark:text-purple-400 dark:hover:bg-purple-900/20"
+                    className="flex-1 h-7 text-xs bg-transparent border-gray-300 text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-800"
+                    onClick={() => onViewDetail(job)}
+                  >
+                    <Eye className="w-3 h-3 mr-1" />
+                    View Details
+                  </Button>
+                )}
+                {onFillSurvey && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-1 h-7 text-xs bg-transparent border-purple-300 text-purple-600 hover:bg-purple-50 dark:border-purple-800 dark:text-purple-400 dark:hover:bg-purple-900/20"
                     onClick={() => onFillSurvey(job)}
                   >
                     <Star className="w-3 h-3 mr-1" />

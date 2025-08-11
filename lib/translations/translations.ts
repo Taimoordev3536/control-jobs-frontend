@@ -782,6 +782,8 @@ const translations: Record<string, Record<string, string>> = {
     si: "Sí",
     no: "No",
   },
+
+  
   // de: {
   //   // Navigation
   //   merchants: "Händler",

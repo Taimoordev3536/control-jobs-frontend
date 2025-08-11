@@ -20,10 +20,11 @@ import {
   Search,
   User,
   ArrowLeft,
-  MessageSquare,
   Star,
   AlertCircle,
   RefreshCw,
+  XCircle,
+  Pause,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -33,9 +34,7 @@ import { StatsCard } from "@/components/ui/stats-card"
 import { SurveyCard } from "@/components/ui/survey-card"
 import { useTranslation } from "@/hooks/use-translation"
 import { useAuth } from "@/hooks/use-auth"
-import { QRCodeGenerator } from "@/components/qr-code-generator"
-
-type ApiJobStatus = "scheduled" | "pending" | "in_progress" | "completed" | "cancelled" | "on_hold"
+import { JobAttendanceDetail } from "@/components/job-attendance-detail"
 
 interface ApiJob {
   jobId: number
@@ -43,7 +42,9 @@ interface ApiJob {
   jobName: string
   clientName: string
   workCenter: string
-  status: ApiJobStatus
+  status: string
+  startDate: string // Now comes from API
+  endDate: string // Now comes from API
   workers: Array<{
     id: number
     code: string
@@ -61,6 +62,24 @@ interface ApiJob {
     id: number
     name: string
     expectedDuration: number
+    isCompleted?: boolean
+    completedAt?: string
+    completedByWorkerId?: number
+  }>
+  workSession?: {
+    id: number
+    checkInTime: string
+    checkOutTime?: string
+    isOnBreak: boolean
+    currentBreakStart?: string
+    totalWorkMinutes: number
+    totalBreakMinutes: number
+  } | null
+  attendanceRecords?: Array<{
+    id: number
+    checkInTime: string
+    checkOutTime?: string
+    date: string
   }>
 }
 
@@ -86,7 +105,9 @@ interface Job {
     estimatedHours: number
     scheduleType: "fixed" | "flexible"
   }
-  status: "pending" | "active" | "completed"
+  status: "scheduled" | "pending" | "in_progress" | "completed" | "cancelled" | "on_hold"
+  startDate: Date
+  endDate: Date
   checkin?: {
     time: string
     method: string
@@ -100,12 +121,12 @@ interface Job {
     method: string
   }
   timeTracking: {
-    actualHours: number
     breaks: Array<{ start: string; end: string; duration: number }>
     activities: Array<{ time: string; action: string; location: string }>
   }
   qrCode: {
     code: string
+    image?: string // Base64 image data
     generatedAt: string
     expiresAt: string
   }
@@ -115,7 +136,12 @@ interface Job {
     radius: number
     center: { lat: number; lng: number }
   }
-  checklist: Array<{ task: string; completed: boolean; time?: string }>
+  checklist: Array<{
+    id: number
+    task: string
+    completed: boolean
+    time?: string
+  }>
   alerts: Array<{ type: string; message: string; time: string }>
   feedback?: string
   surveyCompleted?: boolean
@@ -125,7 +151,10 @@ interface Job {
     submitted: boolean
     submittedAt?: Date
   }
-  isWorkerCheckedIn: boolean // New field to track if worker has checked in today
+  isWorkerCheckedIn: boolean
+  hasAttendanceRecord: boolean
+  expectedHours: number
+  jobDurationDays: number
 }
 
 interface ClientStats {
@@ -138,7 +167,7 @@ interface ClientStats {
 }
 
 export default function ClientDashboard() {
-  const { t } = useTranslation()
+  const { t } = useTranslation("dashboard") // Use dashboard translations
   const { session } = useAuth()
   const [currentTime, setCurrentTime] = useState(new Date())
   const [loading, setLoading] = useState(true)
@@ -164,6 +193,15 @@ export default function ClientDashboard() {
 
   // Transform API data to Job interface
   const transformApiJobToJob = (apiJob: ApiJob): Job => {
+    const currentDate = new Date()
+
+    // Parse start and end dates from API response (now guaranteed to exist)
+    const startDate = new Date(apiJob.startDate + "T00:00:00")
+    const endDate = new Date(apiJob.endDate + "T00:00:00")
+
+    // Calculate job duration in days
+    const jobDurationDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
+
     const firstShift = apiJob.shifts[0]
     const isFlexible = !firstShift || firstShift.scheduleType === "flexible"
 
@@ -176,44 +214,58 @@ export default function ClientDashboard() {
       phone: "+1 (555) 123-4567",
     }
 
-    // Map database status to frontend status
-    const mapApiStatusToFrontendStatus = (apiStatus: ApiJobStatus): "pending" | "active" | "completed" => {
-      switch (apiStatus) {
-        case "scheduled":
-          return "pending"
-        case "pending":
-          return "pending"
-        case "in_progress":
-          return "active"
-        case "completed":
-          return "completed"
-        case "cancelled":
-          return "completed" // Treat cancelled as completed for UI purposes
-        case "on_hold":
-          return "pending" // Treat on_hold as pending for UI purposes
-        default:
-          return "pending"
+    // Check if there are any attendance records (check-in + check-out pairs)
+    const hasAttendanceRecord =
+      Boolean(
+        apiJob.attendanceRecords &&
+          apiJob.attendanceRecords.length > 0 &&
+          apiJob.attendanceRecords.some((record) => record.checkInTime && record.checkOutTime),
+      ) || Boolean(apiJob.workSession?.checkInTime && apiJob.workSession?.checkOutTime)
+
+    // Determine job status based on the new logic (same as worker dashboard)
+    let status: "scheduled" | "pending" | "in_progress" | "completed"
+
+    if (currentDate > endDate) {
+      // End date has passed
+      if (hasAttendanceRecord) {
+        status = "completed"
+      } else {
+        // End date passed but no attendance - still show as scheduled for potential late check-in
+        status = "scheduled"
+      }
+    } else {
+      // Before end date
+      if (hasAttendanceRecord || apiJob.workSession?.checkInTime) {
+        status = "in_progress"
+      } else {
+        status = "scheduled"
       }
     }
 
-    const status = mapApiStatusToFrontendStatus(apiJob.status)
+    // Determine if worker has checked in based on actual status
+    const isWorkerCheckedIn = status === "in_progress" || status === "completed"
 
-    // Determine if worker has checked in based on status
-    const isWorkerCheckedIn = status === "active" || status === "completed"
-
-    // Create checklist from tasks - mark as completed based on status
-    const checklist = apiJob.tasks.map((task, index) => ({
+    // Create checklist from tasks - only mark as completed if worker is checked in
+    const checklist = apiJob.tasks.map((task) => ({
+      id: task.id,
       task: task.name,
-      completed: status === "completed" ? true : (status === "active" ? Math.random() > 0.5 : false),
-      time: (status === "completed" || (status === "active" && Math.random() > 0.5)) ? "10:30 AM" : undefined,
+      completed: task.isCompleted || false,
+      time: task.completedAt
+        ? new Date(task.completedAt).toLocaleTimeString("en-US", {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true,
+          })
+        : undefined,
     }))
 
-    // Calculate total expected duration from tasks
-    const totalExpectedDuration = apiJob.tasks.reduce((sum, task) => sum + task.expectedDuration, 0)
+    // Calculate total expected duration from tasks or shifts
+    const totalExpectedDuration =
+      firstShift?.totalHours || apiJob.tasks.reduce((sum, task) => sum + (task.expectedDuration || 0), 0) || 8
 
     return {
       id: apiJob.jobId,
-      jobId: apiJob.jobNo,
+      jobId: apiJob.jobNo || `JOB-${String(apiJob.jobId).padStart(3, "0")}`,
       title: apiJob.jobName,
       description: `${apiJob.jobName} at ${apiJob.workCenter}`,
       worker: {
@@ -223,15 +275,16 @@ export default function ClientDashboard() {
       },
       client: mockClient,
       schedule: {
-        date: new Date().toISOString().split("T")[0],
+        date: startDate.toISOString().split("T")[0],
         startTime: firstShift ? firstShift.startTime : "",
         endTime: firstShift ? firstShift.endTime : "",
         estimatedHours: totalExpectedDuration,
         scheduleType: isFlexible ? "flexible" : "fixed",
       },
-      status,
+      status: status as "scheduled" | "pending" | "in_progress" | "completed" | "cancelled" | "on_hold",
+      startDate,
+      endDate,
       timeTracking: {
-        actualHours: status === "completed" ? totalExpectedDuration + Math.random() * 2 : 0,
         breaks: [],
         activities: [],
       },
@@ -240,7 +293,7 @@ export default function ClientDashboard() {
         generatedAt: new Date().toISOString(),
         expiresAt: new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString(),
       },
-      verificationMethods: ["qr-code", "wifi-network", "gps-location"], // Keep for job details view
+      verificationMethods: ["qr-code", "wifi-network", "gps-location"],
       geofence: {
         enabled: true,
         radius: 50,
@@ -249,10 +302,13 @@ export default function ClientDashboard() {
       checklist,
       alerts: [],
       isWorkerCheckedIn,
+      hasAttendanceRecord,
+      expectedHours: totalExpectedDuration,
+      jobDurationDays,
     }
   }
 
-  // Fetch jobs from API - Following employer dashboard pattern
+  // Fetch jobs from API
   const fetchJobs = async () => {
     try {
       setLoading(true)
@@ -292,8 +348,10 @@ export default function ClientDashboard() {
 
         // Update stats based on real data
         const totalJobs = transformedJobs.length
-        const activeJobs = transformedJobs.filter((job) => job.status === "active").length
-        const completedJobs = transformedJobs.filter((job) => job.status === "completed").length
+        const activeJobs = transformedJobs.filter(
+          (job: Job) => job.status === "scheduled" || job.status === "pending" || job.status === "in_progress",
+        ).length
+        const completedJobs = transformedJobs.filter((job: Job) => job.status === "completed").length
 
         setClientStats((prev) => ({
           ...prev,
@@ -337,21 +395,48 @@ export default function ClientDashboard() {
     })
   }
 
+  const formatDateOnly = (date: Date) => {
+    return date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    })
+  }
+
+  const formatDateRange = (startDate: Date, endDate: Date) => {
+    const start = formatDateOnly(startDate)
+    const end = formatDateOnly(endDate)
+
+    // If same date, show only once
+    if (start === end) {
+      return start
+    }
+
+    return `${start} - ${end}`
+  }
+
   const getStatusConfig = (status: string) => {
     switch (status) {
-      case "active":
+      case "in_progress":
         return {
           color:
             "bg-green-50 text-green-700 border border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800",
           icon: Activity,
           dot: "bg-green-500",
         }
+      case "scheduled":
+        return {
+          color:
+            "bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800",
+          icon: Calendar,
+          dot: "bg-blue-500",
+        }
       case "pending":
         return {
           color:
-            "bg-red-50 text-red-700 border border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800",
+            "bg-yellow-50 text-yellow-700 border border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-800",
           icon: Clock,
-          dot: "bg-red-500",
+          dot: "bg-yellow-500",
         }
       case "completed":
         return {
@@ -360,6 +445,20 @@ export default function ClientDashboard() {
           icon: CheckCircle,
           dot: "bg-purple-500",
         }
+      case "cancelled":
+        return {
+          color:
+            "bg-red-50 text-red-700 border border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800",
+          icon: XCircle,
+          dot: "bg-red-500",
+        }
+      case "on_hold":
+        return {
+          color:
+            "bg-orange-50 text-orange-700 border border-orange-200 dark:bg-orange-900/20 dark:text-orange-400 dark:border-orange-800",
+          icon: Pause,
+          dot: "bg-orange-500",
+        }
       default:
         return {
           color:
@@ -367,20 +466,6 @@ export default function ClientDashboard() {
           icon: Clock,
           dot: "bg-gray-500",
         }
-    }
-  }
-
-  // Get display text for job status
-  const getStatusDisplayText = (status: string) => {
-    switch (status) {
-      case "active":
-        return "In Progress"
-      case "pending":
-        return "Scheduled"
-      case "completed":
-        return "Completed"
-      default:
-        return status.charAt(0).toUpperCase() + status.slice(1)
     }
   }
 
@@ -401,21 +486,247 @@ export default function ClientDashboard() {
     }
   }
 
+  // Remove progress calculation - not needed
   const calculateProgress = (job: Job) => {
-    // If worker hasn't checked in, progress is 0
-    if (!job.isWorkerCheckedIn) {
-      return 0
-    }
-
-    // If worker is checked in, calculate based on completed tasks
-    if (job.checklist.length === 0) return 0
-    const completed = job.checklist.filter((item) => item.completed).length
-    return Math.round((completed / job.checklist.length) * 100)
+    return 0 // Always return 0 since we don't need progress
   }
 
-  const handleViewDetails = (job: Job) => {
+  // Generate QR code using the QRCode library (same as qr-scanner.tsx)
+  const generateQRCodeFromData = async (qrData: any): Promise<string> => {
+    console.log("🎯 generateQRCodeFromData called with:", qrData)
+
+    try {
+      // Import QRCode library (same approach as qr-scanner.tsx)
+      const QRCode = require("qrcode")
+
+      // Convert data to JSON string
+      const dataString = JSON.stringify(qrData)
+      console.log("🎯 QR data string:", dataString)
+
+      // Generate QR code using the same method as qr-scanner.tsx
+      const qrCodeUrl = await QRCode.toDataURL(dataString, {
+        width: 256,
+        margin: 2,
+        color: {
+          dark: "#000000",
+          light: "#FFFFFF",
+        },
+      })
+
+      console.log("✅ QR code generated successfully with QRCode library")
+      console.log("✅ QR code URL length:", qrCodeUrl.length)
+
+      return qrCodeUrl
+    } catch (error) {
+      console.error("❌ Error in generateQRCodeFromData:", error)
+
+      // Fallback to simple SVG if QRCode library fails
+      const fallbackSVG = `
+      <svg width="256" height="256" xmlns="http://www.w3.org/2000/svg">
+        <rect width="256" height="256" fill="white" stroke="#000" strokeWidth="2"/>
+        
+         QR-like pattern 
+        <rect x="20" y="20" width="60" height="60" fill="none" stroke="black" strokeWidth="4"/>
+        <rect x="30" y="30" width="40" height="40" fill="black"/>
+        <rect x="40" y="40" width="20" height="20" fill="white"/>
+        
+        <rect x="176" y="20" width="60" height="60" fill="none" stroke="black" strokeWidth="4"/>
+        <rect x="186" y="30" width="40" height="40" fill="black"/>
+        <rect x="196" y="40" width="20" height="20" fill="white"/>
+        
+        <rect x="20" y="176" width="60" height="60" fill="none" stroke="black" strokeWidth="4"/>
+        <rect x="30" y="186" width="40" height="40" fill="black"/>
+        <rect x="40" y="196" width="20" height="20" fill="white"/>
+        
+        <text x="128" y="130" textAnchor="middle" fontFamily="Arial" fontSize="12" fill="black">
+          Job: ${qrData.jobId || "N/A"}
+        </text>
+        <text x="128" y="150" textAnchor="middle" fontFamily="Arial" fontSize="10" fill="gray">
+          ${(qrData.jobName || "Unknown").substring(0, 20)}
+        </text>
+      </svg>
+    `
+
+      return "data:image/svg+xml;base64," + btoa(fallbackSVG)
+    }
+  }
+
+  const generateQRCode = async (jobId: number) => {
+    try {
+      console.log("🎯 Generating QR code for job ID:", jobId)
+      const token = localStorage.getItem("clientToken") || session?.accessToken
+      if (!token) {
+        throw new Error("No authentication token found")
+      }
+
+      const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001"
+      console.log("🎯 API Base URL:", baseUrl)
+
+      const response = await fetch(`${baseUrl}/jobs/generate-qr`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ jobId }),
+      })
+
+      console.log("🎯 QR API Response status:", response.status)
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const result = await response.json()
+      console.log("🎯 QR API Result:", result)
+
+      if (result.qrData) {
+        // Generate QR code image from the data using QRCode library (async)
+        const qrImage = await generateQRCodeFromData(result.qrData)
+
+        const updatedJob = {
+          code: JSON.stringify(result.qrData),
+          image: qrImage,
+          generatedAt: new Date().toISOString(),
+          expiresAt: new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString(),
+        }
+
+        console.log("✅ QR code generated successfully:", updatedJob.image.substring(0, 50) + "...")
+
+        setJobs((currentJobs) =>
+          currentJobs.map((job) =>
+            job.id === jobId
+              ? {
+                  ...job,
+                  qrCode: updatedJob,
+                }
+              : job,
+          ),
+        )
+
+        // Also update selectedJobDetails if it's the same job
+        setSelectedJobDetails((current) =>
+          current?.id === jobId
+            ? {
+                ...current,
+                qrCode: updatedJob,
+              }
+            : current,
+        )
+      }
+    } catch (error) {
+      console.error("❌ Backend QR generation failed:", error)
+      console.log("🎯 Falling back to mock QR code generation")
+      // Call the mock QR code generator function
+      await generateMockQRCode(jobId)
+    }
+  }
+
+  const handleViewDetails = async (job: Job) => {
+    console.log("🎯 handleViewDetails called for job:", job.id)
     setSelectedJobDetails(job)
     setCurrentView("jobDetails")
+
+    // IMMEDIATELY generate QR code as soon as we set the selected job
+    console.log("🎯 IMMEDIATE QR generation for job:", job.id)
+
+    const immediateQRData = {
+      jobId: job.id,
+      jobName: job.title,
+      clientName: job.client.name,
+      timestamp: new Date().toISOString(),
+      token: `IMMEDIATE-${job.id}-${Date.now()}`,
+    }
+
+    console.log("🎯 Immediate QR data:", immediateQRData)
+
+    try {
+      // FIXED: Add await for async QR generation
+      const qrImage = await generateQRCodeFromData(immediateQRData)
+      console.log("🎯 QR image generated:", qrImage.substring(0, 50) + "...")
+
+      // Update the job with QR code IMMEDIATELY
+      const updatedJobWithQR = {
+        ...job,
+        qrCode: {
+          code: JSON.stringify(immediateQRData),
+          image: qrImage,
+          generatedAt: new Date().toISOString(),
+          expiresAt: new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString(),
+        },
+      }
+
+      console.log("🎯 Setting selectedJobDetails with QR code...")
+      setSelectedJobDetails(updatedJobWithQR)
+
+      // Also update the jobs array
+      setJobs((currentJobs) => currentJobs.map((j) => (j.id === job.id ? updatedJobWithQR : j)))
+
+      console.log("✅ QR code set immediately! Should be visible now.")
+    } catch (error) {
+      console.error("❌ Immediate QR generation failed:", error)
+      // Set job details without QR code as fallback
+      setSelectedJobDetails(job)
+    }
+
+    // Then try backend generation in the background (optional enhancement)
+    try {
+      console.log("🎯 Trying backend QR generation in background...")
+      await generateQRCode(job.id)
+    } catch (error) {
+      console.log("⚠️ Backend QR failed, but immediate QR should be showing:", error)
+    }
+  }
+
+  // Add a mock QR code generator as fallback (using QRCode library like qr-scanner.tsx)
+  const generateMockQRCode = async (jobId: number) => {
+    try {
+      console.log("🎯 Generating mock QR code for job ID:", jobId)
+
+      const mockData = {
+        jobId: jobId,
+        type: "check-in",
+        timestamp: new Date().toISOString(),
+        code: `SECURE-JOB-${String(jobId).padStart(3, "0")}-${Date.now()}`,
+      }
+
+      // Generate QR code using the same library for consistency (async)
+      const qrImage = await generateQRCodeFromData(mockData)
+
+      const updatedJob = {
+        code: JSON.stringify(mockData),
+        image: qrImage,
+        generatedAt: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString(),
+      }
+
+      console.log("✅ Mock QR code generated:", updatedJob.image.substring(0, 50) + "...")
+
+      setJobs((currentJobs) =>
+        currentJobs.map((job) =>
+          job.id === jobId
+            ? {
+                ...job,
+                qrCode: updatedJob,
+              }
+            : job,
+        ),
+      )
+
+      // Also update selectedJobDetails if it's the same job
+      setSelectedJobDetails((current) =>
+        current?.id === jobId
+          ? {
+              ...current,
+              qrCode: updatedJob,
+            }
+          : current,
+      )
+
+      console.log("✅ Mock QR code set successfully!")
+    } catch (error) {
+      console.error("❌ Failed to generate mock QR code:", error)
+    }
   }
 
   const handleFillSurvey = (job: Job) => {
@@ -463,7 +774,7 @@ export default function ClientDashboard() {
             <div className="w-16 h-16 border-4 border-gray-200 dark:border-gray-800 rounded-full animate-spin border-t-purple-600"></div>
             <div className="absolute inset-0 w-16 h-16 border-4 border-transparent rounded-full animate-ping border-t-purple-400"></div>
           </div>
-          <p className="text-gray-600 dark:text-gray-400">Loading your jobs...</p>
+          <p className="text-gray-600 dark:text-gray-400">{t("loadingJobs")}</p>
         </div>
       </div>
     )
@@ -478,18 +789,87 @@ export default function ClientDashboard() {
             <div className="text-red-500 mb-4">
               <AlertCircle className="w-12 h-12 mx-auto" />
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Error Loading Jobs</h3>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">{t("errorLoadingJobs")}</h3>
             <p className="text-gray-600 dark:text-gray-400 mb-4">{error}</p>
             <div className="flex gap-2">
               <Button onClick={handleRetry} className="flex-1 bg-purple-600 hover:bg-purple-700 text-white">
                 <RefreshCw className="w-4 h-4 mr-2" />
-                Try Again
+                {t("tryAgain")}
               </Button>
             </div>
           </CardContent>
         </Card>
       </div>
     )
+  }
+
+  // Transform Job to JobAssignment for JobAttendanceDetail component
+  const transformJobToJobAssignment = (job: Job) => {
+    return {
+      id: job.id,
+      jobId: job.jobId,
+      title: job.title,
+      client: {
+        id: 1, // Mock client ID
+        name: job.client.name,
+      },
+      workCenter: {
+        id: 1, // Mock work center ID
+        name: job.client.address.split(",")[0] || job.client.address,
+        address: job.client.address,
+        coordinates: { lat: 40.7128, lng: -74.006 }, // Mock coordinates
+      },
+      shift: {
+        type: "morning" as const,
+        startTime: job.schedule.startTime,
+        endTime: job.schedule.endTime,
+        duration: `${job.expectedHours}h`,
+        scheduleType: job.schedule.scheduleType as "fixed" | "flexible",
+      },
+      status: job.status as "scheduled" | "in_progress" | "completed",
+      startDate: job.startDate,
+      endDate: job.endDate,
+      signingMethods: {
+        qrCode: job.verificationMethods.includes("qr-code"),
+        gps: job.verificationMethods.includes("gps-location"),
+        wifi: job.verificationMethods.includes("wifi-network"),
+        ip: job.verificationMethods.includes("ip-address"),
+        callerId: false,
+      },
+      tasks: job.checklist.map((item) => ({
+        id: item.id,
+        name: item.task,
+        description: item.task,
+        completed: item.completed,
+        duration: "1h", // Mock duration
+        timing: "during" as const,
+      })),
+      checkInTime: job.checkin ? new Date(job.checkin.time) : undefined,
+      checkOutTime: job.checkout ? new Date(job.checkout.time) : undefined,
+      breakTime: 0, // Mock break time
+      workedTime: 0, // Mock worked time
+      expectedHours: job.expectedHours,
+      totalHours: job.expectedHours,
+      breakStartTime: undefined,
+      totalBreakTime: 0,
+      isOnBreak: false,
+      tags: [], // Mock tags
+      hasAttendanceRecord: job.hasAttendanceRecord,
+      survey: job.clientSurvey
+        ? {
+            rating: job.clientSurvey.rating,
+            comments: job.clientSurvey.comments,
+            submitted: job.clientSurvey.submitted,
+            submittedAt: job.clientSurvey.submittedAt,
+          }
+        : undefined,
+    }
+  }
+
+  const handleViewAttendanceDetails = (job: Job) => {
+    const jobAssignment = transformJobToJobAssignment(job)
+    setSelectedJobDetails(job)
+    setCurrentView("attendanceDetails")
   }
 
   // Job Details View - Full Page
@@ -506,7 +886,7 @@ export default function ClientDashboard() {
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <div>
-            <h1 className="text-xl font-semibold text-gray-900 dark:text-white">Job Details</h1>
+            <h1 className="text-xl font-semibold text-gray-900 dark:text-white">{t("viewDetails")}</h1>
             <p className="text-gray-600 dark:text-gray-400 text-sm">{selectedJobDetails?.title}</p>
           </div>
         </div>
@@ -535,27 +915,52 @@ export default function ClientDashboard() {
               </div>
               <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
                 <User className="w-4 h-4" />
-                <span className="text-sm">Worker: {selectedJobDetails?.worker.name}</span>
+                <span className="text-sm">
+                  {t("worker")}: {selectedJobDetails?.worker.name}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+                <Calendar className="w-4 h-4" />
+                <span className="text-sm">
+                  {selectedJobDetails && formatDateRange(selectedJobDetails.startDate, selectedJobDetails.endDate)}
+                  {selectedJobDetails && selectedJobDetails.jobDurationDays > 1 && (
+                    <span className="ml-2 text-xs bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 px-2 py-1 rounded">
+                      {selectedJobDetails.jobDurationDays}{" "}
+                      {selectedJobDetails.jobDurationDays === 1 ? t("day") : t("days")}
+                    </span>
+                  )}
+                </span>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* QR Code Section */}
+        {/* QR Code Section - Simple and Clean */}
         <div>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Job QR Code</h2>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">{t("generateQR")}</h2>
           <Card className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
-            <CardContent className="p-4">
-              {selectedJobDetails && (
-                <QRCodeGenerator
-                  jobId={selectedJobDetails.id}
-                  jobTitle={selectedJobDetails.title}
-                  onRefresh={() => {
-                    // Optionally refresh job data or show a success message
-                    console.log('QR Code refreshed for job:', selectedJobDetails.id)
-                  }}
-                />
-              )}
+            <CardContent className="p-6">
+              <div className="text-center">
+                {selectedJobDetails?.qrCode.image ? (
+                  <div>
+                    <img
+                      src={selectedJobDetails.qrCode.image || "/placeholder.svg"}
+                      alt="Job QR Code"
+                      className="w-64 h-64 mx-auto mb-4 border border-gray-200 rounded"
+                    />
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      {t("worker")} scans this code to {t("checkIn")}/{t("checkOut")}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="w-64 h-64 mx-auto mb-4 flex items-center justify-center border-2 border-dashed border-gray-300 rounded">
+                    <div className="text-center">
+                      <QrCode className="w-16 h-16 text-gray-400 mx-auto mb-2" />
+                      <p className="text-sm text-gray-500">Generating QR Code...</p>
+                    </div>
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -636,7 +1041,9 @@ export default function ClientDashboard() {
                             {task.task}
                           </span>
                           {task.completed && task.time && (
-                            <p className="text-xs text-green-600 dark:text-green-400 mt-1">Completed at {task.time}</p>
+                            <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                              {t("completed")} at {task.time}
+                            </p>
                           )}
                         </div>
                       </div>
@@ -665,28 +1072,24 @@ export default function ClientDashboard() {
                   <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2">Time Summary</h4>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                     <div>
-                      <span className="text-blue-800 dark:text-blue-200 font-medium">Expected:</span>
-                      <p className="text-blue-900 dark:text-blue-100">{selectedJobDetails.schedule.estimatedHours}h</p>
-                    </div>
-                    <div>
-                      <span className="text-blue-800 dark:text-blue-200 font-medium">Actual:</span>
+                      <span className="text-blue-800 dark:text-blue-200 font-medium">{t("expectedHours")}:</span>
                       <p className="text-blue-900 dark:text-blue-100">
-                        {selectedJobDetails.status === "completed"
-                          ? `${selectedJobDetails.timeTracking.actualHours.toFixed(1)}h`
-                          : selectedJobDetails.status === "active"
-                            ? "In Progress"
-                            : "Not Started"}
+                        {selectedJobDetails.expectedHours}
+                        {t("hour")}
                       </p>
                     </div>
                     <div>
-                      <span className="text-blue-800 dark:text-blue-200 font-medium">Breaks:</span>
+                      <span className="text-blue-800 dark:text-blue-200 font-medium">{t("duration")}:</span>
                       <p className="text-blue-900 dark:text-blue-100">
-                        {selectedJobDetails.timeTracking.breaks.length} breaks
+                        {selectedJobDetails.jobDurationDays}{" "}
+                        {selectedJobDetails.jobDurationDays !== 1 ? t("days") : t("day")}
                       </p>
                     </div>
                     <div>
-                      <span className="text-blue-800 dark:text-blue-200 font-medium">Status:</span>
-                      <p className="text-blue-900 dark:text-blue-100 capitalize">{selectedJobDetails.status}</p>
+                      <span className="text-blue-800 dark:text-blue-200 font-medium">{t("status")}:</span>
+                      <p className="text-blue-900 dark:text-blue-100 capitalize">
+                        {t(selectedJobDetails.status.replace("_", ""))}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -696,28 +1099,34 @@ export default function ClientDashboard() {
         )}
 
         {/* Action Buttons */}
-        <div className="flex gap-3 pt-4">
-          <Button variant="outline" className="flex-1 bg-transparent">
-            <MessageSquare className="w-4 h-4 mr-2" />
-            Message Worker
+        <div className="flex gap-2 pt-1">
+          <Button
+            size="sm"
+            className="flex-1 h-7 text-xs bg-purple-600 hover:bg-purple-700 text-white"
+            onClick={() => handleViewDetails(selectedJobDetails)}
+          >
+            <QrCode className="w-3 h-3 mr-1" />
+            {t("scanQR")}
           </Button>
-          <Button variant="outline" className="flex-1 bg-transparent">
-            <Calendar className="w-4 h-4 mr-2" />
-            Reschedule Job
+          <Button
+            size="sm"
+            variant="outline"
+            className="flex-1 h-7 text-xs bg-transparent border-gray-300 text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
+            onClick={() => handleViewAttendanceDetails(selectedJobDetails)}
+          >
+            <Eye className="w-3 h-3 mr-1" />
+            {t("viewDetails")}
           </Button>
-          {selectedJobDetails && !selectedJobDetails.clientSurvey?.submitted && (
-            <Button
-              className="flex-1 bg-purple-600 hover:bg-purple-700 text-white"
-              onClick={() => handleFillSurvey(selectedJobDetails)}
-            >
-              <Star className="w-4 h-4 mr-2" />
-              Fill Survey
-            </Button>
-          )}
         </div>
       </div>
     </div>
   )
+
+  // Render attendance details view
+  if (currentView === "attendanceDetails" && selectedJobDetails) {
+    const jobAssignment = transformJobToJobAssignment(selectedJobDetails)
+    return <JobAttendanceDetail job={jobAssignment} onBack={() => setCurrentView("dashboard")} />
+  }
 
   // Render different views based on current state
   if (currentView === "jobDetails") {
@@ -750,7 +1159,7 @@ export default function ClientDashboard() {
                   <User className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Client Dashboard</h1>
+                  <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t("clientDashboard")}</h1>
                   <p className="text-gray-600 dark:text-gray-400 text-sm">
                     {formatTime(currentTime)} •{" "}
                     {currentTime.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
@@ -762,7 +1171,7 @@ export default function ClientDashboard() {
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                   <Input
-                    placeholder="Search jobs..."
+                    placeholder={t("searchJobs")}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-9 w-64 h-9"
@@ -784,10 +1193,20 @@ export default function ClientDashboard() {
 
         {/* Stats Cards - Removed Total Spent */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-3">
-          <StatsCard label="ACTIVE JOBS" value={clientStats.activeJobs} icon={Activity} color="gray-500" />
-          <StatsCard label="COMPLETED JOBS" value={clientStats.completedJobs} icon={CheckCircle} color="gray-500" />
           <StatsCard
-            label="SATISFACTION RATE"
+            label={t("activeJobs").toUpperCase()}
+            value={clientStats.activeJobs}
+            icon={Activity}
+            color="gray-500"
+          />
+          <StatsCard
+            label={t("completedJobs").toUpperCase()}
+            value={clientStats.completedJobs}
+            icon={CheckCircle}
+            color="gray-500"
+          />
+          <StatsCard
+            label={t("averageRating").toUpperCase()}
             value={`${clientStats.satisfactionRate}%`}
             icon={Star}
             color="gray-500"
@@ -807,7 +1226,13 @@ export default function ClientDashboard() {
                     : "border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
                 }`}
               >
-                Jobs ({jobs.filter((job) => job.status === "pending" || job.status === "active").length})
+                {t("jobs")} (
+                {
+                  jobs.filter(
+                    (job) => job.status === "scheduled" || job.status === "pending" || job.status === "in_progress",
+                  ).length
+                }
+                )
               </button>
               <button
                 onClick={() => setActiveTab("history")}
@@ -817,7 +1242,13 @@ export default function ClientDashboard() {
                     : "border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
                 }`}
               >
-                History ({jobs.filter((job) => job.status === "completed").length})
+                History (
+                {
+                  jobs.filter(
+                    (job) => job.status === "completed" || job.status === "cancelled" || job.status === "on_hold",
+                  ).length
+                }
+                )
               </button>
               <button
                 onClick={() => setActiveTab("surveys")}
@@ -827,7 +1258,7 @@ export default function ClientDashboard() {
                     : "border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
                 }`}
               >
-                Surveys ({jobs.filter((job) => job.clientSurvey?.submitted).length})
+                {t("surveys")} ({jobs.filter((job) => job.clientSurvey?.submitted).length})
               </button>
             </div>
 
@@ -835,10 +1266,11 @@ export default function ClientDashboard() {
             {activeTab === "jobs" && (
               <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
                 {filteredJobs
-                  .filter((job) => job.status === "pending" || job.status === "active")
+                  .filter(
+                    (job) => job.status === "scheduled" || job.status === "pending" || job.status === "in_progress",
+                  )
                   .map((job) => {
                     const statusConfig = getStatusConfig(job.status)
-                    const progress = calculateProgress(job)
                     const StatusIcon = statusConfig.icon
 
                     return (
@@ -850,12 +1282,18 @@ export default function ClientDashboard() {
                         <div
                           className={`w-full h-0.5 ${
                             job.status === "pending"
-                              ? "bg-red-500"
-                              : job.status === "active"
-                                ? "bg-green-500"
-                                : job.status === "completed"
-                                  ? "bg-purple-500"
-                                  : "bg-gray-500"
+                              ? "bg-yellow-500"
+                              : job.status === "scheduled"
+                                ? "bg-blue-500"
+                                : job.status === "in_progress"
+                                  ? "bg-green-500"
+                                  : job.status === "completed"
+                                    ? "bg-purple-500"
+                                    : job.status === "cancelled"
+                                      ? "bg-red-500"
+                                      : job.status === "on_hold"
+                                        ? "bg-orange-500"
+                                        : "bg-gray-500"
                           }`}
                         ></div>
                         <CardHeader className="pb-2">
@@ -874,7 +1312,15 @@ export default function ClientDashboard() {
                                 </Badge>
                                 <Badge className={`${statusConfig.color} flex items-center gap-1 h-6 text-xs`}>
                                   <StatusIcon className="w-3 h-3" />
-                                  {getStatusDisplayText(job.status)}
+                                  {job.status === "in_progress"
+                                    ? t("inProgress")
+                                    : job.status === "pending"
+                                      ? t("pending")
+                                      : job.status === "scheduled"
+                                        ? t("scheduled")
+                                        : job.status === "on_hold"
+                                          ? t("onHold")
+                                          : t(job.status)}
                                 </Badge>
                               </div>
                             </div>
@@ -887,7 +1333,7 @@ export default function ClientDashboard() {
                             <div className="space-y-1">
                               <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400">
                                 <User className="w-3 h-3" />
-                                <span className="text-xs font-medium uppercase tracking-wide">Worker</span>
+                                <span className="text-xs font-medium uppercase tracking-wide">{t("worker")}</span>
                               </div>
                               <div className="text-xs font-semibold text-gray-900 dark:text-white truncate">
                                 {job.worker.name}
@@ -896,7 +1342,7 @@ export default function ClientDashboard() {
                             <div className="space-y-1">
                               <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400">
                                 <MapPin className="w-3 h-3" />
-                                <span className="text-xs font-medium uppercase tracking-wide">Location</span>
+                                <span className="text-xs font-medium uppercase tracking-wide">{t("location")}</span>
                               </div>
                               <div className="text-xs font-semibold text-gray-900 dark:text-white truncate">
                                 {job.client.address}
@@ -904,89 +1350,76 @@ export default function ClientDashboard() {
                             </div>
                           </div>
 
+                          {/* Job Duration - Updated to use real dates from API */}
+                          <div className="bg-gray-100 dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <Calendar className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                                <div className="flex flex-col">
+                                  <span className="text-sm font-medium text-gray-900 dark:text-white">
+                                    {formatDateRange(job.startDate, job.endDate)}
+                                  </span>
+                                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                                    {t("duration")}: {job.jobDurationDays}{" "}
+                                    {job.jobDurationDays !== 1 ? t("days") : t("day")}
+                                  </span>
+                                </div>
+                              </div>
+                              <Badge
+                                variant="secondary"
+                                className="text-xs bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+                              >
+                                {job.expectedHours}
+                                {t("hour")}
+                              </Badge>
+                            </div>
+                          </div>
+
                           {/* Shift Time - Only show for fixed schedule */}
                           {job.schedule.scheduleType === "fixed" && job.schedule.startTime && job.schedule.endTime && (
-                            <div className="bg-gray-100 dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+                            <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-200 dark:border-blue-800">
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
-                                  <Clock className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-                                  <span className="text-sm font-medium text-gray-900 dark:text-white">
+                                  <Clock className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                                  <span className="text-sm font-medium text-blue-900 dark:text-blue-100">
                                     {job.schedule.startTime} - {job.schedule.endTime}
                                   </span>
                                 </div>
                                 <Badge
                                   variant="secondary"
-                                  className="text-xs bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+                                  className="text-xs bg-blue-200 dark:bg-blue-800 text-blue-700 dark:text-blue-300"
                                 >
-                                  {job.schedule.estimatedHours}h
+                                  {t("fixedSchedule")}
                                 </Badge>
                               </div>
                             </div>
                           )}
 
-                          {/* Flexible Schedule Indicator - Changed to gray color */}
+                          {/* Flexible Schedule Indicator */}
                           {job.schedule.scheduleType === "flexible" && (
-                            <div className="bg-gray-100 dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+                            <div className="bg-orange-50 dark:bg-orange-900/20 p-3 rounded-lg border border-orange-200 dark:border-orange-800">
                               <div className="flex items-center justify-center">
                                 <div className="flex items-center gap-2">
-                                  <Clock className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-                                  <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                                    Flexible Schedule
+                                  <Clock className="w-4 h-4 text-orange-600 dark:text-orange-400" />
+                                  <span className="text-sm font-medium text-orange-900 dark:text-orange-100">
+                                    {t("flexibleSchedule")}
                                   </span>
                                 </div>
                               </div>
                             </div>
                           )}
 
-                          {/* Hours Information - Only show actual hours if completed */}
-                          <div className="grid grid-cols-2 gap-2">
-                            {job.schedule.scheduleType === "fixed" && (
-                              <div className="bg-gray-100 dark:bg-gray-800 p-2 rounded-md text-center">
-                                <div className="text-xs text-gray-600 dark:text-gray-400 font-medium mb-0.5">
-                                  Expected Hours
-                                </div>
-                                <div className="text-xs font-bold text-gray-900 dark:text-white">
-                                  {job.schedule.estimatedHours}h
-                                </div>
-                              </div>
-                            )}
+                          {/* Hours Information - Only show expected hours */}
+                          <div className="grid grid-cols-1 gap-2">
                             <div className="bg-gray-100 dark:bg-gray-800 p-2 rounded-md text-center">
                               <div className="text-xs text-gray-600 dark:text-gray-400 font-medium mb-0.5">
-                                Actual Hours
+                                {t("expectedHours")}
                               </div>
                               <div className="text-xs font-bold text-gray-900 dark:text-white">
-                                {job.status === "completed"
-                                  ? `${job.timeTracking.actualHours.toFixed(1)}h`
-                                  : job.status === "active"
-                                    ? "In Progress"
-                                    : "---"}
+                                {job.expectedHours}
+                                {t("hour")}
                               </div>
                             </div>
-                          </div>
-
-                          {/* Tasks Progress - Updated logic */}
-                          <div className="space-y-2">
-                            <div className="flex justify-between items-center">
-                              <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
-                                Tasks Progress
-                              </span>
-                              <span className="text-xs font-bold text-purple-600 dark:text-purple-400">
-                                {job.checklist.filter((t) => t.completed).length}/{job.checklist.length}
-                              </span>
-                            </div>
-                            <div className="relative">
-                              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
-                                <div
-                                  className="bg-purple-600 h-1.5 rounded-full transition-all duration-1000 ease-out"
-                                  style={{ width: `${progress}%` }}
-                                ></div>
-                              </div>
-                            </div>
-                            {!job.isWorkerCheckedIn && (
-                              <p className="text-xs text-gray-500 dark:text-gray-400 italic">
-                                Progress will show after worker checks in
-                              </p>
-                            )}
                           </div>
 
                           {/* Action Buttons */}
@@ -996,36 +1429,36 @@ export default function ClientDashboard() {
                               className="flex-1 h-7 text-xs bg-purple-600 hover:bg-purple-700 text-white"
                               onClick={() => handleViewDetails(job)}
                             >
-                              <Eye className="w-3 h-3 mr-1" />
-                              View Details
+                              <QrCode className="w-3 h-3 mr-1" />
+                              {t("scanQR")}
                             </Button>
-                            {!job.clientSurvey?.submitted && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-7 text-xs bg-transparent border-purple-300 text-purple-600 hover:bg-purple-50 dark:border-purple-800 dark:text-purple-400 dark:hover:bg-purple-900/20"
-                                onClick={() => handleFillSurvey(job)}
-                              >
-                                <Star className="w-3 h-3 mr-1" />
-                                Fill Survey
-                              </Button>
-                            )}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="flex-1 h-7 text-xs bg-transparent border-gray-300 text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
+                              onClick={() => handleViewAttendanceDetails(job)}
+                            >
+                              <Eye className="w-3 h-3 mr-1" />
+                              {t("viewDetails")}
+                            </Button>
                           </div>
                         </CardContent>
                       </Card>
                     )
                   })}
 
-                {filteredJobs.filter((job) => job.status === "pending" || job.status === "active").length === 0 && (
+                {filteredJobs.filter(
+                  (job) => job.status === "scheduled" || job.status === "pending" || job.status === "in_progress",
+                ).length === 0 && (
                   <div className="col-span-full">
                     <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900">
                       <CardContent className="p-8 text-center">
                         <ClipboardList className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                        <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-2">No Active Jobs</h3>
+                        <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-2">
+                          {t("activeJobs")}
+                        </h3>
                         <p className="text-gray-600 dark:text-gray-400 text-sm">
-                          {searchTerm
-                            ? "No jobs match your search criteria."
-                            : "You don't have any active jobs right now."}
+                          {searchTerm ? "No jobs match your search criteria." : t("noJobsCreated")}
                         </p>
                       </CardContent>
                     </Card>
@@ -1037,7 +1470,7 @@ export default function ClientDashboard() {
             {activeTab === "history" && (
               <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
                 {filteredJobs
-                  .filter((job) => job.status === "completed")
+                  .filter((job) => job.status === "completed" || job.status === "cancelled" || job.status === "on_hold")
                   .map((job) => {
                     const statusConfig = getStatusConfig(job.status)
                     const StatusIcon = statusConfig.icon
@@ -1063,7 +1496,7 @@ export default function ClientDashboard() {
                                 </Badge>
                                 <Badge className={`${statusConfig.color} flex items-center gap-1 text-xs font-medium`}>
                                   <StatusIcon className="w-3 h-3" />
-                                  Completed
+                                  {t("completed")}
                                 </Badge>
                               </div>
                             </div>
@@ -1074,18 +1507,26 @@ export default function ClientDashboard() {
                           <div className="space-y-2">
                             <div className="flex items-center gap-2">
                               <Calendar className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-                              <span className="text-sm text-gray-600 dark:text-gray-400">{job.schedule.date}</span>
+                              <span className="text-sm text-gray-600 dark:text-gray-400">
+                                {formatDateRange(job.startDate, job.endDate)}
+                                {job.jobDurationDays > 1 && (
+                                  <span className="ml-2 text-xs bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-2 py-1 rounded">
+                                    {job.jobDurationDays} {job.jobDurationDays === 1 ? t("day") : t("days")}
+                                  </span>
+                                )}
+                              </span>
                             </div>
                             <div className="flex items-center gap-2">
                               <Timer className="w-4 h-4 text-gray-500 dark:text-gray-400" />
                               <span className="text-sm text-gray-600 dark:text-gray-400">
-                                {job.timeTracking.actualHours.toFixed(1)}h completed
+                                {job.expectedHours}
+                                {t("hour")} {t("completed")}
                               </span>
                             </div>
                             <div className="flex items-center gap-2">
                               <User className="w-4 h-4 text-gray-500 dark:text-gray-400" />
                               <span className="text-sm text-gray-600 dark:text-gray-400">
-                                Worker: {job.worker.name}
+                                {t("worker")}: {job.worker.name}
                               </span>
                             </div>
                           </div>
@@ -1096,11 +1537,11 @@ export default function ClientDashboard() {
                               <div className="flex items-center gap-2 mb-2">
                                 <Star className="w-4 h-4 text-green-600 dark:text-green-400" />
                                 <span className="text-sm font-medium text-green-700 dark:text-green-400">
-                                  Survey Completed
+                                  {t("surveyCompleted")}
                                 </span>
                               </div>
                               <div className="flex items-center gap-2 mb-2">
-                                <span className="text-sm text-green-600 dark:text-green-400">Rating:</span>
+                                <span className="text-sm text-green-600 dark:text-green-400">{t("rating")}:</span>
                                 <div className="flex gap-1">
                                   {[1, 2, 3, 4, 5].map((star) => (
                                     <Star
@@ -1131,33 +1572,33 @@ export default function ClientDashboard() {
                               className="flex-1 h-7 text-xs bg-purple-600 hover:bg-purple-700 text-white"
                               onClick={() => handleViewDetails(job)}
                             >
-                              <Eye className="w-3 h-3 mr-1" />
-                              View Details
+                              <QrCode className="w-3 h-3 mr-1" />
+                              {t("scanQR")}
                             </Button>
-                            {!job.clientSurvey?.submitted && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-7 text-xs bg-transparent border-purple-300 text-purple-600 hover:bg-purple-50 dark:border-purple-800 dark:text-purple-400 dark:hover:bg-purple-900/20"
-                                onClick={() => handleFillSurvey(job)}
-                              >
-                                <Star className="w-3 h-3 mr-1" />
-                                Fill Survey
-                              </Button>
-                            )}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="flex-1 h-7 text-xs bg-transparent border-gray-300 text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
+                              onClick={() => handleViewAttendanceDetails(job)}
+                            >
+                              <Eye className="w-3 h-3 mr-1" />
+                              {t("viewDetails")}
+                            </Button>
                           </div>
                         </CardContent>
                       </Card>
                     )
                   })}
 
-                {filteredJobs.filter((job) => job.status === "completed").length === 0 && (
+                {filteredJobs.filter(
+                  (job) => job.status === "completed" || job.status === "cancelled" || job.status === "on_hold",
+                ).length === 0 && (
                   <div className="col-span-full">
                     <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900">
                       <CardContent className="p-8 text-center">
                         <CheckCircle className="w-12 h-12 text-gray-400 mx-auto mb-3" />
                         <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-2">
-                          No Completed Jobs
+                          {t("completedJobs")}
                         </h3>
                         <p className="text-gray-600 dark:text-gray-400 text-sm">
                           {searchTerm
@@ -1175,7 +1616,7 @@ export default function ClientDashboard() {
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                   <ClipboardList className="w-5 h-5" />
-                  My Surveys
+                  {t("surveys")}
                 </h3>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -1190,10 +1631,10 @@ export default function ClientDashboard() {
                   <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900">
                     <CardContent className="p-8 text-center">
                       <ClipboardList className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                      <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-2">No Surveys Yet</h3>
-                      <p className="text-gray-600 dark:text-gray-400 text-sm">
-                        Your completed surveys will appear here after you submit them.
-                      </p>
+                      <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-2">
+                        {t("noSurveysYet")}
+                      </h3>
+                      <p className="text-gray-600 dark:text-gray-400 text-sm">{t("surveysDescription")}</p>
                     </CardContent>
                   </Card>
                 )}

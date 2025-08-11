@@ -54,6 +54,7 @@
     "next-themes": "latest",
     "nodemailer": "latest",
     "qrcode": "^1.5.4",
+    "qrcode-generator": "^2.0.2",
     "react": "^18",
     "react-day-picker": "latest",
     "react-dom": "^18",

@@ -29,7 +29,7 @@ interface JobAssignment {
     duration: string
     scheduleType: "fixed" | "flexible"
   }
-  status: "scheduled" | "in_progress" | "completed" | "missed" | "on_break"
+  status: "scheduled" | "pending" | "in_progress" | "completed" | "cancelled" | "on_hold"
   signingMethods: {
     qrCode?: boolean
     gps?: boolean
@@ -99,12 +99,12 @@ export function CurrentJobCard({
           </h2>
           <Badge
             className={
-              job.status === "on_break"
+              job.isOnBreak
                 ? "bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400"
                 : "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400"
             }
           >
-            {job.status === "on_break" ? (
+            {job.isOnBreak ? (
               <>
                 <Coffee className="w-3 h-3 mr-1" />
                 On Break

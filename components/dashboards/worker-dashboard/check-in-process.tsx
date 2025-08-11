@@ -1,10 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, Navigation, Wifi, Globe, QrCode, Camera, Scan, AlertCircle } from "lucide-react"
-import { QRScanner } from "@/components/qr-scanner"
+import { ArrowLeft, Navigation, Wifi, Globe, QrCode, Camera, Scan, AlertCircle, CheckCircle } from "lucide-react"
+import jsQR from 'jsqr'
 
 interface JobAssignment {
   id: number
@@ -25,46 +25,20 @@ interface JobAssignment {
 interface CheckInProcessProps {
   job: JobAssignment
   method: string
+  token: string // Add token prop
   onBack: () => void
   onComplete: () => void
-  onQRScan?: (data: string) => void
 }
 
-export function CheckInProcess({ job, method, onBack, onComplete, onQRScan }: CheckInProcessProps) {
-  const [showQRScanner, setShowQRScanner] = useState(false)
-  const [qrScanLoading, setQrScanLoading] = useState(false)
-  const [qrScanError, setQrScanError] = useState<string | null>(null)
+export function CheckInProcess({ job, method, token, onBack, onComplete }: CheckInProcessProps) {
+  const [scannerActive, setScannerActive] = useState(false)
+  const [scanResult, setScanResult] = useState<string | null>(null)
+  const [isScanning, setIsScanning] = useState(false)
+  const [cameraReady, setCameraReady] = useState(false)
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const animationRef = useRef<number | null>(null)
 
-  const handleStartQRScan = () => {
-    console.log('Starting QR scan for job:', job.id, job.title) // Debug log
-    setShowQRScanner(true)
-    setQrScanError(null)
-  }
-
-  const handleQRScanComplete = async (data: string) => {
-    console.log('QR scan completed with data:', data) // Debug log
-    if (onQRScan) {
-      setQrScanLoading(true)
-      setQrScanError(null)
-      try {
-        await onQRScan(data)
-        setShowQRScanner(false)
-      } catch (error) {
-        console.error('QR scan failed:', error)
-        const errorMessage = error instanceof Error ? error.message : 'QR scan failed. Please try again.'
-        setQrScanError(errorMessage)
-        // Keep scanner open on error
-      } finally {
-        setQrScanLoading(false)
-      }
-    }
-  }
-
-  const handleCloseQRScanner = () => {
-    setShowQRScanner(false)
-    setQrScanLoading(false)
-    setQrScanError(null)
-  }
   const getMethodName = (method: string) => {
     switch (method) {
       case "gps":
@@ -81,6 +55,189 @@ export function CheckInProcess({ job, method, onBack, onComplete, onQRScan }: Ch
         return method
     }
   }
+
+  // QR Code scanning functions - Updated to match qr-scanner.tsx pattern
+  const startScanner = async () => {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      alert('Camera access not supported');
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { facingMode: 'environment' } 
+      });
+      
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.setAttribute('playsinline', 'true');
+        await videoRef.current.play();
+        setCameraReady(true);
+        setScannerActive(true);
+        setIsScanning(true);
+        scanQRCode(); // Start the scanning loop
+      }
+    } catch (err: any) {
+      console.error('Camera error:', err);
+      alert(`Camera access denied: ${err.message}`);
+    }
+  };
+
+  const stopScanner = () => {
+    setIsScanning(false);
+    setCameraReady(false);
+    setScannerActive(false);
+    if (animationRef.current) cancelAnimationFrame(animationRef.current);
+    if (videoRef.current && videoRef.current.srcObject) {
+      const stream = videoRef.current.srcObject as MediaStream;
+      stream.getTracks().forEach(track => track.stop());
+      videoRef.current.srcObject = null;
+    }
+  };
+
+  const scanQRCode = () => {
+    if (!videoRef.current || !canvasRef.current) return;
+
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return;
+
+    if (video.readyState === video.HAVE_ENOUGH_DATA) {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const code = jsQR(imageData.data, imageData.width, imageData.height);
+
+      if (code) {
+        console.log('QR Code detected:', code.data);
+        handleQRCodeDetected(code.data);
+        return;
+      } else {
+        // Keep scanning message
+        setScanResult('Scanning...');
+      }
+    } else {
+      setScanResult('Waiting for camera...');
+    }
+
+    // Delay next scan attempt by 2 seconds (like qr-scanner.tsx)
+    setTimeout(() => {
+      animationRef.current = requestAnimationFrame(scanQRCode);
+    }, 2000);
+  };
+
+  const handleQRCodeDetected = async (qrData: string) => {
+    try {
+      setScanResult(`Scanned: ${qrData}`);
+      stopScanner();
+      
+      // Parse QR code data
+      const qrJobData = JSON.parse(qrData);
+      console.log('Parsed QR Job Data:', qrJobData);
+      console.log('Current Job ID:', job.id, 'Type:', typeof job.id);
+      console.log('QR Job ID:', qrJobData.jobId, 'Type:', typeof qrJobData.jobId);
+      
+      // Validate that this QR code is for the correct job - convert both to numbers for comparison
+      const currentJobId = typeof job.id === 'string' ? parseInt(job.id) : job.id;
+      const qrJobId = typeof qrJobData.jobId === 'string' ? parseInt(qrJobData.jobId) : qrJobData.jobId;
+      
+      if (qrJobId !== currentJobId) {
+        alert(`This QR code is for job ${qrJobId}, but you are checking into job ${currentJobId}!`);
+        // Restart scanner
+        setTimeout(() => startScanner(), 1000);
+        return;
+      }
+      
+      // Show success message
+      alert('QR Code verified! Recording check-in...');
+      
+      // Call the backend API to record the scan
+      await recordScan(qrData);
+      
+    } catch (error) {
+      console.error('Error processing QR code:', error);
+      alert('Invalid QR code format. Please try again.');
+      // Restart scanner
+      setTimeout(() => startScanner(), 1000);
+    }
+  };
+
+  const recordScan = async (qrData: string) => {
+    try {
+      if (!token) {
+        throw new Error("No authentication token found");
+      }
+
+      const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001";
+      console.log('Recording scan with data:', {
+        jobId: job.id,
+        scanType: "check-in",
+        location: `${job.workCenter.name}`,
+        notes: `QR Code scan: ${qrData.substring(0, 50)}...`
+      });
+
+      const response = await fetch(`${baseUrl}/jobs/scan`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          jobId: job.id,
+          scanType: "check-in",
+          location: `${job.workCenter.name}`,
+          notes: `QR Code scan: ${qrData.substring(0, 50)}...`
+        }),
+      });
+
+      console.log('Response status:', response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Response error:', errorText);
+        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+      }
+
+      const result = await response.json();
+      console.log('✅ Scan recorded successfully:', result);
+      
+      // Show success toast
+      alert('✅ Check-in successful! Welcome to work.');
+      
+      console.log('🎯 Calling onComplete to navigate to dashboard...');
+      // Complete check-in and navigate to current job view
+      onComplete();
+      
+    } catch (error) {
+      console.error("❌ Error recording scan:", error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      alert(`❌ Failed to record check-in: ${errorMessage}`);
+      // Restart scanner for retry
+      setTimeout(() => startScanner(), 1000);
+    }
+  };
+
+  // Auto-start scanner when QR Code method is selected
+  useEffect(() => {
+    if (method === "qrCode") {
+      startScanner();
+    }
+    
+    // Cleanup on unmount
+    return () => {
+      stopScanner();
+    };
+  }, [method]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      stopScanner();
+    };
+  }, []);
 
   const renderMethodSpecificUI = () => {
     switch (method) {
@@ -195,33 +352,72 @@ export function CheckInProcess({ job, method, onBack, onComplete, onQRScan }: Ch
 
             <Card className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
               <CardContent className="p-4">
-                <div className="aspect-square bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center mb-4">
-                  <div className="w-64 h-64 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg flex items-center justify-center">
-                    <div className="text-center">
-                      <Camera className="w-12 h-12 text-gray-400 mx-auto mb-2" />
-                      <p className="text-sm text-gray-500 dark:text-gray-400">Position QR code within frame</p>
+                <div className="relative w-full aspect-video overflow-hidden rounded-md border border-gray-300">
+                  <video
+                    ref={videoRef}
+                    className={`absolute top-0 left-0 w-full h-full object-cover ${scannerActive ? '' : 'hidden'}`}
+                    autoPlay
+                    muted
+                  />
+                  <canvas ref={canvasRef} className="hidden" />
+
+                  {/* Scanner Overlay */}
+                  {scannerActive && (
+                    <>
+                      <div className="absolute inset-0 border-4 border-green-400 rounded-md pointer-events-none z-10" />
+                      <div className="absolute top-0 left-0 w-full h-full z-20 pointer-events-none">
+                        <div className="absolute w-full h-1 bg-red-500 animate-scan-line" />
+                      </div>
+                    </>
+                  )}
+
+                  {/* Camera starting message */}
+                  {!scannerActive && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-gray-100 dark:bg-gray-800">
+                      <div className="text-center">
+                        <Camera className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+                        <p className="text-sm text-gray-500">Starting camera...</p>
+                      </div>
                     </div>
+                  )}
+                </div>
+
+                {/* Scanner controls */}
+                <div className="flex items-center justify-center gap-2 mt-4">
+                  {!scannerActive ? (
+                    <Button onClick={startScanner} className="flex items-center gap-2 bg-orange-600 hover:bg-orange-700 text-white">
+                      <Camera className="w-4 h-4" />
+                      <span className="text-sm font-medium">Start Scanner</span>
+                    </Button>
+                  ) : (
+                    <Button onClick={stopScanner} variant="outline" className="flex items-center gap-2">
+                      <Scan className="w-4 h-4" />
+                      <span className="text-sm font-medium">Stop Scanner</span>
+                    </Button>
+                  )}
+                </div>
+
+                {/* Scan result */}
+                {scanResult && (
+                  <div className="mt-4 text-center">
+                    <strong className="text-gray-800 dark:text-gray-200">{scanResult}</strong>
                   </div>
-                </div>
-                <div className="flex items-center justify-center">
-                  <Button 
-                    variant="ghost" 
-                    className="flex items-center gap-2 text-purple-600 hover:text-purple-700"
-                    onClick={handleStartQRScan}
-                  >
-                    <Scan className="w-4 h-4" />
-                    <span className="text-sm font-medium">Enable Camera</span>
-                  </Button>
-                </div>
+                )}
               </CardContent>
             </Card>
 
-            <Button 
-              onClick={handleStartQRScan} 
-              className="w-full bg-orange-600 hover:bg-orange-700 text-white py-3"
-            >
-              Scan QR Code to Check In
-            </Button>
+            {/* Success message */}
+            {scanResult && scanResult.startsWith('Scanned:') && (
+              <Card className="bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <CheckCircle className="w-5 h-5 text-green-600" />
+                    <h4 className="font-medium text-green-900 dark:text-green-100">Scan Successful</h4>
+                  </div>
+                  <p className="text-sm text-green-700 dark:text-green-300">QR code verified! Processing check-in...</p>
+                </CardContent>
+              </Card>
+            )}
           </div>
         )
 
@@ -246,69 +442,51 @@ export function CheckInProcess({ job, method, onBack, onComplete, onQRScan }: Ch
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-      <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-4 mb-4">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={onBack} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800">
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <div>
-            <h1 className="text-xl font-semibold text-gray-900 dark:text-white">{getMethodName(method)}</h1>
-            <p className="text-gray-600 dark:text-gray-400 text-sm">{job.title}</p>
+    <>
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+        <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-4 mb-4">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="sm" onClick={onBack} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800">
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <div>
+              <h1 className="text-xl font-semibold text-gray-900 dark:text-white">{getMethodName(method)}</h1>
+              <p className="text-gray-600 dark:text-gray-400 text-sm">{job.title}</p>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div className="max-w-[1400px] mx-auto p-4 space-y-4">
-        {renderMethodSpecificUI()}
+        <div className="max-w-[1400px] mx-auto p-4 space-y-4">
+          {renderMethodSpecificUI()}
 
-        <Card className="bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800">
-          <CardContent className="p-4">
-            <div className="flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5" />
-              <div>
-                <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-1">Instructions</h4>
-                <p className="text-sm text-blue-800 dark:text-blue-200">{getInstructions()}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* QR Scan Error Display */}
-      {qrScanError && (
-        <div className="fixed top-4 left-4 right-4 z-40">
-          <Card className="bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800 max-w-md mx-auto">
+          <Card className="bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800">
             <CardContent className="p-4">
               <div className="flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 mt-0.5" />
+                <AlertCircle className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5" />
                 <div>
-                  <h4 className="font-medium text-red-900 dark:text-red-100 mb-1">Scan Failed</h4>
-                  <p className="text-sm text-red-800 dark:text-red-200">{qrScanError}</p>
+                  <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-1">Instructions</h4>
+                  <p className="text-sm text-blue-800 dark:text-blue-200">{getInstructions()}</p>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setQrScanError(null)}
-                  className="p-1 hover:bg-red-100 dark:hover:bg-red-800"
-                >
-                  ×
-                </Button>
               </div>
             </CardContent>
           </Card>
         </div>
-      )}
+      </div>
+      
+      <style jsx>{`
+        @keyframes scanLine {
+          0% {
+            top: 0%;
+          }
+          100% {
+            top: 100%;
+          }
+        }
 
-      {/* QR Scanner Modal */}
-      <QRScanner
-        isOpen={showQRScanner}
-        onScan={handleQRScanComplete}
-        onClose={handleCloseQRScanner}
-        loading={qrScanLoading}
-        title="Scan Job QR Code"
-        subtitle={`Check in for: ${job.title}`}
-      />
-    </div>
+        .animate-scan-line {
+          animation: scanLine 2s linear infinite;
+        }
+      `}</style>
+    </>
   )
 }
