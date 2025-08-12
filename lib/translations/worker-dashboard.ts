@@ -1,114 +1,116 @@
 const workerDashboardTranslations = {
   en: {
-    // Header & Navigation
+    // Dashboard Header
     workerDashboard: "Worker Dashboard",
-    welcome: "Welcome back",
-    currentTime: "Current Time",
     atWorkCenter: "At Work Center",
-    awayFromWork: "away",
+    away: "away",
 
     // Stats Cards
-    todaysShifts: "TODAY'S SHIFTS",
+    todayShifts: "TODAY'S SHIFTS",
     completedJobs: "COMPLETED JOBS",
     hoursToday: "HOURS TODAY",
     onTimeRate: "ON-TIME RATE",
     taskCompletion: "TASK COMPLETION",
 
-    // Time & Date
-    hours: "hours",
-    hour: "h",
-    minutes: "minutes",
-    min: "min",
+    // Current Job Card
+    currentJob: "Current Job",
+    onBreak: "On Break",
+    inProgress: "In Progress",
+    tasks: "Tasks",
+    workingTime: "Working Time",
+    breakTime: "Break Time",
+    checkIn: "Check In",
+    expectedOut: "Expected Out",
+    backToWork: "Back to Work",
+    breakOut: "Break Out",
+    startBreak: "Start Break",
+    checkOut: "Check Out",
+    totalBreakTime: "Total Break Time",
+
+    // Break Types
+    personal: "Personal",
+    teaSmoking: "Tea/Smoking",
+    officialWork: "Official Work",
+    lunch: "Lunch",
+    prayer: "Prayer",
+    other: "Other",
+
+    // Job Card
+    client: "Client",
+    location: "Location",
+    duration: "Duration",
     days: "days",
-    day: "day",
+    expectedHours: "Expected Hours",
+    status: "Status",
+    hasAttendance: "Has Attendance",
+    noAttendance: "No Attendance",
+    signinMethods: "Sign-in methods",
+    viewDetails: "View Details",
+    fillSurvey: "Fill Survey",
 
     // Job Status
     scheduled: "Scheduled",
-    inProgress: "In Progress",
     completed: "Completed",
 
-    // Job Actions
-    checkIn: "Check In",
-    checkOut: "Check Out",
-    takeBreak: "Take Break",
-    backToWork: "Back to Work",
-    fillSurvey: "Fill Survey",
-    viewDetails: "View Details",
-    completeTask: "Complete",
+    // Tabs
+    todayAssignments: "Today's Assignments",
+    recentHistory: "Recent History",
+    surveys: "Surveys",
+    mySurveys: "My Surveys",
+    noSurveysYet: "No Surveys Yet",
+    noSurveysDescription: "Your completed surveys will appear here after you submit them.",
 
-    // Check-in Methods
+    // Check-in Flow
+    checkInTitle: "Check In",
     chooseCheckInMethod: "Choose Check-in Method",
     gpsLocation: "GPS Location",
     wifiNetwork: "WiFi Network",
     ipAddress: "IP Address",
-    qrCode: "QR Code",
+    qrCodeScanner: "QR Code Scanner",
     callerId: "Caller ID",
 
-    // Check-in Descriptions
-    verifyLocationGPS: "Verify your location using GPS",
+    // Check-in Method Descriptions
+    verifyLocationGps: "Verify your location using GPS",
     connectWorkplaceWifi: "Connect to the workplace WiFi",
-    verifyIPAddress: "Verify using IP address",
-    scanQRCode: "Scan the QR code at location",
+    verifyIpAddress: "Verify using IP address",
+    scanQrCode: "Scan the QR code at location",
     verifyPhoneNumber: "Verify using phone number",
 
-    // Current Job
-    currentJob: "Current Job",
-    workingTime: "Working Time",
-    breakTime: "Break Time",
-    expectedHours: "Expected Hours",
-    tasksCompleted: "Tasks Completed",
-    onBreak: "On Break",
+    // Check-in Process
+    gettingLocation: "Getting your location...",
+    allowLocationAccess: "Please allow location access to continue",
+    locationDetails: "Location Details",
+    expected: "Expected",
+    current: "Current",
+    detecting: "Detecting...",
+    accuracy: "Accuracy",
+    locationVerified: "Location Verified",
+    verifyLocationCheckIn: "Verify Location & Check In",
 
-    // Break Types
-    lunchBreak: "Lunch Break",
-    coffeeBreak: "Coffee Break",
-    restBreak: "Rest Break",
+    // WiFi Verification
+    wifiVerification: "WiFi Verification",
+    connectWorkplaceWifiNetwork: "Connect to the workplace WiFi network",
+    availableNetworks: "Available Networks",
+    workplace: "WORKPLACE",
+    connectCheckIn: "Connect & Check In",
 
-    // Tabs
-    assignments: "Today's Assignments",
-    history: "Recent History",
-    surveys: "Surveys",
-    mySurveys: "My Surveys",
+    // IP Verification
+    ipVerification: "IP Verification",
+    verifyingNetworkConnection: "Verifying your network connection",
+    networkInformation: "Network Information",
+    yourIp: "Your IP",
+    expectedRange: "Expected Range",
+    network: "Network",
+    ipAddressVerified: "IP Address Verified",
+    confirmCheckIn: "Confirm & Check In",
 
-    // Survey
-    jobSurvey: "Job Survey",
-    howSatisfied: "How satisfied are you with the job?",
-    anyComments: "Any comments?",
-    submitSurvey: "Submit Survey",
-    shareFeedback: "Share your thoughts, suggestions, or feedback about the job...",
-
-    // Survey Ratings
-    veryPoor: "Very Poor",
-    poor: "Poor",
-    average: "Average",
-    good: "Good",
-    excellent: "Excellent",
-
-    // Messages & Notifications
-    checkInSuccessful: "Check-in successful! Welcome to work.",
-    checkOutSuccessful: "Check-out successful! Have a great day.",
-    breakStarted: "Break started",
-    backToWorkSuccessful: "Break ended, back to work",
-    taskCompleted: "Task completed successfully",
-    jobCompleted: "Job completed successfully",
-    workSessionCompleted: "Work session completed",
-
-    // Error Messages
-    errorLoadingJobs: "Error Loading Jobs",
-    failedToLoadJobs: "Failed to load worker jobs",
-    noAuthToken: "No authentication token available",
-    checkOutFailed: "Failed to check out",
-    taskCompletionFailed: "Failed to complete task",
-    breakStartFailed: "Failed to start break",
-    backToWorkFailed: "Failed to end break",
-    tryAgain: "Try Again",
-
-    // QR Scanner
+    // QR Code Scanner
+    scanQrCodeWorkplace: "Scan the QR code at your workplace",
+    startingCamera: "Starting camera...",
     startScanner: "Start Scanner",
     stopScanner: "Stop Scanner",
     scanning: "Scanning...",
     waitingForCamera: "Waiting for camera...",
-    startingCamera: "Starting camera...",
     scanSuccessful: "Scan Successful",
     qrCodeVerified: "QR code verified! Processing check-in...",
 
@@ -119,252 +121,243 @@ const workerDashboardTranslations = {
     ipInstructions: "Ensure you are connected to the company network. VPN connections may not work.",
     qrInstructions: "Find the QR code posted at your workplace entrance or designated area and scan it clearly.",
 
-    // Location & Network
-    gettingLocation: "Getting your location...",
-    allowLocationAccess: "Please allow location access to continue",
-    locationDetails: "Location Details",
-    expected: "Expected",
-    current: "Current",
-    accuracy: "Accuracy",
-    locationVerified: "Location Verified",
-    verifyLocationCheckIn: "Verify Location & Check In",
+    // Error Messages
+    errorLoadingJobs: "Error Loading Jobs",
+    tryAgain: "Try Again",
+    cameraAccessDenied: "Camera access denied",
+    invalidQrCode: "Invalid QR code format. Please try again.",
+    qrCodeMismatch: "This QR code is for job {jobId}, but you are checking into job {currentJobId}!",
+    checkInSuccessful: "Check-in successful! Welcome to work.",
+    checkInFailed: "Failed to record check-in",
 
-    wifiVerification: "WiFi Verification",
-    connectWorkplaceWifi: "Connect to the workplace WiFi network",
-    availableNetworks: "Available Networks",
-    workplace: "WORKPLACE",
-    connectCheckIn: "Connect & Check In",
-
-    ipVerification: "IP Verification",
-    verifyingNetwork: "Verifying your network connection",
-    networkInformation: "Network Information",
-    yourIP: "Your IP",
-    expectedRange: "Expected Range",
-    network: "Network",
-    ipVerified: "IP Address Verified",
-    confirmCheckIn: "Confirm & Check In",
-
-    qrCodeScanner: "QR Code Scanner",
-    scanQRWorkplace: "Scan the QR code at your workplace",
-
-    // Survey States
-    noSurveysYet: "No Surveys Yet",
-    surveysDescription: "Your completed surveys will appear here after you submit them.",
-
-    // Job Details
-    client: "Client",
-    location: "Location",
-    shift: "Shift",
-    schedule: "Schedule",
-    flexible: "Flexible",
-    duration: "Duration",
+    // Job Details Modal
+    jobInformation: "Job Information",
+    jobPeriod: "Job Period",
+    startDate: "Start Date",
+    endDate: "End Date",
+    totalDays: "Total Days",
     remaining: "Remaining",
+    attendanceRate: "Attendance Rate",
+    daysWorked: "Days Worked",
+    totalHours: "Total Hours",
+    avgHoursPerDay: "Avg Hours/Day",
+    overview: "Overview",
+    attendance: "Attendance",
+    statistics: "Statistics",
+    attendanceRecords: "Attendance Records",
+    export: "Export",
+    networkInfo: "Network Information",
+    worked: "worked",
+    weeklyPerformance: "Weekly Performance",
+    monthlyTrends: "Monthly Trends",
+    performanceMetrics: "Performance Metrics",
+    onTimeRateMetric: "On-time Rate",
+    avgDailyHours: "Avg Daily Hours",
+    avgBreakTime: "Avg Break Time",
+    lateDays: "Late Days",
 
-    // Job Status Messages
-    hasAttendance: "Has Attendance",
-    noAttendance: "No Attendance",
+    // Attendance Status
+    present: "Present",
+    absent: "Absent",
+    late: "Late",
+    earlyLeave: "Early Leave",
+    noCheckIn: "No check-in",
 
-    // Common Actions
+    // Survey
+    jobSurvey: "Job Survey",
+    rateExperience: "Rate your experience",
+    additionalComments: "Additional comments (optional)",
+    submitSurvey: "Submit Survey",
     cancel: "Cancel",
-    submit: "Submit",
-    save: "Save",
-    edit: "Edit",
-    delete: "Delete",
-    confirm: "Confirm",
-    back: "Back",
-    next: "Next",
-    finish: "Finish",
+    surveySubmitted: "Survey Submitted",
+    thankYouFeedback: "Thank you for your feedback!",
 
-    // Loading States
-    loading: "Loading...",
-    processing: "Processing...",
-    saving: "Saving...",
-    submitting: "Submitting...",
+    // Time Formats
+    hours: "h",
+    minutes: "min",
+    seconds: "s",
   },
   es: {
-    // Header & Navigation
+    // Dashboard Header
     workerDashboard: "Panel del Trabajador",
-    welcome: "Bienvenido de vuelta",
-    currentTime: "Hora Actual",
     atWorkCenter: "En el Centro de Trabajo",
-    awayFromWork: "lejos",
+    away: "lejos",
 
     // Stats Cards
-    todaysShifts: "TURNOS DE HOY",
+    todayShifts: "TURNOS DE HOY",
     completedJobs: "TRABAJOS COMPLETADOS",
     hoursToday: "HORAS HOY",
     onTimeRate: "TASA DE PUNTUALIDAD",
     taskCompletion: "FINALIZACIÓN DE TAREAS",
 
-    // Time & Date
-    hours: "horas",
-    hour: "h",
-    minutes: "minutos",
-    min: "min",
+    // Current Job Card
+    currentJob: "Trabajo Actual",
+    onBreak: "En Descanso",
+    inProgress: "En Progreso",
+    tasks: "Tareas",
+    workingTime: "Tiempo de Trabajo",
+    breakTime: "Tiempo de Descanso",
+    checkIn: "Registrar Entrada",
+    expectedOut: "Salida Esperada",
+    backToWork: "Volver al Trabajo",
+    breakOut: "Salir a Descanso",
+    startBreak: "Iniciar Descanso",
+    checkOut: "Registrar Salida",
+    totalBreakTime: "Tiempo Total de Descanso",
+
+    // Break Types
+    personal: "Personal",
+    teaSmoking: "Té/Fumar",
+    officialWork: "Trabajo Oficial",
+    lunch: "Almuerzo",
+    prayer: "Oración",
+    other: "Otro",
+
+    // Job Card
+    client: "Cliente",
+    location: "Ubicación",
+    duration: "Duración",
     days: "días",
-    day: "día",
+    expectedHours: "Horas Esperadas",
+    status: "Estado",
+    hasAttendance: "Tiene Asistencia",
+    noAttendance: "Sin Asistencia",
+    signinMethods: "Métodos de registro",
+    viewDetails: "Ver Detalles",
+    fillSurvey: "Llenar Encuesta",
 
     // Job Status
     scheduled: "Programado",
-    inProgress: "En Progreso",
     completed: "Completado",
 
-    // Job Actions
-    checkIn: "Registrar Entrada",
-    checkOut: "Registrar Salida",
-    takeBreak: "Tomar Descanso",
-    backToWork: "Volver al Trabajo",
-    fillSurvey: "Llenar Encuesta",
-    viewDetails: "Ver Detalles",
-    completeTask: "Completar",
+    // Tabs
+    todayAssignments: "Asignaciones de Hoy",
+    recentHistory: "Historial Reciente",
+    surveys: "Encuestas",
+    mySurveys: "Mis Encuestas",
+    noSurveysYet: "Aún No Hay Encuestas",
+    noSurveysDescription: "Tus encuestas completadas aparecerán aquí después de enviarlas.",
 
-    // Check-in Methods
+    // Check-in Flow
+    checkInTitle: "Registrar Entrada",
     chooseCheckInMethod: "Elegir Método de Registro",
     gpsLocation: "Ubicación GPS",
     wifiNetwork: "Red WiFi",
     ipAddress: "Dirección IP",
-    qrCode: "Código QR",
+    qrCodeScanner: "Escáner de Código QR",
     callerId: "ID de Llamada",
 
-    // Check-in Descriptions
-    verifyLocationGPS: "Verificar tu ubicación usando GPS",
-    connectWorkplaceWifi: "Conectar a la WiFi del lugar de trabajo",
-    verifyIPAddress: "Verificar usando dirección IP",
-    scanQRCode: "Escanear el código QR en la ubicación",
+    // Check-in Method Descriptions
+    verifyLocationGps: "Verificar tu ubicación usando GPS",
+    connectWorkplaceWifi: "Conectar al WiFi del lugar de trabajo",
+    verifyIpAddress: "Verificar usando dirección IP",
+    scanQrCode: "Escanear el código QR en la ubicación",
     verifyPhoneNumber: "Verificar usando número de teléfono",
 
-    // Current Job
-    currentJob: "Trabajo Actual",
-    workingTime: "Tiempo de Trabajo",
-    breakTime: "Tiempo de Descanso",
-    expectedHours: "Horas Esperadas",
-    tasksCompleted: "Tareas Completadas",
-    onBreak: "En Descanso",
+    // Check-in Process
+    gettingLocation: "Obteniendo tu ubicación...",
+    allowLocationAccess: "Por favor permite el acceso a la ubicación para continuar",
+    locationDetails: "Detalles de Ubicación",
+    expected: "Esperado",
+    current: "Actual",
+    detecting: "Detectando...",
+    accuracy: "Precisión",
+    locationVerified: "Ubicación Verificada",
+    verifyLocationCheckIn: "Verificar Ubicación y Registrar Entrada",
 
-    // Break Types
-    lunchBreak: "Descanso de Almuerzo",
-    coffeeBreak: "Descanso de Café",
-    restBreak: "Descanso",
+    // WiFi Verification
+    wifiVerification: "Verificación WiFi",
+    connectWorkplaceWifiNetwork: "Conectar a la red WiFi del lugar de trabajo",
+    availableNetworks: "Redes Disponibles",
+    workplace: "LUGAR DE TRABAJO",
+    connectCheckIn: "Conectar y Registrar Entrada",
 
-    // Tabs
-    assignments: "Asignaciones de Hoy",
-    history: "Historial Reciente",
-    surveys: "Encuestas",
-    mySurveys: "Mis Encuestas",
+    // IP Verification
+    ipVerification: "Verificación IP",
+    verifyingNetworkConnection: "Verificando tu conexión de red",
+    networkInformation: "Información de Red",
+    yourIp: "Tu IP",
+    expectedRange: "Rango Esperado",
+    network: "Red",
+    ipAddressVerified: "Dirección IP Verificada",
+    confirmCheckIn: "Confirmar y Registrar Entrada",
 
-    // Survey
-    jobSurvey: "Encuesta de Trabajo",
-    howSatisfied: "¿Qué tan satisfecho estás con el trabajo?",
-    anyComments: "¿Algún comentario?",
-    submitSurvey: "Enviar Encuesta",
-    shareFeedback: "Comparte tus pensamientos, sugerencias o comentarios sobre el trabajo...",
-
-    // Survey Ratings
-    veryPoor: "Muy Malo",
-    poor: "Malo",
-    average: "Promedio",
-    good: "Bueno",
-    excellent: "Excelente",
-
-    // Messages & Notifications
-    checkInSuccessful: "¡Registro de entrada exitoso! Bienvenido al trabajo.",
-    checkOutSuccessful: "¡Registro de salida exitoso! ¡Que tengas un gran día!",
-    breakStarted: "Descanso iniciado",
-    backToWorkSuccessful: "Descanso terminado, de vuelta al trabajo",
-    taskCompleted: "Tarea completada exitosamente",
-    jobCompleted: "Trabajo completado exitosamente",
-    workSessionCompleted: "Sesión de trabajo completada",
-
-    // Error Messages
-    errorLoadingJobs: "Error Cargando Trabajos",
-    failedToLoadJobs: "Error al cargar trabajos del trabajador",
-    noAuthToken: "No hay token de autenticación disponible",
-    checkOutFailed: "Error al registrar salida",
-    taskCompletionFailed: "Error al completar tarea",
-    breakStartFailed: "Error al iniciar descanso",
-    backToWorkFailed: "Error al terminar descanso",
-    tryAgain: "Intentar de Nuevo",
-
-    // QR Scanner
+    // QR Code Scanner
+    scanQrCodeWorkplace: "Escanea el código QR en tu lugar de trabajo",
+    startingCamera: "Iniciando cámara...",
     startScanner: "Iniciar Escáner",
     stopScanner: "Detener Escáner",
     scanning: "Escaneando...",
     waitingForCamera: "Esperando cámara...",
-    startingCamera: "Iniciando cámara...",
     scanSuccessful: "Escaneo Exitoso",
     qrCodeVerified: "¡Código QR verificado! Procesando registro de entrada...",
 
     // Instructions
     instructions: "Instrucciones",
     gpsInstructions:
-      "Asegúrate de estar en la ubicación correcta antes de registrarte. La precisión del GPS puede variar en interiores.",
+      "Asegúrate de estar en la ubicación correcta antes de registrar entrada. La precisión del GPS puede variar en interiores.",
     wifiInstructions:
       "Conéctate a la red WiFi designada del lugar de trabajo. Asegúrate de tener la contraseña correcta.",
     ipInstructions: "Asegúrate de estar conectado a la red de la empresa. Las conexiones VPN pueden no funcionar.",
     qrInstructions:
       "Encuentra el código QR publicado en la entrada de tu lugar de trabajo o área designada y escanéalo claramente.",
 
-    // Location & Network
-    gettingLocation: "Obteniendo tu ubicación...",
-    allowLocationAccess: "Por favor permite el acceso a la ubicación para continuar",
-    locationDetails: "Detalles de Ubicación",
-    expected: "Esperado",
-    current: "Actual",
-    accuracy: "Precisión",
-    locationVerified: "Ubicación Verificada",
-    verifyLocationCheckIn: "Verificar Ubicación y Registrar Entrada",
+    // Error Messages
+    errorLoadingJobs: "Error al Cargar Trabajos",
+    tryAgain: "Intentar de Nuevo",
+    cameraAccessDenied: "Acceso a cámara denegado",
+    invalidQrCode: "Formato de código QR inválido. Por favor intenta de nuevo.",
+    qrCodeMismatch:
+      "¡Este código QR es para el trabajo {jobId}, pero estás registrando entrada al trabajo {currentJobId}!",
+    checkInSuccessful: "¡Registro de entrada exitoso! Bienvenido al trabajo.",
+    checkInFailed: "Error al registrar entrada",
 
-    wifiVerification: "Verificación WiFi",
-    connectWorkplaceWifi: "Conectar a la red WiFi del lugar de trabajo",
-    availableNetworks: "Redes Disponibles",
-    workplace: "LUGAR DE TRABAJO",
-    connectCheckIn: "Conectar y Registrar Entrada",
-
-    ipVerification: "Verificación IP",
-    verifyingNetwork: "Verificando tu conexión de red",
-    networkInformation: "Información de Red",
-    yourIP: "Tu IP",
-    expectedRange: "Rango Esperado",
-    network: "Red",
-    ipVerified: "Dirección IP Verificada",
-    confirmCheckIn: "Confirmar y Registrar Entrada",
-
-    qrCodeScanner: "Escáner de Código QR",
-    scanQRWorkplace: "Escanea el código QR en tu lugar de trabajo",
-
-    // Survey States
-    noSurveysYet: "Aún No Hay Encuestas",
-    surveysDescription: "Tus encuestas completadas aparecerán aquí después de enviarlas.",
-
-    // Job Details
-    client: "Cliente",
-    location: "Ubicación",
-    shift: "Turno",
-    schedule: "Horario",
-    flexible: "Flexible",
-    duration: "Duración",
+    // Job Details Modal
+    jobInformation: "Información del Trabajo",
+    jobPeriod: "Período del Trabajo",
+    startDate: "Fecha de Inicio",
+    endDate: "Fecha de Fin",
+    totalDays: "Días Totales",
     remaining: "Restante",
+    attendanceRate: "Tasa de Asistencia",
+    daysWorked: "Días Trabajados",
+    totalHours: "Horas Totales",
+    avgHoursPerDay: "Promedio Horas/Día",
+    overview: "Resumen",
+    attendance: "Asistencia",
+    statistics: "Estadísticas",
+    attendanceRecords: "Registros de Asistencia",
+    export: "Exportar",
+    networkInfo: "Información de Red",
+    worked: "trabajado",
+    weeklyPerformance: "Rendimiento Semanal",
+    monthlyTrends: "Tendencias Mensuales",
+    performanceMetrics: "Métricas de Rendimiento",
+    onTimeRateMetric: "Tasa de Puntualidad",
+    avgDailyHours: "Promedio Horas Diarias",
+    avgBreakTime: "Tiempo Promedio de Descanso",
+    lateDays: "Días de Retraso",
 
-    // Job Status Messages
-    hasAttendance: "Tiene Asistencia",
-    noAttendance: "Sin Asistencia",
+    // Attendance Status
+    present: "Presente",
+    absent: "Ausente",
+    late: "Tarde",
+    earlyLeave: "Salida Temprana",
+    noCheckIn: "Sin registro de entrada",
 
-    // Common Actions
+    // Survey
+    jobSurvey: "Encuesta del Trabajo",
+    rateExperience: "Califica tu experiencia",
+    additionalComments: "Comentarios adicionales (opcional)",
+    submitSurvey: "Enviar Encuesta",
     cancel: "Cancelar",
-    submit: "Enviar",
-    save: "Guardar",
-    edit: "Editar",
-    delete: "Eliminar",
-    confirm: "Confirmar",
-    back: "Atrás",
-    next: "Siguiente",
-    finish: "Finalizar",
+    surveySubmitted: "Encuesta Enviada",
+    thankYouFeedback: "¡Gracias por tu retroalimentación!",
 
-    // Loading States
-    loading: "Cargando...",
-    processing: "Procesando...",
-    saving: "Guardando...",
-    submitting: "Enviando...",
+    // Time Formats
+    hours: "h",
+    minutes: "min",
+    seconds: "s",
   },
 }
 

@@ -14,6 +14,7 @@ import {
   PhoneCall,
   CheckCircle,
 } from "lucide-react"
+import { useTranslation } from "@/hooks/use-translation"
 
 interface JobAssignment {
   id: number
@@ -52,6 +53,8 @@ interface CheckInMethodsProps {
 }
 
 export function CheckInMethods({ job, onBack, onMethodSelect }: CheckInMethodsProps) {
+  const { t } = useTranslation("worker-dashboard")
+
   const getCheckInMethodIcon = (method: string) => {
     switch (method) {
       case "gps":
@@ -72,15 +75,15 @@ export function CheckInMethods({ job, onBack, onMethodSelect }: CheckInMethodsPr
   const getMethodName = (method: string) => {
     switch (method) {
       case "gps":
-        return "GPS Location"
+        return t("gpsLocation")
       case "wifi":
-        return "WiFi Network"
+        return t("wifiNetwork")
       case "ip":
-        return "IP Address"
+        return t("ipAddress")
       case "qrCode":
-        return "QR Code"
+        return t("qrCodeScanner")
       case "callerId":
-        return "Caller ID"
+        return t("callerId")
       default:
         return method
     }
@@ -89,15 +92,15 @@ export function CheckInMethods({ job, onBack, onMethodSelect }: CheckInMethodsPr
   const getMethodDescription = (method: string) => {
     switch (method) {
       case "gps":
-        return "Verify your location using GPS"
+        return t("verifyLocationGps")
       case "wifi":
-        return "Connect to the workplace WiFi"
+        return t("connectWorkplaceWifi")
       case "ip":
-        return "Verify using IP address"
+        return t("verifyIpAddress")
       case "qrCode":
-        return "Scan the QR code at location"
+        return t("scanQrCode")
       case "callerId":
-        return "Verify using phone number"
+        return t("verifyPhoneNumber")
       default:
         return ""
     }
@@ -111,7 +114,7 @@ export function CheckInMethods({ job, onBack, onMethodSelect }: CheckInMethodsPr
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <div>
-            <h1 className="text-xl font-semibold text-gray-900 dark:text-white">Check In</h1>
+            <h1 className="text-xl font-semibold text-gray-900 dark:text-white">{t("checkInTitle")}</h1>
             <p className="text-gray-600 dark:text-gray-400 text-sm">{job.title}</p>
           </div>
         </div>
@@ -143,7 +146,7 @@ export function CheckInMethods({ job, onBack, onMethodSelect }: CheckInMethodsPr
         </Card>
 
         <div>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Choose Check-in Method</h2>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">{t("chooseCheckInMethod")}</h2>
           <div className="space-y-3">
             {Object.entries(job.signingMethods).map(([method, enabled]) => {
               if (!enabled) return null

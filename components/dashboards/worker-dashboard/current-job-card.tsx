@@ -1,12 +1,12 @@
 "use client"
 
 import { useState } from "react"
-
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Activity, MapPin, Coffee, PlayCircle, Play, Pause, Fingerprint, CheckSquare, Square } from "lucide-react"
+import { useTranslation } from "@/hooks/use-translation"
 
 interface JobAssignment {
   id: number
@@ -68,15 +68,6 @@ interface CurrentJobCardProps {
   formatTimeShort: (date: Date) => string
 }
 
-const breakTypes = [
-  { value: "personal", label: "Personal" },
-  { value: "tea_smoking", label: "Tea/Smoking" },
-  { value: "official_work", label: "Official Work" },
-  { value: "lunch", label: "Lunch" },
-  { value: "prayer", label: "Prayer" },
-  { value: "other", label: "Other" },
-]
-
 export function CurrentJobCard({
   job,
   onCheckOut,
@@ -87,7 +78,17 @@ export function CurrentJobCard({
   getCurrentBreakTime,
   formatTimeShort,
 }: CurrentJobCardProps) {
+  const { t } = useTranslation("worker-dashboard")
   const [selectedBreakType, setSelectedBreakType] = useState("")
+
+  const breakTypes = [
+    { value: "personal", label: t("personal") },
+    { value: "tea_smoking", label: t("teaSmoking") },
+    { value: "official_work", label: t("officialWork") },
+    { value: "lunch", label: t("lunch") },
+    { value: "prayer", label: t("prayer") },
+    { value: "other", label: t("other") },
+  ]
 
   return (
     <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900">
@@ -95,7 +96,7 @@ export function CurrentJobCard({
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
             <Activity className="w-5 h-5 text-purple-600" />
-            Current Job
+            {t("currentJob")}
           </h2>
           <Badge
             className={
@@ -107,12 +108,12 @@ export function CurrentJobCard({
             {job.isOnBreak ? (
               <>
                 <Coffee className="w-3 h-3 mr-1" />
-                On Break
+                {t("onBreak")}
               </>
             ) : (
               <>
                 <PlayCircle className="w-3 h-3 mr-1" />
-                In Progress
+                {t("inProgress")}
               </>
             )}
           </Badge>
@@ -140,7 +141,7 @@ export function CurrentJobCard({
 
             {/* Tasks */}
             <div>
-              <h4 className="font-medium text-gray-900 dark:text-white mb-2">Tasks</h4>
+              <h4 className="font-medium text-gray-900 dark:text-white mb-2">{t("tasks")}</h4>
               <div className="space-y-2">
                 {job.tasks.map((task) => (
                   <div
@@ -191,7 +192,7 @@ export function CurrentJobCard({
                   <div className="text-2xl font-bold text-orange-700 dark:text-orange-400 mb-1">
                     {getCurrentBreakTime(job)}
                   </div>
-                  <div className="text-sm text-orange-600 dark:text-orange-400">Break Time</div>
+                  <div className="text-sm text-orange-600 dark:text-orange-400">{t("breakTime")}</div>
                 </div>
               </div>
             ) : (
@@ -200,7 +201,7 @@ export function CurrentJobCard({
                   <div className="text-2xl font-bold text-purple-700 dark:text-purple-400 mb-1">
                     {getCurrentSessionTime(job)}
                   </div>
-                  <div className="text-sm text-purple-600 dark:text-purple-400">Working Time</div>
+                  <div className="text-sm text-purple-600 dark:text-purple-400">{t("workingTime")}</div>
                 </div>
               </div>
             )}
@@ -210,13 +211,13 @@ export function CurrentJobCard({
                 <div className="text-sm font-bold text-gray-900 dark:text-white">
                   {job.checkInTime ? formatTimeShort(job.checkInTime) : "---"}
                 </div>
-                <div className="text-xs text-gray-600 dark:text-gray-400">Check In</div>
+                <div className="text-xs text-gray-600 dark:text-gray-400">{t("checkIn")}</div>
               </div>
               <div className="bg-gray-100 dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700 text-center">
                 <div className="text-sm font-bold text-gray-900 dark:text-white">
                   {job.shift.scheduleType === "fixed" && job.shift.endTime ? job.shift.endTime : "Flexible"}
                 </div>
-                <div className="text-xs text-gray-600 dark:text-gray-400">Expected Out</div>
+                <div className="text-xs text-gray-600 dark:text-gray-400">{t("expectedOut")}</div>
               </div>
             </div>
 
@@ -225,7 +226,7 @@ export function CurrentJobCard({
               {job.isOnBreak ? (
                 <Button onClick={() => onBackToWork(job)} className="w-full bg-green-600 hover:bg-green-700 text-white">
                   <Play className="w-4 h-4 mr-2" />
-                  Back to Work
+                  {t("backToWork")}
                 </Button>
               ) : (
                 <div className="space-y-2">
@@ -233,7 +234,7 @@ export function CurrentJobCard({
                     <SelectTrigger className="w-full border-orange-300 text-orange-600 hover:bg-orange-50 dark:border-orange-800 dark:text-orange-400 dark:hover:bg-orange-900/20">
                       <div className="flex items-center gap-2">
                         <Coffee className="w-4 h-4" />
-                        <SelectValue placeholder="Break Out" />
+                        <SelectValue placeholder={t("breakOut")} />
                       </div>
                     </SelectTrigger>
                     <SelectContent className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
@@ -254,7 +255,7 @@ export function CurrentJobCard({
                       className="w-full border-orange-300 text-orange-600 hover:bg-orange-50 dark:border-orange-800 dark:text-orange-400 dark:hover:bg-orange-900/20"
                     >
                       <Pause className="w-4 h-4 mr-2" />
-                      Start Break
+                      {t("startBreak")}
                     </Button>
                   )}
                 </div>
@@ -266,15 +267,17 @@ export function CurrentJobCard({
                 disabled={job.isOnBreak}
               >
                 <Fingerprint className="w-4 h-4 mr-2" />
-                Check Out
+                {t("checkOut")}
               </Button>
             </div>
 
             {/* Break Summary */}
             {job.totalBreakTime > 0 && (
               <div className="bg-gray-100 dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700 text-center">
-                <div className="text-sm font-bold text-gray-900 dark:text-white">{job.totalBreakTime} min</div>
-                <div className="text-xs text-gray-600 dark:text-gray-400">Total Break Time</div>
+                <div className="text-sm font-bold text-gray-900 dark:text-white">
+                  {job.totalBreakTime} {t("minutes")}
+                </div>
+                <div className="text-xs text-gray-600 dark:text-gray-400">{t("totalBreakTime")}</div>
               </div>
             )}
           </div>

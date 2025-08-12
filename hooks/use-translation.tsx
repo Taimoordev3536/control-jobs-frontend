@@ -26,7 +26,6 @@
 //     t,
 //   }
 // }
-
 "use client"
 
 import { LanguageContext } from "@/components/language-provider"

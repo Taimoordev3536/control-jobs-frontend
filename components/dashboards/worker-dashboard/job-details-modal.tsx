@@ -6,7 +6,19 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Calendar, Clock, MapPin, Building, User, TrendingUp, CheckCircle, XCircle, Coffee, Timer, CalendarDays, Activity, BarChart3, Download } from 'lucide-react'
+import {
+  Clock,
+  Building,
+  TrendingUp,
+  CheckCircle,
+  XCircle,
+  Timer,
+  CalendarDays,
+  Activity,
+  BarChart3,
+  Download,
+} from "lucide-react"
+import { useTranslation } from "@/hooks/use-translation"
 
 interface AttendanceRecord {
   id: number
@@ -65,6 +77,7 @@ interface JobDetailsModalProps {
 }
 
 export function JobDetailsModal({ job, isOpen, onClose }: JobDetailsModalProps) {
+  const { t } = useTranslation("worker-dashboard")
   const [activeTab, setActiveTab] = useState("overview")
 
   if (!job) return null
@@ -74,7 +87,7 @@ export function JobDetailsModal({ job, isOpen, onClose }: JobDetailsModalProps) 
       weekday: "short",
       month: "short",
       day: "numeric",
-      year: "numeric"
+      year: "numeric",
     })
   }
 
@@ -82,7 +95,7 @@ export function JobDetailsModal({ job, isOpen, onClose }: JobDetailsModalProps) 
     return date.toLocaleTimeString("en-US", {
       hour: "2-digit",
       minute: "2-digit",
-      hour12: true
+      hour12: true,
     })
   }
 
@@ -116,6 +129,21 @@ export function JobDetailsModal({ job, isOpen, onClose }: JobDetailsModalProps) 
     }
   }
 
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case "present":
+        return t("present")
+      case "absent":
+        return t("absent")
+      case "late":
+        return t("late")
+      case "early_leave":
+        return t("earlyLeave")
+      default:
+        return status
+    }
+  }
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -135,9 +163,9 @@ export function JobDetailsModal({ job, isOpen, onClose }: JobDetailsModalProps) 
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="attendance">Attendance</TabsTrigger>
-            <TabsTrigger value="statistics">Statistics</TabsTrigger>
+            <TabsTrigger value="overview">{t("overview")}</TabsTrigger>
+            <TabsTrigger value="attendance">{t("attendance")}</TabsTrigger>
+            <TabsTrigger value="statistics">{t("statistics")}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-4">
@@ -147,16 +175,16 @@ export function JobDetailsModal({ job, isOpen, onClose }: JobDetailsModalProps) 
                 <CardHeader className="pb-3">
                   <CardTitle className="text-sm font-medium flex items-center gap-2">
                     <Building className="w-4 h-4" />
-                    Job Information
+                    {t("jobInformation")}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div className="flex justify-between">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">Client:</span>
+                    <span className="text-sm text-gray-600 dark:text-gray-400">{t("client")}:</span>
                     <span className="text-sm font-medium">{job.client.name}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">Location:</span>
+                    <span className="text-sm text-gray-600 dark:text-gray-400">{t("location")}:</span>
                     <span className="text-sm font-medium">{job.workCenter.name}</span>
                   </div>
                   <div className="flex justify-between">
@@ -178,25 +206,29 @@ export function JobDetailsModal({ job, isOpen, onClose }: JobDetailsModalProps) 
                 <CardHeader className="pb-3">
                   <CardTitle className="text-sm font-medium flex items-center gap-2">
                     <CalendarDays className="w-4 h-4" />
-                    Job Period
+                    {t("jobPeriod")}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div className="flex justify-between">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">Start Date:</span>
+                    <span className="text-sm text-gray-600 dark:text-gray-400">{t("startDate")}:</span>
                     <span className="text-sm font-medium">{formatDate(job.jobPeriod.startDate)}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">End Date:</span>
+                    <span className="text-sm text-gray-600 dark:text-gray-400">{t("endDate")}:</span>
                     <span className="text-sm font-medium">{formatDate(job.jobPeriod.endDate)}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">Total Days:</span>
-                    <span className="text-sm font-medium">{job.jobPeriod.totalDays} days</span>
+                    <span className="text-sm text-gray-600 dark:text-gray-400">{t("totalDays")}:</span>
+                    <span className="text-sm font-medium">
+                      {job.jobPeriod.totalDays} {t("days")}
+                    </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">Remaining:</span>
-                    <span className="text-sm font-medium">{job.jobPeriod.remainingDays} days</span>
+                    <span className="text-sm text-gray-600 dark:text-gray-400">{t("remaining")}:</span>
+                    <span className="text-sm font-medium">
+                      {job.jobPeriod.remainingDays} {t("days")}
+                    </span>
                   </div>
                 </CardContent>
               </Card>
@@ -209,7 +241,7 @@ export function JobDetailsModal({ job, isOpen, onClose }: JobDetailsModalProps) 
                   <div className="text-2xl font-bold text-green-600 dark:text-green-400">
                     {job.attendanceSummary.attendanceRate}%
                   </div>
-                  <div className="text-xs text-gray-600 dark:text-gray-400">Attendance Rate</div>
+                  <div className="text-xs text-gray-600 dark:text-gray-400">{t("attendanceRate")}</div>
                 </CardContent>
               </Card>
               <Card>
@@ -217,23 +249,25 @@ export function JobDetailsModal({ job, isOpen, onClose }: JobDetailsModalProps) 
                   <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
                     {job.attendanceSummary.attendedDays}
                   </div>
-                  <div className="text-xs text-gray-600 dark:text-gray-400">Days Worked</div>
+                  <div className="text-xs text-gray-600 dark:text-gray-400">{t("daysWorked")}</div>
                 </CardContent>
               </Card>
               <Card>
                 <CardContent className="p-4 text-center">
                   <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-                    {job.attendanceSummary.totalHours}h
+                    {job.attendanceSummary.totalHours}
+                    {t("hours")}
                   </div>
-                  <div className="text-xs text-gray-600 dark:text-gray-400">Total Hours</div>
+                  <div className="text-xs text-gray-600 dark:text-gray-400">{t("totalHours")}</div>
                 </CardContent>
               </Card>
               <Card>
                 <CardContent className="p-4 text-center">
                   <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
-                    {job.attendanceSummary.averageHoursPerDay}h
+                    {job.attendanceSummary.averageHoursPerDay}
+                    {t("hours")}
                   </div>
-                  <div className="text-xs text-gray-600 dark:text-gray-400">Avg Hours/Day</div>
+                  <div className="text-xs text-gray-600 dark:text-gray-400">{t("avgHoursPerDay")}</div>
                 </CardContent>
               </Card>
             </div>
@@ -241,10 +275,10 @@ export function JobDetailsModal({ job, isOpen, onClose }: JobDetailsModalProps) 
 
           <TabsContent value="attendance" className="space-y-4">
             <div className="flex justify-between items-center">
-              <h3 className="text-lg font-semibold">Attendance Records</h3>
+              <h3 className="text-lg font-semibold">{t("attendanceRecords")}</h3>
               <Button size="sm" variant="outline">
                 <Download className="w-4 h-4 mr-2" />
-                Export
+                {t("export")}
               </Button>
             </div>
 
@@ -262,16 +296,15 @@ export function JobDetailsModal({ job, isOpen, onClose }: JobDetailsModalProps) 
                               ? `${formatTime(record.checkInTime)} - ${formatTime(record.checkOutTime)}`
                               : record.checkInTime
                                 ? `In: ${formatTime(record.checkInTime)}`
-                                : "No check-in"}
+                                : t("noCheckIn")}
                           </div>
                         </div>
                       </div>
                       <div className="text-right">
-                        <Badge className={getStatusColor(record.status)}>
-                          {record.status.replace("_", " ")}
-                        </Badge>
+                        <Badge className={getStatusColor(record.status)}>{getStatusText(record.status)}</Badge>
                         <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                          {record.totalHours}h worked
+                          {record.totalHours}
+                          {t("hours")} {t("worked")}
                         </div>
                       </div>
                     </div>
@@ -292,7 +325,7 @@ export function JobDetailsModal({ job, isOpen, onClose }: JobDetailsModalProps) 
                 <CardHeader>
                   <CardTitle className="text-sm font-medium flex items-center gap-2">
                     <BarChart3 className="w-4 h-4" />
-                    Weekly Performance
+                    {t("weeklyPerformance")}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -306,7 +339,7 @@ export function JobDetailsModal({ job, isOpen, onClose }: JobDetailsModalProps) 
                 <CardHeader>
                   <CardTitle className="text-sm font-medium flex items-center gap-2">
                     <TrendingUp className="w-4 h-4" />
-                    Monthly Trends
+                    {t("monthlyTrends")}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -320,25 +353,25 @@ export function JobDetailsModal({ job, isOpen, onClose }: JobDetailsModalProps) 
             {/* Performance Metrics */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-sm font-medium">Performance Metrics</CardTitle>
+                <CardTitle className="text-sm font-medium">{t("performanceMetrics")}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="text-center">
                     <div className="text-lg font-bold text-green-600">95%</div>
-                    <div className="text-xs text-gray-600 dark:text-gray-400">On-time Rate</div>
+                    <div className="text-xs text-gray-600 dark:text-gray-400">{t("onTimeRateMetric")}</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-lg font-bold text-blue-600">8.2h</div>
-                    <div className="text-xs text-gray-600 dark:text-gray-400">Avg Daily Hours</div>
+                    <div className="text-lg font-bold text-blue-600">8.2{t("hours")}</div>
+                    <div className="text-xs text-gray-600 dark:text-gray-400">{t("avgDailyHours")}</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-lg font-bold text-purple-600">45min</div>
-                    <div className="text-xs text-gray-600 dark:text-gray-400">Avg Break Time</div>
+                    <div className="text-lg font-bold text-purple-600">45{t("minutes")}</div>
+                    <div className="text-xs text-gray-600 dark:text-gray-400">{t("avgBreakTime")}</div>
                   </div>
                   <div className="text-center">
                     <div className="text-lg font-bold text-orange-600">2</div>
-                    <div className="text-xs text-gray-600 dark:text-gray-400">Late Days</div>
+                    <div className="text-xs text-gray-600 dark:text-gray-400">{t("lateDays")}</div>
                   </div>
                 </div>
               </CardContent>

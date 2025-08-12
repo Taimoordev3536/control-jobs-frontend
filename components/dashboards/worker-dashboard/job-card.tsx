@@ -3,7 +3,23 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Building, MapPin, Clock, QrCode, Navigation, Wifi, Globe, PhoneCall, Fingerprint, CheckCircle, Star, Calendar, Activity, Eye } from 'lucide-react'
+import {
+  Building,
+  MapPin,
+  Clock,
+  QrCode,
+  Navigation,
+  Wifi,
+  Globe,
+  PhoneCall,
+  Fingerprint,
+  CheckCircle,
+  Star,
+  Calendar,
+  Activity,
+  Eye,
+} from "lucide-react"
+import { useTranslation } from "@/hooks/use-translation"
 
 interface JobAssignment {
   id: number
@@ -73,15 +89,17 @@ interface JobCardProps {
   showActions?: boolean
 }
 
-export function JobCard({ 
-  job, 
-  onCheckIn, 
-  onCheckOut, 
-  onFillSurvey, 
-  onCompleteTask, 
+export function JobCard({
+  job,
+  onCheckIn,
+  onCheckOut,
+  onFillSurvey,
+  onCompleteTask,
   onViewDetail,
-  showActions = true 
+  showActions = true,
 }: JobCardProps) {
+  const { t } = useTranslation("worker-dashboard")
+
   const getStatusConfig = (status: string) => {
     switch (status) {
       case "in_progress":
@@ -167,10 +185,10 @@ export function JobCard({
               <Badge className={`${statusConfig.color} flex items-center gap-1 h-6 text-xs`}>
                 <StatusIcon className="w-3 h-3" />
                 {job.status === "in_progress"
-                  ? "In Progress"
+                  ? t("inProgress")
                   : job.status === "scheduled"
-                    ? "Scheduled"
-                    : "Completed"}
+                    ? t("scheduled")
+                    : t("completed")}
               </Badge>
             </div>
           </div>
@@ -183,14 +201,14 @@ export function JobCard({
           <div className="space-y-1">
             <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400">
               <Building className="w-3 h-3" />
-              <span className="text-xs font-medium uppercase tracking-wide">Client</span>
+              <span className="text-xs font-medium uppercase tracking-wide">{t("client")}</span>
             </div>
             <div className="text-xs font-semibold text-gray-900 dark:text-white truncate">{job.client.name}</div>
           </div>
           <div className="space-y-1">
             <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400">
               <MapPin className="w-3 h-3" />
-              <span className="text-xs font-medium uppercase tracking-wide">Location</span>
+              <span className="text-xs font-medium uppercase tracking-wide">{t("location")}</span>
             </div>
             <div className="text-xs font-semibold text-gray-900 dark:text-white truncate">{job.workCenter.name}</div>
           </div>
@@ -206,7 +224,8 @@ export function JobCard({
                   {formatDateOnly(job.startDate)} - {formatDateOnly(job.endDate)}
                 </span>
                 <span className="text-xs text-gray-500 dark:text-gray-400">
-                  Duration: {Math.ceil((job.endDate.getTime() - job.startDate.getTime()) / (1000 * 60 * 60 * 24))} days
+                  {t("duration")}:{" "}
+                  {Math.ceil((job.endDate.getTime() - job.startDate.getTime()) / (1000 * 60 * 60 * 24))} {t("days")}
                 </span>
               </div>
             </div>
@@ -222,13 +241,16 @@ export function JobCard({
         {/* Hours Information */}
         <div className="grid grid-cols-2 gap-2">
           <div className="bg-gray-100 dark:bg-gray-800 p-2 rounded-md text-center">
-            <div className="text-xs text-gray-600 dark:text-gray-400 font-medium mb-0.5">Expected Hours</div>
-            <div className="text-xs font-bold text-gray-900 dark:text-white">{job.expectedHours}h</div>
+            <div className="text-xs text-gray-600 dark:text-gray-400 font-medium mb-0.5">{t("expectedHours")}</div>
+            <div className="text-xs font-bold text-gray-900 dark:text-white">
+              {job.expectedHours}
+              {t("hours")}
+            </div>
           </div>
           <div className="bg-gray-100 dark:bg-gray-800 p-2 rounded-md text-center">
-            <div className="text-xs text-gray-600 dark:text-gray-400 font-medium mb-0.5">Status</div>
+            <div className="text-xs text-gray-600 dark:text-gray-400 font-medium mb-0.5">{t("status")}</div>
             <div className="text-xs font-bold text-gray-900 dark:text-white">
-              {job.hasAttendanceRecord ? "Has Attendance" : "No Attendance"}
+              {job.hasAttendanceRecord ? t("hasAttendance") : t("noAttendance")}
             </div>
           </div>
         </div>
@@ -256,7 +278,7 @@ export function JobCard({
 
         {/* Signing Methods */}
         <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-600 dark:text-gray-400">Sign-in methods:</span>
+          <span className="text-xs text-gray-600 dark:text-gray-400">{t("signinMethods")}:</span>
           <div className="flex gap-1">
             {job.signingMethods.qrCode && (
               <div className="p-1 bg-purple-100 dark:bg-purple-900/20 rounded">
@@ -299,7 +321,7 @@ export function JobCard({
                     onClick={() => onCheckIn(job)}
                   >
                     <Fingerprint className="w-3 h-3 mr-1" />
-                    Check In
+                    {t("checkIn")}
                   </Button>
                 )}
                 {onViewDetail && (
@@ -310,7 +332,7 @@ export function JobCard({
                     onClick={() => onViewDetail(job)}
                   >
                     <Eye className="w-3 h-3 mr-1" />
-                    View Details
+                    {t("viewDetails")}
                   </Button>
                 )}
               </>
@@ -326,7 +348,7 @@ export function JobCard({
                     onClick={() => onCheckIn(job)}
                   >
                     <Fingerprint className="w-3 h-3 mr-1" />
-                    Check In
+                    {t("checkIn")}
                   </Button>
                 )}
                 {onViewDetail && (
@@ -337,7 +359,7 @@ export function JobCard({
                     onClick={() => onViewDetail(job)}
                   >
                     <Eye className="w-3 h-3 mr-1" />
-                    View Details
+                    {t("viewDetails")}
                   </Button>
                 )}
                 {onFillSurvey && (
@@ -348,7 +370,7 @@ export function JobCard({
                     onClick={() => onFillSurvey(job)}
                   >
                     <Star className="w-3 h-3 mr-1" />
-                    Fill Survey
+                    {t("fillSurvey")}
                   </Button>
                 )}
               </>
@@ -365,7 +387,7 @@ export function JobCard({
                     onClick={() => onViewDetail(job)}
                   >
                     <Eye className="w-3 h-3 mr-1" />
-                    View Details
+                    {t("viewDetails")}
                   </Button>
                 )}
                 {onFillSurvey && (
@@ -376,7 +398,7 @@ export function JobCard({
                     onClick={() => onFillSurvey(job)}
                   >
                     <Star className="w-3 h-3 mr-1" />
-                    Fill Survey
+                    {t("fillSurvey")}
                   </Button>
                 )}
               </>

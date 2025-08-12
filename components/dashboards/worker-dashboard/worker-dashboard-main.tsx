@@ -1,7 +1,18 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Calendar, CheckCircle, Timer, Target, CheckSquare, User, MapPin, Navigation, ClipboardList, AlertCircle } from 'lucide-react'
+import {
+  Calendar,
+  CheckCircle,
+  Timer,
+  Target,
+  CheckSquare,
+  User,
+  MapPin,
+  Navigation,
+  ClipboardList,
+  AlertCircle,
+} from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { StatsCard } from "@/components/ui/stats-card"
 import { JobCard } from "./job-card"
@@ -146,7 +157,7 @@ interface ApiWorkerResponse {
 }
 
 export default function WorkerDashboardMain() {
-  const { t } = useTranslation()
+  const { t } = useTranslation("worker-dashboard")
   const { session } = useAuth()
 
   const [todayAssignments, setTodayAssignments] = useState<JobAssignment[]>([])
@@ -185,15 +196,15 @@ export default function WorkerDashboardMain() {
   // Transform API job data to frontend job format
   const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => {
     const currentDate = new Date()
-    
+
     // Parse start and end dates from API response
     let startDate = new Date()
     let endDate = new Date()
-    
+
     if (apiJob.startDate) {
       startDate = new Date(apiJob.startDate)
     }
-    
+
     if (apiJob.endDate) {
       endDate = new Date(apiJob.endDate)
     } else {
@@ -203,15 +214,16 @@ export default function WorkerDashboardMain() {
     }
 
     // Check if there are any attendance records (check-in + check-out pairs)
-    const hasAttendanceRecord = Boolean(
-      apiJob.attendanceRecords && 
-      apiJob.attendanceRecords.length > 0 && 
-      apiJob.attendanceRecords.some(record => record.checkInTime && record.checkOutTime)
-    ) || Boolean(apiJob.workSession?.checkInTime && apiJob.workSession?.checkOutTime)
+    const hasAttendanceRecord =
+      Boolean(
+        apiJob.attendanceRecords &&
+          apiJob.attendanceRecords.length > 0 &&
+          apiJob.attendanceRecords.some((record) => record.checkInTime && record.checkOutTime),
+      ) || Boolean(apiJob.workSession?.checkInTime && apiJob.workSession?.checkOutTime)
 
     // Determine job status based on the new logic
     let status: "scheduled" | "in_progress" | "completed"
-    
+
     if (currentDate > endDate) {
       // End date has passed
       if (hasAttendanceRecord) {
@@ -251,7 +263,8 @@ export default function WorkerDashboardMain() {
     // Transform signing methods
     const signingMethods = apiJob.signingMethods[0] || { methodDetails: [], verifyIdentity: false }
     const methods = {
-      qrCode: signingMethods.methodDetails.includes("qrcode") || signingMethods.methodDetails.includes("qr-code") || true,
+      qrCode:
+        signingMethods.methodDetails.includes("qrcode") || signingMethods.methodDetails.includes("qr-code") || true,
       gps: signingMethods.methodDetails.includes("gps"),
       wifi: signingMethods.methodDetails.includes("wifi"),
       ip: signingMethods.methodDetails.includes("ip"),
@@ -285,7 +298,7 @@ export default function WorkerDashboardMain() {
       shift: shiftInfo,
       status,
       startDate, // Use the actual start date from API
-      endDate,   // Use the actual end date from API
+      endDate, // Use the actual end date from API
       signingMethods: methods,
       tasks,
       checkInTime: apiJob.workSession?.checkInTime ? new Date(apiJob.workSession.checkInTime) : undefined,
@@ -296,8 +309,10 @@ export default function WorkerDashboardMain() {
       totalHours: status === "completed" ? firstShift?.totalHours || apiJob.expectedDuration : undefined,
       totalBreakTime: apiJob.workSession?.totalBreakMinutes || 0,
       isOnBreak: apiJob.workSession?.isOnBreak || false,
-      breakStartTime: apiJob.workSession?.currentBreakStart ? new Date(apiJob.workSession.currentBreakStart) : undefined,
-      tags: apiJob.tasks.slice(0, 2).map(task => task.name),
+      breakStartTime: apiJob.workSession?.currentBreakStart
+        ? new Date(apiJob.workSession.currentBreakStart)
+        : undefined,
+      tags: apiJob.tasks.slice(0, 2).map((task) => task.name),
       hasAttendanceRecord,
       survey:
         status === "completed"
@@ -343,22 +358,29 @@ export default function WorkerDashboardMain() {
 
         // Set current job - only jobs that are in_progress and currently active
         let newCurrentJob = transformedJobs.find((job) => {
-          return job.status === "in_progress" && 
-                 job.checkInTime && 
-                 !job.checkOutTime && 
-                 new Date() <= job.endDate
+          return job.status === "in_progress" && job.checkInTime && !job.checkOutTime && new Date() <= job.endDate
         })
 
         // If no active current job, keep existing one if still valid
         if (!newCurrentJob && currentJob) {
           const existingCurrentJob = transformedJobs.find((job) => job.id === currentJob.id)
-          if (existingCurrentJob && existingCurrentJob.status === "in_progress" && existingCurrentJob.checkInTime && !existingCurrentJob.checkOutTime) {
+          if (
+            existingCurrentJob &&
+            existingCurrentJob.status === "in_progress" &&
+            existingCurrentJob.checkInTime &&
+            !existingCurrentJob.checkOutTime
+          ) {
             newCurrentJob = existingCurrentJob
           }
         }
 
         setCurrentJob(newCurrentJob || null)
-        console.log('🎯 Current job set:', newCurrentJob ? `${newCurrentJob.title} (${newCurrentJob.status}, attendance: ${newCurrentJob.hasAttendanceRecord})` : 'None')
+        console.log(
+          "🎯 Current job set:",
+          newCurrentJob
+            ? `${newCurrentJob.title} (${newCurrentJob.status}, attendance: ${newCurrentJob.hasAttendanceRecord})`
+            : "None",
+        )
 
         // Update stats based on real data
         const completedJobs = transformedJobs.filter((job) => job.status === "completed").length
@@ -439,31 +461,31 @@ export default function WorkerDashboardMain() {
   const handleCheckOut = async (job: JobAssignment) => {
     try {
       setLoading(true)
-      
+
       if (!session?.accessToken) {
-        throw new Error('No access token found')
+        throw new Error("No access token found")
       }
 
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/scan`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Authorization': `Bearer ${session.accessToken}`,
-          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.accessToken}`,
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           jobId: job.id,
-          scanType: 'check-out',
+          scanType: "check-out",
           location: job.workCenter.name,
-          notes: 'Work session completed',
+          notes: "Work session completed",
         }),
       })
 
       const data = await response.json()
-      console.log('✅ Check-out response:', data)
+      console.log("✅ Check-out response:", data)
 
       if (response.ok) {
         const now = new Date()
-        
+
         // Update job with checkout time and attendance record
         const updatedJob = {
           ...job,
@@ -474,16 +496,16 @@ export default function WorkerDashboardMain() {
         // Update local state immediately
         setTodayAssignments((prev) => prev.map((j) => (j.id === job.id ? updatedJob : j)))
         setCurrentJob(null)
-        
-        console.log('🎯 Job checked out, refreshing data to get updated status...')
+
+        console.log("🎯 Job checked out, refreshing data to get updated status...")
         // Refresh job data to get latest status
         await fetchWorkerJobs()
       } else {
-        throw new Error(data.message || 'Failed to check out')
+        throw new Error(data.message || "Failed to check out")
       }
     } catch (error) {
-      console.error('Error checking out:', error)
-      setError(error instanceof Error ? error.message : 'Failed to check out')
+      console.error("Error checking out:", error)
+      setError(error instanceof Error ? error.message : "Failed to check out")
     } finally {
       setLoading(false)
     }
@@ -492,16 +514,16 @@ export default function WorkerDashboardMain() {
   const handleCompleteTask = async (job: JobAssignment, taskId: number) => {
     try {
       setLoading(true)
-      
+
       if (!session?.accessToken) {
-        throw new Error('No access token found')
+        throw new Error("No access token found")
       }
 
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/tasks/${taskId}/complete`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Authorization': `Bearer ${session.accessToken}`,
-          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.accessToken}`,
+          "Content-Type": "application/json",
         },
       })
 
@@ -509,35 +531,31 @@ export default function WorkerDashboardMain() {
 
       if (response.ok) {
         // Update the local state
-        setTodayAssignments((prev) => 
+        setTodayAssignments((prev) =>
           prev.map((j) => {
             if (j.id === job.id) {
               return {
                 ...j,
-                tasks: j.tasks.map((task) => 
-                  task.id === taskId ? { ...task, completed: true } : task
-                )
+                tasks: j.tasks.map((task) => (task.id === taskId ? { ...task, completed: true } : task)),
               }
             }
             return j
-          })
+          }),
         )
 
         // Also update current job if it exists
         if (currentJob?.id === job.id) {
           setCurrentJob({
             ...currentJob,
-            tasks: currentJob.tasks.map((task) => 
-              task.id === taskId ? { ...task, completed: true } : task
-            )
+            tasks: currentJob.tasks.map((task) => (task.id === taskId ? { ...task, completed: true } : task)),
           })
         }
       } else {
-        throw new Error(data.message || 'Failed to complete task')
+        throw new Error(data.message || "Failed to complete task")
       }
     } catch (error) {
-      console.error('Error completing task:', error)
-      setError(error instanceof Error ? error.message : 'Failed to complete task')
+      console.error("Error completing task:", error)
+      setError(error instanceof Error ? error.message : "Failed to complete task")
     } finally {
       setLoading(false)
     }
@@ -546,20 +564,20 @@ export default function WorkerDashboardMain() {
   const handleTakeBreak = async (job: JobAssignment, breakType: string) => {
     try {
       setLoading(true)
-      
+
       if (!session?.accessToken) {
-        throw new Error('No access token found')
+        throw new Error("No access token found")
       }
 
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/scan`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Authorization': `Bearer ${session.accessToken}`,
-          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.accessToken}`,
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           jobId: job.id,
-          scanType: 'break-start',
+          scanType: "break-start",
           location: job.workCenter.name,
           notes: `Break started: ${breakType}`,
         }),
@@ -579,11 +597,11 @@ export default function WorkerDashboardMain() {
         setTodayAssignments((prev) => prev.map((j) => (j.id === job.id ? updatedJob : j)))
         setCurrentJob(updatedJob)
       } else {
-        throw new Error(data.message || 'Failed to start break')
+        throw new Error(data.message || "Failed to start break")
       }
     } catch (error) {
-      console.error('Error starting break:', error)
-      setError(error instanceof Error ? error.message : 'Failed to start break')
+      console.error("Error starting break:", error)
+      setError(error instanceof Error ? error.message : "Failed to start break")
     } finally {
       setLoading(false)
     }
@@ -592,22 +610,22 @@ export default function WorkerDashboardMain() {
   const handleBackToWork = async (job: JobAssignment) => {
     try {
       setLoading(true)
-      
+
       if (!session?.accessToken) {
-        throw new Error('No access token found')
+        throw new Error("No access token found")
       }
 
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/scan`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Authorization': `Bearer ${session.accessToken}`,
-          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.accessToken}`,
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           jobId: job.id,
-          scanType: 'break-end',
+          scanType: "break-end",
           location: job.workCenter.name,
-          notes: 'Break ended, back to work',
+          notes: "Break ended, back to work",
         }),
       })
 
@@ -630,11 +648,11 @@ export default function WorkerDashboardMain() {
         setTodayAssignments((prev) => prev.map((j) => (j.id === job.id ? updatedJob : j)))
         setCurrentJob(updatedJob)
       } else {
-        throw new Error(data.message || 'Failed to end break')
+        throw new Error(data.message || "Failed to end break")
       }
     } catch (error) {
-      console.error('Error ending break:', error)
-      setError(error instanceof Error ? error.message : 'Failed to end break')
+      console.error("Error ending break:", error)
+      setError(error instanceof Error ? error.message : "Failed to end break")
     } finally {
       setLoading(false)
     }
@@ -762,15 +780,15 @@ export default function WorkerDashboardMain() {
       setTodayAssignments((prev) => prev.map((j) => (j.id === selectedJob.id ? updatedJob : j)))
       setCurrentJob(updatedJob)
       setCurrentView("dashboard")
-      
+
       setSelectedJob(null)
       setSelectedCheckInMethod("")
 
       try {
         await fetchWorkerJobs()
-        console.log('✅ Job data refreshed after check-in')
+        console.log("✅ Job data refreshed after check-in")
       } catch (error) {
-        console.error('❌ Failed to refresh job data after check-in:', error)
+        console.error("❌ Failed to refresh job data after check-in:", error)
       }
     }
   }
@@ -794,12 +812,10 @@ export default function WorkerDashboardMain() {
             <div className="w-16 h-16 bg-red-100 dark:bg-red-800/20 rounded-full flex items-center justify-center mx-auto mb-4">
               <AlertCircle className="w-8 h-8 text-red-500" />
             </div>
-            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
-              {t("errorLoadingJobs") || "Error Loading Jobs"}
-            </h3>
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">{t("errorLoadingJobs")}</h3>
             <p className="text-gray-600 dark:text-gray-400 mb-4 text-sm">{error}</p>
             <Button size="sm" className="bg-purple-600 hover:bg-purple-700 text-white" onClick={fetchWorkerJobs}>
-              {t("tryAgain") || "Try Again"}
+              {t("tryAgain")}
             </Button>
           </CardContent>
         </Card>
@@ -822,7 +838,7 @@ export default function WorkerDashboardMain() {
       <CheckInProcess
         job={selectedJob}
         method={selectedCheckInMethod}
-        token={session?.accessToken || ''}
+        token={session?.accessToken || ""}
         onBack={() => setCurrentView("checkInMethods")}
         onComplete={completeCheckIn}
       />
@@ -841,12 +857,7 @@ export default function WorkerDashboardMain() {
   }
 
   if (currentView === "jobDetail" && detailJob) {
-    return (
-      <JobAttendanceDetail
-        job={detailJob}
-        onBack={() => setCurrentView("dashboard")}
-      />
-    )
+    return <JobAttendanceDetail job={detailJob} onBack={() => setCurrentView("dashboard")} />
   }
 
   return (
@@ -860,7 +871,7 @@ export default function WorkerDashboardMain() {
                   <User className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Worker Dashboard</h1>
+                  <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t("workerDashboard")}</h1>
                   <p className="text-gray-600 dark:text-gray-400 text-sm">
                     {formatTime(currentTime)} •{" "}
                     {currentTime.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
@@ -872,12 +883,14 @@ export default function WorkerDashboardMain() {
                 {locationData.isAtWorkCenter ? (
                   <div className="flex items-center gap-2 bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400 px-3 py-1.5 rounded-lg border border-green-200 dark:border-green-800">
                     <Navigation className="w-4 h-4" />
-                    <span className="text-sm font-medium">At Work Center</span>
+                    <span className="text-sm font-medium">{t("atWorkCenter")}</span>
                   </div>
                 ) : (
                   <div className="flex items-center gap-2 bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400 px-3 py-1.5 rounded-lg border border-red-200 dark:border-red-800">
                     <MapPin className="w-4 h-4" />
-                    <span className="text-sm font-medium">{locationData.distance}m away</span>
+                    <span className="text-sm font-medium">
+                      {locationData.distance}m {t("away")}
+                    </span>
                   </div>
                 )}
                 {locationData.city && locationData.country && (
@@ -894,11 +907,11 @@ export default function WorkerDashboardMain() {
         </Card>
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-          <StatsCard label="TODAY'S SHIFTS" value={workerStats.todayShifts} icon={Calendar} />
-          <StatsCard label="COMPLETED JOBS" value={workerStats.completedJobs} icon={CheckCircle} />
-          <StatsCard label="HOURS TODAY" value={`${workerStats.totalHours}h`} icon={Timer} />
-          <StatsCard label="ON-TIME RATE" value={`${workerStats.onTimeRate}%`} icon={Target} />
-          <StatsCard label="TASK COMPLETION" value={`${workerStats.taskCompletionRate}%`} icon={CheckSquare} />
+          <StatsCard label={t("todayShifts")} value={workerStats.todayShifts} icon={Calendar} />
+          <StatsCard label={t("completedJobs")} value={workerStats.completedJobs} icon={CheckCircle} />
+          <StatsCard label={t("hoursToday")} value={`${workerStats.totalHours}${t("hours")}`} icon={Timer} />
+          <StatsCard label={t("onTimeRate")} value={`${workerStats.onTimeRate}%`} icon={Target} />
+          <StatsCard label={t("taskCompletion")} value={`${workerStats.taskCompletionRate}%`} icon={CheckSquare} />
         </div>
 
         {currentJob && (
@@ -925,7 +938,7 @@ export default function WorkerDashboardMain() {
                     : "border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
                 }`}
               >
-                Today's Assignments
+                {t("todayAssignments")}
               </button>
               <button
                 onClick={() => setActiveTab("history")}
@@ -935,7 +948,7 @@ export default function WorkerDashboardMain() {
                     : "border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
                 }`}
               >
-                Recent History
+                {t("recentHistory")}
               </button>
               <button
                 onClick={() => setActiveTab("surveys")}
@@ -945,7 +958,7 @@ export default function WorkerDashboardMain() {
                     : "border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
                 }`}
               >
-                Surveys
+                {t("surveys")}
               </button>
             </div>
 
@@ -970,12 +983,12 @@ export default function WorkerDashboardMain() {
                 {todayAssignments
                   .filter((job) => job.status === "completed")
                   .map((job) => (
-                    <JobCard 
-                      key={job.id} 
-                      job={job} 
-                      onFillSurvey={handleFillSurvey} 
+                    <JobCard
+                      key={job.id}
+                      job={job}
+                      onFillSurvey={handleFillSurvey}
                       onViewDetail={handleViewDetail}
-                      showActions={true} 
+                      showActions={true}
                     />
                   ))}
               </div>
@@ -985,7 +998,7 @@ export default function WorkerDashboardMain() {
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                   <ClipboardList className="w-5 h-5" />
-                  My Surveys
+                  {t("mySurveys")}
                 </h3>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -1000,10 +1013,10 @@ export default function WorkerDashboardMain() {
                   <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900">
                     <CardContent className="p-8 text-center">
                       <ClipboardList className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                      <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-2">No Surveys Yet</h3>
-                      <p className="text-gray-600 dark:text-gray-400 text-sm">
-                        Your completed surveys will appear here after you submit them.
-                      </p>
+                      <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-2">
+                        {t("noSurveysYet")}
+                      </h3>
+                      <p className="text-gray-600 dark:text-gray-400 text-sm">{t("noSurveysDescription")}</p>
                     </CardContent>
                   </Card>
                 )}
