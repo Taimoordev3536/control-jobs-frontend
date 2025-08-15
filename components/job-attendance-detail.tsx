@@ -5,7 +5,6 @@ import {
   Clock,
   Calendar,
   User,
-  MapPin,
   ArrowLeft,
   Coffee,
   LogIn,
@@ -23,6 +22,7 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useAuth } from "@/hooks/use-auth"
+import { useTranslation } from "@/hooks/use-translation"
 
 interface JobAssignment {
   id: number
@@ -132,6 +132,7 @@ interface JobHistoryData {
 
 export function JobAttendanceDetail({ job, onBack }: JobAttendanceDetailProps) {
   const { session } = useAuth()
+  const { t } = useTranslation("job-attendance-detail")
   const [currentTime, setCurrentTime] = useState(new Date())
   const [expandedHistoryCards, setExpandedHistoryCards] = useState<{ [key: string]: boolean }>({})
   const [historyFilters, setHistoryFilters] = useState({
@@ -449,6 +450,21 @@ export function JobAttendanceDetail({ job, onBack }: JobAttendanceDetailProps) {
     }
   }
 
+  const getActivityName = (scanType: string) => {
+    switch (scanType) {
+      case "check-in":
+        return t("checkIn")
+      case "check-out":
+        return t("checkOut")
+      case "break-start":
+        return t("breakStart")
+      case "break-end":
+        return t("breakEnd")
+      default:
+        return scanType.replace("-", " ")
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
@@ -513,9 +529,9 @@ export function JobAttendanceDetail({ job, onBack }: JobAttendanceDetailProps) {
         <div className="flex items-center gap-4 mb-6">
           <Button variant="outline" size="sm" onClick={onBack} className="flex items-center gap-2 bg-transparent">
             <ArrowLeft className="w-4 h-4" />
-            Back to Dashboard
+            {t("backToDashboard")}
           </Button>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Job Attendance Details</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t("jobAttendanceDetails")}</h1>
         </div>
 
         {/* Time History Filters */}
@@ -524,20 +540,22 @@ export function JobAttendanceDetail({ job, onBack }: JobAttendanceDetailProps) {
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
                 <Clock className="h-5 w-5 text-purple-600" />
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Time History Filters</h3>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{t("timeHistoryFilters")}</h3>
               </div>
               <Badge
                 variant="secondary"
                 className="bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400"
               >
-                {filteredJobHistory.length} of {jobHistoryData.length} days
+                {filteredJobHistory.length} {t("of")} {jobHistoryData.length} {t("days")}
               </Badge>
             </div>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
-                <label className="text-sm font-medium mb-2 block text-gray-700 dark:text-gray-300">Date Range</label>
+                <label className="text-sm font-medium mb-2 block text-gray-700 dark:text-gray-300">
+                  {t("dateRange")}
+                </label>
                 <Select
                   value={historyFilters.dateRange}
                   onValueChange={(value) => setHistoryFilters((prev) => ({ ...prev, dateRange: value }))}
@@ -546,18 +564,20 @@ export function JobAttendanceDetail({ job, onBack }: JobAttendanceDetailProps) {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Dates</SelectItem>
-                    <SelectItem value="today">Today</SelectItem>
-                    <SelectItem value="yesterday">Yesterday</SelectItem>
-                    <SelectItem value="thisWeek">This Week</SelectItem>
-                    <SelectItem value="lastWeek">Last Week</SelectItem>
-                    <SelectItem value="thisMonth">This Month</SelectItem>
+                    <SelectItem value="all">{t("allDates")}</SelectItem>
+                    <SelectItem value="today">{t("today")}</SelectItem>
+                    <SelectItem value="yesterday">{t("yesterday")}</SelectItem>
+                    <SelectItem value="thisWeek">{t("thisWeek")}</SelectItem>
+                    <SelectItem value="lastWeek">{t("lastWeek")}</SelectItem>
+                    <SelectItem value="thisMonth">{t("thisMonth")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div>
-                <label className="text-sm font-medium mb-2 block text-gray-700 dark:text-gray-300">Activity Type</label>
+                <label className="text-sm font-medium mb-2 block text-gray-700 dark:text-gray-300">
+                  {t("activityType")}
+                </label>
                 <Select
                   value={historyFilters.activityType}
                   onValueChange={(value) => setHistoryFilters((prev) => ({ ...prev, activityType: value }))}
@@ -566,17 +586,17 @@ export function JobAttendanceDetail({ job, onBack }: JobAttendanceDetailProps) {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Activities</SelectItem>
-                    <SelectItem value="check-in">Check In</SelectItem>
-                    <SelectItem value="check-out">Check Out</SelectItem>
-                    <SelectItem value="break-start">Break Start</SelectItem>
-                    <SelectItem value="break-end">Break End</SelectItem>
+                    <SelectItem value="all">{t("allActivities")}</SelectItem>
+                    <SelectItem value="check-in">{t("checkIn")}</SelectItem>
+                    <SelectItem value="check-out">{t("checkOut")}</SelectItem>
+                    <SelectItem value="break-start">{t("breakStart")}</SelectItem>
+                    <SelectItem value="break-end">{t("breakEnd")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div>
-                <label className="text-sm font-medium mb-2 block text-gray-700 dark:text-gray-300">Worker</label>
+                <label className="text-sm font-medium mb-2 block text-gray-700 dark:text-gray-300">{t("worker")}</label>
                 <Select
                   value={historyFilters.worker}
                   onValueChange={(value) => setHistoryFilters((prev) => ({ ...prev, worker: value }))}
@@ -585,10 +605,10 @@ export function JobAttendanceDetail({ job, onBack }: JobAttendanceDetailProps) {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Workers</SelectItem>
+                    <SelectItem value="all">{t("allWorkers")}</SelectItem>
                     {getUniqueWorkers().map((workerCode) => (
                       <SelectItem key={workerCode} value={workerCode}>
-                        Worker {workerCode}
+                        {t("workerCode", { code: workerCode })}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -596,11 +616,11 @@ export function JobAttendanceDetail({ job, onBack }: JobAttendanceDetailProps) {
               </div>
 
               <div>
-                <label className="text-sm font-medium mb-2 block text-gray-700 dark:text-gray-300">Search</label>
+                <label className="text-sm font-medium mb-2 block text-gray-700 dark:text-gray-300">{t("search")}</label>
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <Input
-                    placeholder="Search activities..."
+                    placeholder={t("searchActivities")}
                     value={historyFilters.searchTerm}
                     onChange={(e) => setHistoryFilters((prev) => ({ ...prev, searchTerm: e.target.value }))}
                     className="pl-10"
@@ -617,13 +637,13 @@ export function JobAttendanceDetail({ job, onBack }: JobAttendanceDetailProps) {
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
                 <Timer className="h-5 w-5 text-purple-600" />
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Time History</h3>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{t("timeHistory")}</h3>
               </div>
               <Badge
                 variant="secondary"
                 className="bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400"
               >
-                {filteredJobHistory.length} days
+                {filteredJobHistory.length} {t("days")}
               </Badge>
             </div>
           </CardHeader>
@@ -631,11 +651,9 @@ export function JobAttendanceDetail({ job, onBack }: JobAttendanceDetailProps) {
             {filteredJobHistory.length === 0 ? (
               <div className="text-center py-12">
                 <Calendar className="mx-auto text-gray-300 dark:text-gray-600 mb-4" size={64} />
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No Data Found</h3>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">{t("noDataFound")}</h3>
                 <p className="text-gray-500 dark:text-gray-400">
-                  {jobHistoryData.length === 0
-                    ? "No attendance data available for this job yet."
-                    : "No data matches your current filters. Try adjusting your search criteria."}
+                  {jobHistoryData.length === 0 ? t("noAttendanceData") : t("noDataMatchesFilters")}
                 </p>
               </div>
             ) : (
@@ -660,7 +678,7 @@ export function JobAttendanceDetail({ job, onBack }: JobAttendanceDetailProps) {
                           </div>
                           <div className="flex items-center text-sm bg-white/20 px-2 py-1 rounded-full">
                             <Clock className="w-4 h-4 mr-1" />
-                            {dayData.scans.length + dayData.sessions.length} activities
+                            {dayData.scans.length + dayData.sessions.length} {t("activities")}
                           </div>
                         </div>
 
@@ -670,10 +688,6 @@ export function JobAttendanceDetail({ job, onBack }: JobAttendanceDetailProps) {
                               <User className="w-4 h-4 mr-1" />
                               {workerInfo.name}
                             </div>
-                            <div className="flex items-center">
-                              <MapPin className="w-4 h-4 mr-1" />
-                              {workerInfo.location}
-                            </div>
                           </div>
                         )}
                       </div>
@@ -682,23 +696,89 @@ export function JobAttendanceDetail({ job, onBack }: JobAttendanceDetailProps) {
                       <div className="p-4 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700">
                         <div className="grid grid-cols-3 gap-4">
                           <div className="text-center">
-                            <div className="text-xl font-bold text-green-600">{totalWork}m</div>
+                            <div className="text-xl font-bold text-green-600">
+                              {totalWork}
+                              {t("minutes")}
+                            </div>
                             <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                              Work Time
+                              {t("workTime")}
                             </div>
                           </div>
                           <div className="text-center">
-                            <div className="text-xl font-bold text-orange-600">{totalBreaks}m</div>
+                            <div className="text-xl font-bold text-orange-600">
+                              {totalBreaks}
+                              {t("minutes")}
+                            </div>
                             <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                              Break Time
+                              {t("breakTime")}
                             </div>
                           </div>
                           <div className="text-center">
                             <div className="text-xl font-bold text-blue-600">{dayData.breaks.length}</div>
                             <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                              Total Breaks
+                              {t("totalBreaks")}
                             </div>
                           </div>
+                        </div>
+                      </div>
+
+                      {/* Daily Tasks Section */}
+                      <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+                        <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-3">{t("dailyTasks")}</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {/* Mock completed tasks */}
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400 border border-green-200 dark:border-green-800">
+                            <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                              <path
+                                fillRule="evenodd"
+                                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
+                            {t("completeProjectDocumentation")}
+                          </span>
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400 border border-green-200 dark:border-green-800">
+                            <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                              <path
+                                fillRule="evenodd"
+                                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
+                            {t("reviewClientProposals")}
+                          </span>
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400 border border-green-200 dark:border-green-800">
+                            <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                              <path
+                                fillRule="evenodd"
+                                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
+                            {t("submitWeeklyReport")}
+                          </span>
+
+                          {/* Mock incomplete tasks */}
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400 border border-red-200 dark:border-red-800">
+                            <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                              <path
+                                fillRule="evenodd"
+                                d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
+                            {t("teamMeetingPreparation")}
+                          </span>
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400 border border-red-200 dark:border-red-800">
+                            <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                              <path
+                                fillRule="evenodd"
+                                d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
+                            {t("updateSystemConfigurations")}
+                          </span>
                         </div>
                       </div>
 
@@ -706,7 +786,9 @@ export function JobAttendanceDetail({ job, onBack }: JobAttendanceDetailProps) {
                       <div className="p-4">
                         <div className="flex items-center justify-between">
                           <div className="flex-1">
-                            <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">Day Overview</h4>
+                            <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
+                              {t("dayOverview")}
+                            </h4>
                             <div className="flex flex-wrap gap-2">
                               {dayOverviewScans.map((scan) => (
                                 <span
@@ -714,7 +796,7 @@ export function JobAttendanceDetail({ job, onBack }: JobAttendanceDetailProps) {
                                   className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getActivityColor(scan.scanType)}`}
                                 >
                                   {getActivityIcon(scan.scanType)}
-                                  <span className="ml-1 capitalize">{scan.scanType.replace("-", " ")}</span>
+                                  <span className="ml-1">{getActivityName(scan.scanType)}</span>
                                   <span className="ml-1">{formatTime(scan.scanTime)}</span>
                                 </span>
                               ))}
@@ -729,11 +811,11 @@ export function JobAttendanceDetail({ job, onBack }: JobAttendanceDetailProps) {
                           >
                             {isExpanded ? (
                               <>
-                                Hide Details <ChevronUp className="w-4 h-4 ml-1" />
+                                {t("hideDetails")} <ChevronUp className="w-4 h-4 ml-1" />
                               </>
                             ) : (
                               <>
-                                View Details <ChevronDown className="w-4 h-4 ml-1" />
+                                {t("viewDetails")} <ChevronDown className="w-4 h-4 ml-1" />
                               </>
                             )}
                           </Button>
@@ -748,7 +830,7 @@ export function JobAttendanceDetail({ job, onBack }: JobAttendanceDetailProps) {
                             <div className="mb-4 pt-4">
                               <h5 className="text-sm font-medium text-gray-900 dark:text-white mb-3 flex items-center">
                                 <Timer className="w-4 h-4 mr-1" />
-                                Work Sessions
+                                {t("workSessions")}
                               </h5>
                               <div className="space-y-2">
                                 {dayData.sessions.map((session) => {
@@ -775,7 +857,9 @@ export function JobAttendanceDetail({ job, onBack }: JobAttendanceDetailProps) {
                                             {formatTime(session.checkInTime)} - {formatTime(session.checkOutTime)}
                                           </div>
                                           <div className="text-xs text-gray-500 dark:text-gray-400">
-                                            Work: {sessionWorkTime}m | Breaks: {session.totalBreakMinutes || 0}m
+                                            {t("work")}: {sessionWorkTime}
+                                            {t("minutes")} | {t("breaks")}: {session.totalBreakMinutes || 0}
+                                            {t("minutes")}
                                           </div>
                                         </div>
                                         {session.isOnBreak && (
@@ -783,7 +867,7 @@ export function JobAttendanceDetail({ job, onBack }: JobAttendanceDetailProps) {
                                             variant="secondary"
                                             className="bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400"
                                           >
-                                            On Break
+                                            {t("onBreak")}
                                           </Badge>
                                         )}
                                       </div>
@@ -799,7 +883,7 @@ export function JobAttendanceDetail({ job, onBack }: JobAttendanceDetailProps) {
                             <div className="mb-4">
                               <h5 className="text-sm font-medium text-gray-900 dark:text-white mb-3 flex items-center">
                                 <Coffee className="w-4 h-4 mr-1" />
-                                Break Details
+                                {t("breakDetails")}
                               </h5>
                               <div className="space-y-2">
                                 {dayData.breaks.map((breakItem, index) => (
@@ -818,7 +902,8 @@ export function JobAttendanceDetail({ job, onBack }: JobAttendanceDetailProps) {
                                         </div>
                                       </div>
                                       <div className="text-sm font-semibold text-orange-600">
-                                        {breakItem.durationMinutes}m
+                                        {breakItem.durationMinutes}
+                                        {t("minutes")}
                                       </div>
                                     </div>
                                   </div>
@@ -831,7 +916,7 @@ export function JobAttendanceDetail({ job, onBack }: JobAttendanceDetailProps) {
                           <div>
                             <h5 className="text-sm font-medium text-gray-900 dark:text-white mb-3 flex items-center">
                               <Clock className="w-4 h-4 mr-1" />
-                              Activity Timeline
+                              {t("activityTimeline")}
                             </h5>
                             <div className="space-y-2">
                               {dayData.scans.map((scan) => (
@@ -842,12 +927,47 @@ export function JobAttendanceDetail({ job, onBack }: JobAttendanceDetailProps) {
                                   <div className="flex items-center justify-between">
                                     <div className="flex items-center">
                                       {getActivityIcon(scan.scanType)}
-                                      <span className="ml-2 text-sm font-medium capitalize">
-                                        {scan.scanType.replace("-", " ")}
-                                      </span>
+                                      <span className="ml-2 text-sm font-medium">{getActivityName(scan.scanType)}</span>
                                     </div>
                                     <span className="text-sm font-semibold">{formatTime(scan.scanTime)}</span>
                                   </div>
+                                  {scan.location && (
+                                    <div className="text-xs text-gray-600 dark:text-gray-400 mt-2 ml-6">
+                                      {(() => {
+                                        try {
+                                          const locationData = JSON.parse(scan.location)
+                                          return (
+                                            <>
+                                              {locationData.address && (
+                                                <p>
+                                                  <strong>{t("address")}:</strong> {locationData.address}
+                                                </p>
+                                              )}
+                                              {locationData.ip && (
+                                                <p>
+                                                  <strong>{t("ip")}:</strong> {locationData.ip}
+                                                </p>
+                                              )}
+                                              {locationData.latitude && locationData.longitude && (
+                                                <p>
+                                                  <strong>{t("gps")}:</strong> {locationData.latitude},{" "}
+                                                  {locationData.longitude}
+                                                </p>
+                                              )}
+                                              {locationData.qrData && (
+                                                <p>
+                                                  <strong>{t("qrData")}:</strong> {locationData.qrData}
+                                                </p>
+                                              )}
+                                            </>
+                                          )
+                                        } catch (e) {
+                                          // If not JSON, display as regular text
+                                          return <p>{scan.location}</p>
+                                        }
+                                      })()}
+                                    </div>
+                                  )}
                                   {scan.notes && (
                                     <p className="text-xs text-gray-600 dark:text-gray-400 mt-2 ml-6">{scan.notes}</p>
                                   )}

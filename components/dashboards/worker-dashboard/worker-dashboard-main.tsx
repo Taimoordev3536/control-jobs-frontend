@@ -181,6 +181,7 @@ export default function WorkerDashboardMain() {
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState("assignments")
   const [error, setError] = useState<string | null>(null)
+  const [actionLoading, setActionLoading] = useState(false)
 
   // Check-in flow states
   const [currentView, setCurrentView] = useState("dashboard")
@@ -465,6 +466,52 @@ export default function WorkerDashboardMain() {
       if (!session?.accessToken) {
         throw new Error("No access token found")
       }
+      
+      // Get current location
+      let locationData = null
+      let userIP = ""
+      
+      try {
+        // Get location data
+        const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0
+          })
+        })
+        
+        locationData = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          accuracy: position.coords.accuracy,
+          address: job.workCenter.address
+        }
+        
+        // Try to get address from coordinates
+        try {
+          const addressResponse = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${position.coords.latitude}&lon=${position.coords.longitude}&zoom=16`
+          )
+          if (addressResponse.ok) {
+            const data = await addressResponse.json()
+            locationData.address = data.display_name
+          }
+        } catch (error) {
+          console.error("Address fetch error:", error)
+        }
+      } catch (error) {
+        console.error("Location error:", error)
+      }
+      
+      // Get IP address
+      try {
+        const ipResponse = await fetch("https://api.ipify.org?format=json")
+        const ipData = await ipResponse.json()
+        userIP = ipData.ip
+      } catch (error) {
+        console.error("IP fetch error:", error)
+      }
 
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/scan`, {
         method: "POST",
@@ -475,7 +522,13 @@ export default function WorkerDashboardMain() {
         body: JSON.stringify({
           jobId: job.id,
           scanType: "check-out",
-          location: job.workCenter.name,
+          location: JSON.stringify({
+            address: locationData?.address || job.workCenter.address,
+            ip: userIP,
+            latitude: locationData?.latitude || null,
+            longitude: locationData?.longitude || null,
+            qrData: null
+          }),
           notes: "Work session completed",
         }),
       })
@@ -563,10 +616,63 @@ export default function WorkerDashboardMain() {
 
   const handleTakeBreak = async (job: JobAssignment, breakType: string) => {
     try {
-      setLoading(true)
+      setActionLoading(true)
 
       if (!session?.accessToken) {
         throw new Error("No access token found")
+      }
+      
+      // Get current location
+      let locationData = null
+      let userIP = ""
+      
+      try {
+        // Get location data
+        const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: true,
+            timeout: 4000,
+            maximumAge: 0
+          })
+        })
+        
+        locationData = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          accuracy: position.coords.accuracy,
+          address: job.workCenter.address
+        }
+        
+        // Try to get address from coordinates
+        try {
+          const controller = new AbortController()
+          const timer = setTimeout(() => controller.abort(), 4000)
+          const addressResponse = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${position.coords.latitude}&lon=${position.coords.longitude}&zoom=16`,
+            { signal: controller.signal }
+          )
+          clearTimeout(timer)
+          if (addressResponse.ok) {
+            const data = await addressResponse.json()
+            locationData.address = data.display_name
+          }
+        } catch (error) {
+          console.error("Address fetch error:", error)
+        }
+      } catch (error) {
+        console.error("Location error:", error)
+      }
+      
+      // Get IP address
+      try {
+        const ipController = new AbortController()
+        const ipTimer = setTimeout(() => ipController.abort(), 4000)
+        const ipResponse = await fetch("https://api.ipify.org?format=json", { signal: ipController.signal })
+        clearTimeout(ipTimer)
+        const ipData = await ipResponse.json()
+        userIP = ipData.ip
+      } catch (error) {
+        console.error("IP fetch error:", error)
       }
 
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/scan`, {
@@ -578,7 +684,13 @@ export default function WorkerDashboardMain() {
         body: JSON.stringify({
           jobId: job.id,
           scanType: "break-start",
-          location: job.workCenter.name,
+          location: JSON.stringify({
+            address: locationData?.address || job.workCenter.address,
+            ip: userIP,
+            latitude: locationData?.latitude || null,
+            longitude: locationData?.longitude || null,
+            qrData: null
+          }),
           notes: `Break started: ${breakType}`,
         }),
       })
@@ -603,16 +715,69 @@ export default function WorkerDashboardMain() {
       console.error("Error starting break:", error)
       setError(error instanceof Error ? error.message : "Failed to start break")
     } finally {
-      setLoading(false)
+      setActionLoading(false)
     }
   }
 
   const handleBackToWork = async (job: JobAssignment) => {
     try {
-      setLoading(true)
+      setActionLoading(true)
 
       if (!session?.accessToken) {
         throw new Error("No access token found")
+      }
+      
+      // Get current location
+      let locationData = null
+      let userIP = ""
+      
+      try {
+        // Get location data
+        const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: true,
+            timeout: 4000,
+            maximumAge: 0
+          })
+        })
+        
+        locationData = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          accuracy: position.coords.accuracy,
+          address: job.workCenter.address
+        }
+        
+        // Try to get address from coordinates
+        try {
+          const controller = new AbortController()
+          const timer = setTimeout(() => controller.abort(), 4000)
+          const addressResponse = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${position.coords.latitude}&lon=${position.coords.longitude}&zoom=16`,
+            { signal: controller.signal }
+          )
+          clearTimeout(timer)
+          if (addressResponse.ok) {
+            const data = await addressResponse.json()
+            locationData.address = data.display_name
+          }
+        } catch (error) {
+          console.error("Address fetch error:", error)
+        }
+      } catch (error) {
+        console.error("Location error:", error)
+      }
+      
+      // Get IP address
+      try {
+        const ipController = new AbortController()
+        const ipTimer = setTimeout(() => ipController.abort(), 4000)
+        const ipResponse = await fetch("https://api.ipify.org?format=json", { signal: ipController.signal })
+        clearTimeout(ipTimer)
+        const ipData = await ipResponse.json()
+        userIP = ipData.ip
+      } catch (error) {
+        console.error("IP fetch error:", error)
       }
 
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/scan`, {
@@ -624,7 +789,13 @@ export default function WorkerDashboardMain() {
         body: JSON.stringify({
           jobId: job.id,
           scanType: "break-end",
-          location: job.workCenter.name,
+          location: JSON.stringify({
+            address: locationData?.address || job.workCenter.address,
+            ip: userIP,
+            latitude: locationData?.latitude || null,
+            longitude: locationData?.longitude || null,
+            qrData: null
+          }),
           notes: "Break ended, back to work",
         }),
       })
@@ -654,7 +825,7 @@ export default function WorkerDashboardMain() {
       console.error("Error ending break:", error)
       setError(error instanceof Error ? error.message : "Failed to end break")
     } finally {
-      setLoading(false)
+      setActionLoading(false)
     }
   }
 
@@ -924,6 +1095,7 @@ export default function WorkerDashboardMain() {
             getCurrentSessionTime={getCurrentSessionTime}
             getCurrentBreakTime={getCurrentBreakTime}
             formatTimeShort={formatTimeShort}
+            actionLoading={actionLoading}
           />
         )}
 

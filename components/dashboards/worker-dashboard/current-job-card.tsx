@@ -29,7 +29,7 @@ interface JobAssignment {
     duration: string
     scheduleType: "fixed" | "flexible"
   }
-  status: "scheduled" | "pending" | "in_progress" | "completed" | "cancelled" | "on_hold"
+  status: "scheduled" | "in_progress" | "completed"
   signingMethods: {
     qrCode?: boolean
     gps?: boolean
@@ -55,17 +55,28 @@ interface JobAssignment {
   totalBreakTime: number
   isOnBreak: boolean
   tags: string[]
+  // Align with dashboard JobAssignment to avoid type mismatch in callbacks
+  startDate: Date
+  endDate: Date
+  hasAttendanceRecord: boolean
+  survey?: {
+    rating: number
+    comments: string
+    submitted: boolean
+    submittedAt?: Date
+  }
 }
 
 interface CurrentJobCardProps {
   job: JobAssignment
-  onCheckOut: (job: JobAssignment) => void
-  onTakeBreak: (job: JobAssignment, breakType: string) => void
-  onBackToWork: (job: JobAssignment) => void
+  onCheckOut: (job: any) => void
+  onTakeBreak: (job: any, breakType: string) => void
+  onBackToWork: (job: any) => void
   onTaskToggle: (jobId: number, taskId: number) => void
-  getCurrentSessionTime: (job: JobAssignment) => string
-  getCurrentBreakTime: (job: JobAssignment) => string
+  getCurrentSessionTime: (job: any) => string
+  getCurrentBreakTime: (job: any) => string
   formatTimeShort: (date: Date) => string
+  actionLoading?: boolean
 }
 
 export function CurrentJobCard({
@@ -77,6 +88,7 @@ export function CurrentJobCard({
   getCurrentSessionTime,
   getCurrentBreakTime,
   formatTimeShort,
+  actionLoading = false,
 }: CurrentJobCardProps) {
   const { t } = useTranslation("worker-dashboard")
   const [selectedBreakType, setSelectedBreakType] = useState("")
@@ -224,7 +236,7 @@ export function CurrentJobCard({
             {/* Break/Work Controls */}
             <div className="space-y-2">
               {job.isOnBreak ? (
-                <Button onClick={() => onBackToWork(job)} className="w-full bg-green-600 hover:bg-green-700 text-white">
+                <Button onClick={() => onBackToWork(job)} className="w-full bg-green-600 hover:bg-green-700 text-white" disabled={actionLoading}>
                   <Play className="w-4 h-4 mr-2" />
                   {t("backToWork")}
                 </Button>
@@ -253,6 +265,7 @@ export function CurrentJobCard({
                       }}
                       variant="outline"
                       className="w-full border-orange-300 text-orange-600 hover:bg-orange-50 dark:border-orange-800 dark:text-orange-400 dark:hover:bg-orange-900/20"
+                      disabled={actionLoading}
                     >
                       <Pause className="w-4 h-4 mr-2" />
                       {t("startBreak")}
@@ -264,7 +277,7 @@ export function CurrentJobCard({
               <Button
                 onClick={() => onCheckOut(job)}
                 className="w-full bg-purple-600 hover:bg-purple-700 text-white"
-                disabled={job.isOnBreak}
+                disabled={job.isOnBreak || actionLoading}
               >
                 <Fingerprint className="w-4 h-4 mr-2" />
                 {t("checkOut")}

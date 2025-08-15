@@ -26,6 +26,7 @@
 //     t,
 //   }
 // }
+
 "use client"
 
 import { LanguageContext } from "@/components/language-provider"
@@ -34,8 +35,14 @@ import translations from "@/lib/translations/translations"
 import dashboardTranslations from "@/lib/translations/dashboard"
 import workerDashboardTranslations from "@/lib/translations/worker-dashboard"
 import employerDashboardTranslations from "@/lib/translations/employer-dashboard"
+import jobAttendanceDetailTranslations from "@/lib/translations/job-attendance-detail"
 
-type TranslationNamespace = "default" | "dashboard" | "worker-dashboard" | "employer-dashboard"
+type TranslationNamespace =
+  | "default"
+  | "dashboard"
+  | "worker-dashboard"
+  | "employer-dashboard"
+  | "job-attendance-detail"
 
 export function useTranslation(namespace: TranslationNamespace = "default") {
   const { language, setLanguage } = useContext(LanguageContext)
@@ -48,6 +55,8 @@ export function useTranslation(namespace: TranslationNamespace = "default") {
         return workerDashboardTranslations
       case "employer-dashboard":
         return employerDashboardTranslations
+      case "job-attendance-detail":
+        return jobAttendanceDetailTranslations
       case "default":
       default:
         return translations

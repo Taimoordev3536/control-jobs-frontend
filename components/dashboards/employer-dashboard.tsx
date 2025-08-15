@@ -30,6 +30,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { useTranslation } from "@/hooks/use-translation"
 import { useAuth } from "@/hooks/use-auth"
 import AddJobModal from "@/components/add-job-modal"
+// import AddJobModal from "../Add-job-model/addJobModal"
 import { JobAttendanceDetail } from "@/components/job-attendance-detail"
 import JobDetailView from "@/components/job-detail-view"
 
