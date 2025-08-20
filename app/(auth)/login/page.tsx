@@ -4,16 +4,16 @@ import type React from "react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Mail, Lock, Eye, EyeOff } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import Link from "next/link"
-import { useState } from "react"
+import { useState,useEffect } from "react"
 import { useAuth } from "@/hooks/use-auth"
 import { LoadingSpinner } from "@/components/loading-spinner"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
-import { useEffect } from "react"
 import ContreolJobs from "../../../icons/Logos/ControlJobs.svg";
 
 
@@ -24,6 +24,7 @@ export default function LoginPage() {
   const { login, isLoading } = useAuth()
   const { data: session } = useSession()
   const router = useRouter()
+   const [showPassword, setShowPassword] = useState(false); 
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -64,34 +65,64 @@ export default function LoginPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="grid gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="email" className="text-card-foreground">
-                E-mail
-              </Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-background border-input text-foreground"
-                placeholder="Enter your email"
-                required
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="password" className="text-card-foreground">
-                Password
-              </Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-background border-input text-foreground"
-                placeholder="Enter your password"
-                required
-              />
-            </div>
+<div className="grid gap-2">
+  <Label htmlFor="email" className="text-card-foreground">
+    {/* E-mail */}
+  </Label>
+
+  <div className="relative w-full">
+    <span className="absolute inset-y-0 left-0 flex items-center pl-3">
+      <Mail className="h-5 w-5 text-gray-400" />
+    </span>
+
+    <Input
+      id="email"
+      type="email"
+      value={email}
+      onChange={(e) => setEmail(e.target.value)}
+      className="w-full bg-background border-input text-foreground pl-10"
+      placeholder="E-mail"
+      required
+    />
+  </div>
+</div>
+
+<div className="grid gap-2">
+  <Label htmlFor="password" className="text-card-foreground">
+    {/* Password */}
+  </Label>
+
+  <div className="relative w-full">
+    {/* Left Icon */}
+    <span className="absolute inset-y-0 left-0 flex items-center pl-3">
+      <Lock className="h-5 w-5 text-gray-400" />
+    </span>
+
+    <Input
+      id="password"
+      type={showPassword ? "text" : "password"}
+      value={password}
+      onChange={(e) => setPassword(e.target.value)}
+      className="w-full bg-background border-input text-foreground pl-10 pr-10"
+      placeholder="Password"
+      required
+    />
+
+    {/* Right Icon (eye toggle) */}
+    <button
+      type="button"
+      onClick={() => setShowPassword(!showPassword)}
+      className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400"
+    >
+      {showPassword ? (
+        <EyeOff className="h-5 w-5" />
+      ) : (
+        <Eye className="h-5 w-5" />
+      )}
+    </button>
+  </div>
+</div>
+
             <div className="flex items-center space-x-2">
               <Checkbox
                 id="remember"
@@ -107,7 +138,7 @@ export default function LoginPage() {
               className="w-full mt-2 bg-primary text-primary-foreground hover:bg-primary/90"
               disabled={isLoading}
             >
-              {isLoading ? "Signing in..." : "Enter"}
+              {isLoading ? "Signing in..." : "Sign in"}
             </Button>
           </form>
 

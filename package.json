@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@auth/core": "latest",
+    "@hello-pangea/dnd": "^18.0.1",
     "@hookform/resolvers": "^3.9.1",
     "@radix-ui/react-accordion": "latest",
     "@radix-ui/react-alert-dialog": "latest",
@@ -56,6 +57,7 @@
     "qrcode": "^1.5.4",
     "qrcode-generator": "^2.0.2",
     "react": "^18",
+    "react-beautiful-dnd": "^13.1.1",
     "react-day-picker": "latest",
     "react-dom": "^18",
     "react-hook-form": "latest",

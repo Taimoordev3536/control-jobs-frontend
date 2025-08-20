@@ -11,7 +11,7 @@ export function LanguageSwitcher() {
 
   const languages = [
     { code: "en", label: "English" },
-    { code: "es", label: "Spanish" },
+    { code: "es", label: "Español" },
     // { code: "de", label: "German" },
   ]
 

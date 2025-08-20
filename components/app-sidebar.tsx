@@ -245,9 +245,10 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar }: Ap
             title: t("utilities"),
             icon: () => <UtilitiesIcon className="h-4 w-4" />,
             items: [
-              { title: t("invite"), href: "/utilities/invite", iconKey: "invite" },
-              { title: t("payments"), href: "/utilities/payments", iconKey: "payments" },
               { title: t("export"), href: "/utilities/export", iconKey: "export" },
+              { title: t("invite"), href: "/utilities/invite", iconKey: "invite" },
+              // { title: t("payments"), href: "/utilities/payments", iconKey: "payments" },
+            
             ],
           },
           {
@@ -271,8 +272,8 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar }: Ap
             title: t("billing"),
             icon: () => <BillingIcon className="h-4 w-4" />,
             items: [
-              { title: t("invoices"), href: "/invoices", iconKey: "invoices" },
               { title: t("commissions"), href: "/commissions", iconKey: "commissions" },
+              { title: t("invoices"), href: "/invoices", iconKey: "invoices" },
               { title: t("rates"), href: "/rates", iconKey: "rates" },
             ],
           },
@@ -291,8 +292,9 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar }: Ap
             title: t("utilities"),
             icon: () => <UtilitiesIcon className="h-4 w-4" />,
             items: [
+              { title: t("import"), href: "/utilities/export", iconKey: "export" },
               { title: t("invite"), href: "/utilities/invite", iconKey: "invite" },
-              { title: t("export"), href: "/utilities/export", iconKey: "export" },
+              
             ],
           },
           {
@@ -367,6 +369,7 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar }: Ap
 
   const sidebarClass = `sidebar ${collapsed ? "collapsed" : ""} ${isMobile ? (mobileOpen ? "mobile-open" : "") : ""}`
 
+
   return (
     <div className={sidebarClass}>
       <div className="sidebar-header">
@@ -376,7 +379,7 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar }: Ap
           </div>
         ) : (
           <div className="logo">
-             <ContreolJobs className="h-72 w-48" />
+             <ContreolJobs className="h-72 w-44" />
           </div>
         )}
       </div>
@@ -462,8 +465,8 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar }: Ap
       </div>
 
       {!collapsed && (
-        <div className="sidebar-footer">
-          <div>2025 © ControlJobs Tech, SL</div>
+        <div className="sidebar-footer font-bold">
+  2025 © <span className="text-[#662D91]">ControlJobs Tech,S.L</span>
         </div>
       )}
     </div>

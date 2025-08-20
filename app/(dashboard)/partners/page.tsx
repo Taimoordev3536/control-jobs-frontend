@@ -118,7 +118,7 @@ export default function PartnersList() {
   return (
     <>
       <DataListTemplate
-        title={("ListofPartners")}
+        title={t("listOfPartners")}
         data={partners}
         columns={columns}
         onRowClick={handleRowClick}

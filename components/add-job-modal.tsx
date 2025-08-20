@@ -112,13 +112,25 @@ const createInitialFormData = () => ({
   duration: "",
   shifts: { tomorrow: false, late: false, evening: false },
   toBeCarriedOut: "during" as const,
-  periodicity: "once" as const,
+  periodicity: "daily" as const,
   periodicityDate: "",
   periodicityValue: "1",
   weeklyDays: [] as string[],
   monthlyDay: "1",
   alertTaskCompleted: false,
   pendingTaskAlert: false,
+  tasks: [] as Array<{
+    id: string
+    task: string
+    observations: string
+    duration: string
+    shifts: { tomorrow: boolean; late: boolean; evening: boolean }
+    toBeCarriedOut: string
+    periodicity: string
+    periodicityValue: string
+    alertTaskCompleted: boolean
+    pendingTaskAlert: boolean
+  }>,
   customerSurvey: {
     questionText: "",
     monitoringValue: [5],
@@ -161,40 +173,52 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
   const [formData, setFormData] = useState(createInitialFormData)
 
   // Memoized constants
-  const mainSteps = useMemo(() => [
-    { number: 1, label: t("signings") || "Signings" },
-    { number: 2, label: t("tasks") || "Tasks" },
-    { number: 3, label: t("surveys") || "Surveys" },
-  ], [t])
+  const mainSteps = useMemo(
+    () => [
+      { number: 1, label: t("signings") || "Signings" },
+      { number: 2, label: t("tasks") || "Tasks" },
+      { number: 3, label: t("surveys") || "Surveys" },
+    ],
+    [t],
+  )
 
-  const signingSteps = useMemo(() => [
-    { number: 1, label: t("definition") || "Definition" },
-    { number: 2, label: t("schedules") || "Schedules" },
-    { number: 3, label: t("signingMethods") || "Signing methods" },
-    { number: 4, label: t("alerts") || "Alerts" },
-  ], [t])
+  const signingSteps = useMemo(
+    () => [
+      { number: 1, label: t("definition") || "Definition" },
+      { number: 2, label: t("schedules") || "Schedules" },
+      { number: 3, label: t("signingMethods") || "Signing methods" },
+      { number: 4, label: t("alerts") || "Alerts" },
+    ],
+    [t],
+  )
 
-  const daysOfWeek = useMemo(() => [
-    { key: "monday", label: t("monday") || "Monday" },
-    { key: "tuesday", label: t("tuesday") || "Tuesday" },
-    { key: "wednesday", label: t("wednesday") || "Wednesday" },
-    { key: "thursday", label: t("thursday") || "Thursday" },
-    { key: "friday", label: t("friday") || "Friday" },
-    { key: "saturday", label: t("saturday") || "Saturday" },
-    { key: "sunday", label: t("sunday") || "Sunday" },
-  ], [t])
+  const daysOfWeek = useMemo(
+    () => [
+      { key: "monday", label: t("monday") || "Monday" },
+      { key: "tuesday", label: t("tuesday") || "Tuesday" },
+      { key: "wednesday", label: t("wednesday") || "Wednesday" },
+      { key: "thursday", label: t("thursday") || "Thursday" },
+      { key: "friday", label: t("friday") || "Friday" },
+      { key: "saturday", label: t("saturday") || "Saturday" },
+      { key: "sunday", label: t("sunday") || "Sunday" },
+    ],
+    [t],
+  )
 
   // Memoized API fetchers
-  const fetchWithAuth = useCallback(async (url: string) => {
-    if (!session?.accessToken) return null
-    const response = await fetch(url, {
-      headers: {
-        Authorization: `Bearer ${session.accessToken}`,
-        "Content-Type": "application/json",
-      },
-    })
-    return response.ok ? response.json() : null
-  }, [session?.accessToken])
+  const fetchWithAuth = useCallback(
+    async (url: string) => {
+      if (!session?.accessToken) return null
+      const response = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${session.accessToken}`,
+          "Content-Type": "application/json",
+        },
+      })
+      return response.ok ? response.json() : null
+    },
+    [session?.accessToken],
+  )
 
   const fetchClients = useCallback(async () => {
     setLoadingClients(true)
@@ -230,7 +254,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
     setLoadingWorkCenters(true)
     try {
       const data = await fetchWithAuth(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/client/${formData.clientId}/work-centers`
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/client/${formData.clientId}/work-centers`,
       )
       setWorkCenters(data?.data || [])
     } catch (error) {
@@ -262,21 +286,24 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
     return `${hours.toString().padStart(2, "0")}:${mins.toString().padStart(2, "0")}`
   }, [])
 
-  const calculateDayTotal = useCallback((daySchedule: DaySchedule): string => {
-    let totalMinutes = 0
-    const shifts = [daySchedule.tomorrow, daySchedule.late, daySchedule.evening]
-    
-    shifts.forEach((shift) => {
-      if (shift.start && shift.end) {
-        const startMinutes = timeToMinutes(shift.start)
-        const endMinutes = timeToMinutes(shift.end)
-        const diffMinutes = endMinutes - startMinutes
-        if (diffMinutes > 0) totalMinutes += diffMinutes
-      }
-    })
-    
-    return minutesToTime(totalMinutes)
-  }, [timeToMinutes, minutesToTime])
+  const calculateDayTotal = useCallback(
+    (daySchedule: DaySchedule): string => {
+      let totalMinutes = 0
+      const shifts = [daySchedule.tomorrow, daySchedule.late, daySchedule.evening]
+
+      shifts.forEach((shift) => {
+        if (shift.start && shift.end) {
+          const startMinutes = timeToMinutes(shift.start)
+          const endMinutes = timeToMinutes(shift.end)
+          const diffMinutes = endMinutes - startMinutes
+          if (diffMinutes > 0) totalMinutes += diffMinutes
+        }
+      })
+
+      return minutesToTime(totalMinutes)
+    },
+    [timeToMinutes, minutesToTime],
+  )
 
   const calculateWeeklyTotal = useCallback((): string => {
     let totalMinutes = 0
@@ -290,37 +317,105 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
 
   // Form update functions
   const updateFormData = useCallback((field: string, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }))
+    setFormData((prev) => ({ ...prev, [field]: value }))
   }, [])
 
   const updateNestedFormData = useCallback((parent: string, field: string, value: any) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       [parent]: { ...prev[parent as keyof typeof prev], [field]: value },
     }))
   }, [])
 
-  const updateScheduleTime = useCallback((day: string, shift: string, timeType: "start" | "end", value: string) => {
-    setFormData(prev => {
-      const newSchedules = { ...prev.schedules }
-      newSchedules[day][shift as keyof DaySchedule][timeType] = value
-      newSchedules[day].total = calculateDayTotal(newSchedules[day])
-      return {
-        ...prev,
-        schedules: newSchedules,
-        totalWeeklyHours: calculateWeeklyTotal(),
-      }
-    })
-  }, [calculateDayTotal, calculateWeeklyTotal])
+  const updateScheduleTime = useCallback(
+    (day: string, shift: string, timeType: "start" | "end", value: string) => {
+      setFormData((prev) => {
+        const newSchedules = { ...prev.schedules }
+        newSchedules[day][shift as keyof DaySchedule][timeType] = value
+        newSchedules[day].total = calculateDayTotal(newSchedules[day])
+        return {
+          ...prev,
+          schedules: newSchedules,
+          totalWeeklyHours: calculateWeeklyTotal(),
+        }
+      })
+    },
+    [calculateDayTotal, calculateWeeklyTotal],
+  )
 
   const toggleWorkerSelection = useCallback((workerId: string) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       workerIds: prev.workerIds.includes(workerId)
-        ? prev.workerIds.filter(id => id !== workerId)
+        ? prev.workerIds.filter((id) => id !== workerId)
         : [...prev.workerIds, workerId],
     }))
   }, [])
+
+  const addTaskToList = () => {
+    if (!formData.task.trim()) {
+      toast({
+        title: "Task Required",
+        description: "Please enter a task name",
+        variant: "destructive",
+      })
+      return
+    }
+
+    const newTask = {
+      id: Date.now().toString(),
+      task: formData.task,
+      observations: formData.taskObservations,
+      duration: formData.duration,
+      shifts: { ...formData.shifts },
+      toBeCarriedOut: formData.toBeCarriedOut,
+      periodicity: formData.periodicity,
+      periodicityValue: formData.periodicityValue,
+      periodicityDate: formData.periodicityDate,
+      weeklyDays: formData.weeklyDays,
+      monthlyDay: formData.monthlyDay,
+      alertTaskCompleted: formData.alertTaskCompleted,
+      pendingTaskAlert: formData.pendingTaskAlert,
+    }
+
+    setFormData((prev) => ({
+      ...prev,
+      tasks: [...prev.tasks, newTask],
+      // Reset task form fields
+      task: "",
+      taskObservations: "",
+      duration: "",
+      shifts: { tomorrow: false, late: false, evening: false },
+      toBeCarriedOut: "during",
+      periodicity: "daily",
+      periodicityValue: "1",
+      periodicityDate: "",
+      weeklyDays: [],
+      monthlyDay: "1",
+      alertTaskCompleted: false,
+      pendingTaskAlert: false,
+    }))
+
+    toast({
+      title: "Task Added",
+      description: "Task has been added to the list",
+    })
+  }
+
+  const removeTaskFromList = (taskId: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      tasks: prev.tasks.filter((task) => task.id !== taskId),
+    }))
+  }
+
+  const getShiftLabels = (shifts: { tomorrow: boolean; late: boolean; evening: boolean }) => {
+    const labels = []
+    if (shifts.tomorrow) labels.push("Morning")
+    if (shifts.late) labels.push("Afternoon")
+    if (shifts.evening) labels.push("Evening")
+    return labels.join(", ") || "None"
+  }
 
   // Navigation functions
   const handleNext = useCallback(() => {
@@ -362,11 +457,11 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
     setIsLoading(true)
     try {
       const endDate = formData.endDate || "2126-08-01"
-      
+
       // Build shifts array
       const shifts: any[] = []
       const shiftTypeMap = { tomorrow: "morning", late: "noon", evening: "evening" }
-      
+
       Object.entries(formData.schedules).forEach(([day, schedule]) => {
         Object.entries(shiftTypeMap).forEach(([key, shiftType]) => {
           const shift = schedule[key as keyof DaySchedule] as TimeSlot
@@ -387,10 +482,10 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
       // Build signing methods
       const signingMethods: any[] = []
       const { mobile, laptop, phone } = formData.signingMethods
-      
-      const mobileDetails = Object.entries(mobile).filter(([_, enabled]) => enabled).map(([key]) => 
-        key === "qrCode" ? "qrcode" : key
-      )
+
+      const mobileDetails = Object.entries(mobile)
+        .filter(([_, enabled]) => enabled)
+        .map(([key]) => (key === "qrCode" ? "qrcode" : key))
       if (mobileDetails.length > 0) {
         signingMethods.push({
           methodType: "mobile",
@@ -399,7 +494,9 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
         })
       }
 
-      const laptopDetails = Object.entries(laptop).filter(([_, enabled]) => enabled).map(([key]) => key)
+      const laptopDetails = Object.entries(laptop)
+        .filter(([_, enabled]) => enabled)
+        .map(([key]) => key)
       if (laptopDetails.length > 0) {
         signingMethods.push({
           methodType: "laptop",
@@ -422,34 +519,38 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
         alerts.push({
           alertType: "sign_in",
           triggerTime: "08:00",
-          minDuration: parseInt(formData.entrance.delayValue) || 10,
+          minDuration: Number.parseInt(formData.entrance.delayValue) || 10,
         })
       }
       if (formData.exit.whenSigningIn || formData.exit.duration) {
         alerts.push({
           alertType: "sign_out",
           triggerTime: "18:00",
-          minDuration: parseInt(formData.exit.durationValue) || 30,
+          minDuration: Number.parseInt(formData.exit.durationValue) || 30,
         })
       }
 
-      // Build tasks
       const tasks: any[] = []
-      if (enableTasks && formData.task) {
-        const selectedShifts = Object.entries(formData.shifts)
-          .filter(([_, enabled]) => enabled)
-          .map(([key]) => key === "tomorrow" ? "morning" : key === "late" ? "noon" : "evening")
-        
-        tasks.push({
-          name: formData.task,
-          note: formData.taskObservations,
-          expectedDuration: parseInt(formData.duration) || 1,
-          shift: selectedShifts[0] || "morning",
-          timing: formData.toBeCarriedOut,
-          periodicity: formData.periodicity,
-          periodicityValue: formData.periodicityValue,
-          alertTask: formData.alertTaskCompleted,
-          pendingTask: formData.pendingTaskAlert,
+      if (enableTasks && formData.tasks.length > 0) {
+        formData.tasks.forEach((task) => {
+          const selectedShifts = Object.entries(task.shifts)
+            .filter(([_, enabled]) => enabled)
+            .map(([key]) => (key === "tomorrow" ? "morning" : key === "late" ? "afternoon" : "evening"))
+
+          tasks.push({
+            name: task.task,
+            note: task.observations,
+            expectedDuration: Number.parseInt(task.duration) || 1,
+            shift: selectedShifts[0] || "morning",
+            timing: task.toBeCarriedOut,
+            periodicity: task.periodicity,
+            periodicityValue: task.periodicityValue,
+            periodicityDate: task.periodicityDate,
+            weeklyDays: task.weeklyDays,
+            monthlyDay: task.monthlyDay,
+            alertTask: task.alertTaskCompleted,
+            pendingTask: task.pendingTaskAlert,
+          })
         })
       }
 
@@ -488,9 +589,9 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
         jobName: formData.denomination,
         startDate: formData.startDate,
         endDate,
-        clientId: parseInt(formData.clientId),
-        workCenterId: parseInt(formData.workCenterId),
-        workerIds: formData.workerIds.map(id => parseInt(id)),
+        clientId: Number.parseInt(formData.clientId),
+        workCenterId: Number.parseInt(formData.workCenterId),
+        workerIds: formData.workerIds.map((id) => Number.parseInt(id)),
         note: formData.observations,
         shifts,
         signingMethods,
@@ -587,15 +688,13 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
     </div>
   )
 
-  const renderSigningSubSteps = () => (
+  const renderSigningSubSteps = () =>
     currentMainStep === 1 && (
       <div className="flex items-center justify-center mt-4">
         {signingSteps.map((step, index) => (
           <div key={step.number} className="flex items-center">
             <div
-              className={`w-3 h-3 rounded-full ${
-                step.number <= currentSigningStep ? "bg-purple-600" : "bg-muted"
-              }`}
+              className={`w-3 h-3 rounded-full ${step.number <= currentSigningStep ? "bg-purple-600" : "bg-muted"}`}
             />
             {index < signingSteps.length - 1 && (
               <div className={`w-8 h-0.5 ${step.number < currentSigningStep ? "bg-purple-600" : "bg-muted"}`} />
@@ -604,7 +703,6 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
         ))}
       </div>
     )
-  )
 
   const renderDefinitionStep = () => (
     <div className="space-y-6">
@@ -792,9 +890,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
           <table className="w-full border-collapse border border-border">
             <thead>
               <tr className="bg-muted/50">
-                <th className="border border-border p-3 text-left font-medium text-foreground">
-                  {t("day") || "Day"}
-                </th>
+                <th className="border border-border p-3 text-left font-medium text-foreground">{t("day") || "Day"}</th>
                 <th className="border border-border p-3 text-center font-medium text-foreground">
                   {t("morning") || "Morning"}
                 </th>
@@ -810,9 +906,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
             <tbody>
               {daysOfWeek.map((day) => (
                 <tr key={day.key} className="hover:bg-muted/30">
-                  <td className="border border-border p-3 font-medium text-foreground bg-muted/20">
-                    {day.label}
-                  </td>
+                  <td className="border border-border p-3 font-medium text-foreground bg-muted/20">{day.label}</td>
                   <td className="border border-border p-2 bg-background">
                     <div className="flex items-center gap-1 justify-center">
                       <Input
@@ -907,9 +1001,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
 
   const renderSigningMethodsStep = () => (
     <div className="space-y-8">
-      <h3 className="text-lg font-medium text-center mb-6 underline">
-        {t("signingMethods") || "Signing methods"}
-      </h3>
+      <h3 className="text-lg font-medium text-center mb-6 underline">{t("signingMethods") || "Signing methods"}</h3>
 
       <div className="space-y-8">
         {/* Mobile Device */}
@@ -1084,9 +1176,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
 
   const renderAlertsStep = () => (
     <div className="space-y-8">
-      <h3 className="text-lg font-medium text-center mb-8 underline text-foreground">
-        {t("alerts") || "Alerts"}
-      </h3>
+      <h3 className="text-lg font-medium text-center mb-8 underline text-foreground">{t("alerts") || "Alerts"}</h3>
 
       <div className="grid grid-cols-2 gap-12">
         {/* Entrance */}
@@ -1225,11 +1315,11 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
   const renderTasksStep = () => (
     <div className="space-y-6">
       <div className="text-center">
-        <h3 className="text-lg font-medium mb-4">{t("introduceTasksNow") || "Introduce tasks now?"}</h3>
+        <h3 className="text-lg font-medium mb-4">{t("introduceTasksNow") || "Enter tasks now?"}</h3>
         <div className="flex items-center justify-center gap-2">
           <span className="text-sm">{t("no") || "No"}</span>
           <Switch checked={enableTasks} onCheckedChange={setEnableTasks} />
-          <span className="text-sm">{t("si") || "Yes"}</span>
+          <span className="text-sm">{t("si") || "Yeah"}</span>
         </div>
       </div>
 
@@ -1248,10 +1338,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
           </div>
 
           <div>
-            <Label
-              htmlFor="taskObservations"
-              className="text-sm font-medium text-foreground flex items-center gap-1"
-            >
+            <Label htmlFor="taskObservations" className="text-sm font-medium text-foreground flex items-center gap-1">
               {t("observations") || "Observations"}
               <Info className="w-4 h-4 text-muted-foreground" />
             </Label>
@@ -1275,7 +1362,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
                   id="duration"
                   value={formData.duration}
                   onChange={(e) => updateFormData("duration", e.target.value)}
-                  placeholder="03:32"
+                  placeholder="--:-- --"
                   className="w-24"
                 />
                 <TimePicker value={formData.duration} onChange={(time) => updateFormData("duration", time)} />
@@ -1296,7 +1383,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
                       onCheckedChange={(checked) => updateNestedFormData("shifts", "tomorrow", checked)}
                     />
                     <Label htmlFor="tomorrow" className="text-sm">
-                      {t("tomorrow") || "Morning"}
+                      {t("morning") || "Morning"}
                     </Label>
                   </div>
                   <div className="flex items-center space-x-2">
@@ -1306,7 +1393,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
                       onCheckedChange={(checked) => updateNestedFormData("shifts", "late", checked)}
                     />
                     <Label htmlFor="late" className="text-sm">
-                      {t("late") || "Afternoon"}
+                      {t("afternoon") || "Afternoon"}
                     </Label>
                   </div>
                   <div className="flex items-center space-x-2">
@@ -1322,9 +1409,16 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
                 </div>
 
                 <RadioGroup
-                  defaultValue={formData.toBeCarriedOut}
+                  value={formData.toBeCarriedOut}
                   onValueChange={(value) => updateFormData("toBeCarriedOut", value)}
+                  className="flex gap-6"
                 >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="before" id="before" />
+                    <Label htmlFor="before" className="text-sm">
+                      {t("before") || "Before"}
+                    </Label>
+                  </div>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="during" id="during" />
                     <Label htmlFor="during" className="text-sm">
@@ -1340,117 +1434,225 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
                 </RadioGroup>
               </div>
             </div>
+          </div>
 
+          <div className="space-y-4">
             <div>
-              <Label className="text-sm font-medium text-foreground flex items-center gap-1">
-                {t("periodicity") || "Periodicity"}
-                <Info className="w-4 h-4 text-muted-foreground" />
-              </Label>
-              <Select
-                value={formData.periodicity}
-                onValueChange={(value) => updateFormData("periodicity", value)}
-              >
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder={t("selectPeriodicity") || "Select periodicity"} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="once">{t("once") || "Once"}</SelectItem>
-                  <SelectItem value="daily">{t("daily") || "Daily"}</SelectItem>
-                  <SelectItem value="weekly">{t("weekly") || "Weekly"}</SelectItem>
-                  <SelectItem value="monthly">{t("monthly") || "Monthly"}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+              <Label className="text-sm font-medium text-foreground">{t("periodicity") || "Periodicity"}</Label>
+              <div className="flex items-center gap-2 mt-1">
+                <Select value={formData.periodicity} onValueChange={(value) => updateFormData("periodicity", value)}>
+                  <SelectTrigger className="w-40">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="daily">{t("daily") || "Daily"}</SelectItem>
+                    <SelectItem value="weekly">{t("weekly") || "Weekly"}</SelectItem>
+                    <SelectItem value="monthly">{t("monthly") || "Monthly"}</SelectItem>
+                    <SelectItem value="annual">{t("annual") || "Annual"}</SelectItem>
+                    <SelectItem value="once">{t("once") || "Once"}</SelectItem>
+                    <SelectItem value="personalize">{t("personalize") || "Personalize"}</SelectItem>
+                  </SelectContent>
+                </Select>
 
-            {formData.periodicity === "once" && (
-              <div>
-                <Label htmlFor="periodicityDate" className="text-sm font-medium text-foreground">
-                  {t("periodicityDate") || "Periodicity Date"}
-                </Label>
-                <Input
-                  id="periodicityDate"
-                  type="date"
-                  value={formData.periodicityDate}
-                  onChange={(e) => updateFormData("periodicityDate", e.target.value)}
-                  className="mt-1"
-                />
+                {/* Show different UI based on periodicity type */}
+                {(formData.periodicity === "daily" ||
+                  formData.periodicity === "weekly" ||
+                  formData.periodicity === "monthly" ||
+                  formData.periodicity === "annual") && (
+                  <>
+                    <span className="text-sm">each</span>
+                    <Input
+                      type="number"
+                      value={formData.periodicityValue}
+                      onChange={(e) => updateFormData("periodicityValue", e.target.value)}
+                      className="w-16"
+                      min="1"
+                    />
+                    <span className="text-sm">
+                      {formData.periodicity === "daily"
+                        ? "days"
+                        : formData.periodicity === "weekly"
+                          ? "weeks"
+                          : formData.periodicity === "monthly"
+                            ? "months"
+                            : "years"}
+                    </span>
+                  </>
+                )}
+
+                {(formData.periodicity === "once" || formData.periodicity === "personalize") && (
+                  <>
+                    <span className="text-sm">the</span>
+                    <Input
+                      type="date"
+                      value={formData.periodicityDate}
+                      onChange={(e) => updateFormData("periodicityDate", e.target.value)}
+                      className="w-40"
+                    />
+                  </>
+                )}
               </div>
-            )}
 
-            {formData.periodicity === "daily" && (
-              <div>
-                <Label htmlFor="periodicityValue" className="text-sm font-medium text-foreground">
-                  {t("periodicityValue") || "Periodicity Value"}
-                </Label>
-                <Input
-                  id="periodicityValue"
-                  type="number"
-                  value={formData.periodicityValue}
-                  onChange={(e) => updateFormData("periodicityValue", e.target.value)}
-                  className="mt-1 w-24"
-                />
-              </div>
-            )}
-
-            {formData.periodicity === "weekly" && (
-              <div>
-                <Label className="text-sm font-medium text-foreground">
-                  {t("weeklyDays") || "Weekly Days"}
-                </Label>
-                <div className="mt-1 space-y-1">
-                  {daysOfWeek.map((day) => (
-                    <div key={day.key} className="flex items-center space-x-2">
+              {/* Weekly days selection */}
+              {formData.periodicity === "weekly" && (
+                <div className="mt-2 flex gap-2">
+                  {[
+                    { key: "L", label: "L" },
+                    { key: "M", label: "M" },
+                    { key: "X", label: "X" },
+                    { key: "J", label: "J" },
+                    { key: "V", label: "V" },
+                    { key: "S", label: "S" },
+                    { key: "D", label: "D" },
+                  ].map((day) => (
+                    <div key={day.key} className="flex items-center space-x-1">
                       <Checkbox
-                        id={`weekly-${day.key}`}
-                        checked={formData.weeklyDays.includes(day.key)}
+                        id={`day-${day.key}`}
+                        checked={formData.weeklyDays?.includes(day.key) || false}
                         onCheckedChange={(checked) => {
-                          const newDays = checked
-                            ? [...formData.weeklyDays, day.key]
-                            : formData.weeklyDays.filter((d) => d !== day.key)
-                          updateFormData("weeklyDays", newDays)
+                          const currentDays = formData.weeklyDays || []
+                          if (checked) {
+                            updateFormData("weeklyDays", [...currentDays, day.key])
+                          } else {
+                            updateFormData(
+                              "weeklyDays",
+                              currentDays.filter((d) => d !== day.key),
+                            )
+                          }
                         }}
                       />
-                      <Label htmlFor={`weekly-${day.key}`} className="text-sm">
+                      <Label htmlFor={`day-${day.key}`} className="text-xs">
                         {day.label}
                       </Label>
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
+              )}
 
-            {formData.periodicity === "monthly" && (
-              <div>
-                <Label htmlFor="monthlyDay" className="text-sm font-medium text-foreground">
-                  {t("monthlyDay") || "Monthly Day"}
-                </Label>
-                <Input
-                  id="monthlyDay"
-                  type="number"
-                  value={formData.monthlyDay}
-                  onChange={(e) => updateFormData("monthlyDay", e.target.value)}
-                  className="mt-1 w-24"
-                />
-              </div>
-            )}
-
-            <div className="flex items-center justify-between mt-8 col-span-2">
-              <div className="flex items-center gap-2">
-                <span className="text-sm">{t("alertTaskCompleted") || "Alert Task Completed"}</span>
-                <Switch
-                  checked={formData.alertTaskCompleted}
-                  onCheckedChange={(checked) => updateFormData("alertTaskCompleted", checked)}
-                />
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm">{t("pendingTaskAlert") || "Pending Task Alert"}</span>
-                <Switch
-                  checked={formData.pendingTaskAlert}
-                  onCheckedChange={(checked) => updateFormData("pendingTaskAlert", checked)}
-                />
-              </div>
+              {/* Monthly day selection */}
+              {formData.periodicity === "monthly" && (
+                <div className="mt-2 flex items-center gap-2">
+                  <span className="text-sm">The day</span>
+                  <Input
+                    type="number"
+                    value={formData.monthlyDay}
+                    onChange={(e) => updateFormData("monthlyDay", e.target.value)}
+                    className="w-16"
+                    min="1"
+                    max="31"
+                  />
+                </div>
+              )}
             </div>
           </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="alertTaskCompleted"
+                checked={formData.alertTaskCompleted}
+                onCheckedChange={(checked) => updateFormData("alertTaskCompleted", checked)}
+              />
+              <Label htmlFor="alertTaskCompleted" className="text-sm">
+                {t("alertTaskCompleted") || "Alert task completed"}
+              </Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="pendingTaskAlert"
+                checked={formData.pendingTaskAlert}
+                onCheckedChange={(checked) => updateFormData("pendingTaskAlert", checked)}
+              />
+              <Label htmlFor="pendingTaskAlert" className="text-sm">
+                {t("pendingTaskAlert") || "Pending task alert"}
+              </Label>
+            </div>
+          </div>
+
+          <div className="flex justify-between items-center pt-4">
+            <div className="flex gap-2">
+              <Button onClick={addTaskToList} className="bg-purple-600 hover:bg-purple-700 text-white px-6">
+                Add
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setFormData((prev) => ({
+                    ...prev,
+                    task: "",
+                    taskObservations: "",
+                    duration: "",
+                    shifts: { tomorrow: false, late: false, evening: false },
+                    toBeCarriedOut: "during",
+                    periodicity: "daily",
+                    periodicityValue: "1",
+                    periodicityDate: "",
+                    weeklyDays: [],
+                    monthlyDay: "1",
+                    alertTaskCompleted: false,
+                    pendingTaskAlert: false,
+                  }))
+                }}
+                className="px-6"
+              >
+                Cancel
+              </Button>
+            </div>
+            <Button
+              variant="destructive"
+              onClick={() => setFormData((prev) => ({ ...prev, tasks: [] }))}
+              className="bg-yellow-500 hover:bg-yellow-600 text-white px-6"
+            >
+              Eliminate
+            </Button>
+          </div>
+
+          {formData.tasks.length > 0 && (
+            <div className="mt-6">
+              <div className="border rounded-lg overflow-hidden">
+                <table className="w-full">
+                  <thead className="bg-purple-600 text-white">
+                    <tr>
+                      <th className="px-4 py-2 text-left text-sm font-medium">To be carried out</th>
+                      <th className="px-4 py-2 text-left text-sm font-medium">Order</th>
+                      <th className="px-4 py-2 text-left text-sm font-medium">Task</th>
+                      <th className="px-4 py-2 text-left text-sm font-medium">Periodicity</th>
+                      <th className="px-4 py-2 text-left text-sm font-medium">Duration</th>
+                      <th className="px-4 py-2 text-left text-sm font-medium">Alerts</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {formData.tasks.map((task, index) => (
+                      <tr key={task.id} className="border-t hover:bg-gray-50">
+                        <td className="px-4 py-2 text-sm capitalize">{task.toBeCarriedOut}</td>
+                        <td className="px-4 py-2 text-sm">{index + 1}</td>
+                        <td className="px-4 py-2 text-sm">{task.task}</td>
+                        <td className="px-4 py-2 text-sm">
+                          {task.periodicity === "once" || task.periodicity === "personalize"
+                            ? task.periodicityDate
+                            : `Every ${task.periodicityValue} ${
+                                task.periodicity === "daily"
+                                  ? "day" + (task.periodicityValue !== "1" ? "s" : "")
+                                  : task.periodicity === "weekly"
+                                    ? "week" + (task.periodicityValue !== "1" ? "s" : "")
+                                    : task.periodicity === "monthly"
+                                      ? "month" + (task.periodicityValue !== "1" ? "s" : "")
+                                      : task.periodicity === "annual"
+                                        ? "year" + (task.periodicityValue !== "1" ? "s" : "")
+                                        : ""
+                              }`}
+                        </td>
+                        <td className="px-4 py-2 text-sm">{task.duration || "--:-- --"}</td>
+                        <td className="px-4 py-2 text-sm">
+                          {task.alertTaskCompleted || task.pendingTaskAlert ? "👍" : ""}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -1512,9 +1714,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
                   <Textarea
                     id="customerTextAlertTracking"
                     value={formData.customerSurvey.textAlertTracking}
-                    onChange={(e) =>
-                      updateNestedFormData("customerSurvey", "textAlertTracking", e.target.value)
-                    }
+                    onChange={(e) => updateNestedFormData("customerSurvey", "textAlertTracking", e.target.value)}
                     className="mt-1"
                     rows={3}
                   />
@@ -1535,9 +1735,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
 
                 <div className="grid grid-cols-2 gap-8">
                   <div>
-                    <Label className="text-sm font-medium text-foreground">
-                      {t("periodicity") || "Periodicity"}
-                    </Label>
+                    <Label className="text-sm font-medium text-foreground">{t("periodicity") || "Periodicity"}</Label>
                     <Select
                       value={formData.customerSurvey.periodicity}
                       onValueChange={(value) => updateNestedFormData("customerSurvey", "periodicity", value)}
@@ -1561,9 +1759,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
                       id="customerPeriodicityValue"
                       type="number"
                       value={formData.customerSurvey.periodicityValue}
-                      onChange={(e) =>
-                        updateNestedFormData("customerSurvey", "periodicityValue", e.target.value)
-                      }
+                      onChange={(e) => updateNestedFormData("customerSurvey", "periodicityValue", e.target.value)}
                       className="mt-1 w-24"
                     />
                   </div>
@@ -1645,9 +1841,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
 
                 <div className="grid grid-cols-2 gap-8">
                   <div>
-                    <Label className="text-sm font-medium text-foreground">
-                      {t("periodicity") || "Periodicity"}
-                    </Label>
+                    <Label className="text-sm font-medium text-foreground">{t("periodicity") || "Periodicity"}</Label>
                     <Select
                       value={formData.workerSurvey.periodicity}
                       onValueChange={(value) => updateNestedFormData("workerSurvey", "periodicity", value)}
@@ -1746,7 +1940,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
           </Button>
           {currentMainStep === 3 ? (
             <Button onClick={handleCreate} disabled={isLoading}>
-              {isLoading ? (t("creating") || "Creating...") : (t("create") || "Create")}
+              {isLoading ? t("creating") || "Creating..." : t("create") || "Create"}
             </Button>
           ) : (
             <Button onClick={handleNext}>{t("next") || "Next"}</Button>

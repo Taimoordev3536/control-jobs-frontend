@@ -5,6 +5,12 @@ import { useState } from "react"
 import { ChevronUp, ChevronDown, MoreVertical } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useTranslation } from "@/hooks/use-translation"
+import {
+  DragDropContext,
+  Droppable,
+  Draggable,
+  DropResult,
+} from "@hello-pangea/dnd"
 
 import AddIcon1 from "../../icons/Controles/add1.svg"
 import AddIcon2 from "../../icons/Controles/add2.svg"
@@ -59,6 +65,7 @@ export default function DataListTemplate({
 }: DataListTemplateProps) {
   const { t } = useTranslation()
   const router = useRouter()
+  const [localColumns, setLocalColumns] = useState(columns) // ✅ use local state
   const [sortColumn, setSortColumn] = useState<string | null>(null)
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc")
   const [currentPage, setCurrentPage] = useState(1)
@@ -67,7 +74,7 @@ export default function DataListTemplate({
   const totalPages = Math.ceil(total / itemsPerPage)
 
   const handleSort = (column: string) => {
-    const columnConfig = columns.find((col) => col.key === column)
+    const columnConfig = localColumns.find((col) => col.key === column)
     if (!columnConfig?.sortable) return
 
     if (sortColumn === column) {
@@ -82,11 +89,15 @@ export default function DataListTemplate({
     <div className="ml-1 flex flex-col">
       <ChevronUp
         size={14}
-        className={`text-muted-foreground ${sortColumn === column && sortDirection === "asc" ? "text-purple-600" : ""}`}
+        className={`text-muted-foreground ${
+          sortColumn === column && sortDirection === "asc" ? "text-purple-600" : ""
+        }`}
       />
       <ChevronDown
         size={14}
-        className={`text-muted-foreground -mt-1 ${sortColumn === column && sortDirection === "desc" ? "text-purple-600" : ""}`}
+        className={`text-muted-foreground -mt-1 ${
+          sortColumn === column && sortDirection === "desc" ? "text-purple-600" : ""
+        }`}
       />
     </div>
   )
@@ -112,7 +123,7 @@ export default function DataListTemplate({
     IconDefault,
     IconHover,
     onClick,
-    title
+    title,
   }: {
     IconDefault: React.ComponentType<{ className?: string }>
     IconHover: React.ComponentType<{ className?: string }>
@@ -128,7 +139,11 @@ export default function DataListTemplate({
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
       >
-        {hovered ? <IconHover className="w-5 h-5" /> : <IconDefault className="w-5 h-5" />}
+        {hovered ? (
+          <IconHover className="w-5 h-5" />
+        ) : (
+          <IconDefault className="w-5 h-5" />
+        )}
       </button>
     )
   }
@@ -145,10 +160,11 @@ export default function DataListTemplate({
       return { IconDefault: AddIcon1, IconHover: AddIcon2 }
     }
 
-    // Include filter and export buttons in mobile dropdown
     const mobileButtons = actionButtons.filter((button) => {
       const lowerTitle = button.title.toLowerCase()
-      return ["csv", "excel", "pdf", "filter"].some((type) => lowerTitle.includes(type))
+      return ["csv", "excel", "pdf", "filter"].some((type) =>
+        lowerTitle.includes(type),
+      )
     })
 
     return (
@@ -187,14 +203,14 @@ export default function DataListTemplate({
     <div className="p-6 bg-background min-h-screen">
       <div className="bg-card rounded-lg shadow-sm border border-border">
         {/* Header */}
-        <div className="flex justify-between items-center p-6 border-b border-border">
+        <div className="flex justify-between items-center p-6 border-b border-border bg-gray-100 dark:bg-gray-800">
           <h1 className="text-2xl font-semibold text-foreground">{title}</h1>
           {actionButtons.length > 0 && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 ">
               {actionButtons.map((button, index) => {
                 const lowerTitle = button.title.toLowerCase()
-                const isMobileButton = ["csv", "excel", "pdf", "filter"].some((type) => 
-                  lowerTitle.includes(type)
+                const isMobileButton = ["csv", "excel", "pdf", "filter"].some(
+                  (type) => lowerTitle.includes(type),
                 )
 
                 let IconDefault = AddIcon1
@@ -236,56 +252,99 @@ export default function DataListTemplate({
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-purple-50 dark:bg-purple-950/50 border-b-2 border-purple-600">
-                  {columns.map((column) => (
-                    <th
-                      key={column.key}
-                      className={`px-6 py-4 text-sm font-semibold text-foreground transition-colors ${getAlignmentClass(
-                        column.align,
-                      )} ${column.sortable ? "cursor-pointer hover:bg-purple-100 dark:hover:bg-purple-900/50" : ""}`}
-                      onClick={() => column.sortable && handleSort(column.key)}
-                    >
-                      <div className="flex items-center justify-start">
-                        {column.label}
-                        {column.sortable && getSortIcon(column.key)}
-                      </div>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {data.map((row, index) => (
-                  <tr
-                    key={row.id || index}
-                    onClick={() => handleRowClick(row)}
-                    className={`
-                      border-b border-border transition-colors
-                      ${index % 2 === 0 ? "bg-background" : "bg-muted/20"}
-                      ${onRowClick ? "cursor-pointer hover:bg-muted/50 active:bg-muted/70" : ""}
-                    `}
-                  >
-                    {columns.map((column) => (
-                      <td
-                        key={`${row.id || index}-${column.key}`}
-                        className={`px-6 py-4 text-sm ${
-                          column.key === columns[0].key ? "text-foreground font-medium" : "text-muted-foreground"
-                        } ${getAlignmentClass(column.align)}`}
+            <DragDropContext
+              onDragEnd={(result: DropResult) => {
+                if (!result.destination) return
+                const reordered = [...localColumns]
+                const [removed] = reordered.splice(result.source.index, 1)
+                reordered.splice(result.destination.index, 0, removed)
+                setLocalColumns(reordered) // ✅ works now
+              }}
+            >
+              <table className="w-full">
+                <thead>
+                  <Droppable droppableId="columns" direction="horizontal">
+                    {(provided) => (
+                      <tr
+                        ref={provided.innerRef}
+                        {...provided.droppableProps}
+                        className="bg-purple-50 dark:bg-purple-950/50 border-y-2 border-[#662D91]"
                       >
-                        {column.render ? column.render(row[column.key], row) : row[column.key]}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                        {localColumns.map((column, index) => (
+                          <Draggable
+                            key={column.key}
+                            draggableId={column.key}
+                            index={index}
+                          >
+                            {(provided, snapshot) => (
+                              <th
+                                ref={provided.innerRef}
+                                {...provided.draggableProps}
+                                {...provided.dragHandleProps}
+                                className={`px-6 py-4 text-sm font-semibold text-foreground transition-colors cursor-move ${
+                                  snapshot.isDragging
+                                    ? "bg-purple-200 dark:bg-purple-800"
+                                    : ""
+                                } ${getAlignmentClass(column.align)} ${
+                                  column.sortable
+                                    ? "hover:bg-purple-100 dark:hover:bg-purple-900/50"
+                                    : ""
+                                }`}
+                                onClick={() =>
+                                  column.sortable && handleSort(column.key)
+                                }
+                              >
+                                <div className="flex items-center justify-start">
+                                  {column.label}
+                                  {column.sortable && getSortIcon(column.key)}
+                                </div>
+                              </th>
+                            )}
+                          </Draggable>
+                        ))}
+                        {provided.placeholder}
+                      </tr>
+                    )}
+                  </Droppable>
+                </thead>
+                <tbody>
+                  {data.map((row, index) => (
+                    <tr
+                      key={row.id || index}
+                      onClick={() => handleRowClick(row)}
+                      className={`border-b border-border transition-colors ${
+                        index % 2 === 0 ? "bg-background" : "bg-muted/20"
+                      } ${
+                        onRowClick
+                          ? "cursor-pointer hover:bg-muted/50 active:bg-muted/70"
+                          : ""
+                      }`}
+                    >
+                      {localColumns.map((column) => (
+                        <td
+                          key={`${row.id || index}-${column.key}`}
+                          className={`px-6 py-4 text-sm ${
+                            column.key === localColumns[0].key
+                              ? "text-foreground font-medium"
+                              : "text-muted-foreground"
+                          } ${getAlignmentClass(column.align)}`}
+                        >
+                          {column.render
+                            ? column.render(row[column.key], row)
+                            : row[column.key]}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </DragDropContext>
           </div>
         )}
 
         {/* Pagination */}
         {showPagination && data.length > 0 && (
-          <div className="px-6 py-4 flex items-center justify-between border-t border-border bg-card">
+          <div className="px-6 py-4 flex items-center justify-between border-t border-border bg-card bg-gray-100 dark:bg-gray-800">
             <div className="text-sm text-muted-foreground">
               {t("showingRecords", {
                 start: (currentPage - 1) * itemsPerPage + 1,
@@ -301,12 +360,16 @@ export default function DataListTemplate({
               >
                 {t("back")}
               </button>
-              <button className="px-3 py-1 text-sm bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors">
+
+              <button className="px-3 py-1 text-sm bg-[#662D91] text-white rounded-md hover:bg-[#532073] transition-colors">
                 {currentPage}
               </button>
+
               <button
                 className="px-3 py-1 text-sm text-muted-foreground hover:text-foreground disabled:opacity-50 transition-colors"
-                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                onClick={() =>
+                  setCurrentPage(Math.min(totalPages, currentPage + 1))
+                }
                 disabled={currentPage === totalPages}
               >
                 {t("next")}

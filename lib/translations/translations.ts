@@ -1,6 +1,6 @@
 const translations: Record<string, Record<string, string>> = {
   en: {
-    //common observation fee
+    //common observation list of partners
     registered_at: "Registered_at",
     // Navigation
     merchants: "Merchants",
@@ -15,6 +15,7 @@ const translations: Record<string, Record<string, string>> = {
     invite: "Invite",
     payments: "Payments",
     export: "Export",
+    import: "Import",
     aid: "Aid",
 
     // New navigation items Work centers
@@ -52,7 +53,7 @@ const translations: Record<string, Record<string, string>> = {
     logout: "Log out",
 
     // New additions
-    ListofPartners: "List of Partners",
+    listOfPartners: "List of Partners",
     type: "Type",
     listOfEmployers: "List of Employers",
 
@@ -390,7 +391,7 @@ const translations: Record<string, Record<string, string>> = {
     no: "No",
   },
   es: {
-    // common Disc
+    // common Disc web information
     registered_at: "F.Alta",
 
     // Navigation
@@ -401,15 +402,16 @@ const translations: Record<string, Record<string, string>> = {
     invoices: "Facturas",
     commissions: "Comisiones",
     rates: "Tarifas",
-    information: "Información",
+    information: "Informes",
     utilities: "Utilidades",
     invite: "Invitar",
     payments: "Pagos",
+    import: "Importar",
     export: "Exportar",
     aid: "Ayuda",
 
     // New navigation items
-    jobs: "Trabajos",
+    jobs: "Jobs",
     control: "Control",
     consultations: "Consultas",
     all: "Todos",
@@ -443,7 +445,7 @@ const translations: Record<string, Record<string, string>> = {
     logout: "Cerrar sesión",
 
     // New additions
-    ListofPartners: "Lista de Socios",
+    listOfPartners: "Lista de Socios",
     type: "Tipo",
     listOfEmployers: "Lista de Empleadores",
 
@@ -679,10 +681,10 @@ const translations: Record<string, Record<string, string>> = {
     center: "Centro",
 
     // header
-    theme: "tema",
-    contact: "contacto",
+    theme: "Tema",
+    contact: "Contacto",
     suggestions: "Sugerencias",
-    translate: "Traducir",
+    translate: "Idioma",
 
     // Job modal translations
     newJob: "Nuevo Job",

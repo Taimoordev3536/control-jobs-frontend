@@ -106,7 +106,7 @@
 
   /* Custom Sidebar Styles using theme variables */
   .sidebar {
-    @apply fixed top-0 left-0 z-40 flex flex-col h-screen w-56 transition-all duration-300 ease-in-out;
+    @apply fixed top-0 left-0 z-40 flex flex-col h-screen w-52 transition-all duration-300 ease-in-out;
     @apply shadow-lg rounded-tr-lg rounded-br-lg;
     background-color: hsl(var(--sidebar-background));
     border-right: 1px solid hsl(var(--sidebar-border));
@@ -118,7 +118,7 @@
   }
 
   .sidebar-header {
-    @apply flex items-center h-[60px] px-3 border-b;
+    @apply flex items-center h-[50px] px-3 border-b;
     border-color: hsl(var(--sidebar-border));
   }
 
@@ -225,17 +225,17 @@
 
   /* Header styles using theme variables */
   .header {
-    @apply h-[60px] flex items-center px-4 fixed top-0 right-0 left-0 z-30 transition-all duration-300;
+    @apply h-[50px] flex items-center px-4 fixed top-0 right-0 left-0 z-30 transition-all duration-300;
     background-color: hsl(var(--background));
     border-bottom: 1px solid hsl(var(--border));
   }
 
   .header-collapsed {
-    left: 64px;
+    left: 48px;
   }
 
   .header-expanded {
-    left: 224px;
+    left: 192px;
   }
 
   .main-content {

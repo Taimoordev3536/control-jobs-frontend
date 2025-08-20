@@ -7,76 +7,76 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Activity, MapPin, Coffee, PlayCircle, Play, Pause, Fingerprint, CheckSquare, Square } from "lucide-react"
 import { useTranslation } from "@/hooks/use-translation"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 
 interface JobAssignment {
-  id: number
-  jobId: string
-  title: string
+  id: number;
+  jobId: string;
+  title: string;
   client: {
-    id: number
-    name: string
-  }
+    id: number;
+    name: string;
+  };
   workCenter: {
-    id: number
-    name: string
-    address: string
-    coordinates: { lat: number; lng: number }
-  }
+    id: number;
+    name: string;
+    address: string;
+    coordinates: { lat: number; lng: number };
+  };
   shift: {
-    type: "morning" | "afternoon" | "evening"
-    startTime?: string
-    endTime?: string
-    duration: string
-    scheduleType: "fixed" | "flexible"
-  }
-  status: "scheduled" | "in_progress" | "completed"
+    type: "morning" | "afternoon" | "evening";
+    startTime?: string;
+    endTime?: string;
+    duration: string;
+    scheduleType: "fixed" | "flexible";
+  };
+  status: "scheduled" | "in_progress" | "completed";
   signingMethods: {
-    qrCode?: boolean
-    gps?: boolean
-    wifi?: boolean
-    ip?: boolean
-    callerId?: boolean
-  }
+    qrCode?: boolean;
+    gps?: boolean;
+    wifi?: boolean;
+    ip?: boolean;
+    callerId?: boolean;
+  };
   tasks: Array<{
-    id: number
-    name: string
-    description: string
-    completed: boolean
-    duration: string
-    timing: "during" | "after"
-  }>
-  checkInTime?: Date
-  checkOutTime?: Date
-  breakTime: number
-  workedTime: number
-  expectedHours: number
-  totalHours?: number
-  breakStartTime?: Date
-  totalBreakTime: number
-  isOnBreak: boolean
-  tags: string[]
-  // Align with dashboard JobAssignment to avoid type mismatch in callbacks
-  startDate: Date
-  endDate: Date
-  hasAttendanceRecord: boolean
+    id: number;
+    name: string;
+    description: string;
+    completed: boolean;
+    duration: string;
+    timing: "during" | "after";
+  }>;
+  checkInTime?: Date;
+  checkOutTime?: Date;
+  breakTime: number;
+  workedTime: number;
+  expectedHours: number;
+  totalHours?: number;
+  breakStartTime?: Date;
+  totalBreakTime: number;
+  isOnBreak: boolean;
+  tags: string[];
+  startDate: Date;
+  endDate: Date;
+  hasAttendanceRecord: boolean;
   survey?: {
-    rating: number
-    comments: string
-    submitted: boolean
-    submittedAt?: Date
-  }
+    rating: number;
+    comments: string;
+    submitted: boolean;
+    submittedAt?: Date;
+  };
 }
 
 interface CurrentJobCardProps {
-  job: JobAssignment
-  onCheckOut: (job: any) => void
-  onTakeBreak: (job: any, breakType: string) => void
-  onBackToWork: (job: any) => void
-  onTaskToggle: (jobId: number, taskId: number) => void
-  getCurrentSessionTime: (job: any) => string
-  getCurrentBreakTime: (job: any) => string
-  formatTimeShort: (date: Date) => string
-  actionLoading?: boolean
+  job: JobAssignment;
+  onCheckOut: (job: JobAssignment) => void;
+  onTakeBreak: (job: JobAssignment, breakType: string) => void;
+  onBackToWork: (job: JobAssignment) => void;
+  onTaskToggle: (jobId: number, taskId: number) => void;
+  getCurrentSessionTime: (job: JobAssignment) => string;
+  getCurrentBreakTime: (job: JobAssignment) => string;
+  formatTimeShort: (date: Date) => string;
+  actionLoading?: boolean;
 }
 
 export function CurrentJobCard({
@@ -90,8 +90,8 @@ export function CurrentJobCard({
   formatTimeShort,
   actionLoading = false,
 }: CurrentJobCardProps) {
-  const { t } = useTranslation("worker-dashboard")
-  const [selectedBreakType, setSelectedBreakType] = useState("")
+  const { t } = useTranslation("worker-dashboard");
+  const [selectedBreakType, setSelectedBreakType] = useState("");
 
   const breakTypes = [
     { value: "personal", label: t("personal") },
@@ -100,7 +100,11 @@ export function CurrentJobCard({
     { value: "lunch", label: t("lunch") },
     { value: "prayer", label: t("prayer") },
     { value: "other", label: t("other") },
-  ]
+  ];
+
+  const handleTaskToggleConfirm = (taskId: number) => {
+    onTaskToggle(job.id, taskId);
+  };
 
   return (
     <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900">
@@ -164,19 +168,36 @@ export function CurrentJobCard({
                         : "bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700"
                     }`}
                   >
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 w-6 p-0"
-                      onClick={() => onTaskToggle(job.id, task.id)}
-                      disabled={job.isOnBreak}
-                    >
-                      {task.completed ? (
-                        <CheckSquare className="w-4 h-4 text-green-600 dark:text-green-400" />
-                      ) : (
-                        <Square className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-                      )}
-                    </Button>
+                    {!task.completed ? (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0"
+                            disabled={job.isOnBreak || actionLoading}
+                          >
+                            <Square className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>{t("confirmTaskCompletion")}</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              {t("confirmTaskDescription", { taskName: task.name })}
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleTaskToggleConfirm(task.id)}>
+                              {t("confirm")}
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    ) : (
+                      <CheckSquare className="w-4 h-4 text-green-600 dark:text-green-400" />
+                    )}
                     <div className="flex-1">
                       <div
                         className={`font-medium ${
@@ -236,7 +257,11 @@ export function CurrentJobCard({
             {/* Break/Work Controls */}
             <div className="space-y-2">
               {job.isOnBreak ? (
-                <Button onClick={() => onBackToWork(job)} className="w-full bg-green-600 hover:bg-green-700 text-white" disabled={actionLoading}>
+                <Button
+                  onClick={() => onBackToWork(job)}
+                  className="w-full bg-green-600 hover:bg-green-700 text-white"
+                  disabled={actionLoading}
+                >
                   <Play className="w-4 h-4 mr-2" />
                   {t("backToWork")}
                 </Button>
@@ -260,8 +285,8 @@ export function CurrentJobCard({
                   {selectedBreakType && (
                     <Button
                       onClick={() => {
-                        onTakeBreak(job, selectedBreakType)
-                        setSelectedBreakType("")
+                        onTakeBreak(job, selectedBreakType);
+                        setSelectedBreakType("");
                       }}
                       variant="outline"
                       className="w-full border-orange-300 text-orange-600 hover:bg-orange-50 dark:border-orange-800 dark:text-orange-400 dark:hover:bg-orange-900/20"
@@ -297,5 +322,5 @@ export function CurrentJobCard({
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }
