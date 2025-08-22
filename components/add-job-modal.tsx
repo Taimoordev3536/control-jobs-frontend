@@ -530,29 +530,63 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
         })
       }
 
-      const tasks: any[] = []
-      if (enableTasks && formData.tasks.length > 0) {
-        formData.tasks.forEach((task) => {
-          const selectedShifts = Object.entries(task.shifts)
-            .filter(([_, enabled]) => enabled)
-            .map(([key]) => (key === "tomorrow" ? "morning" : key === "late" ? "afternoon" : "evening"))
+      // const tasks: any[] = []
+      // if (enableTasks && formData.tasks.length > 0) {
+      //   formData.tasks.forEach((task) => {
+      //     const selectedShifts = Object.entries(task.shifts)
+      //       .filter(([_, enabled]) => enabled)
+      //       .map(([key]) => (key === "tomorrow" ? "morning" : key === "late" ? "afternoon" : "evening"))
 
-          tasks.push({
-            name: task.task,
-            note: task.observations,
-            expectedDuration: Number.parseInt(task.duration) || 1,
-            shift: selectedShifts[0] || "morning",
-            timing: task.toBeCarriedOut,
-            periodicity: task.periodicity,
-            periodicityValue: task.periodicityValue,
-            periodicityDate: task.periodicityDate,
-            weeklyDays: task.weeklyDays,
-            monthlyDay: task.monthlyDay,
-            alertTask: task.alertTaskCompleted,
-            pendingTask: task.pendingTaskAlert,
-          })
-        })
-      }
+      //     tasks.push({
+      //       name: task.task,
+      //       note: task.observations,
+      //       expectedDuration: Number.parseInt(task.duration) || 1,
+      //       shift: selectedShifts[0] || "morning",
+      //       timing: task.toBeCarriedOut,
+      //       periodicity: task.periodicity,
+      //       periodicityValue: task.periodicityValue,
+      //       periodicityDate: task.periodicityDate,
+      //       weeklyDays: task.weeklyDays,
+      //       monthlyDay: task.monthlyDay,
+      //       alertTask: task.alertTaskCompleted,
+      //       pendingTask: task.pendingTaskAlert,
+      //     })
+      //   })
+      // }
+const tasks: any[] = [];
+if (enableTasks && formData.tasks.length > 0) {
+  formData.tasks.forEach((task) => {
+    const selectedShifts = Object.entries(task.shifts)
+      .filter(([_, enabled]) => enabled)
+      .map(([key]) => (key === "tomorrow" ? "morning" : key === "late" ? "noon" : "evening"));
+
+    const taskPayload = {
+      name: task.task,
+      note: task.observations,
+      expectedDuration: Number.parseInt(task.duration) || 1,
+      shift: selectedShifts[0] || "morning",
+      timing: task.toBeCarriedOut,
+      periodicity: task.periodicity,
+      periodicityValue: task.periodicityValue,
+      alertTask: task.alertTaskCompleted,
+      pendingTask: task.pendingTaskAlert,
+    };
+
+    // Conditionally add periodicity fields based on UI logic
+    if (task.periodicity === "once" || task.periodicity === "personalized") {
+      taskPayload.periodicityDate = task.periodicityDate;
+    }
+    if (task.periodicity === "weekly") {
+      taskPayload.weeklyDays = task.weeklyDays;
+    }
+    if (task.periodicity === "monthly") {
+      taskPayload.monthlyDay = Number(task.monthlyDay); // Ensure number
+    }
+
+    tasks.push(taskPayload);
+  });
+}
+
 
       // Build survey
       let survey: any = null
@@ -1440,7 +1474,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
             <div>
               <Label className="text-sm font-medium text-foreground">{t("periodicity") || "Periodicity"}</Label>
               <div className="flex items-center gap-2 mt-1">
-                <Select value={formData.periodicity} onValueChange={(value) => updateFormData("periodicity", value)}>
+                {/* <Select value={formData.periodicity} onValueChange={(value) => updateFormData("periodicity", value)}>
                   <SelectTrigger className="w-40">
                     <SelectValue />
                   </SelectTrigger>
@@ -1452,7 +1486,20 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
                     <SelectItem value="once">{t("once") || "Once"}</SelectItem>
                     <SelectItem value="personalize">{t("personalize") || "Personalize"}</SelectItem>
                   </SelectContent>
-                </Select>
+                </Select> */}
+                <Select value={formData.periodicity} onValueChange={(value) => updateFormData("periodicity", value)}>
+  <SelectTrigger className="w-40">
+    <SelectValue />
+  </SelectTrigger>
+  <SelectContent>
+    <SelectItem value="daily">{t("daily") || "Daily"}</SelectItem>
+    <SelectItem value="weekly">{t("weekly") || "Weekly"}</SelectItem>
+    <SelectItem value="monthly">{t("monthly") || "Monthly"}</SelectItem>
+    <SelectItem value="annually">{t("annual") || "Annual"}</SelectItem>
+    <SelectItem value="once">{t("once") || "Once"}</SelectItem>
+    <SelectItem value="personalized">{t("personalize") || "Personalize"}</SelectItem>
+  </SelectContent>
+</Select>
 
                 {/* Show different UI based on periodicity type */}
                 {(formData.periodicity === "daily" ||

@@ -8,7 +8,7 @@ import PartnerIcon from "../icons/Menu/Partners.svg"
 import BillingIcon from "../icons/Menu/billing.svg"
 import InvoicesIcon from "../icons/Menu/invoices.svg"
 import ComisionesIcon from "../icons/Menu/commision.svg"
-import RateIcon from "../icons/Menu/rates.svg"
+import RateIcon from "../icons/new/Tarifas.svg"
 import InformationIcon from "../icons/Menu/Informes.svg"
 import UtilitiesIcon from "../icons/Menu/utilite.svg"
 import InviteIcon from "../icons/Menu/Invite.svg"
@@ -17,7 +17,15 @@ import JobsIcon from "../icons/Menu/Jobs.svg"
 import ClientIcon from "../icons/Menu/clients.svg"
 import WorkersIcon from "../icons/Menu/workers.svg"
 import SurvayIcon from "../icons/Menu/surveys.svg"
-import CJobs from "../icons/Logos/CJobs.svg";
+import PaymentIcon from "../icons/new/pagos.svg"
+import ExportIcon from "../icons/new/exportar.svg"
+import ControlIcon from "../icons/new/control.svg"
+import TodosIcon from "../icons/new/todos.svg"
+import SigningsInfoIcon from "../icons/new/fichajes.svg"
+import ServicesInfoIcon from "../icons/new/servicios.svg"
+import SalaryInfoIcon from "../icons/new/salaries.svg"
+import ConsultIcon from "../icons/new/consultas.svg"
+import CJobs from "../icons/new/logo_min.svg";
 import ContreolJobs from "../icons/Logos/ControlJobs.svg";
 import {
   CreditCard,
@@ -77,21 +85,21 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar }: Ap
   const getIcon = (iconKey: string) => {
     switch (iconKey) {
       case "control":
-        return <Settings className="h-4 w-4" />
+        return <ControlIcon className="h-4 w-4" />
       case "consultations":
-        return <MessageSquare className="h-4 w-4" />
+        return <ConsultIcon className="h-4 w-4" />
       case "all":
-        return <FileBarChart className="h-4 w-4" />
+        return <TodosIcon className="h-4 w-4" />
       case "occupation":
         return <Briefcase className="h-4 w-4" />
       case "surveys":
         return <SurvayIcon className="h-4 w-4" />
       case "signings-info":
-        return <UserCheck className="h-4 w-4" />
+        return <SigningsInfoIcon className="h-4 w-4" />
       case "wages-info":
-        return <DollarSign className="h-4 w-4" />
+        return <SalaryInfoIcon className="h-4 w-4" />
       case "services-info":
-        return <Settings className="h-4 w-4" />
+        return <ServicesInfoIcon className="h-4 w-4" />
       case "clients":
         return <ClientIcon className="h-4 w-4" />
       case "workers":
@@ -115,9 +123,9 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar }: Ap
       case "invite":
         return <InviteIcon className="h-4 w-4" />
       case "payments":
-        return <CreditCard className="h-4 w-4" />
+        return <PaymentIcon className="h-4 w-4" />
       case "export":
-        return <Share2 className="h-4 w-4" />
+        return <ExportIcon className="h-4 w-4" />
       default:
         return <Users className="h-4 w-4" />
     }
@@ -235,7 +243,7 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar }: Ap
             icon: () => <InformationIcon className="h-4 w-4" />,
             items: [
               { title: t("signings"), href: "/information/signings-info", iconKey: "signings-info" },
-              { title: t("services"), href: "/information/services-info", iconKey: "services -info" },
+              { title: t("services"), href: "/information/services-info", iconKey: "services-info" },
               { title: t("invoices"), href: "/information/invoices-info", iconKey: "invoices" },
               { title: t("wages"), href: "/information/wages-info", iconKey: "wages-info" },
             ],

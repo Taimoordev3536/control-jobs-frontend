@@ -1,139 +1,244 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QR Code Scanner</title>
-    <!-- Load jsQR library for QR code scanning -->
-    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            margin: 20px;
-            background-color: #f0f0f0;
-        }
-        .container {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-            width: 100%;
-            max-width: 500px;
-            text-align: center;
-            display: none; /* Hidden until scanner starts */
-        }
-        h1 {
-            color: #333;
-        }
-        button {
-            margin: 10px 0;
-            padding: 10px;
-            width: 100%;
-            box-sizing: border-box;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            cursor: pointer;
-            border-radius: 5px;
-        }
-        button:hover {
-            background-color: #45a049;
-        }
-        #video {
-            width: 100%;
-            max-width: 400px;
-            border: 2px solid #333;
-            border-radius: 5px;
-        }
-        #scan-result {
-            margin-top: 10px;
-            color: #333;
-            word-break: break-all;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Task Scheduler</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f6fa;
+      margin: 0;
+      padding: 20px;
+    }
+    h2 {
+      margin-bottom: 15px;
+    }
+    form {
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      max-width: 700px;
+      margin: auto;
+    }
+    .form-group {
+      margin-bottom: 15px;
+    }
+    label {
+      display: block;
+      margin-bottom: 6px;
+      font-weight: bold;
+    }
+    input, select, textarea {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+    textarea {
+      resize: vertical;
+    }
+    .checkbox-group, .radio-group {
+      display: flex;
+      gap: 15px;
+      flex-wrap: wrap;
+    }
+    .checkbox-group label, .radio-group label {
+      font-weight: normal;
+    }
+    .inline {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    button {
+      padding: 10px 20px;
+      background: #1976d2;
+      border: none;
+      border-radius: 6px;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #125ea6;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 30px;
+      background: white;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+    th, td {
+      padding: 12px 15px;
+      border-bottom: 1px solid #eee;
+      text-align: left;
+    }
+    th {
+      background: #f1f1f1;
+    }
+    .actions {
+      display: flex;
+      gap: 10px;
+    }
+    .actions button {
+      background: #ccc;
+      padding: 6px 12px;
+      font-size: 14px;
+    }
+    .actions button.edit { background: #4caf50; color: white; }
+    .actions button.delete { background: #f44336; color: white; }
+  </style>
 </head>
 <body>
-    <button onclick="startScanner()">Start QR Scanner</button>
-    <div class="container" id="scanner">
-        <h1>QR Code Scanner</h1>
-        <video id="video" autoplay></video>
-        <button onclick="stopScanner()">Stop Scanner</button>
-        <div id="scan-result">Scan result will appear here</div>
+
+  <h2>Task Scheduler</h2>
+  <form>
+    <div class="form-group">
+      <label>Task Name</label>
+      <input type="text" name="name" required>
     </div>
 
-    <script>
-        let video = null; // Video element for scanning
-        let stream = null; // Camera stream
-        let canvas = null; // Canvas for capturing video frames
-        let context = null; // Canvas context
-        let scanning = false; // Scanner state
+    <div class="form-group">
+      <label>Description</label>
+      <textarea name="description" rows="3"></textarea>
+    </div>
 
-        // Start QR Code Scanner
-        async function startScanner() {
-            try {
-                document.getElementById('scanner').style.display = 'block';
-                video = document.getElementById('video');
-                // Request camera access
-                stream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: 'environment' } // Prefer rear camera
-                });
-                video.srcObject = stream;
-                video.play();
+    <div class="form-group">
+      <label>Shift</label>
+      <select name="shift" required>
+        <option value="">Select Shift</option>
+        <option value="1">Morning Shift</option>
+        <option value="2">Evening Shift</option>
+      </select>
+    </div>
 
-                // Set up canvas for scanning
-                canvas = document.createElement('canvas');
-                context = canvas.getContext('2d');
-                scanning = true;
-                scanQRCode();
-            } catch (err) {
-                console.error('Error accessing camera:', err);
-                alert('Unable to access camera. Please ensure permissions are granted.');
-                document.getElementById('scanner').style.display = 'none';
-            }
-        }
+    <div class="form-group">
+      <label>Periodicity</label>
+      <select name="periodicity">
+        <option value="once">Once</option>
+        <option value="daily">Daily</option>
+        <option value="weekly">Weekly</option>
+        <option value="monthly">Monthly</option>
+        <option value="annually">Annually</option>
+        <option value="personalized">Personalized</option>
+      </select>
+    </div>
 
-        // Scan QR Code from video feed
-        function scanQRCode() {
-            if (!scanning || !video || !stream) return;
+    <div class="form-group">
+      <label>Repeat Every</label>
+      <input type="number" name="repeatInterval" value="1" min="1">
+    </div>
 
-            // Capture video frame
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            context.drawImage(video, 0, 0, canvas.width, canvas.height);
-            const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-            // Analyze frame for QR code
-            const code = jsQR(imageData.data, imageData.width, imageData.height, {
-                inversionAttempts: 'dontInvert'
-            });
+    <div class="form-group">
+      <label>Weekly Days</label>
+      <div class="checkbox-group">
+        <label><input type="checkbox" name="days" value="Monday"> Monday</label>
+        <label><input type="checkbox" name="days" value="Tuesday"> Tuesday</label>
+        <label><input type="checkbox" name="days" value="Wednesday"> Wednesday</label>
+        <label><input type="checkbox" name="days" value="Thursday"> Thursday</label>
+        <label><input type="checkbox" name="days" value="Friday"> Friday</label>
+        <label><input type="checkbox" name="days" value="Saturday"> Saturday</label>
+        <label><input type="checkbox" name="days" value="Sunday"> Sunday</label>
+      </div>
+    </div>
 
-            if (code) {
-                // QR code found, display result
-                document.getElementById('scan-result').textContent = `Scanned: ${code.data}`;
-                stopScanner();
-            } else {
-                // Continue scanning
-                document.getElementById('scan-result').textContent = 'Scanning...';
-                requestAnimationFrame(scanQRCode);
-            }
-        }
+    <div class="form-group">
+      <label>Monthly Options</label>
+      <div class="radio-group">
+        <label><input type="radio" name="monthlyType" value="day"> Day of Month</label>
+        <label><input type="radio" name="monthlyType" value="weekday"> Weekday</label>
+      </div>
+      <input type="number" name="monthlyDay" placeholder="Day of Month (1-31)">
+      <div class="inline">
+        <select name="monthlyWeek">
+          <option value="">Select Week</option>
+          <option>First</option>
+          <option>Second</option>
+          <option>Third</option>
+          <option>Fourth</option>
+          <option>Last</option>
+        </select>
+        <select name="monthlyWeekDay">
+          <option value="">Select Day</option>
+          <option>Monday</option>
+          <option>Tuesday</option>
+          <option>Wednesday</option>
+          <option>Thursday</option>
+          <option>Friday</option>
+          <option>Saturday</option>
+          <option>Sunday</option>
+        </select>
+      </div>
+    </div>
 
-        // Stop QR Code Scanner
-        function stopScanner() {
-            scanning = false;
-            if (stream) {
-                // Release camera
-                stream.getTracks().forEach(track => track.stop());
-                stream = null;
-            }
-            if (video) {
-                video.srcObject = null;
-            }
-            document.getElementById('scanner').style.display = 'none';
-            document.getElementById('scan-result').textContent = 'Scan result will appear here';
-        }
-    </script>
+    <div class="form-group">
+      <label>End Condition</label>
+      <select name="endCondition">
+        <option value="never">Never</option>
+        <option value="after">After</option>
+        <option value="on">On</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>Occurrences</label>
+      <input type="number" name="endOccurrences" min="1">
+    </div>
+
+    <div class="form-group">
+      <label>End Date</label>
+      <input type="date" name="endDate">
+    </div>
+
+    <div class="form-group">
+      <label>Duration (HH:MM)</label>
+      <input type="text" name="duration" placeholder="e.g. 01:30">
+    </div>
+
+    <div class="form-group">
+      <label>Alerts</label>
+      <div class="checkbox-group">
+        <label><input type="checkbox" name="alerts" value="start"> Start</label>
+        <label><input type="checkbox" name="alerts" value="middle"> Middle</label>
+        <label><input type="checkbox" name="alerts" value="end"> End</label>
+      </div>
+    </div>
+
+    <button type="submit">Add Task</button>
+  </form>
+
+  <!-- Tasks Table -->
+  <table>
+    <thead>
+      <tr>
+        <th>Task</th>
+        <th>Description</th>
+        <th>Shift</th>
+        <th>Periodicity</th>
+        <th>Repeat Details</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Example Task</td>
+        <td>Sample description</td>
+        <td>Morning Shift</td>
+        <td>Weekly</td>
+        <td>Every 1 week on Monday, Wednesday</td>
+        <td class="actions">
+          <button class="edit">Edit</button>
+          <button class="delete">Delete</button>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
 </body>
 </html>

@@ -102,9 +102,14 @@ export function CurrentJobCard({
     { value: "other", label: t("other") },
   ];
 
-  const handleTaskToggleConfirm = (taskId: number) => {
-    onTaskToggle(job.id, taskId);
-  };
+  // const handleTaskToggleConfirm = (taskId: number) => {
+  //   onTaskToggle(job.id, taskId);
+  // };
+// In CurrentJobCard.tsx
+const handleTaskToggleConfirm = (taskId: number) => {
+  onTaskToggle(job.id, taskId);
+};
+
 
   return (
     <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900">

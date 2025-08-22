@@ -203,126 +203,282 @@ export default function WorkerDashboardMain() {
   const [detailJob, setDetailJob] = useState<JobAssignment | null>(null);
 
   // Transform API job data to frontend job format
-  const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => {
-    const currentDate = new Date();
-    const today = currentDate.toISOString().split("T")[0]; // YYYY-MM-DD
+  // const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => {
+  //   const currentDate = new Date();
+  //   const today = currentDate.toISOString().split("T")[0]; // YYYY-MM-DD
 
-    // Parse start and end dates
-    let startDate = new Date();
-    let endDate = new Date();
+  //   // Parse start and end dates
+  //   let startDate = new Date();
+  //   let endDate = new Date();
 
-    if (apiJob.startDate) {
-      startDate = new Date(apiJob.startDate);
-    }
-    if (apiJob.endDate) {
-      endDate = new Date(apiJob.endDate);
-    } else {
-      endDate = new Date(startDate);
-      endDate.setDate(endDate.getDate() + Math.ceil(apiJob.expectedDuration / 8));
-    }
+  //   if (apiJob.startDate) {
+  //     startDate = new Date(apiJob.startDate);
+  //   }
+  //   if (apiJob.endDate) {
+  //     endDate = new Date(apiJob.endDate);
+  //   } else {
+  //     endDate = new Date(startDate);
+  //     endDate.setDate(endDate.getDate() + Math.ceil(apiJob.expectedDuration / 8));
+  //   }
 
-    // Determine job status
-    let status: "scheduled" | "in_progress" | "completed";
-    const hasAttendanceRecord =
-      Boolean(
-        apiJob.attendanceRecords &&
-          apiJob.attendanceRecords.length > 0 &&
-          apiJob.attendanceRecords.some((record) => record.checkInTime && record.checkOutTime),
-      ) || Boolean(apiJob.workSession?.checkInTime && apiJob.workSession?.checkOutTime);
+  //   // Determine job status
+  //   let status: "scheduled" | "in_progress" | "completed";
+  //   const hasAttendanceRecord =
+  //     Boolean(
+  //       apiJob.attendanceRecords &&
+  //         apiJob.attendanceRecords.length > 0 &&
+  //         apiJob.attendanceRecords.some((record) => record.checkInTime && record.checkOutTime),
+  //     ) || Boolean(apiJob.workSession?.checkInTime && apiJob.workSession?.checkOutTime);
 
-    if (currentDate > endDate) {
-      status = hasAttendanceRecord ? "completed" : "scheduled";
-    } else {
-      status = hasAttendanceRecord || apiJob.workSession?.checkInTime ? "in_progress" : "scheduled";
-    }
+  //   if (currentDate > endDate) {
+  //     status = hasAttendanceRecord ? "completed" : "scheduled";
+  //   } else {
+  //     status = hasAttendanceRecord || apiJob.workSession?.checkInTime ? "in_progress" : "scheduled";
+  //   }
 
-    // Get shift info
-    const firstShift = apiJob.shifts[0];
-    let shiftInfo;
-    if (firstShift) {
-      shiftInfo = {
-        type: firstShift.shiftType as "morning" | "afternoon" | "evening",
-        startTime: firstShift.startTime,
-        endTime: firstShift.endTime,
-        duration: `${firstShift.totalHours} hours`,
-        scheduleType: "fixed" as const,
-      };
-    } else {
-      shiftInfo = {
-        type: "morning" as const,
-        duration: `${apiJob.expectedDuration} hours`,
-        scheduleType: "flexible" as const,
-      };
-    }
+  //   // Get shift info
+  //   const firstShift = apiJob.shifts[0];
+  //   let shiftInfo;
+  //   if (firstShift) {
+  //     shiftInfo = {
+  //       type: firstShift.shiftType as "morning" | "afternoon" | "evening",
+  //       startTime: firstShift.startTime,
+  //       endTime: firstShift.endTime,
+  //       duration: `${firstShift.totalHours} hours`,
+  //       scheduleType: "fixed" as const,
+  //     };
+  //   } else {
+  //     shiftInfo = {
+  //       type: "morning" as const,
+  //       duration: `${apiJob.expectedDuration} hours`,
+  //       scheduleType: "flexible" as const,
+  //     };
+  //   }
 
-    // Transform signing methods
-    const signingMethods = apiJob.signingMethods[0] || { methodDetails: [], verifyIdentity: false };
-    const methods = {
-      qrCode: signingMethods.methodDetails.includes("qrcode") || signingMethods.methodDetails.includes("qr-code"),
-      gps: signingMethods.methodDetails.includes("gps"),
-      wifi: signingMethods.methodDetails.includes("wifi"),
-      ip: signingMethods.methodDetails.includes("ip"),
-      callerId: signingMethods.methodDetails.includes("caller"),
+  //   // Transform signing methods
+  //   const signingMethods = apiJob.signingMethods[0] || { methodDetails: [], verifyIdentity: false };
+  //   const methods = {
+  //     qrCode: signingMethods.methodDetails.includes("qrcode") || signingMethods.methodDetails.includes("qr-code"),
+  //     gps: signingMethods.methodDetails.includes("gps"),
+  //     wifi: signingMethods.methodDetails.includes("wifi"),
+  //     ip: signingMethods.methodDetails.includes("ip"),
+  //     callerId: signingMethods.methodDetails.includes("caller"),
+  //   };
+
+  //   // Transform tasks with TaskHistory
+  //   const tasks = apiJob.tasks.map((task) => {
+  //     // Find TaskHistory for today - add null check for taskHistories
+  //     const todayHistory = task.taskHistories?.find((history) => history.date === today);
+  //     return {
+  //       id: task.id,
+  //       name: task.name,
+  //       description: task.note || `Complete ${task.name.toLowerCase()}`,
+  //       completed: todayHistory ? todayHistory.isCompleted : false,
+  //       duration: task.expectedDuration ? `${task.expectedDuration} min` : "30 min",
+  //       timing: "during" as const,
+  //     };
+  //   });
+
+  //   return {
+  //     id: apiJob.jobId,
+  //     jobId: `JOB-${apiJob.jobId.toString().padStart(4, "0")}`,
+  //     title: apiJob.jobName,
+  //     client: {
+  //       id: Math.floor(Math.random() * 100) + 1,
+  //       name: apiJob.clientName,
+  //     },
+  //     workCenter: {
+  //       id: Math.floor(Math.random() * 10) + 1,
+  //       name: apiJob.workCenter,
+  //       address: `${apiJob.workCenter} Address`,
+  //       coordinates: { lat: 37.4419, lng: -122.143 },
+  //     },
+  //     shift: shiftInfo,
+  //     status,
+  //     startDate,
+  //     endDate,
+  //     signingMethods: methods,
+  //     tasks,
+  //     checkInTime: apiJob.workSession?.checkInTime ? new Date(apiJob.workSession.checkInTime) : undefined,
+  //     checkOutTime: apiJob.workSession?.checkOutTime ? new Date(apiJob.workSession.checkOutTime) : undefined,
+  //     breakTime: apiJob.workSession?.totalBreakMinutes || 0,
+  //     workedTime: apiJob.workSession?.totalWorkMinutes || 0,
+  //     expectedHours: firstShift?.totalHours || apiJob.expectedDuration,
+  //     totalHours: status === "completed" ? firstShift?.totalHours || apiJob.expectedDuration : undefined,
+  //     totalBreakTime: apiJob.workSession?.totalBreakMinutes || 0,
+  //     isOnBreak: apiJob.workSession?.isOnBreak || false,
+  //     breakStartTime: apiJob.workSession?.currentBreakStart
+  //       ? new Date(apiJob.workSession.currentBreakStart)
+  //       : undefined,
+  //     tags: apiJob.tasks.slice(0, 2).map((task) => task.name),
+  //     hasAttendanceRecord,
+  //     survey:
+  //       status === "completed"
+  //         ? {
+  //             rating: Math.floor(Math.random() * 2) + 4,
+  //             comments: "Job completed successfully",
+  //             submitted: Math.random() > 0.5,
+  //             submittedAt: status === "completed" ? new Date() : undefined,
+  //           }
+  //         : undefined,
+  //   };
+  // };
+const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => {
+  const currentDate = new Date();
+  const today = currentDate.toISOString().split("T")[0]; // YYYY-MM-DD
+
+  // Parse start and end dates
+  let startDate = new Date();
+  let endDate = new Date();
+
+  if (apiJob.startDate) {
+    startDate = new Date(apiJob.startDate);
+  }
+  if (apiJob.endDate) {
+    endDate = new Date(apiJob.endDate);
+  } else {
+    endDate = new Date(startDate);
+    endDate.setDate(endDate.getDate() + Math.ceil(apiJob.expectedDuration / 8));
+  }
+
+  // Determine job status
+  let status: "scheduled" | "in_progress" | "completed";
+  const hasAttendanceRecord =
+    Boolean(
+      apiJob.attendanceRecords &&
+        apiJob.attendanceRecords.length > 0 &&
+        apiJob.attendanceRecords.some(
+          (record) => record.checkInTime && record.checkOutTime,
+        ),
+    ) || Boolean(apiJob.workSession?.checkInTime && apiJob.workSession?.checkOutTime);
+
+  if (currentDate > endDate) {
+    status = hasAttendanceRecord ? "completed" : "scheduled";
+  } else {
+    status = hasAttendanceRecord || apiJob.workSession?.checkInTime
+      ? "in_progress"
+      : "scheduled";
+  }
+
+  // Get shift info
+  const firstShift = apiJob.shifts[0];
+  let shiftInfo;
+  if (firstShift) {
+    shiftInfo = {
+      type: firstShift.shiftType as "morning" | "afternoon" | "evening",
+      startTime: firstShift.startTime,
+      endTime: firstShift.endTime,
+      duration: `${firstShift.totalHours} hours`,
+      scheduleType: "fixed" as const,
     };
+  } else {
+    shiftInfo = {
+      type: "morning" as const,
+      duration: `${apiJob.expectedDuration} hours`,
+      scheduleType: "flexible" as const,
+    };
+  }
 
-    // Transform tasks with TaskHistory
-    const tasks = apiJob.tasks.map((task) => {
-      // Find TaskHistory for today - add null check for taskHistories
-      const todayHistory = task.taskHistories?.find((history) => history.date === today);
-      return {
-        id: task.id,
-        name: task.name,
-        description: task.note || `Complete ${task.name.toLowerCase()}`,
-        completed: todayHistory ? todayHistory.isCompleted : false,
-        duration: task.expectedDuration ? `${task.expectedDuration} min` : "30 min",
-        timing: "during" as const,
-      };
+  // Transform signing methods
+  const signingMethods =
+    apiJob.signingMethods[0] || { methodDetails: [], verifyIdentity: false };
+  const methods = {
+    qrCode:
+      signingMethods.methodDetails.includes("qrcode") ||
+      signingMethods.methodDetails.includes("qr-code"),
+    gps: signingMethods.methodDetails.includes("gps"),
+    wifi: signingMethods.methodDetails.includes("wifi"),
+    ip: signingMethods.methodDetails.includes("ip"),
+    callerId: signingMethods.methodDetails.includes("caller"),
+  };
+
+  // ✅ Enhanced task transformation with TaskHistory support
+  const tasks = apiJob.tasks.map((task) => {
+    // Find TaskHistory for today with better null checking
+    const todayHistory = task.taskHistories?.find((history) => {
+      if (!history || !history.date) return false;
+      const historyDate = new Date(history.date).toISOString().split("T")[0];
+      return historyDate === today;
     });
 
     return {
-      id: apiJob.jobId,
-      jobId: `JOB-${apiJob.jobId.toString().padStart(4, "0")}`,
-      title: apiJob.jobName,
-      client: {
-        id: Math.floor(Math.random() * 100) + 1,
-        name: apiJob.clientName,
-      },
-      workCenter: {
-        id: Math.floor(Math.random() * 10) + 1,
-        name: apiJob.workCenter,
-        address: `${apiJob.workCenter} Address`,
-        coordinates: { lat: 37.4419, lng: -122.143 },
-      },
-      shift: shiftInfo,
-      status,
-      startDate,
-      endDate,
-      signingMethods: methods,
-      tasks,
-      checkInTime: apiJob.workSession?.checkInTime ? new Date(apiJob.workSession.checkInTime) : undefined,
-      checkOutTime: apiJob.workSession?.checkOutTime ? new Date(apiJob.workSession.checkOutTime) : undefined,
-      breakTime: apiJob.workSession?.totalBreakMinutes || 0,
-      workedTime: apiJob.workSession?.totalWorkMinutes || 0,
-      expectedHours: firstShift?.totalHours || apiJob.expectedDuration,
-      totalHours: status === "completed" ? firstShift?.totalHours || apiJob.expectedDuration : undefined,
-      totalBreakTime: apiJob.workSession?.totalBreakMinutes || 0,
-      isOnBreak: apiJob.workSession?.isOnBreak || false,
-      breakStartTime: apiJob.workSession?.currentBreakStart
-        ? new Date(apiJob.workSession.currentBreakStart)
-        : undefined,
-      tags: apiJob.tasks.slice(0, 2).map((task) => task.name),
-      hasAttendanceRecord,
-      survey:
-        status === "completed"
-          ? {
-              rating: Math.floor(Math.random() * 2) + 4,
-              comments: "Job completed successfully",
-              submitted: Math.random() > 0.5,
-              submittedAt: status === "completed" ? new Date() : undefined,
-            }
-          : undefined,
+      id: task.id,
+      name: task.name,
+      description: task.note || `Complete ${task.name.toLowerCase()}`,
+      // Use TaskHistory completion status if available, otherwise fallback to task completion
+      completed: todayHistory
+        ? todayHistory.isCompleted
+        : (task.isCompleted || false),
+      duration: task.expectedDuration ? `${task.expectedDuration} min` : "30 min",
+      timing: "during" as const,
+      // Store TaskHistory reference for future use
+      taskHistory: todayHistory
+        ? {
+            id: todayHistory.id,
+            date: todayHistory.date,
+            isCompleted: todayHistory.isCompleted,
+            completedAt: todayHistory.completedAt,
+            completedByWorkerId: todayHistory.completedByWorkerId,
+          }
+        : null,
     };
+  });
+
+  return {
+    id: apiJob.jobId,
+    jobId: `JOB-${apiJob.jobId.toString().padStart(4, "0")}`,
+    title: apiJob.jobName,
+    client: {
+      id: Math.floor(Math.random() * 100) + 1,
+      name: apiJob.clientName,
+    },
+    workCenter: {
+      id: Math.floor(Math.random() * 10) + 1,
+      name: apiJob.workCenter,
+      address: `${apiJob.workCenter} Address`,
+      coordinates: { lat: 37.4419, lng: -122.143 },
+    },
+    shift: shiftInfo,
+    status,
+    startDate,
+    endDate,
+    signingMethods: methods,
+    tasks,
+    checkInTime: apiJob.workSession?.checkInTime
+      ? new Date(apiJob.workSession.checkInTime)
+      : undefined,
+    checkOutTime: apiJob.workSession?.checkOutTime
+      ? new Date(apiJob.workSession.checkOutTime)
+      : undefined,
+    breakTime: apiJob.workSession?.totalBreakMinutes || 0,
+    workedTime: apiJob.workSession?.totalWorkMinutes || 0,
+    expectedHours: firstShift?.totalHours || apiJob.expectedDuration,
+    totalHours:
+      status === "completed"
+        ? firstShift?.totalHours || apiJob.expectedDuration
+        : undefined,
+    totalBreakTime: apiJob.workSession?.totalBreakMinutes || 0,
+    isOnBreak: apiJob.workSession?.isOnBreak || false,
+    breakStartTime: apiJob.workSession?.currentBreakStart
+      ? new Date(apiJob.workSession.currentBreakStart)
+      : undefined,
+    tags: apiJob.tasks.slice(0, 2).map((task) => task.name),
+    hasAttendanceRecord,
+    survey:
+      status === "completed"
+        ? {
+            rating: Math.floor(Math.random() * 2) + 4,
+            comments: "Job completed successfully",
+            submitted: Math.random() > 0.5,
+            submittedAt: status === "completed" ? new Date() : undefined,
+          }
+        : undefined,
   };
+};
+
+
+
+
 
   const fetchWorkerJobs = async () => {
     if (!session?.accessToken) {
@@ -402,6 +558,10 @@ export default function WorkerDashboardMain() {
       setLoading(false);
     }
   };
+
+
+
+
 
   useEffect(() => {
     fetchWorkerJobs();
@@ -759,83 +919,68 @@ export default function WorkerDashboardMain() {
   };
 
   const handleTaskToggle = async (jobId: number, taskId: number) => {
-    try {
-      setActionLoading(true);
+  try {
+    setActionLoading(true);
 
-      if (!session?.accessToken || !session?.user?.id) {
-        throw new Error("No access token or user ID found");
-      }
+    if (!session?.accessToken) {
+      throw new Error("No access token found");
+    }
 
-      // Use the user ID from the session instead of making an API call
-      // Convert to number if it's a string (NextAuth stores IDs as strings)
-      const workerId = typeof session.user.id === 'string' ? parseInt(session.user.id, 10) : session.user.id;
+    console.log(`Toggling task for jobId: ${jobId}, taskId: ${taskId}`);
 
-      // Call the toggle-task endpoint with the correct parameter order
-      // The backend expects /jobs/:taskId/toggle-task/:workerId
-      // But we need to pass the actual task ID, not the job ID as the first parameter
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/${jobId}/tasks/${taskId}/toggle`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${session.accessToken}`,
-            "Content-Type": "application/json",
-          },
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/${jobId}/tasks/${taskId}/toggle`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${session.accessToken}`,
+          "Content-Type": "application/json",
         },
+      },
+    );
+
+    const data = await response.json();
+
+    if (response.ok) {
+      const isCompleted = data?.isCompleted ?? !todayAssignments
+        .find(job => job.id === jobId)?.tasks
+        .find(task => task.id === taskId)?.completed;
+
+      setTodayAssignments((prev) =>
+        prev.map((job) =>
+          job.id === jobId
+            ? {
+                ...job,
+                tasks: job.tasks.map((task) =>
+                  task.id === taskId ? { ...task, completed: isCompleted } : task,
+                ),
+              }
+            : job,
+        ),
       );
 
-      const data = await response.json();
-
-      if (response.ok) {
-        // The backend returns a TaskHistory object
-        // Extract isCompleted from the response data
-        const isCompleted = data?.isCompleted;
-        
-        // If we can't find isCompleted in the response, toggle the current state
-        // This provides a fallback in case the API response structure changes
-        const toggledTask = todayAssignments
-          .find(job => job.id === jobId)?.tasks
-          .find(task => task.id === taskId);
-        
-        const newCompletedState = isCompleted !== undefined ? isCompleted : 
-          (toggledTask ? !toggledTask.completed : false);
-        
-        // Update local state with the task completion status
-        setTodayAssignments((prev) =>
-          prev.map((job) =>
-            job.id === jobId
-              ? {
-                  ...job,
-                  tasks: job.tasks.map((task) =>
-                    task.id === taskId ? { ...task, completed: newCompletedState } : task,
-                  ),
-                }
-              : job,
-          ),
+      if (currentJob && currentJob.id === jobId) {
+        setCurrentJob((prev) =>
+          prev
+            ? {
+                ...prev,
+                tasks: prev.tasks.map((task) =>
+                  task.id === taskId ? { ...task, completed: isCompleted } : task,
+                ),
+              }
+            : null,
         );
-
-        if (currentJob && currentJob.id === jobId) {
-          setCurrentJob((prev) =>
-            prev
-              ? {
-                  ...prev,
-                  tasks: prev.tasks.map((task) =>
-                    task.id === taskId ? { ...task, completed: newCompletedState } : task,
-                  ),
-                }
-              : null,
-          );
-        }
-      } else {
-        throw new Error(data.message || "Failed to toggle task completion");
       }
-    } catch (error) {
-      console.error("Error toggling task:", error);
-      setError(error instanceof Error ? error.message : "Failed to toggle task");
-    } finally {
-      setActionLoading(false);
+    } else {
+      throw new Error(data.message || "Failed to toggle task completion");
     }
-  };
+  } catch (error) {
+    console.error("Error toggling task:", error);
+    setError(error instanceof Error ? error.message : "Failed to toggle task");
+  } finally {
+    setActionLoading(false);
+  }
+};
 
   const handleSurveySubmit = (rating: number, comments: string) => {
     if (!surveyJob) return;
