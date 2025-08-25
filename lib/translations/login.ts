@@ -13,7 +13,7 @@ const loginTranslations = {
     loginSuccessDescription: "Welcome back!",
     logoutTitle: "Logged Out",
     logoutDescription: "You have been successfully logged out",
-    switchToLabel: "Switch to"
+    switchToLabel: "Cambiar a"
   },
   es: {
     pageTitle: "Acceder",
@@ -29,7 +29,7 @@ const loginTranslations = {
     loginSuccessDescription: "¡Bienvenido de nuevo!",
     logoutTitle: "Cerrada la sesión",
     logoutDescription: "¡Hasta pronto!",
-    switchToLabel: "Cambiar a"
+    switchToLabel: "Switch to"
   },
 }
 
