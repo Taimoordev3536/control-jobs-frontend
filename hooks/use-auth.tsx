@@ -4,11 +4,13 @@ import { useSession, signIn, signOut } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { toast } from "@/hooks/use-toast"
+import { useTranslation } from "@/hooks/use-translation"
 
 export function useAuth() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
+  const { language, setLanguage, t } = useTranslation("login") // Explicitly set namespace to "login"
 
   const login = async (email: string, password: string) => {
     setIsLoading(true)
@@ -21,16 +23,16 @@ export function useAuth() {
 
       if (result?.error) {
         toast({
-          title: "Login Failed",
-          description: "Invalid email or password",
+          title: t("loginErrorTitle"),
+          description: t("loginErrorDescription"),
           variant: "destructive",
         })
         return false
       }
 
       toast({
-        title: "Login Successful",
-        description: "Welcome back!",
+        title: t("loginSuccessTitle"),
+        description: t("loginSuccessDescription"),
       })
 
       // Redirect based on user role
@@ -47,8 +49,8 @@ export function useAuth() {
       return true
     } catch (error) {
       toast({
-        title: "Login Error",
-        description: "An unexpected error occurred",
+        title: t("loginErrorTitle"),
+        description: t("loginErrorDescription"),
         variant: "destructive",
       })
       return false
@@ -61,14 +63,14 @@ export function useAuth() {
     try {
       await signOut({ redirect: false })
       toast({
-        title: "Logged Out",
-        description: "You have been successfully logged out",
+        title: t("logoutTitle"),
+        description: t("logoutDescription"),
       })
       router.push("/login")
     } catch (error) {
       toast({
-        title: "Logout Error",
-        description: "An error occurred during logout",
+        title: t("loginErrorTitle"),
+        description: t("loginErrorDescription"),
         variant: "destructive",
       })
     }

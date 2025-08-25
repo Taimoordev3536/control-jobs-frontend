@@ -1,16 +1,11 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { ChevronUp, ChevronDown, MoreVertical } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useTranslation } from "@/hooks/use-translation"
-import {
-  DragDropContext,
-  Droppable,
-  Draggable,
-  DropResult,
-} from "@hello-pangea/dnd"
+import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd"
 
 import AddIcon1 from "../../icons/Controles/add1.svg"
 import AddIcon2 from "../../icons/Controles/add2.svg"
@@ -65,13 +60,38 @@ export default function DataListTemplate({
 }: DataListTemplateProps) {
   const { t } = useTranslation()
   const router = useRouter()
-  const [localColumns, setLocalColumns] = useState(columns) // ✅ use local state
+  const [localColumns, setLocalColumns] = useState(columns)
   const [sortColumn, setSortColumn] = useState<string | null>(null)
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc")
   const [currentPage, setCurrentPage] = useState(1)
 
   const total = totalRecords || data.length
   const totalPages = Math.ceil(total / itemsPerPage)
+
+  // Sorting logic
+  const sortedData = useMemo(() => {
+    if (!sortColumn) return data
+
+    const columnConfig = localColumns.find((col) => col.key === sortColumn)
+    if (!columnConfig?.sortable) return data
+
+    return [...data].sort((a, b) => {
+      const aValue = a[sortColumn]
+      const bValue = b[sortColumn]
+
+      if (aValue == null || bValue == null) return 0
+
+      if (typeof aValue === "string" && typeof bValue === "string") {
+        return sortDirection === "asc"
+          ? aValue.localeCompare(bValue)
+          : bValue.localeCompare(aValue)
+      }
+
+      return sortDirection === "asc"
+        ? aValue - bValue || 0
+        : bValue - aValue || 0
+    })
+  }, [data, sortColumn, sortDirection, localColumns])
 
   const handleSort = (column: string) => {
     const columnConfig = localColumns.find((col) => col.key === column)
@@ -88,16 +108,22 @@ export default function DataListTemplate({
   const getSortIcon = (column: string) => (
     <div className="ml-1 flex flex-col">
       <ChevronUp
-        size={14}
-        className={`text-muted-foreground ${
-          sortColumn === column && sortDirection === "asc" ? "text-purple-600" : ""
+        size={17}
+        className={`${
+          sortColumn === column && sortDirection === "asc"
+            ? "text-[#662D91] font-bold" // Added font-bold for bold style
+            : "text-muted-foreground"
         }`}
+        strokeWidth={sortColumn === column && sortDirection === "asc" ? 3 : 2} // Increased strokeWidth for bold effect
       />
       <ChevronDown
-        size={14}
-        className={`text-muted-foreground -mt-1 ${
-          sortColumn === column && sortDirection === "desc" ? "text-purple-600" : ""
+        size={17}
+        className={`-mt-1 ${
+          sortColumn === column && sortDirection === "desc"
+            ? "text-[#662D91] font-bold" // Added font-bold for bold style
+            : "text-muted-foreground"
         }`}
+        strokeWidth={sortColumn === column && sortDirection === "desc" ? 3 : 2} // Increased strokeWidth for bold effect
       />
     </div>
   )
@@ -134,16 +160,12 @@ export default function DataListTemplate({
     return (
       <button
         onClick={onClick}
-        className="p-2 text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-950 rounded-md border border-purple-200 dark:border-purple-800 transition-colors"
+        className="p-2 text-[#662D91] hover:bg-purple-50 dark:hover:bg-purple-950 rounded-md border border-purple-200 dark:border-purple-800 transition-colors"
         title={title}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
       >
-        {hovered ? (
-          <IconHover className="w-5 h-5" />
-        ) : (
-          <IconDefault className="w-5 h-5" />
-        )}
+        {hovered ? <IconHover className="w-7 h-7" /> : <IconDefault className="w-7 h-7" />}
       </button>
     )
   }
@@ -162,18 +184,16 @@ export default function DataListTemplate({
 
     const mobileButtons = actionButtons.filter((button) => {
       const lowerTitle = button.title.toLowerCase()
-      return ["csv", "excel", "pdf", "filter"].some((type) =>
-        lowerTitle.includes(type),
-      )
+      return ["csv", "excel", "pdf", "filter"].some((type) => lowerTitle.includes(type))
     })
 
     return (
       <div className="relative sm:hidden">
         <button
           onClick={() => setOpen(!open)}
-          className="p-2 text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-950 rounded-md border border-purple-200 dark:border-purple-800"
+          className="p-2 text-[#662D91] hover:bg-purple-50 dark:hover:bg-purple-950 rounded-md border border-purple-200 dark:border-purple-800"
         >
-          <MoreVertical className="w-5 h-5" />
+          <MoreVertical className="w-7 h-7" />
         </button>
         {open && (
           <div className="absolute right-0 mt-2 bg-white dark:bg-gray-800 rounded shadow-lg z-50 w-40">
@@ -188,7 +208,7 @@ export default function DataListTemplate({
                   }}
                   className="flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer"
                 >
-                  <IconDefault className="w-4 h-4" />
+                  <IconDefault className="w-6 h-6" />
                   {button.title}
                 </div>
               )
@@ -200,53 +220,57 @@ export default function DataListTemplate({
   }
 
   return (
-    <div className="p-6 bg-background min-h-screen">
+    <div className="p-6 bg-background min-h-screen relative">
       <div className="bg-card rounded-lg shadow-sm border border-border">
         {/* Header */}
         <div className="flex justify-between items-center p-6 border-b border-border bg-gray-100 dark:bg-gray-800">
           <h1 className="text-2xl font-semibold text-foreground">{title}</h1>
-          {actionButtons.length > 0 && (
-            <div className="flex items-center gap-2 ">
-              {actionButtons.map((button, index) => {
-                const lowerTitle = button.title.toLowerCase()
-                const isMobileButton = ["csv", "excel", "pdf", "filter"].some(
-                  (type) => lowerTitle.includes(type),
-                )
+          <div className="flex items-center gap-2">
+            {actionButtons.length > 0 && (
+              <>
+                {/* Desktop and Tablet Buttons */}
+                <div className="flex items-center gap-2 sm:flex">
+                  {actionButtons.map((button, index) => {
+                    const lowerTitle = button.title.toLowerCase()
+                    const isMobileButton = ["csv", "excel", "pdf", "filter"].some((type) => lowerTitle.includes(type))
 
-                let IconDefault = AddIcon1
-                let IconHover = AddIcon2
-                if (lowerTitle.includes("filter")) {
-                  IconDefault = FilterIcon1
-                  IconHover = FilterIcon2
-                } else if (lowerTitle.includes("csv")) {
-                  IconDefault = CsvIcon1
-                  IconHover = CsvIcon2
-                } else if (lowerTitle.includes("excel")) {
-                  IconDefault = ExcelIcon1
-                  IconHover = ExcelIcon2
-                } else if (lowerTitle.includes("pdf")) {
-                  IconDefault = PdfIcon1
-                  IconHover = PdfIcon2
-                }
+                    let IconDefault = AddIcon1
+                    let IconHover = AddIcon2
+                    if (lowerTitle.includes("filter")) {
+                      IconDefault = FilterIcon1
+                      IconHover = FilterIcon2
+                    } else if (lowerTitle.includes("csv")) {
+                      IconDefault = CsvIcon1
+                      IconHover = CsvIcon2
+                    } else if (lowerTitle.includes("excel")) {
+                      IconDefault = ExcelIcon1
+                      IconHover = ExcelIcon2
+                    } else if (lowerTitle.includes("pdf")) {
+                      IconDefault = PdfIcon1
+                      IconHover = PdfIcon2
+                    }
 
-                return (
-                  <div key={index} className={isMobileButton ? "hidden sm:block" : ""}>
-                    <ActionIconButton
-                      IconDefault={IconDefault}
-                      IconHover={IconHover}
-                      onClick={button.onClick}
-                      title={button.title}
-                    />
-                  </div>
-                )
-              })}
-              <MobileDropdown actionButtons={actionButtons} />
-            </div>
-          )}
+                    return (
+                      <div key={index} className={isMobileButton ? "hidden sm:block" : "hidden sm:flex"}>
+                        <ActionIconButton
+                          IconDefault={IconDefault}
+                          IconHover={IconHover}
+                          onClick={button.onClick}
+                          title={button.title}
+                        />
+                      </div>
+                    )
+                  })}
+                </div>
+                {/* Mobile Dropdown */}
+                <MobileDropdown actionButtons={actionButtons} />
+              </>
+            )}
+          </div>
         </div>
 
         {/* Table */}
-        {data.length === 0 ? (
+        {sortedData.length === 0 ? (
           <div className="p-12 text-center">
             <p className="text-muted-foreground text-lg">{emptyMessage}</p>
           </div>
@@ -258,7 +282,7 @@ export default function DataListTemplate({
                 const reordered = [...localColumns]
                 const [removed] = reordered.splice(result.source.index, 1)
                 reordered.splice(result.destination.index, 0, removed)
-                setLocalColumns(reordered) // ✅ works now
+                setLocalColumns(reordered)
               }}
             >
               <table className="w-full">
@@ -271,28 +295,18 @@ export default function DataListTemplate({
                         className="bg-purple-50 dark:bg-purple-950/50 border-y-2 border-[#662D91]"
                       >
                         {localColumns.map((column, index) => (
-                          <Draggable
-                            key={column.key}
-                            draggableId={column.key}
-                            index={index}
-                          >
+                          <Draggable key={column.key} draggableId={column.key} index={index}>
                             {(provided, snapshot) => (
                               <th
                                 ref={provided.innerRef}
                                 {...provided.draggableProps}
                                 {...provided.dragHandleProps}
                                 className={`px-6 py-4 text-sm font-semibold text-foreground transition-colors cursor-move ${
-                                  snapshot.isDragging
-                                    ? "bg-purple-200 dark:bg-purple-800"
-                                    : ""
+                                  snapshot.isDragging ? "bg-purple-200 dark:bg-purple-800" : ""
                                 } ${getAlignmentClass(column.align)} ${
-                                  column.sortable
-                                    ? "hover:bg-purple-100 dark:hover:bg-purple-900/50"
-                                    : ""
+                                  column.sortable ? "hover:bg-purple-100 dark:hover:bg-purple-900/50" : ""
                                 }`}
-                                onClick={() =>
-                                  column.sortable && handleSort(column.key)
-                                }
+                                onClick={() => column.sortable && handleSort(column.key)}
                               >
                                 <div className="flex items-center justify-start">
                                   {column.label}
@@ -308,30 +322,22 @@ export default function DataListTemplate({
                   </Droppable>
                 </thead>
                 <tbody>
-                  {data.map((row, index) => (
+                  {sortedData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((row, index) => (
                     <tr
                       key={row.id || index}
                       onClick={() => handleRowClick(row)}
                       className={`border-b border-border transition-colors ${
                         index % 2 === 0 ? "bg-background" : "bg-muted/20"
-                      } ${
-                        onRowClick
-                          ? "cursor-pointer hover:bg-muted/50 active:bg-muted/70"
-                          : ""
-                      }`}
+                      } ${onRowClick ? "cursor-pointer hover:bg-muted/50 active:bg-muted/70" : ""}`}
                     >
                       {localColumns.map((column) => (
                         <td
                           key={`${row.id || index}-${column.key}`}
                           className={`px-6 py-4 text-sm ${
-                            column.key === localColumns[0].key
-                              ? "text-foreground font-medium"
-                              : "text-muted-foreground"
+                            column.key === localColumns[0].key ? "text-foreground font-medium" : "text-muted-foreground"
                           } ${getAlignmentClass(column.align)}`}
                         >
-                          {column.render
-                            ? column.render(row[column.key], row)
-                            : row[column.key]}
+                          {column.render ? column.render(row[column.key], row) : row[column.key]}
                         </td>
                       ))}
                     </tr>
@@ -343,14 +349,10 @@ export default function DataListTemplate({
         )}
 
         {/* Pagination */}
-        {showPagination && data.length > 0 && (
+        {showPagination && sortedData.length > 0 && (
           <div className="px-6 py-4 flex items-center justify-between border-t border-border bg-card bg-gray-100 dark:bg-gray-800">
             <div className="text-sm text-muted-foreground">
-              {t("showingRecords", {
-                start: (currentPage - 1) * itemsPerPage + 1,
-                end: Math.min(currentPage * itemsPerPage, total),
-                total: total,
-              })}
+              {t("showingRecordsFrom")} {((currentPage - 1) * itemsPerPage + 1)} {t("to")} {Math.min(currentPage * itemsPerPage, total)} {t("outOfTotal")} {total} {t("records")}
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -367,15 +369,25 @@ export default function DataListTemplate({
 
               <button
                 className="px-3 py-1 text-sm text-muted-foreground hover:text-foreground disabled:opacity-50 transition-colors"
-                onClick={() =>
-                  setCurrentPage(Math.min(totalPages, currentPage + 1))
-                }
+                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
                 disabled={currentPage === totalPages}
               >
                 {t("next")}
               </button>
             </div>
           </div>
+        )}
+      </div>
+
+      {/* Mobile Add Icon (Positioned at bottom right of screen) */}
+      <div className="sm:hidden fixed bottom-4 right-4 z-50">
+        {actionButtons.some((btn) => !["csv", "excel", "pdf", "filter"].some((type) => btn.title.toLowerCase().includes(type))) && (
+          <ActionIconButton
+            IconDefault={AddIcon1}
+            IconHover={AddIcon2}
+            onClick={actionButtons.find((btn) => !["csv", "excel", "pdf", "filter"].some((type) => btn.title.toLowerCase().includes(type)))?.onClick || (() => {})}
+            title="Add"
+          />
         )}
       </div>
     </div>

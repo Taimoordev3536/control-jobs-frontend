@@ -1,7 +1,17 @@
 const translations: Record<string, Record<string, string>> = {
   en: {
-    //common observation list of partners
+    //common observation norecord
     registered_at: "Registered_at",
+    //not found
+    noPartnersFound: "No partners found",
+    noEmployersFound: "No employers found",
+    //record of table
+  "showingRecordsFrom": "Showing records from",
+  "to": "to",
+  "outOfTotal": "out of a total of",
+  "records": "records",
+  "back": "Back",
+  "next": "Next",
     // Navigation
     merchants: "Merchants",
     partners: "Partners",
@@ -17,6 +27,7 @@ const translations: Record<string, Record<string, string>> = {
     export: "Export",
     import: "Import",
     aid: "Aid",
+    services: "Services",
 
     // New navigation items Work centers
     jobs: "Jobs",
@@ -89,6 +100,7 @@ const translations: Record<string, Record<string, string>> = {
     asset: "Asset",
     addClient: "Add Client",
     addPartner: "Add Partner",
+    addEmployer: "Add Employer",
     filterClients: "Filter clients",
     noClientsFound: "No clients found",
     company: "Company",
@@ -393,6 +405,16 @@ const translations: Record<string, Record<string, string>> = {
   es: {
     // common Disc web information
     registered_at: "F.Alta",
+    noPartnersFound: "No se encontraron partners",
+    noEmployersFound: "No se encontraron empleadores",
+
+    //show record 
+    "showingRecordsFrom": "Mostrando registros del",
+    "to": "al",
+    "outOfTotal": "de un total de",
+    "records": "registros",
+    "back": "Atrás",
+    "next": "Siguiente",
 
     // Navigation
     merchants: "Comerciantes",
@@ -409,6 +431,7 @@ const translations: Record<string, Record<string, string>> = {
     import: "Importar",
     export: "Exportar",
     aid: "Ayuda",
+    services: "Servicios",
 
     // New navigation items
     jobs: "Jobs",
@@ -445,7 +468,7 @@ const translations: Record<string, Record<string, string>> = {
     logout: "Cerrar sesión",
 
     // New additions
-    listOfPartners: "Lista de Socios",
+    listOfPartners: "Lista de Partners",
     type: "Tipo",
     listOfEmployers: "Lista de Empleadores",
 
@@ -480,7 +503,8 @@ const translations: Record<string, Record<string, string>> = {
     telephones: "Teléfonos",
     asset: "Activo",
     addClient: "Añadir Cliente",
-    addPartner: "Añadir Socio",
+    addPartner: "Añadir Partner",
+    addEmployer: "Añadir Empleador",
     filterClients: "Filtrar clientes",
     noClientsFound: "No se encontraron clientes",
     company: "Empresa",

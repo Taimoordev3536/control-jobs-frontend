@@ -123,7 +123,7 @@ export default function PartnersList() {
         columns={columns}
         onRowClick={handleRowClick}
         actionButtons={actionButtons}
-        emptyMessage="No partners found"
+        emptyMessage={t("noPartnersFound")}
       />
 
       <AddPartnerModal open={isAddPartnerModalOpen} onOpenChange={setIsAddPartnerModalOpen} onPartnerAdded={handlePartnerAdded} />

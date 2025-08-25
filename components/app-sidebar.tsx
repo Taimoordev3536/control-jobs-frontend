@@ -7,7 +7,7 @@ import EmployerIcon from "../icons/Menu/employer.svg"
 import PartnerIcon from "../icons/Menu/Partners.svg"
 import BillingIcon from "../icons/Menu/billing.svg"
 import InvoicesIcon from "../icons/Menu/invoices.svg"
-import ComisionesIcon from "../icons/Menu/commision.svg"
+import ComisionesIcon from "../icons/new/Comisiones.svg"
 import RateIcon from "../icons/new/Tarifas.svg"
 import InformationIcon from "../icons/Menu/Informes.svg"
 import UtilitiesIcon from "../icons/Menu/utilite.svg"
@@ -18,13 +18,14 @@ import ClientIcon from "../icons/Menu/clients.svg"
 import WorkersIcon from "../icons/Menu/workers.svg"
 import SurvayIcon from "../icons/Menu/surveys.svg"
 import PaymentIcon from "../icons/new/pagos.svg"
-import ExportIcon from "../icons/new/exportar.svg"
+import ImportIcon from "../icons/new/importar.svg"
 import ControlIcon from "../icons/new/control.svg"
 import TodosIcon from "../icons/new/todos.svg"
 import SigningsInfoIcon from "../icons/new/fichajes.svg"
 import ServicesInfoIcon from "../icons/new/servicios.svg"
 import SalaryInfoIcon from "../icons/new/salaries.svg"
 import ConsultIcon from "../icons/new/consultas.svg"
+import OcupacionIcon from "../icons/new/ocupacion.svg"
 import CJobs from "../icons/new/logo_min.svg";
 import ContreolJobs from "../icons/Logos/ControlJobs.svg";
 import {
@@ -64,14 +65,17 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar }: Ap
     setUserRole(role)
   }, [getUserRole])
 
-  const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({
-    jobs: true,
-    merchants: true,
-    billing: true,
-    information: true,
-    utilities: true,
-    surveys: true,
-  })
+  // Initialize all menus as collapsed except the first one
+  const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({})
+
+  useEffect(() => {
+    const menuItems = getMenuItems()
+    if (menuItems.length > 0) {
+      setExpandedMenus({
+        [menuItems[0].id]: true, // Expand the first menu by default
+      })
+    }
+  }, [userRole])
 
   const toggleMenu = (menu: string) => {
     setExpandedMenus((prev) => ({
@@ -80,54 +84,60 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar }: Ap
     }))
   }
 
-  const isActive = (path: string) => pathname.startsWith(path)
+  const isActive = (path: string) => {
+    const menuItems = getMenuItems()
+    if (menuItems.length > 0 && pathname === "/" && path === menuItems[0].items?.[0]?.href) {
+      return true // Mark first sub-option of first menu as active on initial load
+    }
+    return pathname.startsWith(path)
+  }
 
   const getIcon = (iconKey: string) => {
     switch (iconKey) {
       case "control":
-        return <ControlIcon className="h-4 w-4" />
+        return <ControlIcon className="h-5 w-5" />
       case "consultations":
-        return <ConsultIcon className="h-4 w-4" />
+        return <ConsultIcon className="h-5 w-5" />
       case "all":
-        return <TodosIcon className="h-4 w-4" />
+        return <TodosIcon className="h-5 w-5" />
       case "occupation":
-        return <Briefcase className="h-4 w-4" />
+        return <Briefcase className="h-5 w-5" />
       case "surveys":
-        return <SurvayIcon className="h-4 w-4" />
+        return <SurvayIcon className="h-5 w-5" />
       case "signings-info":
-        return <SigningsInfoIcon className="h-4 w-4" />
+        return <SigningsInfoIcon className="h-5 w-5" />
       case "wages-info":
-        return <SalaryInfoIcon className="h-4 w-4" />
+        return <SalaryInfoIcon className="h-5 w-5" />
       case "services-info":
-        return <ServicesInfoIcon className="h-4 w-4" />
+        return <ServicesInfoIcon className="h-5 w-5" />
       case "clients":
-        return <ClientIcon className="h-4 w-4" />
+        return <ClientIcon className="h-5 w-5" />
       case "workers":
-        return <WorkersIcon className="h-4 w-4" />
+        return <WorkersIcon className="h-5 w-5" />
       case "invoices-info":
-        return <FileText className="h-4 w-4" />
+        return <FileText className="h-5 w-5" />
       case "partners":
-        return <PartnerIcon className="h-4 w-4" />
+        return <PartnerIcon className="h-5 w-5" />
       case "employers":
-        return <EmployerIcon className="h-4 w-4" />
+        return <EmployerIcon className="h-5 w-5" />
       case "invoices":
-        return <InvoicesIcon className="h-4 w-4" />
+        return <InvoicesIcon className="h-5 w-5" />
       case "commissions":
-        return <ComisionesIcon className="h-4 w-4" />
+        return <ComisionesIcon className="h-5 w-5" />
       case "rates":
-        return <RateIcon className="h-4 w-4" />
+        return <RateIcon className="h-5 w-5" />
       case "employers-info":
       case "partners-info":
       case "commissions-info":
-        return <InformationIcon className="h-4 w-4" />
+        return <InformationIcon className="h-5 w-5" />
       case "invite":
-        return <InviteIcon className="h-4 w-4" />
+        return <InviteIcon className="h-5 w-5" />
       case "payments":
-        return <PaymentIcon className="h-4 w-4" />
-      case "export":
-        return <ExportIcon className="h-4 w-4" />
+        return <PaymentIcon className="h-5 w-5" />
+      case "import":
+        return <ImportIcon className="h-6 w-6" />
       default:
-        return <Users className="h-4 w-4" />
+        return <Users className="h-5 w-5" />
     }
   }
 
@@ -138,7 +148,7 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar }: Ap
           {
             id: "jobs",
             title: t("jobs"),
-            icon: () => <JobsIcon className="h-4 w-4" />,
+            icon: () => <JobsIcon className="h-5 w-5" />,
             items: [
               { title: t("control"), href: "/jobs/control", iconKey: "control" },
               { title: t("consultations"), href: "/jobs/consultations", iconKey: "consultations" },
@@ -148,19 +158,19 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar }: Ap
           {
             id: "occupation",
             title: t("occupation"),
-            icon: () => <Briefcase className="h-4 w-4" />,
+            icon: () => <OcupacionIcon className="h-5 w-5" />,
             href: "/occupation",
           },
           {
             id: "surveys",
             title: t("surveys"),
-            icon: () => <SurvayIcon className="h-4 w-4" />,
+            icon: () => <SurvayIcon className="h-5 w-5" />,
             href: "/surveys",
           },
           {
             id: "information",
             title: t("information"),
-            icon: () => <InformationIcon className="h-4 w-4" />,
+            icon: () => <InformationIcon className="h-5 w-5" />,
             items: [
               { title: t("signings"), href: "/information/signings-info", iconKey: "signings-info" },
               { title: t("wages"), href: "/information/wages-info", iconKey: "wages-info" },
@@ -169,7 +179,7 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar }: Ap
           {
             id: "aid",
             title: t("aid"),
-            icon: () => <AidIcon className="h-4 w-4" />,
+            icon: () => <AidIcon className="h-5 w-5" />,
             href: "/aid",
           },
         ]
@@ -179,7 +189,7 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar }: Ap
           {
             id: "jobs",
             title: t("jobs"),
-            icon: () => <JobsIcon className="h-4 w-4" />,
+            icon: () => <JobsIcon className="h-5 w-5" />,
             items: [
               { title: t("control"), href: "/jobs/control", iconKey: "control" },
               { title: t("all"), href: "/jobs/all", iconKey: "all" },
@@ -188,19 +198,19 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar }: Ap
           {
             id: "surveys",
             title: t("surveys"),
-            icon: () => <SurvayIcon className="h-4 w-4" />,
+            icon: () => <SurvayIcon className="h-5 w-5" />,
             href: "/surveys",
           },
           {
             id: "information",
             title: t("information"),
-            icon: () => <InformationIcon className="h-4 w-4" />,
+            icon: () => <InformationIcon className="h-5 w-5" />,
             items: [{ title: t("services"), href: "/information/services-info", iconKey: "services" }],
           },
           {
             id: "aid",
             title: t("aid"),
-            icon: () => <AidIcon className="h-4 w-4" />,
+            icon: () => <AidIcon className="h-5 w-5" />,
             href: "/aid",
           },
         ]
@@ -210,7 +220,7 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar }: Ap
           {
             id: "jobs",
             title: t("jobs"),
-            icon: () => <JobsIcon className="h-4 w-4" />,
+            icon: () => <JobsIcon className="h-5 w-5" />,
             items: [
               { title: t("control"), href: "/jobs/control", iconKey: "control" },
               { title: t("all"), href: "/jobs/all", iconKey: "all" },
@@ -219,19 +229,19 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar }: Ap
           {
             id: "clients",
             title: t("clients"),
-            icon: () => <ClientIcon className="h-4 w-4" />,
+            icon: () => <ClientIcon className="h-5 w-5" />,
             href: "/clients",
           },
           {
             id: "workers",
             title: t("workers"),
-            icon: () => <WorkersIcon className="h-4 w-4" />,
+            icon: () => <WorkersIcon className="h-5 w-5" />,
             href: "/workers",
           },
           {
             id: "surveys",
             title: t("surveys"),
-            icon: () => <SurvayIcon className="h-4 w-4" />,
+            icon: () => <SurvayIcon className="h-5 w-5" />,
             items: [
               { title: t("clients"), href: "/surveys/clients", iconKey: "clients" },
               { title: t("workers"), href: "/surveys/workers", iconKey: "workers" },
@@ -240,7 +250,7 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar }: Ap
           {
             id: "information",
             title: t("information"),
-            icon: () => <InformationIcon className="h-4 w-4" />,
+            icon: () => <InformationIcon className="h-5 w-5" />,
             items: [
               { title: t("signings"), href: "/information/signings-info", iconKey: "signings-info" },
               { title: t("services"), href: "/information/services-info", iconKey: "services-info" },
@@ -251,18 +261,16 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar }: Ap
           {
             id: "utilities",
             title: t("utilities"),
-            icon: () => <UtilitiesIcon className="h-4 w-4" />,
+            icon: () => <UtilitiesIcon className="h-5 w-5" />,
             items: [
-              { title: t("export"), href: "/utilities/export", iconKey: "export" },
+              { title: t("import"), href: "/utilities/import", iconKey: "import" },
               { title: t("invite"), href: "/utilities/invite", iconKey: "invite" },
-              // { title: t("payments"), href: "/utilities/payments", iconKey: "payments" },
-            
             ],
           },
           {
             id: "aid",
             title: t("aid"),
-            icon: () => <AidIcon className="h-4 w-4" />,
+            icon: () => <AidIcon className="h-5 w-5" />,
             href: "/aid",
           },
         ]
@@ -272,13 +280,13 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar }: Ap
           {
             id: "employers",
             title: t("employers"),
-            icon: () => <EmployerIcon className="h-4 w-4" />,
+            icon: () => <EmployerIcon className="h-5 w-5" />,
             href: "/employers",
           },
           {
             id: "billing",
             title: t("billing"),
-            icon: () => <BillingIcon className="h-4 w-4" />,
+            icon: () => <BillingIcon className="h-5 w-5" />,
             items: [
               { title: t("commissions"), href: "/commissions", iconKey: "commissions" },
               { title: t("invoices"), href: "/invoices", iconKey: "invoices" },
@@ -288,7 +296,7 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar }: Ap
           {
             id: "information",
             title: t("information"),
-            icon: () => <InformationIcon className="h-4 w-4" />,
+            icon: () => <InformationIcon className="h-5 w-5" />,
             items: [
               { title: t("employers"), href: "/information/employers-info", iconKey: "employers" },
               { title: t("commissions"), href: "/information/commissions-info", iconKey: "commissions" },
@@ -298,17 +306,16 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar }: Ap
           {
             id: "utilities",
             title: t("utilities"),
-            icon: () => <UtilitiesIcon className="h-4 w-4" />,
+            icon: () => <UtilitiesIcon className="h-5 w-5" />,
             items: [
-              { title: t("import"), href: "/utilities/export", iconKey: "export" },
+              { title: t("import"), href: "/utilities/import", iconKey: "import" },
               { title: t("invite"), href: "/utilities/invite", iconKey: "invite" },
-              
             ],
           },
           {
             id: "aid",
             title: t("aid"),
-            icon: () => <AidIcon className="h-4 w-4" />,
+            icon: () => <AidIcon className="h-5 w-5" />,
             href: "/aid",
           },
         ]
@@ -318,7 +325,7 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar }: Ap
           {
             id: "merchants",
             title: t("merchants"),
-            icon: () => <BriefcaseIcon className="h-4 w-4" />,
+            icon: () => <BriefcaseIcon className="h-5 w-5" />,
             items: [
               { title: t("partners"), href: "/partners", iconKey: "partners" },
               { title: t("employers"), href: "/employers", iconKey: "employers" },
@@ -327,7 +334,7 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar }: Ap
           {
             id: "billing",
             title: t("billing"),
-            icon: () => <BillingIcon className="h-4 w-4" />,
+            icon: () => <BillingIcon className="h-5 w-5" />,
             items: [
               { title: t("invoices"), href: "/invoices", iconKey: "invoices" },
               { title: t("commissions"), href: "/commissions", iconKey: "commissions" },
@@ -337,7 +344,7 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar }: Ap
           {
             id: "information",
             title: t("information"),
-            icon: () => <InformationIcon className="h-4 w-4" />,
+            icon: () => <InformationIcon className="h-5 w-5" />,
             items: [
               { title: t("partners"), href: "/information/partners-info", iconKey: "partners" },
               { title: t("employers"), href: "/information/employers-info", iconKey: "employers" },
@@ -348,17 +355,17 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar }: Ap
           {
             id: "utilities",
             title: t("utilities"),
-            icon: () => <UtilitiesIcon className="h-4 w-4" />,
+            icon: () => <UtilitiesIcon className="h-5 w-5" />,
             items: [
               { title: t("invite"), href: "/utilities/invite", iconKey: "invite" },
               { title: t("payments"), href: "/utilities/payments", iconKey: "payments" },
-              { title: t("export"), href: "/utilities/export", iconKey: "export" },
+              { title: t("import"), href: "/utilities/import", iconKey: "import" },
             ],
           },
           {
             id: "aid",
             title: t("aid"),
-            icon: () => <AidIcon className="h-4 w-4" />,
+            icon: () => <AidIcon className="h-5 w-5" />,
             href: "/aid",
           },
         ]
@@ -377,7 +384,6 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar }: Ap
 
   const sidebarClass = `sidebar ${collapsed ? "collapsed" : ""} ${isMobile ? (mobileOpen ? "mobile-open" : "") : ""}`
 
-
   return (
     <div className={sidebarClass}>
       <div className="sidebar-header">
@@ -387,7 +393,7 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar }: Ap
           </div>
         ) : (
           <div className="logo">
-             <ContreolJobs className="h-72 w-44" />
+            <ContreolJobs className="h-64 w-40" />
           </div>
         )}
       </div>
@@ -474,7 +480,7 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar }: Ap
 
       {!collapsed && (
         <div className="sidebar-footer font-bold">
-  2025 © <span className="text-[#662D91]">ControlJobs Tech,S.L</span>
+          2025 © <span className="text-[#662D91]">ControlJobs Tech,S.L</span>
         </div>
       )}
     </div>

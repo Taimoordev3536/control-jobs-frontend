@@ -36,6 +36,7 @@ import dashboardTranslations from "@/lib/translations/dashboard"
 import workerDashboardTranslations from "@/lib/translations/worker-dashboard"
 import employerDashboardTranslations from "@/lib/translations/employer-dashboard"
 import jobAttendanceDetailTranslations from "@/lib/translations/job-attendance-detail"
+import loginTranslations from "@/lib/translations/login"
 
 type TranslationNamespace =
   | "default"
@@ -43,6 +44,7 @@ type TranslationNamespace =
   | "worker-dashboard"
   | "employer-dashboard"
   | "job-attendance-detail"
+  | "login"
 
 export function useTranslation(namespace: TranslationNamespace = "default") {
   const { language, setLanguage } = useContext(LanguageContext)
@@ -57,6 +59,8 @@ export function useTranslation(namespace: TranslationNamespace = "default") {
         return employerDashboardTranslations
       case "job-attendance-detail":
         return jobAttendanceDetailTranslations
+      case "login":
+        return loginTranslations
       case "default":
       default:
         return translations
