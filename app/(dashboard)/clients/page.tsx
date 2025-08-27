@@ -1,6 +1,3 @@
-
-
-
 "use client"
 
 import DataListTemplate, { ExcelIcon, CsvIcon, PdfIcon } from "@/components/ui/data-list-template"
@@ -73,32 +70,37 @@ export default function ClientsPage() {
     },
   ]
 
-  // Define action buttons
+  // Define action buttons with type property
   const actionButtons = [
     {
       icon: Plus,
       onClick: () => setShowAddModal(true),
-      title: t("addClient") || t("addPartner"),
+      title: t("addClient"),
+      type: "add",
     },
     {
       icon: Filter,
       onClick: () => console.log("Filter clicked"),
-      title: "filter",
+      title: t("filter"),
+      type: "filter",
     },
     {
       icon: ExcelIcon,
       onClick: () => console.log("Export Excel clicked"),
       title: t("exportExcel"),
+      type: "excel",
     },
     {
       icon: CsvIcon,
       onClick: () => console.log("Export CSV clicked"),
       title: t("exportCsv"),
+      type: "csv",
     },
     {
       icon: PdfIcon,
       onClick: () => console.log("Export PDF clicked"),
       title: t("exportPdf"),
+      type: "pdf",
     },
   ]
 

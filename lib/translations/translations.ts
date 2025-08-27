@@ -1,6 +1,6 @@
 const translations: Record<string, Record<string, string>> = {
   en: {
-    //common observation norecord
+    //common observation filter
     registered_at: "Registered_at",
     //not found
     noPartnersFound: "No partners found",
@@ -511,7 +511,7 @@ const translations: Record<string, Record<string, string>> = {
     particular: "Particular",
     yeah: "Sí",
     no: "No",
-    filter: "Filtrar",
+    filter: "Filtro",
     exportExcel: "Exportar Excel",
     exportCsv: "Exportar CSV",
     exportPdf: "Exportar PDF",

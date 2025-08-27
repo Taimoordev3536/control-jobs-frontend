@@ -832,8 +832,11 @@ if (enableTasks && formData.tasks.length > 0) {
           </SelectTrigger>
           <SelectContent>
             {workCenters.map((center) => (
-              <SelectItem key={center.id} value={center.id.toString()}>
-                {center.name} - {center.address}
+              // <SelectItem key={center.id} value={center.id.toString()}>
+              //   {center.name} - {center.address}
+              // </SelectItem>
+              <SelectItem key={center.address} value={center.address}>
+                   {center.address}
               </SelectItem>
             ))}
           </SelectContent>

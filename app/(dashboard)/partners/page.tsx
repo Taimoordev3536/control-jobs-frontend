@@ -87,28 +87,34 @@ export default function PartnersList() {
       icon: Plus,
       onClick: () => setIsAddPartnerModalOpen(true),
       title: t("addPartner"),
+      type: "add",
     },
     {
       icon: Filter,
       onClick: () => console.log("Filter clicked"),
-      title: "filter",
+      title: t("filter"),
+      type: "filter",
     },
     {
       icon: ExcelIcon,
       onClick: () => console.log("Export Excel clicked"),
       title: t("exportExcel"),
+      type: "excel",
     },
     {
       icon: CsvIcon,
       onClick: () => console.log("Export CSV clicked"),
       title: t("exportCsv"),
+      type: "csv",
     },
     {
       icon: PdfIcon,
       onClick: () => console.log("Export PDF clicked"),
       title: t("exportPdf"),
+      type: "pdf",
     },
   ]
+
 
   // Callback to handle new partner addition
   const handlePartnerAdded = (newPartner: any) => {

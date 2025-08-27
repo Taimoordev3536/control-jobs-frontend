@@ -30,6 +30,7 @@ interface ActionButton {
   icon: React.ComponentType<{ className?: string }>
   onClick: () => void
   title: string
+  type: "add" | "filter" | "csv" | "excel" | "pdf" // Added type property
   variant?: "primary" | "secondary"
 }
 
@@ -111,19 +112,19 @@ export default function DataListTemplate({
         size={17}
         className={`${
           sortColumn === column && sortDirection === "asc"
-            ? "text-[#662D91] font-bold" // Added font-bold for bold style
+            ? "text-[#662D91] font-bold"
             : "text-muted-foreground"
         }`}
-        strokeWidth={sortColumn === column && sortDirection === "asc" ? 3 : 2} // Increased strokeWidth for bold effect
+        strokeWidth={sortColumn === column && sortDirection === "asc" ? 3 : 2}
       />
       <ChevronDown
         size={17}
         className={`-mt-1 ${
           sortColumn === column && sortDirection === "desc"
-            ? "text-[#662D91] font-bold" // Added font-bold for bold style
+            ? "text-[#662D91] font-bold"
             : "text-muted-foreground"
         }`}
-        strokeWidth={sortColumn === column && sortDirection === "desc" ? 3 : 2} // Increased strokeWidth for bold effect
+        strokeWidth={sortColumn === column && sortDirection === "desc" ? 3 : 2}
       />
     </div>
   )
@@ -173,19 +174,24 @@ export default function DataListTemplate({
   function MobileDropdown({ actionButtons }: { actionButtons: ActionButton[] }) {
     const [open, setOpen] = useState(false)
 
-    const getIcons = (title: string) => {
-      const lower = title.toLowerCase()
-      if (lower.includes("csv")) return { IconDefault: CsvIcon1, IconHover: CsvIcon2 }
-      if (lower.includes("excel")) return { IconDefault: ExcelIcon1, IconHover: ExcelIcon2 }
-      if (lower.includes("pdf")) return { IconDefault: PdfIcon1, IconHover: PdfIcon2 }
-      if (lower.includes("filter")) return { IconDefault: FilterIcon1, IconHover: FilterIcon2 }
-      return { IconDefault: AddIcon1, IconHover: AddIcon2 }
+    const getIcons = (type: string) => {
+      switch (type) {
+        case "csv":
+          return { IconDefault: CsvIcon1, IconHover: CsvIcon2 }
+        case "excel":
+          return { IconDefault: ExcelIcon1, IconHover: ExcelIcon2 }
+        case "pdf":
+          return { IconDefault: PdfIcon1, IconHover: PdfIcon2 }
+        case "filter":
+          return { IconDefault: FilterIcon1, IconHover: FilterIcon2 }
+        default:
+          return { IconDefault: AddIcon1, IconHover: AddIcon2 }
+      }
     }
 
-    const mobileButtons = actionButtons.filter((button) => {
-      const lowerTitle = button.title.toLowerCase()
-      return ["csv", "excel", "pdf", "filter"].some((type) => lowerTitle.includes(type))
-    })
+    const mobileButtons = actionButtons.filter((button) =>
+      ["csv", "excel", "pdf", "filter"].includes(button.type)
+    )
 
     return (
       <div className="relative sm:hidden">
@@ -198,7 +204,7 @@ export default function DataListTemplate({
         {open && (
           <div className="absolute right-0 mt-2 bg-white dark:bg-gray-800 rounded shadow-lg z-50 w-40">
             {mobileButtons.map((button, index) => {
-              const { IconDefault } = getIcons(button.title)
+              const { IconDefault } = getIcons(button.type)
               return (
                 <div
                   key={index}
@@ -223,7 +229,7 @@ export default function DataListTemplate({
     <div className="p-6 bg-background min-h-screen relative">
       <div className="bg-card rounded-lg shadow-sm border border-border">
         {/* Header */}
-        <div className="flex justify-between items-center p-6 border-b border-border bg-gray-100 dark:bg-gray-800">
+        <div className="flex justify-between items-center p-5 border-b border-border bg-gray-100 dark:bg-gray-800">
           <h1 className="text-2xl font-semibold text-foreground">{title}</h1>
           <div className="flex items-center gap-2">
             {actionButtons.length > 0 && (
@@ -231,23 +237,27 @@ export default function DataListTemplate({
                 {/* Desktop and Tablet Buttons */}
                 <div className="flex items-center gap-2 sm:flex">
                   {actionButtons.map((button, index) => {
-                    const lowerTitle = button.title.toLowerCase()
-                    const isMobileButton = ["csv", "excel", "pdf", "filter"].some((type) => lowerTitle.includes(type))
+                    const isMobileButton = ["csv", "excel", "pdf", "filter"].includes(button.type)
 
                     let IconDefault = AddIcon1
                     let IconHover = AddIcon2
-                    if (lowerTitle.includes("filter")) {
-                      IconDefault = FilterIcon1
-                      IconHover = FilterIcon2
-                    } else if (lowerTitle.includes("csv")) {
-                      IconDefault = CsvIcon1
-                      IconHover = CsvIcon2
-                    } else if (lowerTitle.includes("excel")) {
-                      IconDefault = ExcelIcon1
-                      IconHover = ExcelIcon2
-                    } else if (lowerTitle.includes("pdf")) {
-                      IconDefault = PdfIcon1
-                      IconHover = PdfIcon2
+                    switch (button.type) {
+                      case "filter":
+                        IconDefault = FilterIcon1
+                        IconHover = FilterIcon2
+                        break
+                      case "csv":
+                        IconDefault = CsvIcon1
+                        IconHover = CsvIcon2
+                        break
+                      case "excel":
+                        IconDefault = ExcelIcon1
+                        IconHover = ExcelIcon2
+                        break
+                      case "pdf":
+                        IconDefault = PdfIcon1
+                        IconHover = PdfIcon2
+                        break
                     }
 
                     return (
@@ -301,7 +311,7 @@ export default function DataListTemplate({
                                 ref={provided.innerRef}
                                 {...provided.draggableProps}
                                 {...provided.dragHandleProps}
-                                className={`px-6 py-4 text-sm font-semibold text-foreground transition-colors cursor-move ${
+                                className={`px-5 py-3 text-sm font-semibold text-foreground transition-colors cursor-move ${
                                   snapshot.isDragging ? "bg-purple-200 dark:bg-purple-800" : ""
                                 } ${getAlignmentClass(column.align)} ${
                                   column.sortable ? "hover:bg-purple-100 dark:hover:bg-purple-900/50" : ""
@@ -333,7 +343,7 @@ export default function DataListTemplate({
                       {localColumns.map((column) => (
                         <td
                           key={`${row.id || index}-${column.key}`}
-                          className={`px-6 py-4 text-sm ${
+                          className={`px-3 py-2 text-sm ${
                             column.key === localColumns[0].key ? "text-foreground font-medium" : "text-muted-foreground"
                           } ${getAlignmentClass(column.align)}`}
                         >
@@ -381,11 +391,11 @@ export default function DataListTemplate({
 
       {/* Mobile Add Icon (Positioned at bottom right of screen) */}
       <div className="sm:hidden fixed bottom-4 right-4 z-50">
-        {actionButtons.some((btn) => !["csv", "excel", "pdf", "filter"].some((type) => btn.title.toLowerCase().includes(type))) && (
+        {actionButtons.some((btn) => btn.type === "add") && (
           <ActionIconButton
             IconDefault={AddIcon1}
             IconHover={AddIcon2}
-            onClick={actionButtons.find((btn) => !["csv", "excel", "pdf", "filter"].some((type) => btn.title.toLowerCase().includes(type)))?.onClick || (() => {})}
+            onClick={actionButtons.find((btn) => btn.type === "add")?.onClick || (() => {})}
             title="Add"
           />
         )}

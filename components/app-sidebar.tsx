@@ -357,9 +357,10 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar }: Ap
             title: t("utilities"),
             icon: () => <UtilitiesIcon className="h-5 w-5" />,
             items: [
-              { title: t("invite"), href: "/utilities/invite", iconKey: "invite" },
               { title: t("payments"), href: "/utilities/payments", iconKey: "payments" },
+              { title: t("pages"), href: "/utilities/payments", iconKey: "payments" },
               { title: t("import"), href: "/utilities/import", iconKey: "import" },
+              { title: t("invite"), href: "/utilities/invite", iconKey: "invite" },
             ],
           },
           {

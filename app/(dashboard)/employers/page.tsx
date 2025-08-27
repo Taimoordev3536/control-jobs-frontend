@@ -106,32 +106,37 @@ export default function EmployersPage() {
 
   // Define action buttons
   const actionButtons = [
-    {
-      icon: Plus,
-      onClick: () => setShowAddModal(true),
-      title: t("addEmployer"),
-    },
-    {
-      icon: Filter,
-      onClick: () => console.log("Filter clicked"),
-      title: "filter",
-    },
-    {
-      icon: ExcelIcon,
-      onClick: () => console.log("Export Excel clicked"),
-      title: t("exportExcel"),
-    },
-    {
-      icon: CsvIcon,
-      onClick: () => console.log("Export CSV clicked"),
-      title: t("exportCsv"),
-    },
-    {
-      icon: PdfIcon,
-      onClick: () => console.log("Export PDF clicked"),
-      title: t("exportPdf"),
-    },
-  ]
+  {
+    icon: Plus,
+    onClick: () => setShowAddModal(true),
+    title: t("addEmployer"),
+    type: "add", // Add this line
+  },
+  {
+    icon: Filter,
+    onClick: () => console.log("Filter clicked"),
+    title: t("filter"),
+    type: "filter", // Add this line
+  },
+  {
+    icon: ExcelIcon,
+    onClick: () => console.log("Export Excel clicked"),
+    title: t("exportExcel"),
+    type: "excel", // Add this line
+  },
+  {
+    icon: CsvIcon,
+    onClick: () => console.log("Export CSV clicked"),
+    title: t("exportCsv"),
+    type: "csv", // Add this line
+  },
+  {
+    icon: PdfIcon,
+    onClick: () => console.log("Export PDF clicked"),
+    title: t("exportPdf"),
+    type: "pdf", // Add this line
+  },
+]
 
   return (
     <>
