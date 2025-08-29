@@ -4,6 +4,7 @@ import type React from "react"
 import { AppHeader } from "@/components/app-header"
 import { AppSidebar } from "@/components/app-sidebar"
 import { useState, useEffect } from "react"
+import { NotificationProvider } from "@/components/providers/notification-provider"
 
 export default function DashboardLayout({
   children,
@@ -44,10 +45,12 @@ export default function DashboardLayout({
       {isMobile && <div className={`sidebar-overlay ${mobileOpen ? "active" : ""}`} onClick={closeSidebar} />}
 
       <AppSidebar collapsed={collapsed} isMobile={isMobile} mobileOpen={mobileOpen} closeSidebar={closeSidebar} />
-      <AppHeader collapsed={collapsed} toggleSidebar={toggleSidebar} />
-      <div className={`main-content ${collapsed ? "main-content-collapsed" : ""} ${isMobile ? "!ml-0" : ""}`}>
-        {children}
-      </div>
+      <NotificationProvider>
+        <AppHeader collapsed={collapsed} toggleSidebar={toggleSidebar} />
+        <div className={`main-content ${collapsed ? "main-content-collapsed" : ""} ${isMobile ? "!ml-0" : ""}`}>
+          {children}
+        </div>
+      </NotificationProvider>
     </div>
   )
 }

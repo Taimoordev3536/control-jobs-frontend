@@ -11,7 +11,9 @@ import { ThemeSwitcher } from "./theme-switcher"
 import { UserDropdown } from "./user-dropdown"
 import { useTranslation } from "@/hooks/use-translation"
 import { LanguageSwitcher } from "./language-switcher"
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
+import { useNotifications } from "@/components/providers/notification-provider"
+import { X } from "lucide-react"
 
 interface AppHeaderProps {
   collapsed: boolean
@@ -21,6 +23,30 @@ interface AppHeaderProps {
 export function AppHeader({ collapsed, toggleSidebar }: AppHeaderProps) {
   const { t } = useTranslation()
   const [mobileDropdownOpen, setMobileDropdownOpen] = useState(false)
+  const { unreadCount, items, markAllRead, dismiss } = useNotifications()
+  const [notifOpen, setNotifOpen] = useState(false)
+  const notifRef = useRef<HTMLDivElement | null>(null)
+
+  // Close notifications dropdown on outside click or Escape
+  useEffect(() => {
+    const onDocClick = (e: MouseEvent) => {
+      if (!notifOpen) return
+      const target = e.target as Node
+      if (notifRef.current && !notifRef.current.contains(target)) {
+        setNotifOpen(false)
+      }
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (!notifOpen) return
+      if (e.key === "Escape") setNotifOpen(false)
+    }
+    document.addEventListener("mousedown", onDocClick)
+    document.addEventListener("keydown", onKey)
+    return () => {
+      document.removeEventListener("mousedown", onDocClick)
+      document.removeEventListener("keydown", onKey)
+    }
+  }, [notifOpen])
 
   return (
     <header className={`header ${collapsed ? "header-collapsed" : "header-expanded"}`}>
@@ -33,10 +59,63 @@ export function AppHeader({ collapsed, toggleSidebar }: AppHeaderProps) {
       <div className="header-icons flex items-center gap-3 relative">
         {/* Hidden on mobile */}
         <div className="hidden sm:flex items-center gap-3">
-          <button className="header-icon-button">
-            <NotificationIcon className="h-6 w-6" />
-            <span className="tooltip">{t("notification")}</span>
-          </button>
+          <div className="relative" ref={notifRef}>
+            <button
+              className="header-icon-button relative"
+              onClick={() => {
+                const next = !notifOpen
+                setNotifOpen(next)
+                if (next) markAllRead()
+              }}
+            >
+              <NotificationIcon className="h-6 w-6" />
+              <span className="tooltip">{t("notification")}</span>
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 h-5 min-w-5 px-1 rounded-full bg-red-600 text-white text-[10px] flex items-center justify-center">
+                  {unreadCount}
+                </span>
+              )}
+            </button>
+            {notifOpen && (
+              <div className="absolute right-0 mt-2 w-80 rounded-md shadow-lg bg-white dark:bg-gray-800 border border-border z-50">
+                <div className="px-3 py-2 border-b border-border font-medium">
+                  {t("notification")}
+                </div>
+                <div className="max-h-96 overflow-auto">
+                  {(items && items.length > 0 ? items.slice(0, 10) : []).map((a) => (
+                    <div key={a.localId || `${a.type}-${a.jobId}-${a.createdAt}`} className="px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground relative pr-8">
+                      <button
+                        className="absolute right-2 top-2 p-1 rounded hover:bg-muted"
+                        aria-label="close notification"
+                        onClick={async () => {
+                          if (a.id) {
+                            try {
+                              const token = (typeof window !== 'undefined' && window.localStorage.getItem('accessToken')) || undefined
+                              await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/alerts/${a.id}`, {
+                                method: 'DELETE',
+                                headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+                              })
+                            } catch {}
+                          }
+                          dismiss(a.localId || "")
+                        }}
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                      <div className="font-semibold">
+                        {a.type === "CHECK_IN" ? t("workerCheckedIn") : t("workerCheckedOut")}
+                      </div>
+                      <div className="text-muted-foreground">{a.message}</div>
+                      <div className="text-[11px] text-muted-foreground mt-1">{new Date(a.createdAt).toLocaleString()}</div>
+                    </div>
+                  ))}
+                  {(!items || items.length === 0) && (
+                    <div className="px-3 py-6 text-sm text-muted-foreground text-center">{t("noNotifications")}</div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
           <button className="header-icon-button">
             <MessageIcon className="h-6 w-6" />
             <span className="tooltip">{t("messages")}</span>

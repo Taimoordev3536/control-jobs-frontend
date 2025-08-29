@@ -2,6 +2,10 @@ const translations: Record<string, Record<string, string>> = {
   en: {
     //common observation filter
     registered_at: "Registered_at",
+    //notifications
+    workerCheckedIn: "Worker CheckedIn",
+    workerCheckedOut: "Worker CheckedOut",
+    noNotifications: "No Notifications",
     //not found
     noPartnersFound: "No partners found",
     noEmployersFound: "No employers found",
@@ -405,6 +409,11 @@ const translations: Record<string, Record<string, string>> = {
   es: {
     // common Disc web information
     registered_at: "F.Alta",
+    //notifications
+    workerCheckedIn: "Trabajador Registrado",
+    workerCheckedOut: "Trabajador Desregistrado",
+    noNotifications: "Sin Notificaciones",
+
     noPartnersFound: "No se encontraron partners",
     noEmployersFound: "No se encontraron empleadores",
 

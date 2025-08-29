@@ -218,7 +218,7 @@ const employerDashboardTranslations: Record<string, Record<string, string>> = {
     ok: "OK",
   },
   es: {
-    // Header
+    // Header viewAttendance 
     jobsManagement: "Gestión de Trabajos",
     manageWorkforceAssignments: "Gestionar asignaciones de personal",
     newJob: "Nuevo Trabajo",

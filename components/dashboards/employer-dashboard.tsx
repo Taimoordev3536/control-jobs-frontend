@@ -857,7 +857,7 @@ export default function EmployerDashboard() {
                       onClick={() => handleViewAttendance(job)}
                     >
                       <Eye className="w-3 h-3 mr-1" />
-                      {t("viewAttendance")}
+                      {t("viewDetails")}
                     </Button>
                     <Button
                       size="sm"
@@ -915,7 +915,7 @@ export default function EmployerDashboard() {
         </div>
       </div>
 
-      {/* Add Job Modal */}
+      {/* Add Job Modal viewAttendance  */}
       <AddJobModal open={showAddJobModal} onOpenChange={setShowAddJobModal} onJobAdded={handleJobAdded} />
     </div>
   )
