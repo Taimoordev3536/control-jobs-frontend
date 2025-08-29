@@ -252,7 +252,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
   const fetchWorkCenters = useCallback(async () => {
       // Always use mock WorkCenter for all clients
       setWorkCenters([{ id: 1, name: 'WorkCenter 1', address: '', contactName: '', contactPhone: '', contactEmail: '', clientId: Number(formData.clientId), createdAt: '', updatedAt: '' }]);
-      setLoadingWorkCenters(false);
+  // setLoadingWorkCenters(false); // Commented: not needed for mock logic
 
       /*
       // Previous code to fetch work centers from API
