@@ -50,6 +50,7 @@ interface ApiWorkerJob {
     name: string;
     note?: string;
     expectedDuration?: number;
+    isCompleted?: boolean;
     taskHistories: TaskHistory[];
   }>;
   shifts: Array<{
@@ -191,6 +192,22 @@ export default function WorkerDashboardMain() {
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
 
+  // Local-day helper using viewer timezone
+  const viewerTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const dateKeyInTz = (date: string | Date) => {
+    const d = typeof date === "string" ? new Date(date) : date;
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: viewerTimeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).formatToParts(d);
+    const y = parts.find((p) => p.type === "year")!.value;
+    const m = parts.find((p) => p.type === "month")!.value;
+    const da = parts.find((p) => p.type === "day")!.value;
+    return `${y}-${m}-${da}`;
+  };
+
   // Check-in flow states
   const [currentView, setCurrentView] = useState("dashboard");
   const [selectedJob, setSelectedJob] = useState<JobAssignment | null>(null);
@@ -204,7 +221,7 @@ export default function WorkerDashboardMain() {
   
 const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => {
   const currentDate = new Date();
-  const today = currentDate.toISOString().split("T")[0]; // YYYY-MM-DD
+  const today = dateKeyInTz(currentDate); // YYYY-MM-DD in viewer TZ
 
   // Parse start and end dates
   let startDate = new Date();
@@ -276,7 +293,7 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
     // Find TaskHistory for today with better null checking
     const todayHistory = task.taskHistories?.find((history) => {
       if (!history || !history.date) return false;
-      const historyDate = new Date(history.date).toISOString().split("T")[0];
+      const historyDate = dateKeyInTz(history.date);
       return historyDate === today;
     });
 
@@ -488,7 +505,8 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
 
   const handleCheckIn = (job: JobAssignment) => {
     setSelectedJob(job);
-    setCurrentView("checkInMethods");
+    setSelectedCheckInMethod("default"); // Set a default method if needed
+    setCurrentView("checkInProcess"); // Go directly to check-in process
   };
 
   const handleCheckInMethodSelect = (method: string) => {
@@ -1016,7 +1034,7 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
         job={selectedJob}
         method={selectedCheckInMethod}
         token={session?.accessToken || ""}
-        onBack={() => setCurrentView("checkInMethods")}
+  onBack={() => setCurrentView("dashboard")}
         onComplete={completeCheckIn}
       />
     );
@@ -1149,7 +1167,7 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
                     onCheckIn={handleCheckIn}
                     onCheckOut={handleCheckOut}
                     onFillSurvey={handleFillSurvey}
-                    onCompleteTask={handleTaskToggle}
+                    onCompleteTask={(j, taskId) => handleTaskToggle(j.id, taskId)}
                     onViewDetail={handleViewDetail}
                   />
                 ))}

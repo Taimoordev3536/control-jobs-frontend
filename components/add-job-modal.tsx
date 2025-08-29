@@ -84,7 +84,7 @@ const createInitialFormData = () => ({
   startDate: "",
   endDate: "",
   clientId: "",
-  workCenterId: "",
+  workCenterId: "1", // Always use mock WorkCenter id
   workerIds: [] as string[],
   observations: "",
   scheduleType: "free" as const,
@@ -99,10 +99,13 @@ const createInitialFormData = () => ({
     sunday: createInitialSchedule(),
   } as ScheduleData,
   totalWeeklyHours: "00:00",
+  // signingMethods: {
+  //   mobile: { qrCode: false, wifi: false, gps: false },
+  //   laptop: { ip: false, wifi: false },
+  //   phone: { callerId: false },
+  // },
   signingMethods: {
-    mobile: { qrCode: false, wifi: false, gps: false },
-    laptop: { ip: false, wifi: false },
-    phone: { callerId: false },
+    mobile: { qrCode: true, wifi: true, ip: true, gps: true },
   },
   verifyIdentity: false,
   entrance: { whenSigningIn: false, delay: false, delayValue: "10" },
@@ -167,7 +170,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
   const [workCenters, setWorkCenters] = useState<WorkCenter[]>([])
   const [workers, setWorkers] = useState<Worker[]>([])
   const [loadingClients, setLoadingClients] = useState(false)
-  const [loadingWorkCenters, setLoadingWorkCenters] = useState(false)
+  // const [loadingWorkCenters, setLoadingWorkCenters] = useState(false) // Commented: API loading logic for work centers
   const [loadingWorkers, setLoadingWorkers] = useState(false)
 
   const [formData, setFormData] = useState(createInitialFormData)
@@ -247,23 +250,30 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
   }, [fetchWithAuth])
 
   const fetchWorkCenters = useCallback(async () => {
-    if (!formData.clientId) {
-      setWorkCenters([])
-      return
-    }
-    setLoadingWorkCenters(true)
-    try {
-      const data = await fetchWithAuth(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/client/${formData.clientId}/work-centers`,
-      )
-      setWorkCenters(data?.data || [])
-    } catch (error) {
-      console.error("Error fetching work centers:", error)
-      setWorkCenters([])
-    } finally {
-      setLoadingWorkCenters(false)
-    }
-  }, [fetchWithAuth, formData.clientId])
+      // Always use mock WorkCenter for all clients
+      setWorkCenters([{ id: 1, name: 'WorkCenter 1', address: '', contactName: '', contactPhone: '', contactEmail: '', clientId: Number(formData.clientId), createdAt: '', updatedAt: '' }]);
+      setLoadingWorkCenters(false);
+
+      /*
+      // Previous code to fetch work centers from API
+      // if (!formData.clientId) {
+      //   setWorkCenters([])
+      //   return
+      // }
+      // setLoadingWorkCenters(true)
+      // try {
+      //   const data = await fetchWithAuth(
+      //     `${process.env.NEXT_PUBLIC_API_BASE_URL}/client/${formData.clientId}/work-centers`,
+      //   )
+      //   setWorkCenters(data?.data || [])
+      // } catch (error) {
+      //   console.error("Error fetching work centers:", error)
+      //   setWorkCenters([])
+      // } finally {
+      //   setLoadingWorkCenters(false)
+      // }
+      */
+    }, [formData.clientId]);
 
   // Time calculation functions
   const timeToMinutes = useCallback((timeStr: string): number => {
@@ -478,12 +488,10 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
           }
         })
       })
-
       // Build signing methods
-      const signingMethods: any[] = []
-      const { mobile, laptop, phone } = formData.signingMethods
-
-      const mobileDetails = Object.entries(mobile)
+    const signingMethods: any[] = []
+    if (formData.signingMethods.mobile) {
+      const mobileDetails = Object.entries(formData.signingMethods.mobile)
         .filter(([_, enabled]) => enabled)
         .map(([key]) => (key === "qrCode" ? "qrcode" : key))
       if (mobileDetails.length > 0) {
@@ -493,25 +501,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
           verifyIdentity: formData.verifyIdentity,
         })
       }
-
-      const laptopDetails = Object.entries(laptop)
-        .filter(([_, enabled]) => enabled)
-        .map(([key]) => key)
-      if (laptopDetails.length > 0) {
-        signingMethods.push({
-          methodType: "laptop",
-          methodDetails: laptopDetails,
-          verifyIdentity: formData.verifyIdentity,
-        })
-      }
-
-      if (phone.callerId) {
-        signingMethods.push({
-          methodType: "phone",
-          methodDetails: ["callerId"],
-          verifyIdentity: formData.verifyIdentity,
-        })
-      }
+    }
 
       // Build alerts
       const alerts: any[] = []
@@ -624,7 +614,7 @@ if (enableTasks && formData.tasks.length > 0) {
         startDate: formData.startDate,
         endDate,
         clientId: Number.parseInt(formData.clientId),
-        workCenterId: Number.parseInt(formData.workCenterId),
+    workCenterId: 1, // Always use mock WorkCenter id as integer
         workerIds: formData.workerIds.map((id) => Number.parseInt(id)),
         note: formData.observations,
         shifts,
@@ -824,21 +814,15 @@ if (enableTasks && formData.tasks.length > 0) {
               placeholder={
                 !formData.clientId
                   ? "Select a client first"
-                  : loadingWorkCenters
-                    ? "Loading work centers..."
-                    : "Select a work center"
+                  : "Select a work center"
               }
             />
           </SelectTrigger>
           <SelectContent>
-            {workCenters.map((center) => (
-              // <SelectItem key={center.id} value={center.id.toString()}>
-              //   {center.name} - {center.address}
-              // </SelectItem>
-              <SelectItem key={center.address} value={center.address}>
-                   {center.address}
+              {/* Only show the mock WorkCenter with id 1 and value '1' */}
+              <SelectItem key={workCenters[0]?.id || '1'} value="1">
+                {workCenters[0]?.name || 'Default WorkCenter'}
               </SelectItem>
-            ))}
           </SelectContent>
         </Select>
       </div>
@@ -1036,180 +1020,116 @@ if (enableTasks && formData.tasks.length > 0) {
     </div>
   )
 
-  const renderSigningMethodsStep = () => (
+ const renderSigningMethodsStep = () => (
+  <div className="space-y-8">
+    <h3 className="text-lg font-medium text-center mb-6 underline">{t("signingMethods") || "Signing methods"}</h3>
+
     <div className="space-y-8">
-      <h3 className="text-lg font-medium text-center mb-6 underline">{t("signingMethods") || "Signing methods"}</h3>
-
-      <div className="space-y-8">
-        {/* Mobile Device */}
-        <div className="flex items-center gap-8">
-          <div className="w-20 h-20 flex items-center justify-center">
-            <Smartphone className="w-12 h-12 text-foreground" />
-          </div>
-          <div className="flex gap-8">
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="mobile-qr"
-                checked={formData.signingMethods.mobile.qrCode}
-                onCheckedChange={(checked) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    signingMethods: {
-                      ...prev.signingMethods,
-                      mobile: { ...prev.signingMethods.mobile, qrCode: !!checked },
-                    },
-                  }))
-                }
-              />
-              <div className="flex flex-col items-center">
-                <QrCode className="w-8 h-8 mb-1" />
-                <Label htmlFor="mobile-qr" className="text-sm">
-                  QR Code
-                </Label>
-              </div>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="mobile-wifi"
-                checked={formData.signingMethods.mobile.wifi}
-                onCheckedChange={(checked) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    signingMethods: {
-                      ...prev.signingMethods,
-                      mobile: { ...prev.signingMethods.mobile, wifi: !!checked },
-                    },
-                  }))
-                }
-              />
-              <div className="flex flex-col items-center">
-                <Wifi className="w-8 h-8 mb-1" />
-                <Label htmlFor="mobile-wifi" className="text-sm">
-                  Wifi
-                </Label>
-              </div>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="mobile-gps"
-                checked={formData.signingMethods.mobile.gps}
-                onCheckedChange={(checked) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    signingMethods: {
-                      ...prev.signingMethods,
-                      mobile: { ...prev.signingMethods.mobile, gps: !!checked },
-                    },
-                  }))
-                }
-              />
-              <div className="flex flex-col items-center">
-                <MapPin className="w-8 h-8 mb-1" />
-                <Label htmlFor="mobile-gps" className="text-sm">
-                  GPS
-                </Label>
-              </div>
-            </div>
-          </div>
+      {/* Mobile Device */}
+      <div className="flex items-center gap-8">
+        <div className="w-20 h-20 flex items-center justify-center">
+          <Smartphone className="w-12 h-12 text-foreground" />
         </div>
-
-        {/* Laptop */}
-        <div className="flex items-center gap-8">
-          <div className="w-20 h-20 flex items-center justify-center">
-            <Laptop className="w-12 h-12 text-foreground" />
-          </div>
-          <div className="flex gap-8">
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="laptop-ip"
-                checked={formData.signingMethods.laptop.ip}
-                onCheckedChange={(checked) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    signingMethods: {
-                      ...prev.signingMethods,
-                      laptop: { ...prev.signingMethods.laptop, ip: !!checked },
-                    },
-                  }))
-                }
-              />
-              <div className="flex flex-col items-center">
-                <Globe className="w-8 h-8 mb-1" />
-                <Label htmlFor="laptop-ip" className="text-sm">
-                  IP
-                </Label>
-              </div>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="laptop-wifi"
-                checked={formData.signingMethods.laptop.wifi}
-                onCheckedChange={(checked) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    signingMethods: {
-                      ...prev.signingMethods,
-                      laptop: { ...prev.signingMethods.laptop, wifi: !!checked },
-                    },
-                  }))
-                }
-              />
-              <div className="flex flex-col items-center">
-                <Wifi className="w-8 h-8 mb-1" />
-                <Label htmlFor="laptop-wifi" className="text-sm">
-                  Wifi
-                </Label>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Phone */}
-        <div className="flex items-center gap-8">
-          <div className="w-20 h-20 flex items-center justify-center">
-            <Phone className="w-12 h-12 text-foreground" />
-          </div>
-          <div className="flex gap-8">
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="phone-caller"
-                checked={formData.signingMethods.phone.callerId}
-                onCheckedChange={(checked) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    signingMethods: {
-                      ...prev.signingMethods,
-                      phone: { ...prev.signingMethods.phone, callerId: !!checked },
-                    },
-                  }))
-                }
-              />
-              <div className="flex flex-col items-center">
-                <PhoneCall className="w-8 h-8 mb-1" />
-                <Label htmlFor="phone-caller" className="text-sm">
-                  Caller ID
-                </Label>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-12 text-center">
-        <div className="flex items-center justify-center gap-4">
-          <span className="text-sm font-medium">{t("verifyIdentity") || "Verify Identity"}</span>
-          <div className="flex items-center gap-2">
-            <span className="text-sm">{t("no") || "No"}</span>
-            <Switch
-              checked={formData.verifyIdentity}
-              onCheckedChange={(checked) => updateFormData("verifyIdentity", checked)}
+        <div className="flex gap-8">
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="mobile-qr"
+              checked={formData.signingMethods.mobile.qrCode}
+              onCheckedChange={(checked) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  signingMethods: {
+                    mobile: { ...prev.signingMethods.mobile, qrCode: !!checked },
+                  },
+                }))
+              }
             />
-            <span className="text-sm">{t("si") || "Yes"}</span>
+            <div className="flex flex-col items-center">
+              <QrCode className="w-8 h-8 mb-1" />
+              <Label htmlFor="mobile-qr" className="text-sm">
+                QR Code
+              </Label>
+            </div>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="mobile-wifi"
+              checked={formData.signingMethods.mobile.wifi}
+              onCheckedChange={(checked) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  signingMethods: {
+                    mobile: { ...prev.signingMethods.mobile, wifi: !!checked },
+                  },
+                }))
+              }
+            />
+            <div className="flex flex-col items-center">
+              <Wifi className="w-8 h-8 mb-1" />
+              <Label htmlFor="mobile-wifi" className="text-sm">
+                Wifi
+              </Label>
+            </div>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="mobile-ip"
+              checked={formData.signingMethods.mobile.ip}
+              onCheckedChange={(checked) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  signingMethods: {
+                    mobile: { ...prev.signingMethods.mobile, ip: !!checked },
+                  },
+                }))
+              }
+            />
+            <div className="flex flex-col items-center">
+              <Globe className="w-8 h-8 mb-1" />
+              <Label htmlFor="mobile-ip" className="text-sm">
+                IP
+              </Label>
+            </div>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="mobile-gps"
+              checked={formData.signingMethods.mobile.gps}
+              onCheckedChange={(checked) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  signingMethods: {
+                    mobile: { ...prev.signingMethods.mobile, gps: !!checked },
+                  },
+                }))
+              }
+            />
+            <div className="flex flex-col items-center">
+              <MapPin className="w-8 h-8 mb-1" />
+              <Label htmlFor="mobile-gps" className="text-sm">
+                GPS
+              </Label>
+            </div>
           </div>
         </div>
       </div>
     </div>
-  )
+
+    <div className="mt-12 text-center">
+      <div className="flex items-center justify-center gap-4">
+        <span className="text-sm font-medium">{t("verifyIdentity") || "Verify Identity"}</span>
+        <div className="flex items-center gap-2">
+          <span className="text-sm">{t("no") || "No"}</span>
+          <Switch
+            checked={formData.verifyIdentity}
+            onCheckedChange={(checked) => updateFormData("verifyIdentity", checked)}
+          />
+          <span className="text-sm">{t("si") || "Yes"}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+)
 
   const renderAlertsStep = () => (
     <div className="space-y-8">

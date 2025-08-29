@@ -95,6 +95,22 @@ interface ApiScanHistoryResponse {
   developerError: string
 }
 
+interface ApiTaskHistoryResponse {
+  message: string
+  data: Array<{
+    date: string
+    tasks: Array<{
+      id: number
+      name: string
+      completed: boolean
+      completedByWorkerId: number
+    }>
+  }>
+  isSuccess: boolean
+  statusCode: number
+  developerError: string
+}
+
 interface JobHistoryData {
   date: string
   scans: Array<{
@@ -144,6 +160,7 @@ export function JobAttendanceDetail({ job, onBack }: JobAttendanceDetailProps) {
   const [jobHistoryData, setJobHistoryData] = useState<JobHistoryData[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [taskHistoryByDate, setTaskHistoryByDate] = useState<Record<string, { id: number; name: string; completed: boolean; completedByWorkerId: number }[]>>({})
 
   // Fetch job scan history from API
   useEffect(() => {
@@ -180,7 +197,115 @@ export function JobAttendanceDetail({ job, onBack }: JobAttendanceDetailProps) {
         const result: ApiScanHistoryResponse = await response.json()
 
         if (result.isSuccess) {
-          setJobHistoryData(result.data || [])
+          // Regroup by viewer timezone on the client to avoid UTC day shifts
+          const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
+
+          const dateKeyInTz = (date: string | Date) => {
+            const d = typeof date === 'string' ? new Date(date) : date
+            const parts = new Intl.DateTimeFormat('en-CA', {
+              timeZone: tz,
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+            }).formatToParts(d)
+            const y = parts.find(p => p.type === 'year')!.value
+            const m = parts.find(p => p.type === 'month')!.value
+            const da = parts.find(p => p.type === 'day')!.value
+            return `${y}-${m}-${da}`
+          }
+
+          // Flatten scans and sessions coming from server (which may be UTC-grouped)
+          const allScans: any[] = []
+          const allSessions: any[] = []
+          for (const day of result.data || []) {
+            for (const s of day.scans || []) allScans.push(s)
+            for (const sess of day.sessions || []) allSessions.push(sess)
+          }
+
+          // Group scans by local day
+          const scansByDate: Record<string, any[]> = {}
+          for (const s of allScans) {
+            const key = dateKeyInTz(s.scanTime)
+            if (!scansByDate[key]) scansByDate[key] = []
+            scansByDate[key].push(s)
+          }
+
+          // Group sessions by local day (based on check-in time)
+          const sessionsByDate: Record<string, any[]> = {}
+          for (const sess of allSessions) {
+            const key = dateKeyInTz(sess.checkInTime)
+            if (!sessionsByDate[key]) sessionsByDate[key] = []
+            sessionsByDate[key].push(sess)
+          }
+
+          // Recompute breaks per local day by pairing break-start -> break-end in chronological order
+          const breaksByDate: Record<string, any[]> = {}
+          for (const [dateKey, scans] of Object.entries(scansByDate)) {
+            const sorted = [...scans].sort((a, b) => new Date(a.scanTime).getTime() - new Date(b.scanTime).getTime())
+            const dayBreaks: any[] = []
+            let currentStart: any | null = null
+            for (const log of sorted) {
+              if (log.scanType === 'break-start') {
+                currentStart = log
+              } else if (log.scanType === 'break-end' && currentStart) {
+                const durationMinutes = Math.floor((new Date(log.scanTime).getTime() - new Date(currentStart.scanTime).getTime()) / (1000 * 60))
+                dayBreaks.push({
+                  breakStart: { id: currentStart.id, scanTime: currentStart.scanTime, notes: currentStart.notes },
+                  breakEnd: { id: log.id, scanTime: log.scanTime, notes: log.notes },
+                  durationMinutes,
+                  worker: log.worker,
+                })
+                currentStart = null
+              }
+            }
+            breaksByDate[dateKey] = dayBreaks
+          }
+
+          // Build final localized daily cards
+          const localizedData: JobHistoryData[] = Object.keys(scansByDate)
+            .sort() // ascending by date string YYYY-MM-DD
+            .map(date => ({
+              date,
+              scans: scansByDate[date],
+              breaks: breaksByDate[date] || [],
+              sessions: sessionsByDate[date] || [],
+            }))
+
+          setJobHistoryData(localizedData)
+
+          // After we have scans/sessions, derive a workerId to fetch task history
+          const firstWorkerId = (() => {
+            for (const day of localizedData) {
+              if (day.scans?.length && day.scans[0].worker?.id) return day.scans[0].worker.id
+              if (day.sessions?.length && day.sessions[0].worker?.id) return day.sessions[0].worker.id
+            }
+            return null
+          })()
+
+          if (firstWorkerId) {
+            try {
+              const thRes = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/${job.id}/task-history?workerId=${firstWorkerId}`, {
+                method: "GET",
+                headers: {
+                  Authorization: `Bearer ${session.accessToken}`,
+                  "Content-Type": "application/json",
+                },
+              })
+              if (thRes.ok) {
+                const thJson: ApiTaskHistoryResponse = await thRes.json()
+                if (thJson.isSuccess && Array.isArray(thJson.data)) {
+                  const map: Record<string, { id: number; name: string; completed: boolean; completedByWorkerId: number }[]> = {}
+                  for (const item of thJson.data) {
+                    map[item.date] = item.tasks || []
+                  }
+                    setTaskHistoryByDate(map)
+                }
+              }
+            } catch (e) {
+              // non-fatal; keep UI working without task history
+              console.error("Failed to fetch task history", e)
+            }
+          }
         } else {
           throw new Error(result.developerError || result.message || "Failed to fetch job scan history")
         }
@@ -722,63 +847,34 @@ export function JobAttendanceDetail({ job, onBack }: JobAttendanceDetailProps) {
                         </div>
                       </div>
 
-                      {/* Daily Tasks Section */}
+                      {/* Daily Tasks Section (real task history) */}
                       <div className="p-4 border-b border-gray-200 dark:border-gray-700">
                         <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-3">{t("dailyTasks")}</h4>
                         <div className="flex flex-wrap gap-2">
-                          {/* Mock completed tasks */}
-                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400 border border-green-200 dark:border-green-800">
-                            <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                              <path
-                                fillRule="evenodd"
-                                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                clipRule="evenodd"
-                              />
-                            </svg>
-                            {t("completeProjectDocumentation")}
-                          </span>
-                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400 border border-green-200 dark:border-green-800">
-                            <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                              <path
-                                fillRule="evenodd"
-                                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                clipRule="evenodd"
-                              />
-                            </svg>
-                            {t("reviewClientProposals")}
-                          </span>
-                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400 border border-green-200 dark:border-green-800">
-                            <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                              <path
-                                fillRule="evenodd"
-                                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                clipRule="evenodd"
-                              />
-                            </svg>
-                            {t("submitWeeklyReport")}
-                          </span>
-
-                          {/* Mock incomplete tasks */}
-                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400 border border-red-200 dark:border-red-800">
-                            <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                              <path
-                                fillRule="evenodd"
-                                d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                                clipRule="evenodd"
-                              />
-                            </svg>
-                            {t("teamMeetingPreparation")}
-                          </span>
-                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400 border border-red-200 dark:border-red-800">
-                            <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                              <path
-                                fillRule="evenodd"
-                                d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                                clipRule="evenodd"
-                              />
-                            </svg>
-                            {t("updateSystemConfigurations")}
-                          </span>
+                          {(taskHistoryByDate[dayData.date] || []).map((task) => (
+                            <span
+                              key={`${dayData.date}-${task.id}`}
+                              className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${
+                                task.completed
+                                  ? "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400 border-green-200 dark:border-green-800"
+                                  : "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400 border-red-200 dark:border-red-800"
+                              }`}
+                            >
+                              {task.completed ? (
+                                <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                </svg>
+                              ) : (
+                                <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                                </svg>
+                              )}
+                              {task.name}
+                            </span>
+                          ))}
+                          {!(taskHistoryByDate[dayData.date]?.length) && (
+                            <span className="text-xs text-gray-500 dark:text-gray-400">{t("noTasksForThisDay")}</span>
+                          )}
                         </div>
                       </div>
 
