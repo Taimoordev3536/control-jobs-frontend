@@ -1,9 +1,10 @@
 "use client"
 
 import { useState, useEffect, useCallback, useMemo } from "react"
-import { X, Smartphone, Laptop, Phone, Wifi, MapPin, Globe, PhoneCall, QrCode, Info } from "lucide-react"
+import { X, Smartphone, Wifi, MapPin, Globe, QrCode, Info } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import DateInput from "@/components/ui/date-input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
@@ -87,8 +88,8 @@ const createInitialFormData = () => ({
   workCenterId: "1", // Always use mock WorkCenter id
   workerIds: [] as string[],
   observations: "",
-  scheduleType: "free" as const,
-  seasonType: "winter" as const,
+  scheduleType: "free" as string,
+  seasonType: "winter" as string,
   schedules: {
     monday: createInitialSchedule(),
     tuesday: createInitialSchedule(),
@@ -99,11 +100,6 @@ const createInitialFormData = () => ({
     sunday: createInitialSchedule(),
   } as ScheduleData,
   totalWeeklyHours: "00:00",
-  // signingMethods: {
-  //   mobile: { qrCode: false, wifi: false, gps: false },
-  //   laptop: { ip: false, wifi: false },
-  //   phone: { callerId: false },
-  // },
   signingMethods: {
     mobile: { qrCode: true, wifi: true, ip: true, gps: true },
   },
@@ -115,11 +111,17 @@ const createInitialFormData = () => ({
   duration: "",
   shifts: { tomorrow: false, late: false, evening: false },
   toBeCarriedOut: "during" as const,
-  periodicity: "daily" as const,
-  periodicityDate: "",
-  periodicityValue: "1",
-  weeklyDays: [] as string[],
-  monthlyDay: "1",
+  periodicity: "once" as string,
+  interval: 1,
+  onceDate: "",
+  taskStartDate: "",
+  taskEndDate: "",
+  weeklyDays: [] as number[],
+  monthlyDays: [] as number[],
+  monthlyWeekdays: [] as number[],
+  monthlyMode: "dates" as "dates" | "weekdays",
+  yearlyMonths: [] as number[],
+  yearlyDays: [] as number[],
   alertTaskCompleted: false,
   pendingTaskAlert: false,
   tasks: [] as Array<{
@@ -130,7 +132,16 @@ const createInitialFormData = () => ({
     shifts: { tomorrow: boolean; late: boolean; evening: boolean }
     toBeCarriedOut: string
     periodicity: string
-    periodicityValue: string
+    startDate: string
+    endDate: string
+    interval: number
+    onceDate: string
+    weeklyDays: number[]
+    monthlyDays: number[]
+    monthlyWeekdays: number[]
+    monthlyMode: string
+    yearlyMonths: number[]
+    yearlyDays: number[]
     alertTaskCompleted: boolean
     pendingTaskAlert: boolean
   }>,
@@ -250,11 +261,23 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
   }, [fetchWithAuth])
 
   const fetchWorkCenters = useCallback(async () => {
-      // Always use mock WorkCenter for all clients
-      setWorkCenters([{ id: 1, name: 'WorkCenter 1', address: '', contactName: '', contactPhone: '', contactEmail: '', clientId: Number(formData.clientId), createdAt: '', updatedAt: '' }]);
-  // setLoadingWorkCenters(false); // Commented: not needed for mock logic
+    // Always use mock WorkCenter for all clients
+    setWorkCenters([
+      {
+        id: 1,
+        name: "WorkCenter 1",
+        address: "",
+        contactName: "",
+        contactPhone: "",
+        contactEmail: "",
+        clientId: Number(formData.clientId),
+        createdAt: "",
+        updatedAt: "",
+      },
+    ])
+    // setLoadingWorkCenters(false); // Commented: not needed for mock logic
 
-      /*
+    /*
       // Previous code to fetch work centers from API
       // if (!formData.clientId) {
       //   setWorkCenters([])
@@ -273,7 +296,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
       //   setLoadingWorkCenters(false)
       // }
       */
-    }, [formData.clientId]);
+  }, [formData.clientId])
 
   // Time calculation functions
   const timeToMinutes = useCallback((timeStr: string): number => {
@@ -333,7 +356,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
   const updateNestedFormData = useCallback((parent: string, field: string, value: any) => {
     setFormData((prev) => ({
       ...prev,
-      [parent]: { ...prev[parent as keyof typeof prev], [field]: value },
+      [parent]: { ...(prev[parent as keyof typeof prev] as any), [field]: value },
     }))
   }, [])
 
@@ -341,7 +364,13 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
     (day: string, shift: string, timeType: "start" | "end", value: string) => {
       setFormData((prev) => {
         const newSchedules = { ...prev.schedules }
-        newSchedules[day][shift as keyof DaySchedule][timeType] = value
+        const daySchedule = newSchedules[day] as DaySchedule
+        if (daySchedule && typeof daySchedule === "object" && shift in daySchedule) {
+          const shiftData = daySchedule[shift as keyof DaySchedule] as TimeSlot
+          if (shiftData && typeof shiftData === "object") {
+            shiftData[timeType] = value
+          }
+        }
         newSchedules[day].total = calculateDayTotal(newSchedules[day])
         return {
           ...prev,
@@ -380,10 +409,16 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
       shifts: { ...formData.shifts },
       toBeCarriedOut: formData.toBeCarriedOut,
       periodicity: formData.periodicity,
-      periodicityValue: formData.periodicityValue,
-      periodicityDate: formData.periodicityDate,
+      startDate: formData.taskStartDate,
+      endDate: formData.taskEndDate,
+      interval: formData.interval,
+      onceDate: formData.onceDate,
       weeklyDays: formData.weeklyDays,
-      monthlyDay: formData.monthlyDay,
+      monthlyDays: formData.monthlyDays,
+      monthlyWeekdays: formData.monthlyWeekdays,
+      monthlyMode: formData.monthlyMode,
+      yearlyMonths: formData.yearlyMonths,
+      yearlyDays: formData.yearlyDays,
       alertTaskCompleted: formData.alertTaskCompleted,
       pendingTaskAlert: formData.pendingTaskAlert,
     }
@@ -391,17 +426,23 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
     setFormData((prev) => ({
       ...prev,
       tasks: [...prev.tasks, newTask],
-      // Reset task form fields
+      // Reset task form fields (preserve job-level start/end)
       task: "",
       taskObservations: "",
       duration: "",
       shifts: { tomorrow: false, late: false, evening: false },
       toBeCarriedOut: "during",
-      periodicity: "daily",
-      periodicityValue: "1",
-      periodicityDate: "",
+      periodicity: "once",
+      taskStartDate: "",
+      taskEndDate: "",
+      interval: 1,
+      onceDate: "",
       weeklyDays: [],
-      monthlyDay: "1",
+      monthlyDays: [],
+      monthlyWeekdays: [],
+      monthlyMode: "dates",
+      yearlyMonths: [],
+      yearlyDays: [],
       alertTaskCompleted: false,
       pendingTaskAlert: false,
     }))
@@ -482,26 +523,26 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
               startTime: shift.start,
               endTime: shift.end,
               totalHours: Math.floor((timeToMinutes(shift.end) - timeToMinutes(shift.start)) / 60),
-              scheduleType: formData.scheduleType === "programming" ? "fixed" : "flexible",
+              scheduleType: (formData.scheduleType as string) === "programming" ? "fixed" : "flexible",
               season: formData.seasonType,
             })
           }
         })
       })
       // Build signing methods
-    const signingMethods: any[] = []
-    if (formData.signingMethods.mobile) {
-      const mobileDetails = Object.entries(formData.signingMethods.mobile)
-        .filter(([_, enabled]) => enabled)
-        .map(([key]) => (key === "qrCode" ? "qrcode" : key))
-      if (mobileDetails.length > 0) {
-        signingMethods.push({
-          methodType: "mobile",
-          methodDetails: mobileDetails,
-          verifyIdentity: formData.verifyIdentity,
-        })
+      const signingMethods: any[] = []
+      if (formData.signingMethods.mobile) {
+        const mobileDetails = Object.entries(formData.signingMethods.mobile)
+          .filter(([_, enabled]) => enabled)
+          .map(([key]) => (key === "qrCode" ? "qrcode" : key))
+        if (mobileDetails.length > 0) {
+          signingMethods.push({
+            methodType: "mobile",
+            methodDetails: mobileDetails,
+            verifyIdentity: formData.verifyIdentity,
+          })
+        }
       }
-    }
 
       // Build alerts
       const alerts: any[] = []
@@ -543,40 +584,56 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
       //     })
       //   })
       // }
-const tasks: any[] = [];
-if (enableTasks && formData.tasks.length > 0) {
-  formData.tasks.forEach((task) => {
-    const selectedShifts = Object.entries(task.shifts)
-      .filter(([_, enabled]) => enabled)
-      .map(([key]) => (key === "tomorrow" ? "morning" : key === "late" ? "noon" : "evening"));
+      const tasks: any[] = []
+      if (enableTasks && formData.tasks.length > 0) {
+        formData.tasks.forEach((task) => {
+          const selectedShifts = Object.entries(task.shifts)
+            .filter(([_, enabled]) => enabled)
+            .map(([key]) => (key === "tomorrow" ? "morning" : key === "late" ? "noon" : "evening"))
 
-    const taskPayload = {
-      name: task.task,
-      note: task.observations,
-      expectedDuration: Number.parseInt(task.duration) || 1,
-      shift: selectedShifts[0] || "morning",
-      timing: task.toBeCarriedOut,
-      periodicity: task.periodicity,
-      periodicityValue: task.periodicityValue,
-      alertTask: task.alertTaskCompleted,
-      pendingTask: task.pendingTaskAlert,
-    };
+          const taskPayload: any = {
+            name: task.task,
+            note: task.observations,
+            expectedDuration: Number.parseInt(task.duration) || 1,
+            shift: selectedShifts[0] || "morning",
+            timing: task.toBeCarriedOut,
+            periodicity: task.periodicity,
+            alertTask: task.alertTaskCompleted,
+            pendingTask: task.pendingTaskAlert,
+          }
 
-    // Conditionally add periodicity fields based on UI logic
-    if (task.periodicity === "once" || task.periodicity === "personalized") {
-      taskPayload.periodicityDate = task.periodicityDate;
-    }
-    if (task.periodicity === "weekly") {
-      taskPayload.weeklyDays = task.weeklyDays;
-    }
-    if (task.periodicity === "monthly") {
-      taskPayload.monthlyDay = Number(task.monthlyDay); // Ensure number
-    }
+          // Common fields
+          if (task.startDate) taskPayload.startDate = task.startDate
+          if (task.endDate) taskPayload.endDate = task.endDate
+          if (task.interval) taskPayload.interval = Number(task.interval)
 
-    tasks.push(taskPayload);
-  });
-}
+          // Specific periodicity fields
+          if (task.periodicity === "once" && task.onceDate) {
+            taskPayload.onceDate = task.onceDate
+          }
+          if (task.periodicity === "weekly" && task.weeklyDays.length > 0) {
+            taskPayload.weeklyDays = task.weeklyDays
+          }
+          if (task.periodicity === "monthly") {
+            if (task.monthlyMode === "dates" && task.monthlyDays.length > 0) {
+              taskPayload.monthlyDays = task.monthlyDays
+            }
+            if (task.monthlyMode === "weekdays" && task.monthlyWeekdays.length > 0) {
+              taskPayload.monthlyWeekdays = task.monthlyWeekdays
+            }
+          }
+          if (task.periodicity === "yearly") {
+            if (task.yearlyMonths.length > 0) {
+              taskPayload.yearlyMonths = task.yearlyMonths
+            }
+            if (task.yearlyDays.length > 0) {
+              taskPayload.yearlyDays = task.yearlyDays
+            }
+          }
 
+          tasks.push(taskPayload)
+        })
+      }
 
       // Build survey
       let survey: any = null
@@ -614,7 +671,7 @@ if (enableTasks && formData.tasks.length > 0) {
         startDate: formData.startDate,
         endDate,
         clientId: Number.parseInt(formData.clientId),
-    workCenterId: 1, // Always use mock WorkCenter id as integer
+        workCenterId: 1, // Always use mock WorkCenter id as integer
         workerIds: formData.workerIds.map((id) => Number.parseInt(id)),
         note: formData.observations,
         shifts,
@@ -741,7 +798,7 @@ if (enableTasks && formData.tasks.length > 0) {
           value={formData.denomination}
           onChange={(e) => updateFormData("denomination", e.target.value)}
           className="mt-1"
-          placeholder="Enter job name"
+          placeholder={t("enterJobName") || "Enter job name"}
         />
       </div>
 
@@ -751,9 +808,8 @@ if (enableTasks && formData.tasks.length > 0) {
             {t("startDate") || "Start Date"}
           </Label>
           <div className="relative">
-            <Input
+            <DateInput
               id="startDate"
-              type="date"
               value={formData.startDate}
               onChange={(e) => updateFormData("startDate", e.target.value)}
               className="mt-1"
@@ -765,9 +821,8 @@ if (enableTasks && formData.tasks.length > 0) {
             {t("endDate") || "End Date"}
           </Label>
           <div className="relative">
-            <Input
+            <DateInput
               id="endDate"
-              type="date"
               value={formData.endDate}
               onChange={(e) => updateFormData("endDate", e.target.value)}
               className="mt-1"
@@ -788,7 +843,7 @@ if (enableTasks && formData.tasks.length > 0) {
           }}
         >
           <SelectTrigger className="mt-1">
-            <SelectValue placeholder={loadingClients ? "Loading clients..." : "Select a client"} />
+            <SelectValue placeholder={loadingClients ? t("loadingClients") : t("selectAClient")} />
           </SelectTrigger>
           <SelectContent>
             {clients.map((client) => (
@@ -810,19 +865,13 @@ if (enableTasks && formData.tasks.length > 0) {
           disabled={!formData.clientId}
         >
           <SelectTrigger className="mt-1">
-            <SelectValue
-              placeholder={
-                !formData.clientId
-                  ? "Select a client first"
-                  : "Select a work center"
-              }
-            />
+            <SelectValue placeholder={!formData.clientId ? "Select a client first" : "Select a work center"} />
           </SelectTrigger>
           <SelectContent>
-              {/* Only show the mock WorkCenter with id 1 and value '1' */}
-              <SelectItem key={workCenters[0]?.id || '1'} value="1">
-                {workCenters[0]?.name || 'Default WorkCenter'}
-              </SelectItem>
+            {/* Only show the mock WorkCenter with id 1 and value '1' */}
+            <SelectItem key={workCenters[0]?.id || "1"} value="1">
+              {workCenters[0]?.name || "Default WorkCenter"}
+            </SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -891,7 +940,7 @@ if (enableTasks && formData.tasks.length > 0) {
         <div className="flex items-center gap-4">
           <span className="text-sm font-medium">{t("free") || "Free"}</span>
           <Switch
-            checked={formData.scheduleType === "programming"}
+            checked={(formData.scheduleType as string) === "programming"}
             onCheckedChange={(checked) => updateFormData("scheduleType", checked ? "programming" : "free")}
           />
           <span className="text-sm font-medium">{t("programming") || "Programming"}</span>
@@ -899,14 +948,14 @@ if (enableTasks && formData.tasks.length > 0) {
         <div className="flex items-center gap-4">
           <span className="text-sm font-medium">{t("winter") || "Winter"}</span>
           <Switch
-            checked={formData.seasonType === "summer"}
+            checked={(formData.seasonType as string) === "summer"}
             onCheckedChange={(checked) => updateFormData("seasonType", checked ? "summer" : "winter")}
           />
           <span className="text-sm font-medium">{t("summer") || "Summer"}</span>
         </div>
       </div>
 
-      {formData.scheduleType === "programming" && (
+      {(formData.scheduleType as string) === "programming" && (
         <div className="overflow-x-auto">
           <table className="w-full border-collapse border border-border">
             <thead>
@@ -1020,116 +1069,116 @@ if (enableTasks && formData.tasks.length > 0) {
     </div>
   )
 
- const renderSigningMethodsStep = () => (
-  <div className="space-y-8">
-    <h3 className="text-lg font-medium text-center mb-6 underline">{t("signingMethods") || "Signing methods"}</h3>
-
+  const renderSigningMethodsStep = () => (
     <div className="space-y-8">
-      {/* Mobile Device */}
-      <div className="flex items-center gap-8">
-        <div className="w-20 h-20 flex items-center justify-center">
-          <Smartphone className="w-12 h-12 text-foreground" />
-        </div>
-        <div className="flex gap-8">
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="mobile-qr"
-              checked={formData.signingMethods.mobile.qrCode}
-              onCheckedChange={(checked) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  signingMethods: {
-                    mobile: { ...prev.signingMethods.mobile, qrCode: !!checked },
-                  },
-                }))
-              }
-            />
-            <div className="flex flex-col items-center">
-              <QrCode className="w-8 h-8 mb-1" />
-              <Label htmlFor="mobile-qr" className="text-sm">
-                QR Code
-              </Label>
-            </div>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="mobile-wifi"
-              checked={formData.signingMethods.mobile.wifi}
-              onCheckedChange={(checked) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  signingMethods: {
-                    mobile: { ...prev.signingMethods.mobile, wifi: !!checked },
-                  },
-                }))
-              }
-            />
-            <div className="flex flex-col items-center">
-              <Wifi className="w-8 h-8 mb-1" />
-              <Label htmlFor="mobile-wifi" className="text-sm">
-                Wifi
-              </Label>
-            </div>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="mobile-ip"
-              checked={formData.signingMethods.mobile.ip}
-              onCheckedChange={(checked) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  signingMethods: {
-                    mobile: { ...prev.signingMethods.mobile, ip: !!checked },
-                  },
-                }))
-              }
-            />
-            <div className="flex flex-col items-center">
-              <Globe className="w-8 h-8 mb-1" />
-              <Label htmlFor="mobile-ip" className="text-sm">
-                IP
-              </Label>
-            </div>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="mobile-gps"
-              checked={formData.signingMethods.mobile.gps}
-              onCheckedChange={(checked) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  signingMethods: {
-                    mobile: { ...prev.signingMethods.mobile, gps: !!checked },
-                  },
-                }))
-              }
-            />
-            <div className="flex flex-col items-center">
-              <MapPin className="w-8 h-8 mb-1" />
-              <Label htmlFor="mobile-gps" className="text-sm">
-                GPS
-              </Label>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+      <h3 className="text-lg font-medium text-center mb-6 underline">{t("signingMethods") || "Signing methods"}</h3>
 
-    <div className="mt-12 text-center">
-      <div className="flex items-center justify-center gap-4">
-        <span className="text-sm font-medium">{t("verifyIdentity") || "Verify Identity"}</span>
-        <div className="flex items-center gap-2">
-          <span className="text-sm">{t("no") || "No"}</span>
-          <Switch
-            checked={formData.verifyIdentity}
-            onCheckedChange={(checked) => updateFormData("verifyIdentity", checked)}
-          />
-          <span className="text-sm">{t("si") || "Yes"}</span>
+      <div className="space-y-8">
+        {/* Mobile Device */}
+        <div className="flex items-center gap-8">
+          <div className="w-20 h-20 flex items-center justify-center">
+            <Smartphone className="w-12 h-12 text-foreground" />
+          </div>
+          <div className="flex gap-8">
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="mobile-qr"
+                checked={formData.signingMethods.mobile.qrCode}
+                onCheckedChange={(checked) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    signingMethods: {
+                      mobile: { ...prev.signingMethods.mobile, qrCode: !!checked },
+                    },
+                  }))
+                }
+              />
+              <div className="flex flex-col items-center">
+                <QrCode className="w-8 h-8 mb-1" />
+                <Label htmlFor="mobile-qr" className="text-sm">
+                  QR Code
+                </Label>
+              </div>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="mobile-wifi"
+                checked={formData.signingMethods.mobile.wifi}
+                onCheckedChange={(checked) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    signingMethods: {
+                      mobile: { ...prev.signingMethods.mobile, wifi: !!checked },
+                    },
+                  }))
+                }
+              />
+              <div className="flex flex-col items-center">
+                <Wifi className="w-8 h-8 mb-1" />
+                <Label htmlFor="mobile-wifi" className="text-sm">
+                  Wifi
+                </Label>
+              </div>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="mobile-ip"
+                checked={formData.signingMethods.mobile.ip}
+                onCheckedChange={(checked) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    signingMethods: {
+                      mobile: { ...prev.signingMethods.mobile, ip: !!checked },
+                    },
+                  }))
+                }
+              />
+              <div className="flex flex-col items-center">
+                <Globe className="w-8 h-8 mb-1" />
+                <Label htmlFor="mobile-ip" className="text-sm">
+                  IP
+                </Label>
+              </div>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="mobile-gps"
+                checked={formData.signingMethods.mobile.gps}
+                onCheckedChange={(checked) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    signingMethods: {
+                      mobile: { ...prev.signingMethods.mobile, gps: !!checked },
+                    },
+                  }))
+                }
+              />
+              <div className="flex flex-col items-center">
+                <MapPin className="w-8 h-8 mb-1" />
+                <Label htmlFor="mobile-gps" className="text-sm">
+                  GPS
+                </Label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-12 text-center">
+        <div className="flex items-center justify-center gap-4">
+          <span className="text-sm font-medium">{t("verifyIdentity") || "Verify Identity"}</span>
+          <div className="flex items-center gap-2">
+            <span className="text-sm">{t("no") || "No"}</span>
+            <Switch
+              checked={formData.verifyIdentity}
+              onCheckedChange={(checked) => updateFormData("verifyIdentity", checked)}
+            />
+            <span className="text-sm">{t("si") || "Yes"}</span>
+          </div>
         </div>
       </div>
     </div>
-  </div>
-)
+  )
 
   const renderAlertsStep = () => (
     <div className="space-y-8">
@@ -1397,122 +1446,337 @@ if (enableTasks && formData.tasks.length > 0) {
             <div>
               <Label className="text-sm font-medium text-foreground">{t("periodicity") || "Periodicity"}</Label>
               <div className="flex items-center gap-2 mt-1">
-                {/* <Select value={formData.periodicity} onValueChange={(value) => updateFormData("periodicity", value)}>
+                <Select value={formData.periodicity} onValueChange={(value) => updateFormData("periodicity", value)}>
                   <SelectTrigger className="w-40">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="once">{t("once") || "Once"}</SelectItem>
                     <SelectItem value="daily">{t("daily") || "Daily"}</SelectItem>
                     <SelectItem value="weekly">{t("weekly") || "Weekly"}</SelectItem>
                     <SelectItem value="monthly">{t("monthly") || "Monthly"}</SelectItem>
-                    <SelectItem value="annual">{t("annual") || "Annual"}</SelectItem>
-                    <SelectItem value="once">{t("once") || "Once"}</SelectItem>
-                    <SelectItem value="personalize">{t("personalize") || "Personalize"}</SelectItem>
+                    <SelectItem value="yearly">{t("yearly") || "Yearly"}</SelectItem>
                   </SelectContent>
-                </Select> */}
-                <Select value={formData.periodicity} onValueChange={(value) => updateFormData("periodicity", value)}>
-  <SelectTrigger className="w-40">
-    <SelectValue />
-  </SelectTrigger>
-  <SelectContent>
-    <SelectItem value="daily">{t("daily") || "Daily"}</SelectItem>
-    <SelectItem value="weekly">{t("weekly") || "Weekly"}</SelectItem>
-    <SelectItem value="monthly">{t("monthly") || "Monthly"}</SelectItem>
-    <SelectItem value="annually">{t("annual") || "Annual"}</SelectItem>
-    <SelectItem value="once">{t("once") || "Once"}</SelectItem>
-    <SelectItem value="personalized">{t("personalize") || "Personalize"}</SelectItem>
-  </SelectContent>
-</Select>
-
-                {/* Show different UI based on periodicity type */}
-                {(formData.periodicity === "daily" ||
-                  formData.periodicity === "weekly" ||
-                  formData.periodicity === "monthly" ||
-                  formData.periodicity === "annual") && (
-                  <>
-                    <span className="text-sm">each</span>
-                    <Input
-                      type="number"
-                      value={formData.periodicityValue}
-                      onChange={(e) => updateFormData("periodicityValue", e.target.value)}
-                      className="w-16"
-                      min="1"
-                    />
-                    <span className="text-sm">
-                      {formData.periodicity === "daily"
-                        ? "days"
-                        : formData.periodicity === "weekly"
-                          ? "weeks"
-                          : formData.periodicity === "monthly"
-                            ? "months"
-                            : "years"}
-                    </span>
-                  </>
-                )}
-
-                {(formData.periodicity === "once" || formData.periodicity === "personalize") && (
-                  <>
-                    <span className="text-sm">the</span>
-                    <Input
-                      type="date"
-                      value={formData.periodicityDate}
-                      onChange={(e) => updateFormData("periodicityDate", e.target.value)}
-                      className="w-40"
-                    />
-                  </>
-                )}
+                </Select>
               </div>
 
-              {/* Weekly days selection */}
-              {formData.periodicity === "weekly" && (
-                <div className="mt-2 flex gap-2">
-                  {[
-                    { key: "L", label: "L" },
-                    { key: "M", label: "M" },
-                    { key: "X", label: "X" },
-                    { key: "J", label: "J" },
-                    { key: "V", label: "V" },
-                    { key: "S", label: "S" },
-                    { key: "D", label: "D" },
-                  ].map((day) => (
-                    <div key={day.key} className="flex items-center space-x-1">
-                      <Checkbox
-                        id={`day-${day.key}`}
-                        checked={formData.weeklyDays?.includes(day.key) || false}
-                        onCheckedChange={(checked) => {
-                          const currentDays = formData.weeklyDays || []
-                          if (checked) {
-                            updateFormData("weeklyDays", [...currentDays, day.key])
-                          } else {
-                            updateFormData(
-                              "weeklyDays",
-                              currentDays.filter((d) => d !== day.key),
-                            )
-                          }
-                        }}
+              <div className="mt-4 p-4 bg-muted/30 border border-border rounded-lg">
+                {(formData.periodicity as string) !== "once" && (
+                    <div className="mb-4">
+                      <Label className="text-sm font-medium mb-2 block">{t("startDate") || "Start Date"}</Label>
+                      <DateInput
+                        value={formData.taskStartDate}
+                        onChange={(e) => updateFormData("taskStartDate", e.target.value)}
+                        className="w-40"
+                        placeholder={t("startDate") || "Start date"}
                       />
-                      <Label htmlFor={`day-${day.key}`} className="text-xs">
-                        {day.label}
-                      </Label>
                     </div>
-                  ))}
-                </div>
-              )}
+                )}
 
-              {/* Monthly day selection */}
-              {formData.periodicity === "monthly" && (
-                <div className="mt-2 flex items-center gap-2">
-                  <span className="text-sm">The day</span>
-                  <Input
-                    type="number"
-                    value={formData.monthlyDay}
-                    onChange={(e) => updateFormData("monthlyDay", e.target.value)}
-                    className="w-16"
-                    min="1"
-                    max="31"
-                  />
-                </div>
-              )}
+                {((formData.periodicity as string) === "daily" ||
+                  (formData.periodicity as string) === "weekly" ||
+                  (formData.periodicity as string) === "monthly" ||
+                  (formData.periodicity as string) === "yearly") && (
+                  <>
+                    <div className="mb-4">
+                      <Label className="text-sm font-medium mb-2 block">
+                        {t("endDate") || "End Date"} ({t("optional") || "optional"})
+                      </Label>
+                      <DateInput
+                        value={formData.taskEndDate}
+                        onChange={(e) => updateFormData("taskEndDate", e.target.value)}
+                        className="w-40"
+                        placeholder={`${t("endDate") || "End date"} (${t("optional") || "optional"})`}
+                      />
+                    </div>
+                    <div className="mb-4">
+                      <Label className="text-sm font-medium mb-2 block">{t("interval") || "Interval"}</Label>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">{t("every") || "Every"}</span>
+                        <Input
+                          type="number"
+                          value={formData.interval}
+                          onChange={(e) => updateFormData("interval", Number(e.target.value))}
+                          className="w-16 text-center"
+                          min="1"
+                        />
+                        <span className="text-sm text-muted-foreground">
+                          {(formData.periodicity as string) === "daily"
+                            ? formData.interval === 1
+                              ? t("day") || "day"
+                              : t("days") || "days"
+                            : (formData.periodicity as string) === "weekly"
+                              ? formData.interval === 1
+                                ? t("week") || "week"
+                                : t("weeks") || "weeks"
+                              : (formData.periodicity as string) === "monthly"
+                                ? formData.interval === 1
+                                  ? t("month") || "month"
+                                  : t("months") || "months"
+                                : formData.interval === 1
+                                  ? t("year") || "year"
+                                  : t("years") || "years"}
+                        </span>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {(formData.periodicity as string) === "once" && (
+                  <div className="mb-4">
+                    <Label className="text-sm font-medium mb-2 block">{t("date") || "Date"}</Label>
+                    <DateInput
+                      value={formData.onceDate}
+                      onChange={(e) => updateFormData("onceDate", e.target.value)}
+                      className="w-40"
+                      placeholder={t("selectDate") || "Select date"}
+                    />
+                  </div>
+                )}
+
+                {(formData.periodicity as string) === "weekly" && (
+                  <div>
+                    <Label className="text-sm font-medium mb-2 block">{t("selectDays")}</Label>
+                    <div className="flex gap-2">
+                      {[
+                        { key: 0, label: t("dayS"), full: t("sunday") },
+                        { key: 1, label: t("dayM"), full: t("monday") },
+                        { key: 2, label: t("dayT"), full: t("tuesday") },
+                        { key: 3, label: t("dayW"), full: t("wednesday") },
+                        { key: 4, label: t("dayT"), full: t("thursday") },
+                        { key: 5, label: t("dayF"), full: t("friday") },
+                        { key: 6, label: t("dayS"), full: t("saturday") },
+                      ].map((day) => (
+                        <button
+                          key={day.key}
+                          type="button"
+                          className={`
+                            w-8 h-8 flex items-center justify-center text-sm font-medium rounded border-2 transition-all
+                            ${
+                              formData.weeklyDays?.includes(day.key)
+                                ? "border-primary bg-primary text-primary-foreground"
+                                : "border-border bg-background hover:border-primary hover:bg-muted"
+                            }
+                          `}
+                          onClick={() => {
+                            const currentDays = formData.weeklyDays || []
+                            if (currentDays.includes(day.key)) {
+                              updateFormData(
+                                "weeklyDays",
+                                currentDays.filter((d) => d !== day.key),
+                              )
+                            } else {
+                              updateFormData("weeklyDays", [...currentDays, day.key])
+                            }
+                          }}
+                          title={day.full}
+                        >
+                          {day.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {(formData.periodicity as string) === "monthly" && (
+                  <div className="space-y-4">
+                    <div>
+                      <Label className="text-sm font-medium mb-2 block">{t("scheduleBy")}</Label>
+                      <div className="flex gap-3">
+                        <button
+                          type="button"
+                          className={`
+                            flex-1 py-3 px-4 text-sm font-medium rounded border-2 transition-all text-center
+                            ${
+                              formData.monthlyMode === "dates"
+                                ? "border-primary bg-primary text-primary-foreground"
+                                : "border-border bg-background hover:border-primary hover:bg-muted"
+                            }
+                          `}
+                          onClick={() => {
+                            updateFormData("monthlyMode", "dates")
+                            updateFormData("monthlyWeekdays", []) // Clear weekdays when switching to dates
+                          }}
+                        >
+                          {t("dates")}
+                        </button>
+                        <button
+                          type="button"
+                          className={`
+                            flex-1 py-3 px-4 text-sm font-medium rounded border-2 transition-all text-center
+                            ${
+                              formData.monthlyMode === "weekdays"
+                                ? "border-primary bg-primary text-primary-foreground"
+                                : "border-border bg-background hover:border-primary hover:bg-muted"
+                            }
+                          `}
+                          onClick={() => {
+                            updateFormData("monthlyMode", "weekdays")
+                            updateFormData("monthlyDays", []) // Clear dates when switching to weekdays
+                          }}
+                        >
+                          {t("weekdays")}
+                        </button>
+                      </div>
+                    </div>
+
+                    {formData.monthlyMode === "dates" && (
+                      <div>
+                        <Label className="text-sm font-medium mb-2 block">{t("monthlyDates")}</Label>
+                        <div className="flex flex-wrap gap-2">
+                          {Array.from({ length: 31 }, (_, i) => i + 1).map((date) => (
+                            <button
+                              key={date}
+                              type="button"
+                              className={`
+                                w-8 h-8 flex items-center justify-center text-sm font-medium rounded border-2 transition-all
+                                ${
+                                  formData.monthlyDays?.includes(date)
+                                    ? "border-primary bg-primary text-primary-foreground"
+                                    : "border-border bg-background hover:border-primary hover:bg-muted"
+                                }
+                              `}
+                              onClick={() => {
+                                const currentDates = formData.monthlyDays || []
+                                if (currentDates.includes(date)) {
+                                  updateFormData(
+                                    "monthlyDays",
+                                    currentDates.filter((d) => d !== date),
+                                  )
+                                } else {
+                                  updateFormData("monthlyDays", [...currentDates, date])
+                                }
+                              }}
+                            >
+                              {date}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {formData.monthlyMode === "weekdays" && (
+                      <div>
+                        <Label className="text-sm font-medium mb-2 block">{t("monthlyWeekdays")}</Label>
+                        <div className="flex flex-wrap gap-3">
+                          {[
+                            { key: "sunday", label: t("sunday"), value: 0 },
+                            { key: "monday", label: t("monday"), value: 1 },
+                            { key: "tuesday", label: t("tuesday"), value: 2 },
+                            { key: "wednesday", label: t("wednesday"), value: 3 },
+                            { key: "thursday", label: t("thursday"), value: 4 },
+                            { key: "friday", label: t("friday"), value: 5 },
+                            { key: "saturday", label: t("saturday"), value: 6 },
+                          ].map((day) => (
+                            <div key={day.key} className="flex items-center space-x-2">
+                              <Checkbox
+                                id={`monthly-${day.key}`}
+                                checked={formData.monthlyWeekdays?.includes(day.value) || false}
+                                onCheckedChange={(checked) => {
+                                  const currentDays = formData.monthlyWeekdays || []
+                                  if (checked) {
+                                    updateFormData("monthlyWeekdays", [...currentDays, day.value])
+                                  } else {
+                                    updateFormData(
+                                      "monthlyWeekdays",
+                                      currentDays.filter((d) => d !== day.value),
+                                    )
+                                  }
+                                }}
+                              />
+                              <Label htmlFor={`monthly-${day.key}`} className="text-sm cursor-pointer">
+                                {day.label}
+                              </Label>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {(formData.periodicity as string) === "yearly" && (
+                  <div className="space-y-4">
+                    <div>
+                      <Label className="text-sm font-medium mb-2 block">{t("yearlyMonths")}</Label>
+                      <div className="flex flex-wrap gap-2">
+                        {[
+                          { key: "january", label: t("jan"), value: 1 },
+                          { key: "february", label: t("feb"), value: 2 },
+                          { key: "march", label: t("mar"), value: 3 },
+                          { key: "april", label: t("apr"), value: 4 },
+                          { key: "may", label: t("may"), value: 5 },
+                          { key: "june", label: t("jun"), value: 6 },
+                          { key: "july", label: t("jul"), value: 7 },
+                          { key: "august", label: t("aug"), value: 8 },
+                          { key: "september", label: t("sep"), value: 9 },
+                          { key: "october", label: t("oct"), value: 10 },
+                          { key: "november", label: t("nov"), value: 11 },
+                          { key: "december", label: t("dec"), value: 12 },
+                        ].map((month) => (
+                          <button
+                            key={month.key}
+                            type="button"
+                            className={`
+                              px-3 py-2 text-sm font-medium rounded border-2 transition-all
+                              ${
+                                formData.yearlyMonths?.includes(month.value)
+                                  ? "border-primary bg-primary text-primary-foreground"
+                                  : "border-border bg-background hover:border-primary hover:bg-muted"
+                              }
+                            `}
+                            onClick={() => {
+                              const currentMonths = formData.yearlyMonths || []
+                              if (currentMonths.includes(month.value)) {
+                                updateFormData(
+                                  "yearlyMonths",
+                                  currentMonths.filter((m) => m !== month.value),
+                                )
+                              } else {
+                                updateFormData("yearlyMonths", [...currentMonths, month.value])
+                              }
+                            }}
+                          >
+                            {month.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium mb-2 block">{t("yearlyDates") || "Yearly Dates"}</Label>
+                      <div className="flex flex-wrap gap-2">
+                        {Array.from({ length: 31 }, (_, i) => i + 1).map((date) => (
+                          <button
+                            key={date}
+                            type="button"
+                            className={`
+                              w-8 h-8 flex items-center justify-center text-sm font-medium rounded border-2 transition-all
+                              ${
+                                formData.yearlyDays?.includes(date)
+                                  ? "border-primary bg-primary text-primary-foreground"
+                                  : "border-border bg-background hover:border-primary hover:bg-muted"
+                              }
+                            `}
+                            onClick={() => {
+                              const currentDates = formData.yearlyDays || []
+                              if (currentDates.includes(date)) {
+                                updateFormData(
+                                  "yearlyDays",
+                                  currentDates.filter((d) => d !== date),
+                                )
+                              } else {
+                                updateFormData("yearlyDays", [...currentDates, date])
+                              }
+                            }}
+                          >
+                            {date}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -1542,7 +1806,7 @@ if (enableTasks && formData.tasks.length > 0) {
           <div className="flex justify-between items-center pt-4">
             <div className="flex gap-2">
               <Button onClick={addTaskToList} className="bg-purple-600 hover:bg-purple-700 text-white px-6">
-                Add
+                {t("add") || "Add"}
               </Button>
               <Button
                 variant="outline"
@@ -1554,18 +1818,24 @@ if (enableTasks && formData.tasks.length > 0) {
                     duration: "",
                     shifts: { tomorrow: false, late: false, evening: false },
                     toBeCarriedOut: "during",
-                    periodicity: "daily",
-                    periodicityValue: "1",
-                    periodicityDate: "",
+                    periodicity: "once",
+                    startDate: "",
+                    endDate: "",
+                    interval: 1,
+                    onceDate: "",
                     weeklyDays: [],
-                    monthlyDay: "1",
+                    monthlyDays: [],
+                    monthlyWeekdays: [],
+                    monthlyMode: "dates",
+                    yearlyMonths: [],
+                    yearlyDays: [],
                     alertTaskCompleted: false,
                     pendingTaskAlert: false,
                   }))
                 }}
                 className="px-6"
               >
-                Cancel
+                {t("cancel") || "Cancel"}
               </Button>
             </div>
             <Button
@@ -1573,7 +1843,7 @@ if (enableTasks && formData.tasks.length > 0) {
               onClick={() => setFormData((prev) => ({ ...prev, tasks: [] }))}
               className="bg-yellow-500 hover:bg-yellow-600 text-white px-6"
             >
-              Eliminate
+              {t("eliminate") || "Eliminate"}
             </Button>
           </div>
 
@@ -1583,12 +1853,14 @@ if (enableTasks && formData.tasks.length > 0) {
                 <table className="w-full">
                   <thead className="bg-purple-600 text-white">
                     <tr>
-                      <th className="px-4 py-2 text-left text-sm font-medium">To be carried out</th>
-                      <th className="px-4 py-2 text-left text-sm font-medium">Order</th>
-                      <th className="px-4 py-2 text-left text-sm font-medium">Task</th>
-                      <th className="px-4 py-2 text-left text-sm font-medium">Periodicity</th>
-                      <th className="px-4 py-2 text-left text-sm font-medium">Duration</th>
-                      <th className="px-4 py-2 text-left text-sm font-medium">Alerts</th>
+                      <th className="px-4 py-2 text-left text-sm font-medium">
+                        {t("toBeCarriedOut") || "To be carried out"}
+                      </th>
+                      <th className="px-4 py-2 text-left text-sm font-medium">{t("order") || "Order"}</th>
+                      <th className="px-4 py-2 text-left text-sm font-medium">{t("task") || "Task"}</th>
+                      <th className="px-4 py-2 text-left text-sm font-medium">{t("periodicity") || "Periodicity"}</th>
+                      <th className="px-4 py-2 text-left text-sm font-medium">{t("duration") || "Duration"}</th>
+                      <th className="px-4 py-2 text-left text-sm font-medium">{t("alerts") || "Alerts"}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1598,18 +1870,24 @@ if (enableTasks && formData.tasks.length > 0) {
                         <td className="px-4 py-2 text-sm">{index + 1}</td>
                         <td className="px-4 py-2 text-sm">{task.task}</td>
                         <td className="px-4 py-2 text-sm">
-                          {task.periodicity === "once" || task.periodicity === "personalize"
-                            ? task.periodicityDate
-                            : `Every ${task.periodicityValue} ${
+                          {task.periodicity === "once"
+                            ? task.onceDate
+                            : `${t("every") || "Every"} ${task.interval} ${
                                 task.periodicity === "daily"
-                                  ? "day" + (task.periodicityValue !== "1" ? "s" : "")
+                                  ? task.interval === 1
+                                    ? t("day") || "day"
+                                    : t("days") || "days"
                                   : task.periodicity === "weekly"
-                                    ? "week" + (task.periodicityValue !== "1" ? "s" : "")
+                                    ? task.interval === 1
+                                      ? t("week") || "week"
+                                      : t("weeks") || "weeks"
                                     : task.periodicity === "monthly"
-                                      ? "month" + (task.periodicityValue !== "1" ? "s" : "")
-                                      : task.periodicity === "annual"
-                                        ? "year" + (task.periodicityValue !== "1" ? "s" : "")
-                                        : ""
+                                      ? task.interval === 1
+                                        ? t("month") || "month"
+                                        : t("months") || "months"
+                                      : task.interval === 1
+                                        ? t("year") || "year"
+                                        : t("years") || "years"
                               }`}
                         </td>
                         <td className="px-4 py-2 text-sm">{task.duration || "--:-- --"}</td>

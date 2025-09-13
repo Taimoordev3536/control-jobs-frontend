@@ -28,14 +28,15 @@ export function TasksForm({
 }: TasksFormProps) {
   const { t } = useTranslation()
 
+  // Map Sunday=0 ... Saturday=6 per backend
   const daysOfWeek = [
-    { key: "monday", label: t("monday") || "Monday" },
-    { key: "tuesday", label: t("tuesday") || "Tuesday" },
-    { key: "wednesday", label: t("wednesday") || "Wednesday" },
-    { key: "thursday", label: t("thursday") || "Thursday" },
-    { key: "friday", label: t("friday") || "Friday" },
-    { key: "saturday", label: t("saturday") || "Saturday" },
-    { key: "sunday", label: t("sunday") || "Sunday" },
+    { key: 0, label: t("sunday") || "Sunday" },
+    { key: 1, label: t("monday") || "Monday" },
+    { key: 2, label: t("tuesday") || "Tuesday" },
+    { key: 3, label: t("wednesday") || "Wednesday" },
+    { key: 4, label: t("thursday") || "Thursday" },
+    { key: 5, label: t("friday") || "Friday" },
+    { key: 6, label: t("saturday") || "Saturday" },
   ]
 
   return (
@@ -98,7 +99,7 @@ export function TasksForm({
               </div>
             </div>
 
-            <div>
+            <div className="space-y-2">
               <Label className="text-sm font-medium text-foreground flex items-center gap-1">
                 {t("toBeCarriedOut") || "To be carried out"}
                 <Info className="w-4 h-4 text-muted-foreground" />
@@ -143,6 +144,16 @@ export function TasksForm({
                 >
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem
+                      value="before"
+                      id="before"
+                      className="peer h-4 w-4 shrink-0 rounded-full border border-primary ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
+                    />
+                    <Label htmlFor="before" className="text-sm peer-data-[state=checked]:text-primary">
+                      {t("before") || "Before"}
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem
                       value="during"
                       id="during"
                       className="peer h-4 w-4 shrink-0 rounded-full border border-primary ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
@@ -165,7 +176,7 @@ export function TasksForm({
               </div>
             </div>
 
-            <div>
+            <div className="space-y-2">
               <Label className="text-sm font-medium text-foreground flex items-center gap-1">
                 {t("periodicity") || "Periodicity"}
                 <Info className="w-4 h-4 text-muted-foreground" />
@@ -182,38 +193,42 @@ export function TasksForm({
                   <SelectItem value="daily">{t("daily") || "Daily"}</SelectItem>
                   <SelectItem value="weekly">{t("weekly") || "Weekly"}</SelectItem>
                   <SelectItem value="monthly">{t("monthly") || "Monthly"}</SelectItem>
+                  <SelectItem value="yearly">{t("yearly") || "Yearly"}</SelectItem>
                 </SelectContent>
               </Select>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="taskStartDate" className="text-sm font-medium text-foreground">{t("startDate") || "Start date"}</Label>
+                  <Input id="taskStartDate" type="date" value={formData.startDate || ""} onChange={(e) => updateFormData("startDate", e.target.value)} className="mt-1" />
+                </div>
+                <div>
+                  <Label htmlFor="taskEndDate" className="text-sm font-medium text-foreground">{t("endDate") || "End date"}</Label>
+                  <Input id="taskEndDate" type="date" value={formData.endDate || ""} onChange={(e) => updateFormData("endDate", e.target.value)} className="mt-1" />
+                </div>
+                <div>
+                  <Label htmlFor="taskInterval" className="text-sm font-medium text-foreground">{t("interval") || "Interval"}</Label>
+                  <Input id="taskInterval" type="number" min={1} value={formData.interval ?? 1} onChange={(e) => updateFormData("interval", e.target.value)} className="mt-1" />
+                </div>
+              </div>
             </div>
 
             {formData.periodicity === "once" && (
               <div>
-                <Label htmlFor="periodicityDate" className="text-sm font-medium text-foreground">
-                  {t("periodicityDate") || "Periodicity Date"}
+                <Label htmlFor="onceDate" className="text-sm font-medium text-foreground">
+                  {t("onceDate") || "Once date"}
                 </Label>
                 <Input
-                  id="periodicityDate"
+                  id="onceDate"
                   type="date"
-                  value={formData.periodicityDate}
-                  onChange={(e) => updateFormData("periodicityDate", e.target.value)}
+                  value={formData.onceDate || ""}
+                  onChange={(e) => updateFormData("onceDate", e.target.value)}
                   className="mt-1"
                 />
               </div>
             )}
 
             {formData.periodicity === "daily" && (
-              <div>
-                <Label htmlFor="periodicityValue" className="text-sm font-medium text-foreground">
-                  {t("periodicityValue") || "Periodicity Value"}
-                </Label>
-                <Input
-                  id="periodicityValue"
-                  type="number"
-                  value={formData.periodicityValue}
-                  onChange={(e) => updateFormData("periodicityValue", e.target.value)}
-                  className="mt-1 w-24"
-                />
-              </div>
+              <div className="text-sm text-muted-foreground">{t("runsEveryInterval") || "Runs every interval days between start and end dates"}</div>
             )}
 
             {formData.periodicity === "weekly" && (
@@ -226,11 +241,12 @@ export function TasksForm({
                     <div key={day.key} className="flex items-center space-x-2">
                       <Checkbox
                         id={`weekly-${day.key}`}
-                        checked={formData.weeklyDays.includes(day.key)}
+                        checked={Array.isArray(formData.weeklyDays) && formData.weeklyDays.includes(day.key)}
                         onCheckedChange={(checked) => {
+                          const safe = Array.isArray(formData.weeklyDays) ? formData.weeklyDays : []
                           const newDays = checked
-                            ? [...formData.weeklyDays, day.key]
-                            : formData.weeklyDays.filter((d) => d !== day.key)
+                            ? [...safe, day.key]
+                            : safe.filter((d: number) => d !== day.key)
                           updateFormData("weeklyDays", newDays)
                         }}
                       />
@@ -244,17 +260,69 @@ export function TasksForm({
             )}
 
             {formData.periodicity === "monthly" && (
-              <div>
-                <Label htmlFor="monthlyDay" className="text-sm font-medium text-foreground">
-                  {t("monthlyDay") || "Monthly Day"}
-                </Label>
-                <Input
-                  id="monthlyDay"
-                  type="number"
-                  value={formData.monthlyDay}
-                  onChange={(e) => updateFormData("monthlyDay", e.target.value)}
-                  className="mt-1 w-24"
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="monthlyDaysCsv" className="text-sm font-medium text-foreground">
+                    {t("monthlyDays") || "Monthly Days (comma-separated)"}
+                  </Label>
+                  <Input
+                    id="monthlyDaysCsv"
+                    placeholder="1,15"
+                    value={formData.monthlyDaysCsv || ""}
+                    onChange={(e) => updateFormData("monthlyDaysCsv", e.target.value)}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label className="text-sm font-medium text-foreground">{t("monthlyWeekdays") || "Monthly Weekdays"}</Label>
+                  <div className="mt-1 space-y-1">
+                    {daysOfWeek.map((day) => (
+                      <div key={`mwd-${day.key}`} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`mwd-${day.key}`}
+                          checked={Array.isArray(formData.monthlyWeekdays) && formData.monthlyWeekdays.includes(day.key)}
+                          onCheckedChange={(checked) => {
+                            const safe = Array.isArray(formData.monthlyWeekdays) ? formData.monthlyWeekdays : []
+                            const newDays = checked
+                              ? [...safe, day.key]
+                              : safe.filter((d: number) => d !== day.key)
+                            updateFormData("monthlyWeekdays", newDays)
+                          }}
+                        />
+                        <Label htmlFor={`mwd-${day.key}`} className="text-sm">{day.label}</Label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {formData.periodicity === "yearly" && (
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="yearlyMonthsCsv" className="text-sm font-medium text-foreground">
+                    {t("yearlyMonths") || "Yearly Months (1-12, comma-separated)"}
+                  </Label>
+                  <Input
+                    id="yearlyMonthsCsv"
+                    placeholder="9"
+                    value={formData.yearlyMonthsCsv || ""}
+                    onChange={(e) => updateFormData("yearlyMonthsCsv", e.target.value)}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="yearlyDaysCsv" className="text-sm font-medium text-foreground">
+                    {t("yearlyDays") || "Yearly Days (1-31, comma-separated)"}
+                  </Label>
+                  <Input
+                    id="yearlyDaysCsv"
+                    placeholder="3"
+                    value={formData.yearlyDaysCsv || ""}
+                    onChange={(e) => updateFormData("yearlyDaysCsv", e.target.value)}
+                    className="mt-1"
+                  />
+                </div>
               </div>
             )}
 

@@ -40,7 +40,8 @@ export default function AddClientModal({ open, onOpenChange, onClientAdded }: Ad
     taxId: "",
     observation: "",
     responsible: "",
-    accessAccountStatus: "postpone",
+  accessAccountStatus: "postpone",
+  accessEmail: "",
   })
 
   const [validationErrors, setValidationErrors] = useState({
@@ -127,7 +128,7 @@ export default function AddClientModal({ open, onOpenChange, onClientAdded }: Ad
         observation: formData.observation,
         responsible: formData.responsible,
         accessAccountStatus: formData.accessAccountStatus,
-        ...(formData.accessAccountStatus === "request" && { accessEmail: formData.email }),
+  ...(formData.accessAccountStatus === "request" && { accessEmail: formData.accessEmail || formData.email }),
       }
 
       const token = session?.accessToken
@@ -466,10 +467,14 @@ export default function AddClientModal({ open, onOpenChange, onClientAdded }: Ad
                   <Label htmlFor="accessEmailDisplay" className="text-sm font-medium text-foreground">
                     {t("email")}
                   </Label>
-                  <Input id="accessEmailDisplay" value={formData.email} className="mt-1" disabled />
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {t("accessEmailHelper") || "Access credentials will be sent to this email"}
-                  </p>
+                  <Input
+                    id="accessEmailDisplay"
+                    value={formData.accessEmail || formData.email}
+                    onChange={(e) => updateFormData('accessEmail', e.target.value)}
+                    className="mt-1"
+                    placeholder={formData.email}
+                  />
+                  <p className="mt-1 text-xs text-muted-foreground">{t("accessEmailHelper") || "Access credentials will be sent to this email"}</p>
                 </div>
               )}
 

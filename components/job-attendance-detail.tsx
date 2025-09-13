@@ -16,6 +16,7 @@ import {
   Search,
   Loader2,
 } from "lucide-react"
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -83,8 +84,10 @@ interface JobAssignment {
 }
 
 interface JobAttendanceDetailProps {
-  job: JobAssignment
-  onBack: () => void
+  job?: JobAssignment
+  jobId?: string
+  jobData?: any
+  onBack?: () => void
 }
 
 interface ApiScanHistoryResponse {
@@ -144,9 +147,16 @@ interface JobHistoryData {
     totalBreakMinutes: number
     isOnBreak: boolean
   }>
+  tasks: Array<{
+    id: number
+    name: string
+    completed: boolean
+    completedByWorkerId: number
+  }>
 }
 
-export function JobAttendanceDetail({ job, onBack }: JobAttendanceDetailProps) {
+export function JobAttendanceDetail({ job, jobId, jobData, onBack }: JobAttendanceDetailProps) {
+  const router = useRouter()
   const { session } = useAuth()
   const { t } = useTranslation("job-attendance-detail")
   const [currentTime, setCurrentTime] = useState(new Date())
@@ -161,6 +171,15 @@ export function JobAttendanceDetail({ job, onBack }: JobAttendanceDetailProps) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [taskHistoryByDate, setTaskHistoryByDate] = useState<Record<string, { id: number; name: string; completed: boolean; completedByWorkerId: number }[]>>({})
+
+  // Handle back button click with fallback to router.back()
+  const handleBack = () => {
+    if (onBack) {
+      onBack()
+    } else {
+      router.back()
+    }
+  }
 
   // Fetch job scan history from API
   useEffect(() => {
@@ -261,51 +280,41 @@ export function JobAttendanceDetail({ job, onBack }: JobAttendanceDetailProps) {
             breaksByDate[dateKey] = dayBreaks
           }
 
-          // Build final localized daily cards
-          const localizedData: JobHistoryData[] = Object.keys(scansByDate)
+          // Build tasksByDate from API response so we don't lose dates that only have tasks
+          const tasksByDate: Record<string, any[]> = {}
+          for (const d of result.data || []) {
+            if (d.tasks && Array.isArray(d.tasks)) {
+              tasksByDate[d.date] = d.tasks
+            }
+          }
+
+          // Build final localized daily cards using all dates (scans, sessions, tasks)
+          const allDatesSet = new Set<string>([
+            ...Object.keys(scansByDate),
+            ...Object.keys(sessionsByDate),
+            ...Object.keys(tasksByDate),
+          ])
+
+          const localizedData: JobHistoryData[] = Array.from(allDatesSet)
             .sort() // ascending by date string YYYY-MM-DD
             .map(date => ({
               date,
-              scans: scansByDate[date],
+              scans: scansByDate[date] || [],
               breaks: breaksByDate[date] || [],
               sessions: sessionsByDate[date] || [],
+              tasks: tasksByDate[date] || [],
             }))
 
           setJobHistoryData(localizedData)
 
-          // After we have scans/sessions, derive a workerId to fetch task history
-          const firstWorkerId = (() => {
-            for (const day of localizedData) {
-              if (day.scans?.length && day.scans[0].worker?.id) return day.scans[0].worker.id
-              if (day.sessions?.length && day.sessions[0].worker?.id) return day.sessions[0].worker.id
-            }
-            return null
-          })()
-
-          if (firstWorkerId) {
-            try {
-              const thRes = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/${job.id}/task-history?workerId=${firstWorkerId}`, {
-                method: "GET",
-                headers: {
-                  Authorization: `Bearer ${session.accessToken}`,
-                  "Content-Type": "application/json",
-                },
-              })
-              if (thRes.ok) {
-                const thJson: ApiTaskHistoryResponse = await thRes.json()
-                if (thJson.isSuccess && Array.isArray(thJson.data)) {
-                  const map: Record<string, { id: number; name: string; completed: boolean; completedByWorkerId: number }[]> = {}
-                  for (const item of thJson.data) {
-                    map[item.date] = item.tasks || []
-                  }
-                    setTaskHistoryByDate(map)
-                }
-              }
-            } catch (e) {
-              // non-fatal; keep UI working without task history
-              console.error("Failed to fetch task history", e)
+          // Build task map for fast lookup in UI — use API result directly to avoid missing dates
+          const taskMap: Record<string, { id: number; name: string; completed: boolean; completedByWorkerId: number }[]> = {}
+          for (const d of result.data || []) {
+            if (d.tasks && Array.isArray(d.tasks)) {
+              taskMap[d.date] = d.tasks
             }
           }
+          setTaskHistoryByDate(taskMap)
         } else {
           throw new Error(result.developerError || result.message || "Failed to fetch job scan history")
         }
@@ -319,10 +328,61 @@ export function JobAttendanceDetail({ job, onBack }: JobAttendanceDetailProps) {
       }
     }
 
-    if (job.id && session?.accessToken) {
+    if (job?.id && session?.accessToken) {
       fetchJobScanHistory()
+    } else if (jobId && session?.accessToken) {
+      // Use jobId from props if job object is not available
+      const fetchJobScanHistoryById = async () => {
+        try {
+          setLoading(true)
+          setError(null)
+          
+          const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/${jobId}/scan-history`, {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${session.accessToken}`,
+              "Content-Type": "application/json",
+            },
+          })
+          
+          // Rest of fetch logic remains the same
+          if (!response.ok) {
+            if (response.status === 401) {
+              throw new Error("Authentication failed. Please log in again.")
+            }
+            if (response.status === 404) {
+              throw new Error("Job scan history endpoint not found. Please check the job ID.")
+            }
+            throw new Error(`HTTP error! status: ${response.status}`)
+          }
+
+          const result: ApiScanHistoryResponse = await response.json()
+          // Process result same as in fetchJobScanHistory
+          if (result.isSuccess) {
+            setJobHistoryData(result.data || [])
+            // populate taskHistoryByDate for this simpler branch as well
+            const taskMap: Record<string, { id: number; name: string; completed: boolean; completedByWorkerId: number }[]> = {}
+            for (const d of result.data || []) {
+              if (d.tasks && Array.isArray(d.tasks)) {
+                taskMap[d.date] = d.tasks
+              }
+            }
+            setTaskHistoryByDate(taskMap)
+          } else {
+            throw new Error(result.developerError || result.message || "Failed to fetch job scan history")
+          }
+        } catch (err) {
+          console.error("Error fetching job scan history:", err)
+          setError(err instanceof Error ? err.message : "Failed to fetch job scan history")
+          setJobHistoryData([])
+        } finally {
+          setLoading(false)
+        }
+      }
+      
+      fetchJobScanHistoryById()
     }
-  }, [job.id, session?.accessToken])
+  }, [job?.id, jobId, session?.accessToken])
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -595,7 +655,7 @@ export function JobAttendanceDetail({ job, onBack }: JobAttendanceDetailProps) {
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
         <div className="max-w-7xl mx-auto p-4 space-y-6">
           <div className="flex items-center gap-4 mb-6">
-            <Button variant="outline" size="sm" onClick={onBack} className="flex items-center gap-2 bg-transparent">
+            <Button variant="outline" size="sm" onClick={handleBack} className="flex items-center gap-2 bg-transparent">
               <ArrowLeft className="w-4 h-4" />
               Back to Dashboard
             </Button>
@@ -618,7 +678,7 @@ export function JobAttendanceDetail({ job, onBack }: JobAttendanceDetailProps) {
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
         <div className="max-w-7xl mx-auto p-4 space-y-6">
           <div className="flex items-center gap-4 mb-6">
-            <Button variant="outline" size="sm" onClick={onBack} className="flex items-center gap-2 bg-transparent">
+            <Button variant="outline" size="sm" onClick={handleBack} className="flex items-center gap-2 bg-transparent">
               <ArrowLeft className="w-4 h-4" />
               Back to Dashboard
             </Button>
@@ -652,7 +712,7 @@ export function JobAttendanceDetail({ job, onBack }: JobAttendanceDetailProps) {
       <div className="max-w-7xl mx-auto p-4 space-y-6">
         {/* Header with Back Button */}
         <div className="flex items-center gap-4 mb-6">
-          <Button variant="outline" size="sm" onClick={onBack} className="flex items-center gap-2 bg-transparent">
+          <Button variant="outline" size="sm" onClick={handleBack} className="flex items-center gap-2 bg-transparent">
             <ArrowLeft className="w-4 h-4" />
             {t("backToDashboard")}
           </Button>
@@ -1084,3 +1144,6 @@ export function JobAttendanceDetail({ job, onBack }: JobAttendanceDetailProps) {
     </div>
   )
 }
+
+// Add default export to fix Next.js dynamic import error
+export default JobAttendanceDetail

@@ -580,7 +580,7 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
             longitude: locationData?.longitude || null,
             qrData: null,
           }),
-          notes: "Work session completed",
+          notes: t("workSessionCompleted"),
         }),
       });
 

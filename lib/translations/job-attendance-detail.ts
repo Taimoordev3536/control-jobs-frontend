@@ -1,6 +1,7 @@
 const jobAttendanceDetailTranslations: Record<string, Record<string, string>> = {
   en: {
     // Header
+    noTasksForThisDay: "No tasks for this day",
     backToDashboard: "Back to Dashboard",
     jobAttendanceDetails: "Job Attendance Details",
 
@@ -86,6 +87,7 @@ const jobAttendanceDetailTranslations: Record<string, Record<string, string>> = 
   },
   es: {
     // Header
+    noTasksForThisDay: "No hay tareas para este día",
     backToDashboard: "Volver al Panel",
     jobAttendanceDetails: "Detalles de Asistencia del Trabajo",
 

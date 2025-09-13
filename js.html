@@ -1,104 +1,75 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Alerts Demo</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>OSM City/Postal Validation</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      height: 100vh;
-      display: flex;
-      justify-content: center;  /* Horizontal center */
-      align-items: center;      /* Vertical center */
-      background: #f4f6f9;
-    }
-
-    /* Notification bell */
-    .notification {
-      position: relative;
-      display: inline-block;
-      cursor: pointer;
-    }
-
-    .bell {
-      font-size: 48px; /* Bigger bell */
-    }
-
-    /* Red badge */
-    .badge {
-      position: absolute;
-      top: -8px;
-      right: -8px;
-      padding: 6px 8px;
-      border-radius: 50%;
-      background: red;
-      color: white;
-      font-size: 14px;
-      font-weight: bold;
-    }
-
-    /* Dropdown */
-    .dropdown {
-      display: none;
-      position: absolute;
-      top: 60px; /* below the bell */
-      left: 50%;
-      transform: translateX(-50%);
-      width: 320px;
-      background: white;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-      border-radius: 8px;
-      overflow: hidden;
-      z-index: 10;
-    }
-
-    .dropdown.active {
-      display: block;
-    }
-
-    .dropdown h4 {
-      background: #007bff;
-      color: white;
-      padding: 10px;
-      margin: 0;
-      font-size: 16px;
-    }
-
-    .alert {
-      padding: 12px;
-      border-bottom: 1px solid #eee;
-      font-size: 14px;
-    }
-
-    .alert:last-child {
-      border-bottom: none;
-    }
-
-    .alert.delay { color: #d9534f; }     /* Red for delay */
-    .alert.signout { color: #5bc0de; }   /* Blue for sign-out */
-    .alert.duration { color: #f0ad4e; }  /* Orange for short duration */
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    input { width: 100%; padding: 10px; border: 1px solid #aaa; border-radius: 5px; }
+    ul { list-style: none; padding: 0; margin: 0; border: 1px solid #aaa; border-radius: 5px; max-height: 200px; overflow-y: auto; }
+    ul li { padding: 10px; cursor: pointer; }
+    ul li:hover { background: #f0f0f0; }
+    #selected { margin-top: 15px; padding: 10px; background: #eef; border-radius: 6px; }
   </style>
 </head>
 <body>
-
-  <div class="notification" onclick="toggleDropdown()">
-    <span class="bell">🔔</span>
-    <span class="badge" id="alertCount">3</span>
-
-    <div class="dropdown" id="dropdown">
-      <h4>Alerts</h4>
-      <div class="alert delay">⚠ Worker John checked in 15 min late (Grace: 10 min)</div>
-      <div class="alert signout">✅ Worker Sarah signed out from Job #25</div>
-      <div class="alert duration">⚠ Worker Mike worked 6h, expected 8h (Grace: 30m)</div>
-    </div>
-  </div>
+  <h2>Search City / Province / Country / Postal</h2>
+  <input type="text" id="address-input" placeholder="Enter address..." />
+  <ul id="results"></ul>
+  <div id="selected"></div>
 
   <script>
-    function toggleDropdown() {
-      document.getElementById("dropdown").classList.toggle("active");
-    }
-  </script>
+    const input = document.getElementById("address-input");
+    const resultsList = document.getElementById("results");
+    const selectedOutput = document.getElementById("selected");
 
+    let timeout = null;
+
+    input.addEventListener("input", () => {
+      clearTimeout(timeout);
+      const query = input.value.trim();
+
+      if (query.length < 3) {
+        resultsList.innerHTML = "";
+        return;
+      }
+
+      timeout = setTimeout(async () => {
+        const url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&q=${encodeURIComponent(query)}`;
+
+        const res = await fetch(url, {
+          headers: { "User-Agent": "DemoApp/1.0 (your-email@example.com)" }
+        });
+
+        const data = await res.json();
+        resultsList.innerHTML = "";
+
+        if (data.length === 0) {
+          resultsList.innerHTML = "<li>No results found</li>";
+          return;
+        }
+
+        data.forEach(place => {
+          const li = document.createElement("li");
+          li.textContent = place.display_name;
+          li.addEventListener("click", () => {
+            input.value = place.display_name;
+            resultsList.innerHTML = "";
+
+            const addr = place.address || {};
+            selectedOutput.innerHTML = `
+              <strong>✅ Selected Address:</strong><br>
+              City: ${addr.city || addr.town || addr.village || "-"}<br>
+              Province/State: ${addr.state || "-"}<br>
+              Country: ${addr.country || "-"}<br>
+              Postal Code: ${addr.postcode || "-"}
+            `;
+          });
+          resultsList.appendChild(li);
+        });
+      }, 400);
+    });
+  </script>
 </body>
 </html>

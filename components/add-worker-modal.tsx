@@ -38,6 +38,7 @@ export default function AddWorkerModal({ open, onOpenChange, onWorkerAdded }: Ad
     gender: "",
     birthday: "",
     accessAccountStatus: "postpone",
+  accessEmail: "",
   })
 
   const [validationErrors, setValidationErrors] = useState({
@@ -128,6 +129,7 @@ export default function AddWorkerModal({ open, onOpenChange, onWorkerAdded }: Ad
         gender: formData.gender,
         birthday: formData.birthday,
         accessAccountStatus: formData.accessAccountStatus,
+  ...(formData.accessAccountStatus === 'request' && { accessEmail: formData.accessEmail || formData.email }),
       }
 
       const token = session?.accessToken
@@ -196,6 +198,7 @@ export default function AddWorkerModal({ open, onOpenChange, onWorkerAdded }: Ad
           gender: "",
           birthday: "",
           accessAccountStatus: "postpone",
+          accessEmail: "",
         })
         setValidationErrors({
           name: false,
@@ -490,7 +493,13 @@ export default function AddWorkerModal({ open, onOpenChange, onWorkerAdded }: Ad
                   <Label htmlFor="accessEmailDisplay" className="text-sm font-medium text-foreground">
                     {t("email")}
                   </Label>
-                  <Input id="accessEmailDisplay" value={formData.email} className="mt-1" disabled />
+                  <Input
+                    id="accessEmailDisplay"
+                    value={formData.accessEmail || formData.email}
+                    onChange={(e) => updateFormData('accessEmail', e.target.value)}
+                    className="mt-1"
+                    placeholder={formData.email}
+                  />
                   <p className="mt-1 text-xs text-muted-foreground">
                     {t("accessEmailHelper") || "Access credentials will be sent to this email"}
                   </p>

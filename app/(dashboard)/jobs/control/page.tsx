@@ -440,10 +440,10 @@ export default function JobsControlPage() {
   }
 
   return (
-    <div className="p-6 bg-background min-h-screen relative">
+    <div className="p-2 bg-background min-h-screen relative">
       <div className="bg-card rounded-lg shadow-sm border border-border">
         {/* Header */}
-        <div className="flex justify-between items-center p-6 border-b border-border bg-gray-100 dark:bg-gray-800">
+        <div className="flex justify-between items-center p-2 border-b border-border bg-gray-100 dark:bg-gray-800">
           <h1 className="text-2xl font-semibold text-foreground">{t("controlCenter")}</h1>
           <div className="flex items-center gap-2">
             {/* Desktop Action Buttons */}

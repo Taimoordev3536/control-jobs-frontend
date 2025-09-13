@@ -21,11 +21,11 @@ export default withAuth(
 
     // Define role-based access rules
     const roleRoutes: Record<string, string[]> = {
-      admin: ["/partners", "/employers", "/invoices", "/commissions", "/rates", "/information", "/utilities", "/aid"],
-      partner: ["/employers", "/billing", "/information", "/utilities", "/aid"],
-      employer: ["/jobs", "/clients", "/workers", "/surveys", "/information", "/utilities", "/aid"],
-      client: ["/jobs", "/surveys", "/information", "/aid"],
-      worker: ["/jobs", "/occupation", "/surveys", "/information", "/aid"],
+      admin: ["/partners", "/employers", "/invoices", "/commissions", "/rates", "/information", "/utilities", "/aid", "/tasks"],
+      partner: ["/employers", "/billing", "/information", "/utilities", "/aid", "/tasks"],
+      employer: ["/jobs", "/clients", "/workers", "/surveys", "/information", "/utilities", "/aid", "/tasks"],
+      client: ["/jobs", "/surveys", "/information", "/aid", "/tasks"],
+      worker: ["/jobs", "/occupation", "/surveys", "/information", "/aid", "/tasks"],
     }
 
     // Check if user has access to the current route

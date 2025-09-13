@@ -1,21 +1,24 @@
 const translations: Record<string, Record<string, string>> = {
   en: {
-    //common observation filter
+    // common observation filter addressPlaceholder email
+    loadingClients: "Loading clients...",
+    selectAClient: "Select a client",
+    enterJobName: "Enter job name",
     registered_at: "Registered_at",
-    //notifications
+    // notifications
     workerCheckedIn: "Worker CheckedIn",
     workerCheckedOut: "Worker CheckedOut",
     noNotifications: "No Notifications",
-    //not found
+    // not found
     noPartnersFound: "No partners found",
     noEmployersFound: "No employers found",
-    //record of table
-  "showingRecordsFrom": "Showing records from",
-  "to": "to",
-  "outOfTotal": "out of a total of",
-  "records": "records",
-  "back": "Back",
-  "next": "Next",
+    // record of table
+    showingRecordsFrom: "Showing records from",
+    to: "to",
+    outOfTotal: "out of a total of",
+    records: "records",
+    back: "Back",
+    next: "Next",
     // Navigation
     merchants: "Merchants",
     partners: "Partners",
@@ -175,7 +178,7 @@ const translations: Record<string, Record<string, string>> = {
     vatIctServices: "% VAT ICT Services",
     phone: "Phone",
     mobile: "Mobile",
-    email: "E-mail",
+    email: "Email",
     observations: "Observations",
     chooseFile: "Choose File | No file chosen",
     bronze: "Bronze",
@@ -275,6 +278,7 @@ const translations: Record<string, Record<string, string>> = {
     today: "Today",
     year: "Year",
     month: "Month",
+    selectDate: "Select date", // Calendar-specific translations for date picker
 
     // Survey page translations
     addSurvey: "Add Survey",
@@ -283,12 +287,12 @@ const translations: Record<string, Record<string, string>> = {
     clientSurveys: "Client Surveys",
     workerSurveys: "Worker Surveys",
 
-    //buttons
+    // buttons
     back: "Back",
     next: "Next",
     create: "Create",
 
-    //add page
+    // add page
     Id: "Id",
     access: "Access",
 
@@ -378,7 +382,21 @@ const translations: Record<string, Record<string, string>> = {
     daily: "Daily",
     weekly: "Weekly",
     monthly: "Monthly",
+    yearly: "Yearly",
+    startDate: "Start Date",
+    endDate: "End Date",
+    interval: "Interval",
+    date: "Date",
+    every: "Every",
+    day: "day",
     days: "days",
+    week: "week",
+    weeks: "weeks",
+    month: "month",
+    months: "months",
+    year: "year",
+    years: "years",
+    optional: "optional",
     each: "each",
     alertTaskCompleted: "Alert task completed",
     pendingTaskAlert: "Pending task alert",
@@ -388,12 +406,15 @@ const translations: Record<string, Record<string, string>> = {
 
     // Surveys section
     configureSurveysNow: "Configure surveys now?",
+    introduceSurveysNow: "Introduce surveys now?",
+    selectPeriodicity: "Select periodicity",
+    periodicityValue: "Periodicity Value",
     customer: "Customer",
     workers: "Workers",
-    questionText: "Question text",
-    monitoringValue: "Monitoring value (Quality)",
-    textAlertTracking: "Text alert tracking",
-    farewellText: "Farewell text",
+    questionText: "Question Text",
+    monitoringValue: "Monitoring Value",
+    textAlertTracking: "Text Alert Tracking",
+    farewellText: "Farewell Text",
     hour: "Hour",
 
     // Navigation buttons
@@ -405,11 +426,51 @@ const translations: Record<string, Record<string, string>> = {
     // Common
     si: "Yes",
     no: "No",
+
+    scheduleBy: "Schedule By",
+    dates: "Dates",
+    weekdays: "Weekdays",
+    monthlyWeekdays: "Monthly Weekdays",
+    monthlyDates: "Monthly Dates",
+    yearlyMonths: "Yearly Months",
+    yearlyDates: "Yearly Dates",
+    selectDays: "Select Days",
+
+    // Day abbreviations for weekly selection
+    dayS: "S",
+    dayM: "M",
+    dayT: "T",
+    dayW: "W",
+    dayF: "F",
+
+    // Month abbreviations for yearly selection
+    jan: "Jan",
+    feb: "Feb",
+    mar: "Mar",
+    apr: "Apr",
+    jun: "Jun",
+    jul: "Jul",
+    aug: "Aug",
+    sep: "Sep",
+    oct: "Oct",
+    nov: "Nov",
+    dec: "Dec",
+
+    // Additional missing translations
+    whenSigningIn: "When signing in",
+    order: "Order",
+    jobCreatedSuccessfully: "Job created successfully!",
+    errorCreatingJob: "Error creating job",
+    customerSurvey: "Customer Survey",
+    workerSurvey: "Worker Survey",
   },
   es: {
     // common Disc web information
+    loadingClients: "Cargando clientes...",
+    selectAClient: "Seleccionar un cliente",
+    enterJobName: "Introducir nombre del trabajo",
     registered_at: "F.Alta",
-    //notifications
+    // notifications
     workerCheckedIn: "Trabajador Registrado",
     workerCheckedOut: "Trabajador Desregistrado",
     noNotifications: "Sin Notificaciones",
@@ -417,13 +478,13 @@ const translations: Record<string, Record<string, string>> = {
     noPartnersFound: "No se encontraron partners",
     noEmployersFound: "No se encontraron empleadores",
 
-    //show record 
-    "showingRecordsFrom": "Mostrando registros del",
-    "to": "al",
-    "outOfTotal": "de un total de",
-    "records": "registros",
-    "back": "Atrás",
-    "next": "Siguiente",
+    // show record
+    showingRecordsFrom: "Mostrando registros del",
+    to: "al",
+    outOfTotal: "de un total de",
+    records: "registros",
+    back: "Atrás",
+    next: "Siguiente",
 
     // Navigation
     merchants: "Comerciantes",
@@ -549,7 +610,7 @@ const translations: Record<string, Record<string, string>> = {
     questionTest: "Pregunta Prueba",
     admin: "Admin",
     partner: "Partner",
-    employer: "Empleador",
+    employer: "Employer",
 
     // Partner tabs translations
     date: "Fecha",
@@ -584,7 +645,7 @@ const translations: Record<string, Record<string, string>> = {
     vatIctServices: "% IVA Servicios TIC",
     phone: "Teléfono",
     mobile: "Móvil",
-    email: "E-mail",
+    email: "Email",
     observations: "Observaciones",
     chooseFile: "Elegir Archivo | Ningún archivo elegido",
     bronze: "Bronce",
@@ -684,6 +745,7 @@ const translations: Record<string, Record<string, string>> = {
     today: "Hoy",
     year: "Año",
     month: "Mes",
+    selectDate: "Seleccionar fecha", // Calendar-specific translations for date picker
 
     // Survey page translations
     addSurvey: "Añadir Encuesta",
@@ -692,12 +754,12 @@ const translations: Record<string, Record<string, string>> = {
     clientSurveys: "Encuestas de Clientes",
     workerSurveys: "Encuestas de Trabajadores",
 
-    //buttons
+    // buttons
     back: "Anterior",
     next: "Siguiente",
     create: "Crear",
 
-    //add page
+    // add page
     Id: "identificación",
     Access: "Acceso",
     // add Invoices translations notification
@@ -789,22 +851,40 @@ const translations: Record<string, Record<string, string>> = {
     daily: "Diaria",
     weekly: "Semanal",
     monthly: "Mensual",
+    yearly: "Anual",
+    startDate: "Fecha Inicio",
+    endDate: "Fecha Fin",
+    interval: "Intervalo",
+    date: "Fecha",
+    every: "Cada",
+    day: "día",
     days: "días",
+    week: "semana",
+    weeks: "semanas",
+    month: "mes",
+    months: "meses",
+    year: "año",
+    years: "años",
+    optional: "opcional",
     each: "cada",
     alertTaskCompleted: "Alerta tarea realizada",
     pendingTaskAlert: "Alerta tarea pendiente",
     add: "Añadir",
+    cancel: "Cancelar",
     eliminate: "Eliminar",
     introduceTasksNow: "¿Introducir tareas ahora?",
 
     // Surveys section
     configureSurveysNow: "¿Configurar encuestas ahora?",
+    introduceSurveysNow: "¿Introducir encuestas ahora?",
+    selectPeriodicity: "Seleccionar periodicidad",
+    periodicityValue: "Valor de Periodicidad",
     customer: "Cliente",
     workers: "Trabajadores",
-    questionText: "Texto pregunta",
-    monitoringValue: "Valor seguimiento (Calidad)",
-    textAlertTracking: "Texto alerta seguimiento",
-    farewellText: "Texto despedida",
+    questionText: "Texto de Pregunta",
+    monitoringValue: "Valor de Monitoreo",
+    textAlertTracking: "Texto de Alerta de Seguimiento",
+    farewellText: "Texto de Despedida",
     hour: "Hora",
 
     // Navigation buttons Holder
@@ -816,208 +896,75 @@ const translations: Record<string, Record<string, string>> = {
     // Common
     si: "Sí",
     no: "No",
+
+    scheduleBy: "Programar Por",
+    dates: "Fechas",
+    weekdays: "Días de la Semana",
+    monthlyWeekdays: "Días Semanales Mensuales",
+    monthlyDates: "Fechas Mensuales",
+    yearlyMonths: "Meses Anuales",
+    yearlyDates: "Fechas Anuales",
+    selectDays: "Seleccionar Días",
+
+    // Day abbreviations for weekly selection
+    dayS: "D",
+    dayM: "L",
+    dayT: "M",
+    dayW: "X",
+    dayF: "V",
+
+    // Month abbreviations for yearly selection
+    jan: "Ene",
+    feb: "Feb",
+    mar: "Mar",
+    apr: "Abr",
+    jun: "Jun",
+    jul: "Jul",
+    aug: "Ago",
+    sep: "Sep",
+    oct: "Oct",
+    nov: "Nov",
+    dec: "Dic",
+
+    // Additional missing translations
+    whenSigningIn: "Al fichar",
+    order: "Orden",
+    jobCreatedSuccessfully: "¡Job creado exitosamente!",
+    errorCreatingJob: "Error al crear job",
+    customerSurvey: "Encuesta de Cliente",
+    workerSurvey: "Encuesta de Trabajador",
   },
 
-  
-  // de: {
-  //   // Navigation
-  //   merchants: "Händler",
-  //   partners: "Partner",
-  //   employers: "Arbeitgeber",
-  //   billing: "Abrechnung",
-  //   invoices: "Rechnungen",
-  //   commissions: "Provisionen",
-  //   rates: "Tarife",
-  //   information: "Informationen",
-  //   utilities: "Dienstprogramme",
-  //   invite: "Einladen",
-  //   payments: "Zahlungen",
-  //   export: "Exportieren",
-  //   aid: "Hilfe",
-
-  //   // New navigation items
-  //   jobs: "Jobs",
-  //   control: "Kontrolle",
-  //   consultations: "Beratungen",
-  //   all: "Alle",
-  //   occupation: "Beruf",
-  //   surveys: "Umfragen",
-  //   clients: "Kunden",
-  //   workers: "Arbeiter",
-
-  //   // Information items
-  //   "signings-info": "Unterschriften Info",
-  //   "wages-info": "Lohn Info",
-  //   "services-info": "Service Info",
-  //   "invoices-info": "Rechnungen Info",
-  //   "employers-info": "Arbeitgeber Info",
-  //   "partners-info": "Partner Info",
-  //   "commissions-info": "Provisionen Info",
-
-  //   // Theme
-  //   light: "Hell",
-  //   dark: "Dunkel",
-  //   system: "System",
-
-  //   // User dropdown
-  //   mydata: "Meine Daten",
-  //   configuration: "Konfiguration",
-  //   users: "Benutzer",
-  //   wages: "Löhne",
-  //   profile: "Profil",
-  //   settings: "Einstellungen",
-  //   logout: "Abmelden",
-
-  //   // New additions
-  //   ListofPartners: "Liste der Partner",
-  //   listOfEmployers: "Liste der Arbeitgeber",
-
-  //   // Partner tabs translations
-  //   date: "Datum",
-  //   invoiceNo: "Rechnungs-Nr.",
-  //   concept: "Konzept",
-  //   total: "Gesamt",
-  //   paid: "Bezahlt",
-  //   noCommissionDataAvailable: "Keine Provisionsdaten verfügbar",
-
-  //   class: "Klasse",
-  //   fee: "Gebühr",
-  //   discount: "Rabatt %",
-  //   highDate: "Hochdatum",
-  //   billing: "Abrechnung",
-  //   noEmployerDataAvailable: "Keine Arbeitgeberdaten verfügbar",
-
-  //   employer: "Arbeitgeber",
-  //   noInvoiceDataAvailable: "Keine Rechnungsdaten verfügbar",
-
-  //   message: "Nachricht",
-  //   noWallMessagesAvailable: "Keine Wandnachrichten verfügbar",
-
-  //   // Partner data form translations
-  //   nif: "NIF",
-  //   name: "Name",
-  //   responsible: "Verantwortlich",
-  //   address: "Adresse",
-  //   number: "Nr.",
-  //   floorDoor: "Etage/Tür...",
-  //   locality: "Ort",
-  //   province: "Provinz",
-  //   country: "Land",
-  //   vatIctServices: "% MwSt. IKT-Dienste",
-  //   phone: "Telefon",
-  //   mobile: "Mobil",
-  //   email: "E-Mail",
-  //   observations: "Beobachtungen",
-  //   chooseFile: "Datei wählen | Keine Datei gewählt",
-  //   type: "Typ",
-  //   bronze: "Bronze",
-  //   silver: "Silber",
-  //   gold: "Gold",
-  //   commission: "% Provision",
-  //   retention: "% Einbehaltung",
-  //   paymentMethod: "Zahlungsmethode",
-  //   transfer: "Überweisung",
-  //   card: "Karte",
-  //   paypal: "PayPal",
-  //   accountIban: "Konto IBAN",
-  //   bicSwift: "BIC/SWIFT",
-  //   keep: "Behalten",
-  //   cancel: "Abbrechen",
-  //   eliminate: "Eliminieren",
-  //   login: "Anmelden",
-  //   filter: "Filter",
-  //   exportExcel: "Excel exportieren",
-  //   exportCsv: "CSV exportieren",
-  //   exportPdf: "PDF exportieren",
-
-  //   // Employer tabs translations
-  //   landline: "Festnetz",
-  //   subType: "Untertyp",
-  //   probationPeriod: "Probezeit",
-
-  //   // Pages translations
-  //   listOfInvoices: "Liste der Rechnungen",
-  //   noInvoicesAvailable: "Keine Rechnungen verfügbar",
-  //   listOfCommissions: "Liste der Provisionen",
-  //   noCommissionsAvailable: "Keine Provisionen verfügbar",
-  //   selfInvoiceNo: "Selbstrechnung Nr.",
-
-  //   // Rates page translations
-  //   home: "ZUHAUSE",
-  //   static: "STATISCH",
-  //   remote: "REMOTE",
-  //   fixedFee: "Feste Gebühr",
-  //   workCenters: "Arbeitszentren",
-  //   employees: "Mitarbeiter",
-  //   vatNotIncluded: "(MwSt. nicht enthalten)",
-
-  //   // Invite page translations
-  //   userRegistration: "Benutzerregistrierung",
-  //   customers: "Kunden",
-  //   select: "Auswählen",
-  //   selectUsers: "Benutzer auswählen...",
-
-  //   // Export page translations
-  //   period: "Zeitraum",
-  //   file: "Datei",
-
-  //   // Client tabs translations
-  //   code: "Code",
-  //   winterSchedule: "Winterplan",
-  //   summerTime: "Sommerzeit",
-  //   denomination: "Bezeichnung",
-  //   noDataAvailableInTable: "Keine Daten in der Tabelle verfügbar",
-
-  //   // Worker tabs translations
-  //   nifNie: "NIF/NIE",
-  //   naf: "NAF",
-  //   lastNames: "Nachnamen",
-  //   sex: "Geschlecht",
-  //   birthDate: "Geburtsdatum",
-  //   active: "Aktiv",
-  //   man: "Mann",
-  //   woman: "Frau",
-  //   noCustomersAvailable: "Keine Kunden verfügbar",
-  //   noJobsAvailable: "Keine Jobs verfügbar",
-  //   noMessagesAvailable: "Keine Nachrichten verfügbar",
-
-  //   // Calendar translations
-  //   january: "Januar",
-  //   february: "Februar",
-  //   march: "März",
-  //   april: "April",
-  //   may: "Mai",
-  //   june: "Juni",
-  //   july: "Juli",
-  //   august: "August",
-  //   september: "September",
-  //   october: "Oktober",
-  //   november: "November",
-  //   december: "Dezember",
-  //   mon: "Mo",
-  //   tue: "Di",
-  //   wed: "Mi",
-  //   thu: "Do",
-  //   fri: "Fr",
-  //   sat: "Sa",
-  //   sun: "So",
-  //   workingDays: "Arbeitstage",
-  //   holidays: "Feiertage",
-  //   vacation: "Urlaub",
-  //   permissions: "Berechtigungen",
-  //   lows: "Tiefs",
-  //   compensation: "Entschädigung",
-  //   today: "Heute",
-  //   year: "Jahr",
-  //   month: "Monat",
-
-  //   // Survey page translations
-  //   addSurvey: "Umfrage hinzufügen",
-  //   surveyClients: "Kundenumfragen",
-  //   surveyWorkers: "Arbeiterumfragen",
-  //   clientSurveys: "Kundenumfragen",
-  //   workerSurveys: "Arbeiterumfragen",
-  // },
+  // Calendar translations
+  january: "Enero",
+  february: "Febrero",
+  march: "Marzo",
+  april: "Abril",
+  may: "Mayo",
+  june: "Junio",
+  july: "Julio",
+  august: "Agosto",
+  september: "Septiembre",
+  october: "Octubre",
+  november: "Noviembre",
+  december: "Diciembre",
+  mon: "Lun",
+  tue: "Mar",
+  wed: "Mié",
+  thu: "Jue",
+  fri: "Vie",
+  sat: "Sáb",
+  sun: "Dom",
+  workingDays: "Días laborables",
+  holidays: "Festivos",
+  vacation: "Vacaciones",
+  permissions: "Permisos",
+  lows: "Bajas",
+  compensation: "Compensación",
+  today: "Hoy",
+  year: "Año",
+  month: "Mes",
+  selectDate: "Seleccionar fecha", // Calendar-specific translations for date picker
 }
 
 export default translations

@@ -83,18 +83,18 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded }
   }, [session?.accessToken])
 
   const fees = [
-    { name: t("home"), id: 1 },
-    { name: t("static"), id: 2 },
-    { name: t("remote"), id: 3 },
-  ]
+    { name: "Home", id: 1 },
+    { name: "Static", id: 2 },
+    { name: "Remote", id: 3 },
+  ];
 
   const paymentMethods = [
-    { name: t("card"), id: 1 },
-    { name: t("cash"), id: 2 },
-    { name: t("paypal"), id: 3 },
-    { name: t("others"), id: 4 },
-    { name: t("transfer"), id: 5 },
-  ]
+    { name: t("Transfer"), id: 1 },
+    { name: t("Direct Debit"), id: 2 },
+    { name: t("Card"), id: 3 },
+    { name: t("PayPal"), id: 4 },
+    { name: t("Others"), id: 5 },
+  ];
 
   const handleNext = () => {
     if (currentStep === 1) {
@@ -148,6 +148,7 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded }
         probationPeriod: formData.probationPeriod || "",
         responsible: formData.responsible,
         accessAccountStatus: formData.activateAccount,
+        accessEmail: formData.accessEmail || undefined,
         user: {
           email: formData.email,
         },
@@ -302,8 +303,9 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded }
                     <SelectValue placeholder={t("selectClass")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="individual">{t("individual")}</SelectItem>
-                    <SelectItem value="company">{t("company")}</SelectItem>
+                    <SelectItem value="Individual">Individual</SelectItem>
+                    <SelectItem value="Self-Employed">Self-Employed</SelectItem>
+                    <SelectItem value="Company">Company</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -525,8 +527,14 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded }
                   <Label htmlFor="accessEmail" className="text-sm font-medium text-foreground">
                     {t("accessEmail")}
                   </Label>
-                  <Input id="accessEmail" value={formData.email} className="mt-1" disabled />
-                  <p className="mt-1 text-xs text-muted-foreground">{t("accessEmailHelperEmployer")}</p>
+                  <Input 
+                    id="accessEmail" 
+                    value={formData.accessEmail} 
+                    onChange={(e) => updateFormData("accessEmail", e.target.value)}
+                    className="mt-1" 
+                    placeholder={formData.email}
+                  />
+                  <p className="mt-1 text-xs text-muted-foreground">{t("accessEmailHelperEmployer") || "Leave empty to use the main email address"}</p>
                 </div>
               )}
 

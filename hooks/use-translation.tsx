@@ -1,14 +1,48 @@
+
+
 // "use client"
 
 // import { LanguageContext } from "@/components/language-provider"
 // import { useContext } from "react"
-// import translations from "@/lib/translations"
+// import translations from "@/lib/translations/translations"
+// import dashboardTranslations from "@/lib/translations/dashboard"
+// import workerDashboardTranslations from "@/lib/translations/worker-dashboard"
+// import employerDashboardTranslations from "@/lib/translations/employer-dashboard"
+// import jobAttendanceDetailTranslations from "@/lib/translations/job-attendance-detail"
+// import loginTranslations from "@/lib/translations/login"
 
-// export function useTranslation() {
+// type TranslationNamespace =
+//   | "default"
+//   | "dashboard"
+//   | "worker-dashboard"
+//   | "employer-dashboard"
+//   | "job-attendance-detail"
+//   | "login"
+
+// export function useTranslation(namespace: TranslationNamespace = "default") {
 //   const { language, setLanguage } = useContext(LanguageContext)
 
+//   const getTranslationSource = (ns: TranslationNamespace) => {
+//     switch (ns) {
+//       case "dashboard":
+//         return dashboardTranslations
+//       case "worker-dashboard":
+//         return workerDashboardTranslations
+//       case "employer-dashboard":
+//         return employerDashboardTranslations
+//       case "job-attendance-detail":
+//         return jobAttendanceDetailTranslations
+//       case "login":
+//         return loginTranslations
+//       case "default":
+//       default:
+//         return translations
+//     }
+//   }
+
 //   const t = (key: string, params?: Record<string, any>) => {
-//     let translation = translations[language]?.[key] || key
+//     const translationSource = getTranslationSource(namespace)
+//     let translation = translationSource[language]?.[key] || key
 
 //     // Handle interpolation for dynamic values
 //     if (params && typeof translation === "string") {
@@ -37,6 +71,7 @@ import workerDashboardTranslations from "@/lib/translations/worker-dashboard"
 import employerDashboardTranslations from "@/lib/translations/employer-dashboard"
 import jobAttendanceDetailTranslations from "@/lib/translations/job-attendance-detail"
 import loginTranslations from "@/lib/translations/login"
+import jobDetailTranslations from "@/lib/translations/job-detail"
 
 type TranslationNamespace =
   | "default"
@@ -45,6 +80,7 @@ type TranslationNamespace =
   | "employer-dashboard"
   | "job-attendance-detail"
   | "login"
+  | "job-detail"
 
 export function useTranslation(namespace: TranslationNamespace = "default") {
   const { language, setLanguage } = useContext(LanguageContext)
@@ -61,6 +97,8 @@ export function useTranslation(namespace: TranslationNamespace = "default") {
         return jobAttendanceDetailTranslations
       case "login":
         return loginTranslations
+      case "job-detail":
+        return jobDetailTranslations
       case "default":
       default:
         return translations

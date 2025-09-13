@@ -30,7 +30,7 @@ interface ActionButton {
   icon: React.ComponentType<{ className?: string }>
   onClick: () => void
   title: string
-  type: "add" | "filter" | "csv" | "excel" | "pdf" // Added type property
+  type: "add" | "filter" | "csv" | "excel" | "pdf"
   variant?: "primary" | "secondary"
 }
 
@@ -135,15 +135,23 @@ export default function DataListTemplate({
     }
   }
 
-  const getAlignmentClass = (align?: string) => {
-    switch (align) {
-      case "center":
-        return "text-center"
-      case "right":
-        return "text-right"
-      default:
-        return "text-left"
+  const getAlignmentClass = (key: string, value: any) => {
+    if (typeof value === "number" && key.toLowerCase().includes("factur")) {
+      return "text-right"; // Right align for monetary amounts
+    } else if (typeof value === "number") {
+      return "text-right"; // Right align for other numbers (e.g., Empleadores)
+    } else if (value instanceof Date || !isNaN(Date.parse(value))) {
+      return "text-center"; // Center align for dates (e.g., F. Alta)
+    } else {
+      return "text-left"; // Left align for text
     }
+  };
+
+  function renderValue(value: any, key: string) {
+    if (typeof value === "number" && key.toLowerCase().includes("factur")) {
+      return value.toFixed(2) + " €"; // Two decimal places for monetary amounts
+    }
+    return value;
   }
 
   function ActionIconButton({
@@ -226,10 +234,10 @@ export default function DataListTemplate({
   }
 
   return (
-    <div className="p-6 bg-background min-h-screen relative">
+    <div className="p-2 bg-background min-h-screen relative">
       <div className="bg-card rounded-lg shadow-sm border border-border">
         {/* Header */}
-        <div className="flex justify-between items-center p-5 border-b border-border bg-gray-100 dark:bg-gray-800">
+        <div className="flex justify-between items-center p-3 border-b border-border bg-gray-100 dark:bg-gray-800">
           <h1 className="text-2xl font-semibold text-foreground">{title}</h1>
           <div className="flex items-center gap-2">
             {actionButtons.length > 0 && (
@@ -311,14 +319,14 @@ export default function DataListTemplate({
                                 ref={provided.innerRef}
                                 {...provided.draggableProps}
                                 {...provided.dragHandleProps}
-                                className={`px-5 py-3 text-sm font-semibold text-foreground transition-colors cursor-move ${
+                                className={`px-5 py-2 text-sm font-semibold text-foreground transition-colors cursor-move ${
                                   snapshot.isDragging ? "bg-purple-200 dark:bg-purple-800" : ""
-                                } ${getAlignmentClass(column.align)} ${
+                                } text-center border border-gray-300 dark:border-gray-700 ${
                                   column.sortable ? "hover:bg-purple-100 dark:hover:bg-purple-900/50" : ""
                                 }`}
                                 onClick={() => column.sortable && handleSort(column.key)}
                               >
-                                <div className="flex items-center justify-start">
+                                <div className="flex items-center justify-center">
                                   {column.label}
                                   {column.sortable && getSortIcon(column.key)}
                                 </div>
@@ -345,9 +353,9 @@ export default function DataListTemplate({
                           key={`${row.id || index}-${column.key}`}
                           className={`px-3 py-2 text-sm ${
                             column.key === localColumns[0].key ? "text-foreground font-medium" : "text-muted-foreground"
-                          } ${getAlignmentClass(column.align)}`}
+                          } ${getAlignmentClass(column.key, row[column.key])} border border-gray-300 dark:border-gray-700`}
                         >
-                          {column.render ? column.render(row[column.key], row) : row[column.key]}
+                          {renderValue(row[column.key], column.key)}
                         </td>
                       ))}
                     </tr>
@@ -360,7 +368,7 @@ export default function DataListTemplate({
 
         {/* Pagination */}
         {showPagination && sortedData.length > 0 && (
-          <div className="px-6 py-4 flex items-center justify-between border-t border-border bg-card bg-gray-100 dark:bg-gray-800">
+          <div className="px-6 py-2 flex items-center justify-between border-t border-border bg-card bg-gray-100 dark:bg-gray-800">
             <div className="text-sm text-muted-foreground">
               {t("showingRecordsFrom")} {((currentPage - 1) * itemsPerPage + 1)} {t("to")} {Math.min(currentPage * itemsPerPage, total)} {t("outOfTotal")} {total} {t("records")}
             </div>

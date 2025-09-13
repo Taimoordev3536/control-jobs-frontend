@@ -30,9 +30,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { useTranslation } from "@/hooks/use-translation"
 import { useAuth } from "@/hooks/use-auth"
 import AddJobModal from "@/components/add-job-modal"
-// import AddJobModal from "../Add-job-model/addJobModal"
-import { JobAttendanceDetail } from "@/components/job-attendance-detail"
-import JobDetailView from "@/components/job-detail-view"
+import JobDetail from "@/components/job-detail/job-detail"
 
 interface ApiJob {
   jobId: number
@@ -175,8 +173,7 @@ export default function EmployerDashboard() {
   const [loading, setLoading] = useState(true)
   const [showAddJobModal, setShowAddJobModal] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [selectedJobForAttendance, setSelectedJobForAttendance] = useState<Job | null>(null)
-  const [selectedJobForEdit, setSelectedJobForEdit] = useState<string | null>(null)
+  const [selectedJobForDetail, setSelectedJobForDetail] = useState<string | null>(null)
 
   const occupations = [t("cleaning"), t("security"), t("maintenance"), t("delivery"), t("itSupport"), t("landscaping")]
 
@@ -388,12 +385,12 @@ export default function EmployerDashboard() {
     fetchJobs()
   }, [session?.accessToken])
 
-  const handleViewAttendance = (job: Job) => {
-    setSelectedJobForAttendance(job)
+  const handleViewDetails = (job: Job) => {
+    setSelectedJobForDetail(job.id.toString())
   }
 
   const handleEditJob = (jobId: number) => {
-    setSelectedJobForEdit(jobId.toString())
+    setSelectedJobForDetail(jobId.toString())
   }
 
   const handleJobAdded = (newJob: any) => {
@@ -401,12 +398,8 @@ export default function EmployerDashboard() {
     fetchJobs()
   }
 
-  const handleBackFromAttendance = () => {
-    setSelectedJobForAttendance(null)
-  }
-
-  const handleBackFromEdit = () => {
-    setSelectedJobForEdit(null)
+  const handleBackFromDetail = () => {
+    setSelectedJobForDetail(null)
   }
 
   const filteredJobs = jobs.filter((job) => {
@@ -450,14 +443,9 @@ export default function EmployerDashboard() {
     }
   }
 
-  // Show attendance detail view
-  if (selectedJobForAttendance) {
-    return <JobAttendanceDetail job={selectedJobForAttendance} onBack={handleBackFromAttendance} />
-  }
-
-  // Show job edit view
-  if (selectedJobForEdit) {
-    return <JobDetailView jobId={selectedJobForEdit} onBack={handleBackFromEdit} />
+  // Show unified JobDetail component
+  if (selectedJobForDetail) {
+    return <JobDetail jobId={selectedJobForDetail} onClose={handleBackFromDetail} />
   }
 
   if (loading) {
@@ -729,10 +717,10 @@ export default function EmployerDashboard() {
                         >
                           <DropdownMenuItem
                             className="text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                            onClick={() => handleViewAttendance(job)}
+                            onClick={() => handleViewDetails(job)}
                           >
                             <Eye className="h-3 w-3 mr-2" />
-                            {t("viewAttendance")}
+                            {t("viewDetails")}
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             className="text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
@@ -854,7 +842,7 @@ export default function EmployerDashboard() {
                     <Button
                       size="sm"
                       className="flex-1 h-7 text-xs bg-purple-600 hover:bg-purple-700 text-white"
-                      onClick={() => handleViewAttendance(job)}
+                      onClick={() => handleViewDetails(job)}
                     >
                       <Eye className="w-3 h-3 mr-1" />
                       {t("viewDetails")}

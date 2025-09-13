@@ -19,19 +19,25 @@ interface AddPartnerModalProps {
 }
 
 // Helper function to map typeOfPartner to partnerTierId
+const partnerTypes = [
+  { label: "Gold", value: "Gold", tierId: 1 },
+  { label: "Silver", value: "Silver", tierId: 2 },
+  { label: "Bronze", value: "Bronze", tierId: 3 },
+  { label: "Affiliate", value: "Affiliate", tierId: 5 },
+];
+
 const getPartnerTierId = (typeOfPartner: string): number => {
   switch (typeOfPartner) {
-    case "Basic":
-      return 1
-    case "Premium":
     case "Gold":
-      return 3
-    case "bronze":
-      return 4
-    case "affiliate":
-      return 5
+      return 1;
+    case "Silver":
+      return 2;
+    case "Bronze":
+      return 3;
+    case "Affiliate":
+      return 4;
     default:
-      return 0
+      return 0;
   }
 }
 
@@ -56,6 +62,7 @@ export default function AddPartnerModal({ open, onOpenChange, onPartnerAdded }: 
     bicSwift: "",
     responsible: "",
     accessAccountStatus: "postpone",
+    accessEmail: "",
   })
 
   const [validationErrors, setValidationErrors] = useState({
@@ -129,7 +136,7 @@ export default function AddPartnerModal({ open, onOpenChange, onPartnerAdded }: 
         accessAccountStatus: formData.accessAccountStatus,
       }
       if (formData.accessAccountStatus === "request") {
-        payload.accessEmail = formData.email
+        payload.accessEmail = formData.accessEmail || formData.email
       }
       const token = session?.accessToken
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/partners`, {
@@ -147,7 +154,9 @@ export default function AddPartnerModal({ open, onOpenChange, onPartnerAdded }: 
       const result = await response.json()
       toast({
         title: t("Partner created successfully!"),
-        description: "",
+        description: formData.accessAccountStatus === "request" 
+          ? t("Credentials have been sent to the partner's email") 
+          : "",
         variant: "default"
       })
       // Map backend partner to frontend fields
@@ -349,11 +358,9 @@ export default function AddPartnerModal({ open, onOpenChange, onPartnerAdded }: 
                     <SelectValue placeholder={t("selectType")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Basic">Basic</SelectItem>
-                    <SelectItem value="Premium">Premium</SelectItem>
-                    <SelectItem value="Gold">Gold</SelectItem>
-                    <SelectItem value="bronze">Bronze</SelectItem>
-                    <SelectItem value="affiliate">Affiliate</SelectItem>
+                    {partnerTypes.map(pt => (
+                      <SelectItem key={pt.value} value={pt.value}>{pt.label}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -401,8 +408,8 @@ export default function AddPartnerModal({ open, onOpenChange, onPartnerAdded }: 
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Transfer">Transfer</SelectItem>
-                    {/* <SelectItem value="direct debit ">Direct Debit</SelectItem> */}
-                    <SelectItem value="card">Card</SelectItem>
+                    <SelectItem value="Direct Debit">Direct Debit</SelectItem>
+                    <SelectItem value="Card">Card</SelectItem>
                     <SelectItem value="PayPal">PayPal</SelectItem>
                     <SelectItem value="Others">Others</SelectItem>
                   </SelectContent>
@@ -490,10 +497,16 @@ export default function AddPartnerModal({ open, onOpenChange, onPartnerAdded }: 
 
               {formData.accessAccountStatus === "request" && (
                 <div>
-                  <Label htmlFor="accessEmailDisplay" className="text-sm font-medium text-foreground">
+                  <Label htmlFor="accessEmail" className="text-sm font-medium text-foreground">
                     {t("accessEmail")}
                   </Label>
-                  <Input id="accessEmailDisplay" value={formData.email} className="mt-1" disabled />
+                  <Input 
+                    id="accessEmail" 
+                    value={formData.accessEmail} 
+                    onChange={(e) => updateFormData("accessEmail", e.target.value)}
+                    placeholder={formData.email}
+                    className="mt-1" 
+                  />
                   <p className="mt-1 text-xs text-muted-foreground">{t("accessEmailHelper")}</p>
                 </div>
               )}

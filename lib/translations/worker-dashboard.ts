@@ -1,6 +1,7 @@
 const workerDashboardTranslations = {
   en: {
     // Dashboard Header
+    workSessionCompleted: "Work session completed",
     workerDashboard: "Worker Dashboard",
     atWorkCenter: "At Work Center",
     away: "away",
@@ -129,6 +130,11 @@ const workerDashboardTranslations = {
     qrCodeMismatch: "This QR code is for job {jobId}, but you are checking into job {currentJobId}!",
     checkInSuccessful: "Check-in successful! Welcome to work.",
     checkInFailed: "Failed to record check-in",
+    geolocationNotSupported: "Geolocation not supported",
+    addressFetchError: "Address fetch error",
+    couldNotFetchIp: "Could not fetch IP address",
+    noAuthTokenFound: "No authentication token found",
+    unknownErrorOccurred: "Unknown error occurred",
 
     // Job Details Modal
     jobInformation: "Job Information",
@@ -176,9 +182,35 @@ const workerDashboardTranslations = {
     hours: "h",
     minutes: "min",
     seconds: "s",
+
+    // Check-in Process - Sequential Flow
+    sequentialCheckInProcess: "Sequential Check-In Process",
+    verifyYourLocation: "Verify your location",
+    networkIp: "Network IP",
+    checkWorkplaceNetwork: "Check workplace network",
+    scanWorkplaceQr: "Scan workplace QR",
+    gpsLocationVerification: "GPS Location Verification",
+    coordinates: "Coordinates",
+    meters: "meters",
+    address: "Address",
+    error: "Error",
+    retry: "Retry",
+    detectingLocation: "Detecting your location... Please ensure location access is allowed.",
+    locationDetected: "Location detected! Moving to next step...",
+    networkIpDetection: "Network IP Detection",
+    yourIpAddress: "Your IP Address",
+    ipDetectedSuccessfully: "IP detected successfully",
+    detectingIpAddress: "Detecting your IP address...",
+    ipDetectedMovingToQr: "IP detected! Moving to QR scanner...",
+    clickToStartQrScanner: "Click to start QR scanner",
+    startQrScanner: "Start QR Scanner",
+    allowLocationAccessInstruction: "Allow location access to detect your current location",
+    detectCurrentIpInstruction: "Detect your current IP address",
+    scanWorkplaceQrInstruction: "Scan the workplace QR code to complete check-in",
   },
   es: {
     // Dashboard Header
+    workSessionCompleted: "Sesión de trabajo completada",
     workerDashboard: "Panel del Trabajador",
     atWorkCenter: "En el Centro de Trabajo",
     away: "lejos",
@@ -311,6 +343,11 @@ const workerDashboardTranslations = {
       "¡Este código QR es para el trabajo {jobId}, pero estás registrando entrada al trabajo {currentJobId}!",
     checkInSuccessful: "¡Registro de entrada exitoso! Bienvenido al trabajo.",
     checkInFailed: "Error al registrar entrada",
+    geolocationNotSupported: "Geolocalización no soportada",
+    addressFetchError: "Error al obtener dirección",
+    couldNotFetchIp: "No se pudo obtener la dirección IP",
+    noAuthTokenFound: "No se encontró token de autenticación",
+    unknownErrorOccurred: "Ocurrió un error desconocido",
 
     // Job Details Modal
     jobInformation: "Información del Trabajo",
@@ -358,6 +395,31 @@ const workerDashboardTranslations = {
     hours: "h",
     minutes: "min",
     seconds: "s",
+
+    // Check-in Process - Sequential Flow
+    sequentialCheckInProcess: "Proceso de Registro Secuencial",
+    verifyYourLocation: "Verificar tu ubicación",
+    networkIp: "IP de Red",
+    checkWorkplaceNetwork: "Verificar red del lugar de trabajo",
+    scanWorkplaceQr: "Escanear QR del lugar de trabajo",
+    gpsLocationVerification: "Verificación de Ubicación GPS",
+    coordinates: "Coordenadas",
+    meters: "metros",
+    address: "Dirección",
+    error: "Error",
+    retry: "Reintentar",
+    detectingLocation: "Detectando tu ubicación... Por favor asegúrate de permitir el acceso a la ubicación.",
+    locationDetected: "¡Ubicación detectada! Pasando al siguiente paso...",
+    networkIpDetection: "Detección de IP de Red",
+    yourIpAddress: "Tu Dirección IP",
+    ipDetectedSuccessfully: "IP detectada exitosamente",
+    detectingIpAddress: "Detectando tu dirección IP...",
+    ipDetectedMovingToQr: "¡IP detectada! Pasando al escáner QR...",
+    clickToStartQrScanner: "Haz clic para iniciar el escáner QR",
+    startQrScanner: "Iniciar Escáner QR",
+    allowLocationAccessInstruction: "Permite el acceso a la ubicación para detectar tu ubicación actual",
+    detectCurrentIpInstruction: "Detectar tu dirección IP actual",
+    scanWorkplaceQrInstruction: "Escanea el código QR del lugar de trabajo para completar el registro",
   },
 }
 
