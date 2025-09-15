@@ -11,6 +11,7 @@ import { ThemeSwitcher } from "./theme-switcher"
 import { UserDropdown } from "./user-dropdown"
 import { useTranslation } from "@/hooks/use-translation"
 import { LanguageSwitcher } from "./language-switcher"
+import { useAuth } from "@/hooks/use-auth"
 import { useEffect, useRef, useState } from "react"
 import { useNotifications } from "@/components/providers/notification-provider"
 import { X } from "lucide-react"
@@ -22,6 +23,7 @@ interface AppHeaderProps {
 
 export function AppHeader({ collapsed, toggleSidebar }: AppHeaderProps) {
   const { t } = useTranslation()
+  const { session } = useAuth()
   const [mobileDropdownOpen, setMobileDropdownOpen] = useState(false)
   const { unreadCount, items, markAllRead, dismiss } = useNotifications()
   const [notifOpen, setNotifOpen] = useState(false)
@@ -87,18 +89,18 @@ export function AppHeader({ collapsed, toggleSidebar }: AppHeaderProps) {
                       <button
                         className="absolute right-2 top-2 p-1 rounded hover:bg-muted"
                         aria-label="close notification"
-                        onClick={async () => {
-                          if (a.id) {
-                            try {
-                              const token = (typeof window !== 'undefined' && window.localStorage.getItem('accessToken')) || undefined
-                              await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/alerts/${a.id}`, {
-                                method: 'DELETE',
-                                headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-                              })
-                            } catch {}
-                          }
-                          dismiss(a.localId || "")
-                        }}
+                          onClick={async () => {
+                            if (a.id) {
+                              try {
+                                const token = session?.accessToken
+                                await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/alerts/${a.id}`, {
+                                  method: 'DELETE',
+                                  headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+                                })
+                              } catch {}
+                            }
+                            dismiss(a.localId || "")
+                          }}
                       >
                         <X className="h-4 w-4" />
                       </button>

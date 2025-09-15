@@ -1,6 +1,8 @@
 const translations: Record<string, Record<string, string>> = {
   en: {
     // common observation filter addressPlaceholder email
+    thisFieldIsRequired: "This field is required.",
+
     loadingClients: "Loading clients...",
     selectAClient: "Select a client",
     enterJobName: "Enter job name",
@@ -466,6 +468,8 @@ const translations: Record<string, Record<string, string>> = {
   },
   es: {
     // common Disc web information
+    thisFieldIsRequired: "Este campo es obligatorio.",
+
     loadingClients: "Cargando clientes...",
     selectAClient: "Seleccionar un cliente",
     enterJobName: "Introducir nombre del trabajo",

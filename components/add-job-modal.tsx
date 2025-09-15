@@ -185,6 +185,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
   const [loadingWorkers, setLoadingWorkers] = useState(false)
 
   const [formData, setFormData] = useState(createInitialFormData)
+  const [errors, setErrors] = useState<{ denomination?: string; startDate?: string; workers?: string }>({})
 
   // Memoized constants
   const mainSteps = useMemo(
@@ -470,7 +471,29 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
 
   // Navigation functions
   const handleNext = useCallback(() => {
+    // Clear previous errors
+    setErrors({})
+
+    // If we're on the Definition main step, validate required fields
     if (currentMainStep === 1) {
+      const newErrors: typeof errors = {}
+      if (!formData.denomination || !formData.denomination.trim()) {
+        newErrors.denomination = t("thisFieldIsRequired")
+      }
+      if (!formData.startDate) {
+        newErrors.startDate = t("thisFieldIsRequired")
+      }
+      if (!formData.workerIds || formData.workerIds.length === 0) {
+        newErrors.workers = t("thisFieldIsRequired")
+      }
+
+      // If any validation errors, set them and abort advancing
+      if (Object.keys(newErrors).length > 0) {
+        setErrors(newErrors)
+        return
+      }
+
+      // Otherwise advance signing sub-steps or main step
       if (currentSigningStep < 4) {
         setCurrentSigningStep(currentSigningStep + 1)
       } else {
@@ -480,7 +503,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
     } else if (currentMainStep === 2) {
       setCurrentMainStep(3)
     }
-  }, [currentMainStep, currentSigningStep])
+  }, [currentMainStep, currentSigningStep, formData, setErrors])
 
   const handlePrevious = useCallback(() => {
     if (currentMainStep === 1) {
@@ -800,6 +823,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
           className="mt-1"
           placeholder={t("enterJobName") || "Enter job name"}
         />
+        {errors.denomination && <div className="text-sm text-destructive mt-1">{errors.denomination}</div>}
       </div>
 
       <div className="grid grid-cols-2 gap-4">
@@ -814,6 +838,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
               onChange={(e) => updateFormData("startDate", e.target.value)}
               className="mt-1"
             />
+            {errors.startDate && <div className="text-sm text-destructive mt-1">{errors.startDate}</div>}
           </div>
         </div>
         <div>
@@ -914,6 +939,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
               )}
             </div>
           </div>
+          {errors.workers && <div className="text-sm text-destructive mt-1">{errors.workers}</div>}
         </div>
       </div>
 
