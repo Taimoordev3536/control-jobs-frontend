@@ -1,5 +1,32 @@
 const translations: Record<string, Record<string, string>> = {
   en: {
+    //Add modal json
+    addressPlaceholder: "Address (placeholder)",
+    selectType: "Select type",
+    activateAccessAccount: "Activate access account",
+    postpone: "Postpone",
+    request: "Request",
+    selectClass: "Select class",
+    selectPartner: "Select partner",
+    selectFeeType: "Select fee type",
+    newEmployer: "New employer",
+    newPartner: "New partner",
+    newCustomer: "New customer",
+    "Street, Number, Town...": "Street, Number, Town...",
+    newWorker: "New worker",
+    selectGender: "Select gender",
+    activationOfAccessAccount: "Activation of access account:",
+    accessEmail: "Access email:",
+    accessEmailHelper: "Access email helper:",
+
+
+    // info tooltip add-job-modal
+    selectWorkCentersInfo:
+      "Select one or more work centers. The application will allow clock-in at all selected locations.",
+    selectWorkersInfo:
+      "Select one or more workers. The application will expect clock-ins from all selected workers.",
+
+
     // common observation filter addressPlaceholder email
     thisFieldIsRequired: "This field is required.",
 
@@ -467,12 +494,40 @@ const translations: Record<string, Record<string, string>> = {
     workerSurvey: "Worker Survey",
   },
   es: {
-    // common Disc web information
+      // add modal json
+    addressPlaceholder: "Dirección (placeholder)",
+    selectType: "Seleccionar tipo",
+    activateAccessAccount: "Activar cuenta de acceso",
+    postpone: "Posponer",
+    request: "Solicitud",
+    selectClass: "Seleccionar clase",
+    selectPartner: "Seleccionar socio",
+    selectFeeType: "Seleccionar tipo de tarifa",
+    newEmployer: "Nuevo empleador",
+    newPartner: "Nuevo Partner",
+    newCustomer: "Nuevo cliente",
+    "Street, Number, Town...": "Calle, Número, Ciudad...",
+    newWorker: "Nuevo trabajador",
+    selectGender: "Seleccionar género",
+    activationOfAccessAccount: "Activación de cuenta de acceso:",
+    accessEmail: "Correo de acceso:",
+    accessEmailHelper:"Asistente de correo de acceso:",
+
+    // info tooltip add-job-modal
+    selectWorkCentersInfo:
+      "Selecciona uno o varios centros de trabajo. La aplicación permitirá fichar en todas las ubicaciones seleccionadas.",
+    selectWorkersInfo:
+      "Selecciona uno o varios trabajadores. La aplicación esperará fichajes de todos los trabajadores seleccionados.",
+
+
+
+    // common Disc web information Introducir nombre del trabajo
+
     thisFieldIsRequired: "Este campo es obligatorio.",
 
     loadingClients: "Cargando clientes...",
-    selectAClient: "Seleccionar un cliente",
-    enterJobName: "Introducir nombre del trabajo",
+    selectAClient: "Selecciona el destinatario del Job",
+    enterJobName: "Introducir nombre del Job",
     registered_at: "F.Alta",
     // notifications
     workerCheckedIn: "Trabajador Registrado",

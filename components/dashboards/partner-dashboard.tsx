@@ -27,6 +27,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { useTranslation } from "@/hooks/use-translation"
+import { LoadingSpinner } from "@/components/dashboard-loader"
 import { useAuth } from "@/hooks/use-auth"
 
 interface Employer {
@@ -163,14 +164,7 @@ export default function PartnerDashboard() {
   }
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="relative">
-          <div className="w-16 h-16 border-4 border-muted rounded-full animate-spin border-t-primary"></div>
-          <div className="absolute inset-0 w-16 h-16 border-4 border-transparent rounded-full animate-ping border-t-primary/50"></div>
-        </div>
-      </div>
-    )
+    return <LoadingSpinner />
   }
 
   return (

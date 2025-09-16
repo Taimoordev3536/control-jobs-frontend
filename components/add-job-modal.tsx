@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import DateInput from "@/components/ui/date-input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Switch } from "@/components/ui/switch"
@@ -169,6 +170,8 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
   const [currentMainStep, setCurrentMainStep] = useState(1)
   const [currentSigningStep, setCurrentSigningStep] = useState(1)
   const [isLoading, setIsLoading] = useState(false)
+  const [workCenterTooltipOpen, setWorkCenterTooltipOpen] = useState(false)
+  const [workersTooltipOpen, setWorkersTooltipOpen] = useState(false)
   const [enableTasks, setEnableTasks] = useState(false)
   const [enableSurveys, setEnableSurveys] = useState(false)
   const [surveyTab, setSurveyTab] = useState("customer")
@@ -771,21 +774,24 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
           <div className="flex flex-col items-center">
             <div
               className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                step.number <= currentMainStep ? "bg-purple-600 text-white" : "bg-muted text-muted-foreground"
+                step.number <= currentMainStep ? "text-white" : "bg-muted text-muted-foreground"
               }`}
+              style={step.number <= currentMainStep ? { backgroundColor: "#662D91" } : {}}
             >
               {step.number}
             </div>
             <span
-              className={`text-xs mt-1 ${
-                step.number === currentMainStep ? "text-purple-600 font-medium" : "text-muted-foreground"
-              }`}
+              className={`text-xs mt-1 ${step.number === currentMainStep ? "font-medium" : "text-muted-foreground"}`}
+              style={step.number === currentMainStep ? { color: "#662D91" } : undefined}
             >
               {step.label}
             </span>
           </div>
           {index < mainSteps.length - 1 && (
-            <div className={`w-16 h-0.5 mx-2 ${step.number < currentMainStep ? "bg-purple-600" : "bg-muted"}`} />
+            <div
+              className={`w-16 h-0.5 mx-2 ${step.number < currentMainStep ? "" : "bg-muted"}`}
+              style={step.number < currentMainStep ? { backgroundColor: "#662D91" } : undefined}
+            />
           )}
         </div>
       ))}
@@ -798,10 +804,14 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
         {signingSteps.map((step, index) => (
           <div key={step.number} className="flex items-center">
             <div
-              className={`w-3 h-3 rounded-full ${step.number <= currentSigningStep ? "bg-purple-600" : "bg-muted"}`}
+              className={`w-3 h-3 rounded-full ${step.number <= currentSigningStep ? "" : "bg-muted"}`}
+              style={step.number <= currentSigningStep ? { backgroundColor: "#662D91" } : undefined}
             />
             {index < signingSteps.length - 1 && (
-              <div className={`w-8 h-0.5 ${step.number < currentSigningStep ? "bg-purple-600" : "bg-muted"}`} />
+              <div
+                className={`w-8 h-0.5 ${step.number < currentSigningStep ? "" : "bg-muted"}`}
+                style={step.number < currentSigningStep ? { backgroundColor: "#662D91" } : undefined}
+              />
             )}
           </div>
         ))}
@@ -836,7 +846,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
               id="startDate"
               value={formData.startDate}
               onChange={(e) => updateFormData("startDate", e.target.value)}
-              className="mt-1"
+              className="mt-1 w-40"
             />
             {errors.startDate && <div className="text-sm text-destructive mt-1">{errors.startDate}</div>}
           </div>
@@ -850,7 +860,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
               id="endDate"
               value={formData.endDate}
               onChange={(e) => updateFormData("endDate", e.target.value)}
-              className="mt-1"
+              className="mt-1 w-40"
             />
           </div>
         </div>
@@ -867,7 +877,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
             updateFormData("workCenterId", "")
           }}
         >
-          <SelectTrigger className="mt-1">
+          <SelectTrigger className="mt-1 text-muted-foreground">
             <SelectValue placeholder={loadingClients ? t("loadingClients") : t("selectAClient")} />
           </SelectTrigger>
           <SelectContent>
@@ -881,8 +891,25 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
       </div>
 
       <div>
-        <Label htmlFor="workCenter" className="text-sm font-medium text-foreground">
+        <Label htmlFor="workCenter" className="text-sm font-medium text-foreground flex items-center gap-1">
           {t("workCenter") || "Work Center"}
+          <TooltipProvider>
+            <Tooltip open={workCenterTooltipOpen} onOpenChange={setWorkCenterTooltipOpen} delayDuration={0}>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  className="inline-flex items-center p-0"
+                  aria-label="Ayuda centro de trabajo"
+                  onClick={() => setWorkCenterTooltipOpen((s) => !s)}
+                >
+                  <Info className="w-3 h-3 text-muted-foreground cursor-help" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right" align="center" sideOffset={6} className="max-w-[12.6rem]">
+                {t("selectWorkCentersInfo")}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </Label>
         <Select
           value={formData.workCenterId}
@@ -904,7 +931,23 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
       <div>
         <Label className="text-sm font-medium text-foreground flex items-center gap-1">
           {t("workers") || "Workers"}
-          <Info className="w-4 h-4 text-muted-foreground" />
+          <TooltipProvider>
+            <Tooltip open={workersTooltipOpen} onOpenChange={setWorkersTooltipOpen} delayDuration={0}>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  className="inline-flex items-center p-0"
+                  aria-label="Ayuda trabajadores"
+                  onClick={() => setWorkersTooltipOpen((s) => !s)}
+                >
+                  <Info className="w-3 h-3 text-muted-foreground cursor-help" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right" align="center" sideOffset={6} className="max-w-[12.6rem]">
+                {t("selectWorkersInfo")}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </Label>
         <div className="mt-1 border rounded-md p-3 min-h-[120px] bg-background">
           <div className="space-y-1 max-h-32 overflow-y-auto">
@@ -951,8 +994,8 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
           id="observations"
           value={formData.observations}
           onChange={(e) => updateFormData("observations", e.target.value)}
-          className="mt-1"
-          rows={3}
+          className="mt-1 min-h-[48px]"
+          rows={2}
         />
       </div>
     </div>
@@ -1214,7 +1257,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
         {/* Entrance */}
         <div className="space-y-6">
           <div className="text-center">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-purple-100 dark:bg-purple-900/30 rounded-lg mb-3">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-lg mb-3" style={{ backgroundColor: "#f6eef9" }}>
               <div className="w-12 h-12 border-2 border-foreground rounded-lg flex items-center justify-center relative bg-background">
                 <div className="absolute left-1 w-3 h-3 bg-foreground rounded-full">
                   <div className="w-1 h-1 bg-background rounded-full mt-1 ml-1"></div>
@@ -1234,7 +1277,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
                 </div>
               </div>
             </div>
-            <h4 className="font-medium text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30 px-3 py-1 rounded">
+            <h4 className="font-medium px-3 py-1 rounded" style={{ color: "#662D91", backgroundColor: "#f6eef9" }}>
               {t("entrance") || "Entrance"}
             </h4>
           </div>
@@ -1267,7 +1310,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
         {/* Exit */}
         <div className="space-y-6">
           <div className="text-center">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-purple-100 dark:bg-purple-900/30 rounded-lg mb-3">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-lg mb-3" style={{ backgroundColor: "#f6eef9" }}>
               <div className="w-12 h-12 border-2 border-foreground rounded-lg flex items-center justify-center relative bg-background">
                 <div className="absolute right-1 w-3 h-3 bg-foreground rounded-full">
                   <div className="w-1 h-1 bg-background rounded-full mt-1 ml-1"></div>
@@ -1287,7 +1330,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
                 </div>
               </div>
             </div>
-            <h4 className="font-medium text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30 px-3 py-1 rounded">
+            <h4 className="font-medium px-3 py-1 rounded" style={{ color: "#662D91", backgroundColor: "#f6eef9" }}>
               {t("exit") || "Exit"}
             </h4>
           </div>
@@ -1378,8 +1421,8 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
               id="taskObservations"
               value={formData.taskObservations}
               onChange={(e) => updateFormData("taskObservations", e.target.value)}
-              className="mt-1"
-              rows={3}
+              className="mt-1 min-h-[48px]"
+              rows={2}
             />
           </div>
 
@@ -1831,7 +1874,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
 
           <div className="flex justify-between items-center pt-4">
             <div className="flex gap-2">
-              <Button onClick={addTaskToList} className="bg-purple-600 hover:bg-purple-700 text-white px-6">
+              <Button onClick={addTaskToList} className="text-white px-6" style={{ backgroundColor: "#662D91" }}>
                 {t("add") || "Add"}
               </Button>
               <Button
@@ -1877,7 +1920,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
             <div className="mt-6">
               <div className="border rounded-lg overflow-hidden">
                 <table className="w-full">
-                  <thead className="bg-purple-600 text-white">
+                  <thead className="text-white" style={{ backgroundColor: "#662D91" }}>
                     <tr>
                       <th className="px-4 py-2 text-left text-sm font-medium">
                         {t("toBeCarriedOut") || "To be carried out"}
@@ -2173,13 +2216,18 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl p-0 gap-0 [&>button]:hidden max-h-[90vh] flex flex-col bg-background">
+      <DialogContent className="max-w-3xl p-0 gap-0 [&>button]:hidden max-h-[90vh] flex flex-col bg-background ml-1 mr-3">
         <DialogHeader className="p-6 pb-4">
-          <div className="flex items-center justify-between">
-            <DialogTitle className="text-lg font-medium text-foreground">{t("newJob") || "New Job"}</DialogTitle>
-            <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => onOpenChange(false)}>
-              <X className="h-4 w-4" />
-            </Button>
+          <div className="flex items-center justify-between relative">
+            <div className="flex-1" />
+            <div className="absolute left-1/2 transform -translate-x-1/2">
+              <DialogTitle className="text-xl sm:text-2xl font-semibold text-foreground text-center tracking-tight">{t("newJob") || "New Job"}</DialogTitle>
+            </div>
+            <div className="flex-1 flex justify-end">
+              <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => onOpenChange(false)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
 
           {renderProgressSteps()}

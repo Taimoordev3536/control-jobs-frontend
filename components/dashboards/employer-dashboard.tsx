@@ -28,6 +28,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { useTranslation } from "@/hooks/use-translation"
+import { LoadingSpinner } from "@/components/dashboard-loader"
 import { useAuth } from "@/hooks/use-auth"
 import AddJobModal from "@/components/add-job-modal"
 import JobDetail from "@/components/job-detail/job-detail"
@@ -449,14 +450,7 @@ export default function EmployerDashboard() {
   }
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-white dark:bg-gray-950 flex items-center justify-center">
-        <div className="relative">
-          <div className="w-16 h-16 border-4 border-gray-200 dark:border-gray-800 rounded-full animate-spin border-t-purple-600"></div>
-          <div className="absolute inset-0 w-16 h-16 border-4 border-transparent rounded-full animate-ping border-t-purple-400"></div>
-        </div>
-      </div>
-    )
+    return <LoadingSpinner />
   }
 
   if (error) {

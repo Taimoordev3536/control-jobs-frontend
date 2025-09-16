@@ -48,6 +48,8 @@ export default function AddWorkerModal({ open, onOpenChange, onWorkerAdded }: Ad
     email: false,
     occupation: false,
     gender: false,
+    code: false,
+    birthday: false,
   })
 
   const steps = [
@@ -81,10 +83,12 @@ export default function AddWorkerModal({ open, onOpenChange, onWorkerAdded }: Ad
         email: false,
         occupation: !formData.occupation,
         gender: !formData.gender,
+        code: !formData.code,
+        birthday: !formData.birthday,
       }
       setValidationErrors(errors)
 
-      if (errors.occupation || errors.gender) {
+      if (errors.occupation || errors.gender || errors.code || errors.birthday) {
         return
       }
     }
@@ -207,6 +211,8 @@ export default function AddWorkerModal({ open, onOpenChange, onWorkerAdded }: Ad
           email: false,
           occupation: false,
           gender: false,
+          code: false,
+          birthday: false,
         })
       }, 1000)
     } catch (err: any) {
@@ -370,6 +376,9 @@ export default function AddWorkerModal({ open, onOpenChange, onWorkerAdded }: Ad
                   onChange={(e) => updateFormData("code", e.target.value)}
                   className="mt-1"
                 />
+                {validationErrors.code && (
+                  <p className="mt-1 text-sm text-red-500">{t("thisFieldIsRequired") || "This field is required."}</p>
+                )}
               </div>
 
               <div>
@@ -441,6 +450,9 @@ export default function AddWorkerModal({ open, onOpenChange, onWorkerAdded }: Ad
                   onChange={(e) => updateFormData("birthday", e.target.value)}
                   className="mt-1"
                 />
+                {validationErrors.birthday && (
+                  <p className="mt-1 text-sm text-red-500">{t("thisFieldIsRequired") || "This field is required."}</p>
+                )}
               </div>
 
               <div className="flex flex-col sm:flex-row justify-between pt-4 gap-4">

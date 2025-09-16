@@ -70,7 +70,11 @@ export default function AddPartnerModal({ open, onOpenChange, onPartnerAdded }: 
     address: false,
     mobile: false,
     email: false,
+    nif: false,
+    typeOfPartner: false,
+    commission: false,
   })
+
 
   const steps = [
     { number: 1, label: t("Id") },
@@ -89,6 +93,20 @@ export default function AddPartnerModal({ open, onOpenChange, onPartnerAdded }: 
       setValidationErrors(errors)
 
       if (errors.name || errors.address || errors.mobile || errors.email) {
+        return
+      }
+    }
+
+    if (currentStep === 2) {
+      const errors = {
+        ...validationErrors,
+        nif: !formData.nif,
+        typeOfPartner: !formData.typeOfPartner,
+        commission: !formData.commission,
+      }
+      setValidationErrors(errors)
+
+      if (errors.nif || errors.typeOfPartner || errors.commission) {
         return
       }
     }
@@ -191,6 +209,15 @@ export default function AddPartnerModal({ open, onOpenChange, onPartnerAdded }: 
           responsible: "",
           accessAccountStatus: "postpone",
         })
+        setValidationErrors({
+          name: false,
+          address: false,
+          mobile: false,
+          email: false,
+          nif: false,
+          typeOfPartner: false,
+          commission: false,
+        })
       }, 1000)
     } catch (err: any) {
       setError(err.message)
@@ -265,7 +292,7 @@ export default function AddPartnerModal({ open, onOpenChange, onPartnerAdded }: 
                   onChange={(e) => updateFormData("name", e.target.value)}
                   className={`mt-1 ${validationErrors.name ? "border-red-500" : ""}`}
                 />
-                {validationErrors.name && <p className="mt-1 text-sm text-red-500">{t("fieldRequired")}</p>}
+                {validationErrors.name && <p className="mt-1 text-sm text-red-500">{t("thisFieldIsRequired")}</p>}
               </div>
 
               <div>
@@ -279,7 +306,7 @@ export default function AddPartnerModal({ open, onOpenChange, onPartnerAdded }: 
                   placeholder={t("addressPlaceholder")}
                   className={`mt-1 ${validationErrors.address ? "border-red-500" : ""}`}
                 />
-                {validationErrors.address && <p className="mt-1 text-sm text-red-500">{t("fieldRequired")}</p>}
+                {validationErrors.address && <p className="mt-1 text-sm text-red-500">{t("thisFieldIsRequired")}</p>}
               </div>
 
               <div>
@@ -304,7 +331,7 @@ export default function AddPartnerModal({ open, onOpenChange, onPartnerAdded }: 
                   onChange={(e) => updateFormData("mobile", e.target.value)}
                   className={`mt-1 ${validationErrors.mobile ? "border-red-500" : ""}`}
                 />
-                {validationErrors.mobile && <p className="mt-1 text-sm text-red-500">{t("fieldRequired")}</p>}
+                {validationErrors.mobile && <p className="mt-1 text-sm text-red-500">{t("thisFieldIsRequired")}</p>}
               </div>
 
               <div>
@@ -317,7 +344,7 @@ export default function AddPartnerModal({ open, onOpenChange, onPartnerAdded }: 
                   onChange={(e) => updateFormData("email", e.target.value)}
                   className={`mt-1 ${validationErrors.email ? "border-red-500" : ""}`}
                 />
-                {validationErrors.email && <p className="mt-1 text-sm text-red-500">{t("fieldRequired")}</p>}
+                {validationErrors.email && <p className="mt-1 text-sm text-red-500">{t("thisFieldIsRequired")}</p>}
               </div>
 
               <div className="flex justify-end pt-4">
@@ -344,6 +371,9 @@ export default function AddPartnerModal({ open, onOpenChange, onPartnerAdded }: 
                   onChange={(e) => updateFormData("nif", e.target.value)}
                   className="mt-1"
                 />
+                {validationErrors.nif && (
+                  <p className="mt-1 text-sm text-red-500">{t("thisFieldIsRequired")}</p>
+                )}
               </div>
 
               <div>
@@ -363,6 +393,9 @@ export default function AddPartnerModal({ open, onOpenChange, onPartnerAdded }: 
                     ))}
                   </SelectContent>
                 </Select>
+                {validationErrors.typeOfPartner && (
+                  <p className="mt-1 text-sm text-red-500">{t("thisFieldIsRequired")}</p>
+                )}
               </div>
 
               <div>
@@ -378,6 +411,9 @@ export default function AddPartnerModal({ open, onOpenChange, onPartnerAdded }: 
                   />
                   <span className="ml-2 text-muted-foreground">%</span>
                 </div>
+                {validationErrors.commission && (
+                  <p className="mt-1 text-sm text-red-500">{t("thisFieldIsRequired")}</p>
+                )}
               </div>
 
               <div>

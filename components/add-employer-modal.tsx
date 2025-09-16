@@ -36,7 +36,7 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded }
     responsible: "",
     activateAccount: "postpone",
     accessEmail: "",
-    class: "individual",
+  class: "placeholder",
     address: "",
     landline: "",
     mobile: "",
@@ -51,6 +51,7 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded }
     partner: false,
     fee: false,
     nif: false,
+    class: false,
   })
 
   const steps = [
@@ -103,6 +104,7 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded }
         address: !formData.address,
         mobile: !formData.mobile,
         email: !formData.email,
+        class: !(formData.class && formData.class !== "placeholder"),
       }
       setValidationErrors(errors)
       if (Object.values(errors).some((error) => error)) return
@@ -139,7 +141,7 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded }
         phone: formData.mobile,
         landline: formData.landline,
         typeId: Number.parseInt(formData.fee),
-        subTypeId: formData.class === "company" ? 3 : 1,
+  subTypeId: formData.class === "company" ? 3 : 1,
         fee: Number.parseFloat(formData.fee) || 0,
         discount: Number.parseFloat(formData.discount) || 0,
         paymentMethodId: Number.parseInt(formData.paymentMethod),
@@ -187,7 +189,12 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded }
         const newEmployer = {
           id: result.data.id,
           name: result.data.name || formData.name,
-          class: formData.class === "company" ? t("company") : t("individual"),
+          class:
+            formData.class === "company"
+              ? t("company")
+              : formData.class === "self-employed"
+              ? t("self-employed")
+              : t("individual"),
           type: selectedFeeType?.name || formData.fee,
           fee: selectedFeeType?.name || formData.fee,
           lack: new Date().toLocaleDateString(), // Use current date since it was just created
@@ -226,7 +233,7 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded }
       responsible: "",
       activateAccount: "postpone",
       accessEmail: "",
-      class: "individual",
+  class: "placeholder",
       address: "",
       landline: "",
       mobile: "",
@@ -241,6 +248,7 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded }
       partner: false,
       fee: false,
       nif: false,
+      class: false,
     })
   }
 
@@ -296,18 +304,22 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded }
             <div className="space-y-4">
               <div>
                 <Label htmlFor="class" className="text-sm font-medium text-foreground">
-                  {t("class")}
+                  {t("class")} <span className="text-destructive">*</span>
                 </Label>
                 <Select value={formData.class} onValueChange={(value) => updateFormData("class", value)}>
                   <SelectTrigger className="mt-1">
-                    <SelectValue placeholder={t("selectClass")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Individual">Individual</SelectItem>
-                    <SelectItem value="Self-Employed">Self-Employed</SelectItem>
-                    <SelectItem value="Company">Company</SelectItem>
-                  </SelectContent>
+                      <SelectValue placeholder={t("selectClass")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="placeholder">{t("selectClass")}</SelectItem>
+                      <SelectItem value="individual">Individual</SelectItem>
+                      <SelectItem value="self-employed">Self-Employed</SelectItem>
+                      <SelectItem value="company">Company</SelectItem>
+                    </SelectContent>
                 </Select>
+                {validationErrors.class && (
+                  <p className="mt-1 text-sm text-destructive">{t("thisFieldIsRequired")}</p>
+                )}
               </div>
 
               <div>
@@ -320,7 +332,7 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded }
                   onChange={(e) => updateFormData("name", e.target.value)}
                   className={`mt-1 ${validationErrors.name ? "border-destructive" : ""}`}
                 />
-                {validationErrors.name && <p className="mt-1 text-sm text-destructive">{t("fieldRequired")}</p>}
+                {validationErrors.name && <p className="mt-1 text-sm text-destructive">{t("thisFieldIsRequired")}</p>}
               </div>
 
               <div>
@@ -334,7 +346,7 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded }
                   placeholder={t("addressPlaceholder")}
                   className={`mt-1 ${validationErrors.address ? "border-destructive" : ""}`}
                 />
-                {validationErrors.address && <p className="mt-1 text-sm text-destructive">{t("fieldRequired")}</p>}
+                {validationErrors.address && <p className="mt-1 text-sm text-destructive">{t("thisFieldIsRequired")}</p>}
               </div>
 
               <div>
@@ -359,7 +371,7 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded }
                   onChange={(e) => updateFormData("mobile", e.target.value)}
                   className={`mt-1 ${validationErrors.mobile ? "border-destructive" : ""}`}
                 />
-                {validationErrors.mobile && <p className="mt-1 text-sm text-destructive">{t("fieldRequired")}</p>}
+                {validationErrors.mobile && <p className="mt-1 text-sm text-destructive">{t("thisFieldIsRequired")}</p>}
               </div>
 
               <div>
@@ -373,7 +385,7 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded }
                   onChange={(e) => updateFormData("email", e.target.value)}
                   className={`mt-1 ${validationErrors.email ? "border-destructive" : ""}`}
                 />
-                {validationErrors.email && <p className="mt-1 text-sm text-destructive">{t("fieldRequired")}</p>}
+                {validationErrors.email && <p className="mt-1 text-sm text-destructive">{t("thisFieldIsRequired")}</p>}
               </div>
 
               <div className="flex justify-end pt-4">
@@ -403,7 +415,7 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded }
                     ))}
                   </SelectContent>
                 </Select>
-                {validationErrors.partner && <p className="mt-1 text-sm text-destructive">{t("fieldRequired")}</p>}
+                {validationErrors.partner && <p className="mt-1 text-sm text-destructive">{t("thisFieldIsRequired")}</p>}
               </div>
 
               <div>
@@ -416,7 +428,7 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded }
                   onChange={(e) => updateFormData("nif", e.target.value)}
                   className={`mt-1 ${validationErrors.nif ? "border-destructive" : ""}`}
                 />
-                {validationErrors.nif && <p className="mt-1 text-sm text-destructive">{t("fieldRequired")}</p>}
+                {validationErrors.nif && <p className="mt-1 text-sm text-destructive">{t("thisFieldIsRequired")}</p>}
               </div>
 
               <div>
@@ -435,7 +447,7 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded }
                     ))}
                   </SelectContent>
                 </Select>
-                {validationErrors.fee && <p className="mt-1 text-sm text-destructive">{t("fieldRequired")}</p>}
+                {validationErrors.fee && <p className="mt-1 text-sm text-destructive">{t("thisFieldIsRequired")}</p>}
               </div>
 
               <div>
@@ -534,7 +546,7 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded }
                     className="mt-1" 
                     placeholder={formData.email}
                   />
-                  <p className="mt-1 text-xs text-muted-foreground">{t("accessEmailHelperEmployer") || "Leave empty to use the main email address"}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{t("accessEmailHelper") || "Leave empty to use the main email address"}</p>
                 </div>
               )}
 

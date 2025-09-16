@@ -22,6 +22,7 @@ import { CheckInMethods } from "@/components/dashboards/worker-dashboard/check-i
 import { CheckInProcess } from "@/components/dashboards/worker-dashboard/check-in-process"
 import { JobAttendanceDetail } from "@/components/job-attendance-detail"
 import { useTranslation } from "@/hooks/use-translation"
+import { LoadingSpinner } from "@/components/dashboard-loader"
 import { useAuth } from "@/hooks/use-auth"
 import { Button } from "@/components/ui/button"
 
@@ -989,14 +990,7 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
-        <div className="relative">
-          <div className="w-16 h-16 border-4 border-gray-200 dark:border-gray-800 rounded-full animate-spin border-t-purple-600"></div>
-          <div className="absolute inset-0 w-16 h-16 border-4 border-transparent rounded-full animate-ping border-t-purple-400"></div>
-        </div>
-      </div>
-    );
+    return <LoadingSpinner />
   }
 
   if (error) {

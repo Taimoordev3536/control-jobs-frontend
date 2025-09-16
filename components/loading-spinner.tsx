@@ -1,22 +1,3 @@
-// "use client"
-
-// import { Loader2 } from "lucide-react"
-
-// interface LoadingSpinnerProps {
-//   message?: string
-// }
-
-// export function LoadingSpinner({ message = "Loading..." }: LoadingSpinnerProps) {
-//   return (
-//     <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
-//       <div className="flex flex-col items-center space-y-4">
-//         <Loader2 className="h-8 w-8 animate-spin text-primary" />
-//         <p className="text-sm text-muted-foreground">{message}</p>
-//       </div>
-//     </div>
-//   )
-// }
-
 
 "use client"
 import { Loader2 } from "lucide-react"
@@ -27,98 +8,56 @@ interface LoadingSpinnerProps {
 
 export function LoadingSpinner({ className = "" }: LoadingSpinnerProps) {
   return (
-    <div className={`flex h-screen bg-muted/40 ${className}`}>
-      {/* Sidebar Skeleton */}
-      <div className="w-64 bg-card border-r border-border animate-pulse">
-        <div className="p-4 border-b border-border">
-          <div className="h-8 bg-muted rounded"></div>
-        </div>
-        <div className="p-4 space-y-4">
-          {[1, 2, 3, 4, 5].map((item) => (
-            <div key={item} className="h-6 bg-muted rounded"></div>
-          ))}
-        </div>
-      </div>
+    <div className={`flex h-screen bg-muted/30 ${className}`}>
+      {/* Sidebar Skeleton (minimized width ~30% of before) */}
+      <aside className="hidden md:flex w-44 flex-col border-r border-border/30 p-3 space-y-3">
+        <div className="h-6 bg-muted/40 rounded-lg animate-pulse"></div>
+        {[1, 2, 3].map((item) => (
+          <div key={item} className="h-5 bg-muted/40 rounded-lg animate-pulse"></div>
+        ))}
+      </aside>
 
-      {/* Main Content Area */}
+      {/* Main Section */}
       <div className="flex-1 flex flex-col">
-        {/* Header Skeleton */}
-        <header className="h-16 bg-card border-b border-border flex items-center justify-between px-6 animate-pulse">
-          <div className="h-8 bg-muted rounded w-6"></div>
-          <div className="flex items-center space-x-4">
-            <div className="h-8 w-32 bg-muted rounded"></div>
-             <div className="h-8 w-8 bg-muted rounded-full"></div>
+        {/* Header (darker grey) */}
+        <header className="h-16 border-b border-border flex items-center justify-between px-6">
+          <div className="h-8 w-32 bg-muted/70 rounded-lg animate-pulse"></div>
+          <div className="flex items-center space-x-3">
+            <div className="h-8 w-24 bg-muted/70 rounded-lg animate-pulse"></div>
+            <div className="h-8 w-8 bg-muted/70 rounded-full animate-pulse"></div>
           </div>
         </header>
 
-        {/* Main Content Skeleton */}
-        <main className="flex-1 p-6 overflow-auto">
-          {/* Breadcrumb Skeleton */}
-          <div className="mb-6 animate-pulse">
-            <div className="h-4 bg-muted rounded w-48"></div>
-          </div>
+        {/* Content */}
+        <main className="flex-1 p-6 space-y-6 overflow-auto mr-6">
+          {/* Breadcrumb */}
+          <div className="h-4 w-48 bg-muted/50 rounded animate-pulse"></div>
 
-          {/* Page Title Skeleton */}
-          {/* <div className="mb-6 animate-pulse">
-            <div className="h-8 bg-muted rounded w-64"></div>
-          </div> */}
-
-          {/* Stats Cards Skeleton */}
-          {/* <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            {[1, 2, 3, 4].map((card) => (
-              <div key={card} className="bg-card rounded-lg p-6 shadow-sm border border-border animate-pulse">
-                <div className="h-5 bg-muted rounded w-3/4 mb-2"></div>
-                <div className="h-8 bg-muted rounded w-1/2"></div>
-              </div>
-            ))}
-          </div> */}
-
-          {/* Table Container Skeleton */}
-          <div className="bg-card rounded-lg shadow-sm border border-border">
-            {/* Table Header Skeleton */}
-            <div className="p-4 border-b border-border flex items-center justify-between animate-pulse">
-              <div className="h-8 bg-muted rounded w-64"></div>
-                <div className="flex items-center space-x-4">
-              <div className="h-10 mr-0 bg-muted rounded w-8"></div>
-              <div className="h-10 mr-0 bg-muted rounded w-8"></div>
-              <div className="h-10 mr-0 bg-muted rounded w-8"></div>
-              <div className="h-10 mr-0 bg-muted rounded w-8"></div>
-              </div>
-            </div>
-
-            {/* Table Skeleton */}
-            <div className="p-4">
-              <div className="w-full animate-pulse">
-                {/* Table header row */}
-                <div className="grid grid-cols-12 gap-4 mb-4">
-                  <div className="col-span-3 h-4 bg-muted rounded"></div>
-                  <div className="col-span-2 h-4 bg-muted rounded"></div>
-                  <div className="col-span-2 h-4 bg-muted rounded"></div>
-                  <div className="col-span-2 h-4 bg-muted rounded"></div>
-                  <div className="col-span-3 h-4 bg-muted rounded"></div>
-                </div>
-                
-                {/* Table rows */}
-                <div className="space-y-3">
-                  {[1, 2, 3, 4, 5].map((row) => (
-                    <div key={row} className="grid grid-cols-12 gap-4 py-3">
-                      <div className="col-span-3 h-6 bg-muted rounded"></div>
-                      <div className="col-span-2 h-6 bg-muted rounded"></div>
-                      <div className="col-span-2 h-6 bg-muted rounded"></div>
-                      <div className="col-span-2 h-6 bg-muted rounded"></div>
-                      <div className="col-span-3 h-6 bg-muted rounded"></div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Table Footer Skeleton */}
-            <div className="p-4 border-t border-border flex items-center justify-between animate-pulse">
-              <div className="h-4 bg-muted rounded w-48"></div>
+          {/* Table Skeleton */}
+          <div className="border border-border rounded-xl p-4 space-y-4 shadow-sm">
+            {/* Header */}
+            <div className="flex justify-between items-center">
+              <div className="h-6 w-48 bg-muted/70 rounded animate-pulse"></div>
               <div className="flex space-x-2">
-                <div className="h-8 w-8 bg-muted rounded"></div>
-                <div className="h-8 w-8 bg-muted rounded"></div>
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-8 w-8 bg-muted/70 rounded-md animate-pulse"></div>
+                ))}
+              </div>
+            </div>
+
+            {/* Rows */}
+            <div className="space-y-3">
+              {[1, 2, 3, 4].map((row) => (
+                <div key={row} className="h-10 bg-muted/70 rounded-lg animate-pulse"></div>
+              ))}
+            </div>
+
+            {/* Footer */}
+            <div className="flex justify-between items-center pt-4">
+              <div className="h-4 w-32 bg-muted/70 rounded animate-pulse"></div>
+              <div className="flex space-x-2">
+                <div className="h-8 w-8 bg-muted/70 rounded-md animate-pulse"></div>
+                <div className="h-8 w-8 bg-muted/70 rounded-md animate-pulse"></div>
               </div>
             </div>
           </div>
@@ -127,3 +66,5 @@ export function LoadingSpinner({ className = "" }: LoadingSpinnerProps) {
     </div>
   )
 }
+
+
