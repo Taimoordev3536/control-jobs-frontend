@@ -927,7 +927,6 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
           </SelectContent>
         </Select>
       </div>
-
       <div>
         <Label className="text-sm font-medium text-foreground flex items-center gap-1">
           {t("workers") || "Workers"}
@@ -1001,142 +1000,344 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
     </div>
   )
 
-  const renderSchedulesStep = () => (
-    <div className="space-y-6">
-      <h3 className="text-lg font-medium text-center mb-6 underline">{t("schedules") || "Schedules"}</h3>
+  // const renderSchedulesStep = () => (
+  //   <div className="space-y-4">
+  //     <h3 className="text-lg font-medium text-center mb-4 underline">{t("schedules") || "Schedules"}</h3>
 
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-4">
-          <span className="text-sm font-medium">{t("free") || "Free"}</span>
-          <Switch
-            checked={(formData.scheduleType as string) === "programming"}
-            onCheckedChange={(checked) => updateFormData("scheduleType", checked ? "programming" : "free")}
-          />
-          <span className="text-sm font-medium">{t("programming") || "Programming"}</span>
-        </div>
-        <div className="flex items-center gap-4">
+  //     <div className="flex items-center justify-between mb-4">
+  //       <div className="flex items-center gap-3">
+  //         <span className="text-sm font-medium">{t("free") || "Free"}</span>
+  //         <Switch
+  //           checked={(formData.scheduleType as string) === "programming"}
+  //           onCheckedChange={(checked) => updateFormData("scheduleType", checked ? "programming" : "free")}
+  //         />
+  //         <span className="text-sm font-medium">{t("programming") || "Programming"}</span>
+  //       </div>
+  //       {(formData.scheduleType as string) === "programming" && (
+  //         <div className="flex items-center gap-3">
+  //           <span className="text-sm font-medium">{t("winter") || "Winter"}</span>
+  //           <Switch
+  //             checked={(formData.seasonType as string) === "summer"}
+  //             onCheckedChange={(checked) => updateFormData("seasonType", checked ? "summer" : "winter")}
+  //           />
+  //           <span className="text-sm font-medium">{t("summer") || "Summer"}</span>
+  //         </div>
+  //       )}
+  //     </div>
+
+  //     {(formData.scheduleType as string) === "programming" && (
+  //       <div className="w-full">
+  //         <table className="w-full border-collapse">
+  //           <thead>
+  //             <tr className="bg-muted/30">
+  //               <th className="border border-border px-3 py-2 text-left font-medium text-sm w-20">
+  //                 {t("day") || "Day"}
+  //               </th>
+  //               <th className="border border-border px-2 py-2 text-center font-medium text-sm">
+  //                 {t("tomorrow") || "Tomorrow"}
+  //               </th>
+  //               <th className="border border-border px-2 py-2 text-center font-medium text-sm">
+  //                 {t("late") || "Late"}
+  //               </th>
+  //               <th className="border border-border px-2 py-2 text-center font-medium text-sm">
+  //                 {t("evening") || "Evening"}
+  //               </th>
+  //               <th className="border border-border px-2 py-2 text-center font-medium text-sm w-16">Total</th>
+  //             </tr>
+  //           </thead>
+  //           <tbody>
+  //             {daysOfWeek.map((day) => (
+  //               <tr key={day.key} className="hover:bg-muted/20">
+  //                 <td className="border border-border px-3 py-2 font-medium text-sm bg-muted/10">{day.label}</td>
+  //                 <td className="border border-border px-1 py-1">
+  //                   <div className="flex items-center justify-center gap-1">
+  //                     <div className="relative">
+  //                       <Input
+  //                         placeholder="--:--"
+  //                         className="w-16 h-6 text-xs text-center pr-5 border-gray-300"
+  //                         value={formData.schedules[day.key]?.tomorrow?.start || ""}
+  //                         readOnly
+  //                       />
+  //                       <div className="absolute right-1 top-1/2 transform -translate-y-1/2 z-50">
+  //                         <TimePicker
+  //                           value={formData.schedules[day.key]?.tomorrow?.start}
+  //                           onChange={(time) => updateScheduleTime(day.key, "tomorrow", "start", time)}
+  //                         />
+  //                       </div>
+  //                     </div>
+  //                     <span className="text-xs text-muted-foreground">-</span>
+  //                     <div className="relative">
+  //                       <Input
+  //                         placeholder="--:--"
+  //                         className="w-16 h-6 text-xs text-center pr-5 border-gray-300"
+  //                         value={formData.schedules[day.key]?.tomorrow?.end || ""}
+  //                         readOnly
+  //                       />
+  //                       <div className="absolute right-1 top-1/2 transform -translate-y-1/2 z-50">
+  //                         <TimePicker
+  //                           value={formData.schedules[day.key]?.tomorrow?.end}
+  //                           onChange={(time) => updateScheduleTime(day.key, "tomorrow", "end", time)}
+  //                         />
+  //                       </div>
+  //                     </div>
+  //                   </div>
+  //                 </td>
+  //                 <td className="border border-border px-1 py-1">
+  //                   <div className="flex items-center justify-center gap-1">
+  //                     <div className="relative">
+  //                       <Input
+  //                         placeholder="--:--"
+  //                         className="w-16 h-6 text-xs text-center pr-5 border-gray-300"
+  //                         value={formData.schedules[day.key]?.late?.start || ""}
+  //                         readOnly
+  //                       />
+  //                       <div className="absolute right-1 top-1/2 transform -translate-y-1/2 z-50">
+  //                         <TimePicker
+  //                           value={formData.schedules[day.key]?.late?.start}
+  //                           onChange={(time) => updateScheduleTime(day.key, "late", "start", time)}
+  //                         />
+  //                       </div>
+  //                     </div>
+  //                     <span className="text-xs text-muted-foreground">-</span>
+  //                     <div className="relative">
+  //                       <Input
+  //                         placeholder="--:--"
+  //                         className="w-16 h-6 text-xs text-center pr-5 border-gray-300"
+  //                         value={formData.schedules[day.key]?.late?.end || ""}
+  //                         readOnly
+  //                       />
+  //                       <div className="absolute right-1 top-1/2 transform -translate-y-1/2 z-50">
+  //                         <TimePicker
+  //                           value={formData.schedules[day.key]?.late?.end}
+  //                           onChange={(time) => updateScheduleTime(day.key, "late", "end", time)}
+  //                         />
+  //                       </div>
+  //                     </div>
+  //                   </div>
+  //                 </td>
+  //                 <td className="border border-border px-1 py-1">
+  //                   <div className="flex items-center justify-center gap-1">
+  //                     <div className="relative">
+  //                       <Input
+  //                         placeholder="--:--"
+  //                         className="w-16 h-6 text-xs text-center pr-5 border-gray-300"
+  //                         value={formData.schedules[day.key]?.evening?.start || ""}
+  //                         readOnly
+  //                       />
+  //                       <div className="absolute right-1 top-1/2 transform -translate-y-1/2 z-50">
+  //                         <TimePicker
+  //                           value={formData.schedules[day.key]?.evening?.start}
+  //                           onChange={(time) => updateScheduleTime(day.key, "evening", "start", time)}
+  //                         />
+  //                       </div>
+  //                     </div>
+  //                     <span className="text-xs text-muted-foreground">-</span>
+  //                     <div className="relative">
+  //                       <Input
+  //                         placeholder="--:--"
+  //                         className="w-16 h-6 text-xs text-center pr-5 border-gray-300"
+  //                         value={formData.schedules[day.key]?.evening?.end || ""}
+  //                         readOnly
+  //                       />
+  //                       <div className="absolute right-1 top-1/2 transform -translate-y-1/2 z-50">
+  //                         <TimePicker
+  //                           value={formData.schedules[day.key]?.evening?.end}
+  //                           onChange={(time) => updateScheduleTime(day.key, "evening", "end", time)}
+  //                         />
+  //                       </div>
+  //                     </div>
+  //                   </div>
+  //                 </td>
+  //                 <td className="border border-border px-2 py-2 text-center font-mono text-xs bg-muted/5">
+  //                   {formData.schedules[day.key]?.total || "00:00"}
+  //                 </td>
+  //               </tr>
+  //             ))}
+  //           </tbody>
+  //         </table>
+  //       </div>
+  //     )}
+  //   </div>
+  // )
+
+const renderSchedulesStep = () => (
+  <div className="space-y-4">
+    <h3 className="text-lg font-medium text-center mb-4 underline">{t("schedules") || "Schedules"}</h3>
+
+    <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center gap-[1px]">
+        <span className="text-sm font-medium">{t("free") || "Free"}</span>
+        <Switch
+          className="scale-[0.65]"
+          checked={(formData.scheduleType as string) === "programming"}
+          onCheckedChange={(checked) => updateFormData("scheduleType", checked ? "programming" : "free")}
+        />
+        <span className="text-sm font-medium">{t("programming") || "Programming"}</span>
+      </div>
+      {(formData.scheduleType as string) === "programming" && (
+        <div className="flex items-center gap-[1px]">
           <span className="text-sm font-medium">{t("winter") || "Winter"}</span>
           <Switch
+            className="scale-[0.65]"
             checked={(formData.seasonType as string) === "summer"}
             onCheckedChange={(checked) => updateFormData("seasonType", checked ? "summer" : "winter")}
           />
           <span className="text-sm font-medium">{t("summer") || "Summer"}</span>
         </div>
-      </div>
+      )}
+    </div>
 
-      {(formData.scheduleType as string) === "programming" && (
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse border border-border">
-            <thead>
-              <tr className="bg-muted/50">
-                <th className="border border-border p-3 text-left font-medium text-foreground">{t("day") || "Day"}</th>
-                <th className="border border-border p-3 text-center font-medium text-foreground">
-                  {t("morning") || "Morning"}
-                </th>
-                <th className="border border-border p-3 text-center font-medium text-foreground">
-                  {t("afternoon") || "Afternoon"}
-                </th>
-                <th className="border border-border p-3 text-center font-medium text-foreground">
-                  {t("evening") || "Evening"}
-                </th>
-                <th className="border border-border p-3 text-center font-medium text-foreground">Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              {daysOfWeek.map((day) => (
-                <tr key={day.key} className="hover:bg-muted/30">
-                  <td className="border border-border p-3 font-medium text-foreground bg-muted/20">{day.label}</td>
-                  <td className="border border-border p-2 bg-background">
-                    <div className="flex items-center gap-1 justify-center">
+    {(formData.scheduleType as string) === "programming" && (
+      <div className="w-full">
+        <table className="w-full border-collapse">
+          <thead  >
+            <tr className="bg-gray-100 border-b-[3px] border-[#7547a3]">
+              <th className="border border-border px-2 py-2 text-center font-medium text-sm w-20">
+                {t("day") || "Day"}
+              </th>
+              <th className="border border-border px-2 py-2 text-center font-medium text-sm w-24">
+                {t("morning") || "Morning"}
+              </th>
+              <th className="border border-border px-2 py-2 text-center font-medium text-sm w-24">
+                {t("afternoon") || "Afternoon"}
+              </th>
+              <th className="border border-border px-2 py-2 text-center font-medium text-sm w-24">
+                {t("evening") || "Evening"}
+              </th>
+              <th className="border border-border px-2 py-2 text-center font-medium text-sm w-16">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {daysOfWeek.map((day) => (
+              <tr key={day.key} className="hover:bg-muted/20">
+                <td className="border border-border px-3 py-2 font-medium text-sm bg-muted/10">{day.label}</td>
+                <td className="border border-border px-2 py-1">
+                  <div className="flex items-center justify-center gap-2">
+                    <div className="relative">
                       <Input
                         placeholder="--:--"
-                        className="w-16 text-xs text-center bg-background border-input"
+                        className={`w-20 h-6 text-xs text-center pr-7 border-gray-300 ${
+                          formData.schedules[day.key]?.tomorrow?.start ? 'bg-gray-100' : ''
+                        }`}
                         value={formData.schedules[day.key]?.tomorrow?.start || ""}
                         readOnly
                       />
-                      <TimePicker
-                        value={formData.schedules[day.key]?.tomorrow?.start}
-                        onChange={(time) => updateScheduleTime(day.key, "tomorrow", "start", time)}
-                      />
-                      <span className="text-xs text-muted-foreground">-</span>
+                      <div className="absolute right-1 top-1/2 transform -translate-y-1/2 z-50">
+                        <TimePicker
+                          value={formData.schedules[day.key]?.tomorrow?.start}
+                          onChange={(time) => updateScheduleTime(day.key, "tomorrow", "start", time)}
+                        />
+                      </div>
+                    </div>
+                    <span className="text-xs text-muted-foreground">-</span>
+                    <div className="relative">
                       <Input
                         placeholder="--:--"
-                        className="w-16 text-xs text-center bg-background border-input"
+                        className={`w-20 h-6 text-xs text-center pr-7 border-gray-300 ${
+                          formData.schedules[day.key]?.tomorrow?.end ? 'bg-gray-100' : ''
+                        }`}
                         value={formData.schedules[day.key]?.tomorrow?.end || ""}
                         readOnly
                       />
-                      <TimePicker
-                        value={formData.schedules[day.key]?.tomorrow?.end}
-                        onChange={(time) => updateScheduleTime(day.key, "tomorrow", "end", time)}
-                      />
+                      <div className="absolute right-1 top-1/2 transform -translate-y-1/2 z-50">
+                        <TimePicker
+                          value={formData.schedules[day.key]?.tomorrow?.end}
+                          onChange={(time) => updateScheduleTime(day.key, "tomorrow", "end", time)}
+                        />
+                      </div>
                     </div>
-                  </td>
-                  <td className="border border-border p-2 bg-background">
-                    <div className="flex items-center gap-1 justify-center">
+                  </div>
+                </td>
+                <td className="border border-border px-2 py-1">
+                  <div className="flex items-center justify-center gap-2">
+                    <div className="relative">
                       <Input
                         placeholder="--:--"
-                        className="w-16 text-xs text-center bg-background border-input"
+                        className={`w-20 h-6 text-xs text-center pr-7 border-gray-300 ${
+                          formData.schedules[day.key]?.late?.start ? 'bg-gray-100' : ''
+                        }`}
                         value={formData.schedules[day.key]?.late?.start || ""}
                         readOnly
                       />
-                      <TimePicker
-                        value={formData.schedules[day.key]?.late?.start}
-                        onChange={(time) => updateScheduleTime(day.key, "late", "start", time)}
-                      />
-                      <span className="text-xs text-muted-foreground">-</span>
+                      <div className="absolute right-1 top-1/2 transform -translate-y-1/2 z-50">
+                        <TimePicker
+                          value={formData.schedules[day.key]?.late?.start}
+                          onChange={(time) => updateScheduleTime(day.key, "late", "start", time)}
+                        />
+                      </div>
+                    </div>
+                    <span className="text-xs text-muted-foreground">-</span>
+                    <div className="relative">
                       <Input
                         placeholder="--:--"
-                        className="w-16 text-xs text-center bg-background border-input"
+                        className={`w-20 h-6 text-xs text-center pr-7 border-gray-300 ${
+                          formData.schedules[day.key]?.late?.end ? 'bg-gray-100' : ''
+                        }`}
                         value={formData.schedules[day.key]?.late?.end || ""}
                         readOnly
                       />
-                      <TimePicker
-                        value={formData.schedules[day.key]?.late?.end}
-                        onChange={(time) => updateScheduleTime(day.key, "late", "end", time)}
-                      />
+                      <div className="absolute right-1 top-1/2 transform -translate-y-1/2 z-50">
+                        <TimePicker
+                          value={formData.schedules[day.key]?.late?.end}
+                          onChange={(time) => updateScheduleTime(day.key, "late", "end", time)}
+                        />
+                      </div>
                     </div>
-                  </td>
-                  <td className="border border-border p-2 bg-background">
-                    <div className="flex items-center gap-1 justify-center">
+                  </div>
+                </td>
+                <td className="border border-border px-2 py-1">
+                  <div className="flex items-center justify-center gap-2">
+                    <div className="relative">
                       <Input
                         placeholder="--:--"
-                        className="w-16 text-xs text-center bg-background border-input"
+                        className={`w-20 h-6 text-xs text-center pr-7 border-gray-300 ${
+                          formData.schedules[day.key]?.evening?.start ? 'bg-gray-100' : ''
+                        }`}
                         value={formData.schedules[day.key]?.evening?.start || ""}
                         readOnly
                       />
-                      <TimePicker
-                        value={formData.schedules[day.key]?.evening?.start}
-                        onChange={(time) => updateScheduleTime(day.key, "evening", "start", time)}
-                      />
-                      <span className="text-xs text-muted-foreground">-</span>
+                      <div className="absolute right-1 top-1/2 transform -translate-y-1/2 z-50">
+                        <TimePicker
+                          value={formData.schedules[day.key]?.evening?.start}
+                          onChange={(time) => updateScheduleTime(day.key, "evening", "start", time)}
+                        />
+                      </div>
+                    </div>
+                    <span className="text-xs text-muted-foreground">-</span>
+                    <div className="relative">
                       <Input
                         placeholder="--:--"
-                        className="w-16 text-xs text-center bg-background border-input"
+                        className={`w-20 h-6 text-xs text-center pr-7 border-gray-300 ${
+                          formData.schedules[day.key]?.evening?.end ? 'bg-gray-100' : ''
+                        }`}
                         value={formData.schedules[day.key]?.evening?.end || ""}
                         readOnly
                       />
-                      <TimePicker
-                        value={formData.schedules[day.key]?.evening?.end}
-                        onChange={(time) => updateScheduleTime(day.key, "evening", "end", time)}
-                      />
+                      <div className="absolute right-1 top-1/2 transform -translate-y-1/2 z-50">
+                        <TimePicker
+                          value={formData.schedules[day.key]?.evening?.end}
+                          onChange={(time) => updateScheduleTime(day.key, "evening", "end", time)}
+                        />
+                      </div>
                     </div>
-                  </td>
-                  <td className="border border-border p-3 text-center font-mono text-foreground bg-muted/10">
-                    {formData.schedules[day.key]?.total || "00:00"}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <div className="mt-4 text-right">
-            <div className="inline-block border border-border p-3 bg-muted/50 font-mono font-bold text-foreground rounded">
-              {calculateWeeklyTotal()}
-            </div>
-          </div>
+                  </div>
+                </td>
+                <td className={`border border-border px-2 py-2 text-center font-mono text-xs ${
+                  formData.schedules[day.key]?.total && formData.schedules[day.key]?.total !== "00:00" ? 'bg-gray-100' : 'bg-muted/5'
+                }`}>
+                  {formData.schedules[day.key]?.total || "00:00"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div className="flex justify-end mt-3">
+          <div className="bg-gray-100 text-sm font-semibold px-4 py-2 rounded">{calculateWeeklyTotal()}</div>
         </div>
-      )}
-    </div>
-  )
+      </div>
+    )}
+  </div>
+)
 
   const renderSigningMethodsStep = () => (
     <div className="space-y-8">
@@ -1257,7 +1458,10 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
         {/* Entrance */}
         <div className="space-y-6">
           <div className="text-center">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-lg mb-3" style={{ backgroundColor: "#f6eef9" }}>
+            <div
+              className="inline-flex items-center justify-center w-16 h-16 rounded-lg mb-3"
+              style={{ backgroundColor: "#f6eef9" }}
+            >
               <div className="w-12 h-12 border-2 border-foreground rounded-lg flex items-center justify-center relative bg-background">
                 <div className="absolute left-1 w-3 h-3 bg-foreground rounded-full">
                   <div className="w-1 h-1 bg-background rounded-full mt-1 ml-1"></div>
@@ -1310,7 +1514,10 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
         {/* Exit */}
         <div className="space-y-6">
           <div className="text-center">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-lg mb-3" style={{ backgroundColor: "#f6eef9" }}>
+            <div
+              className="inline-flex items-center justify-center w-16 h-16 rounded-lg mb-3"
+              style={{ backgroundColor: "#f6eef9" }}
+            >
               <div className="w-12 h-12 border-2 border-foreground rounded-lg flex items-center justify-center relative bg-background">
                 <div className="absolute right-1 w-3 h-3 bg-foreground rounded-full">
                   <div className="w-1 h-1 bg-background rounded-full mt-1 ml-1"></div>
@@ -1531,15 +1738,15 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
 
               <div className="mt-4 p-4 bg-muted/30 border border-border rounded-lg">
                 {(formData.periodicity as string) !== "once" && (
-                    <div className="mb-4">
-                      <Label className="text-sm font-medium mb-2 block">{t("startDate") || "Start Date"}</Label>
-                      <DateInput
-                        value={formData.taskStartDate}
-                        onChange={(e) => updateFormData("taskStartDate", e.target.value)}
-                        className="w-40"
-                        placeholder={t("startDate") || "Start date"}
-                      />
-                    </div>
+                  <div className="mb-4">
+                    <Label className="text-sm font-medium mb-2 block">{t("startDate") || "Start Date"}</Label>
+                    <DateInput
+                      value={formData.taskStartDate}
+                      onChange={(e) => updateFormData("taskStartDate", e.target.value)}
+                      className="w-40"
+                      placeholder={t("startDate") || "Start date"}
+                    />
+                  </div>
                 )}
 
                 {((formData.periodicity as string) === "daily" ||
@@ -1982,7 +2189,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
         <div className="flex items-center justify-center gap-2">
           <span className="text-sm">{t("no") || "No"}</span>
           <Switch checked={enableSurveys} onCheckedChange={setEnableSurveys} />
-          <span className="text-sm">{t("si") || "Yes"}</span>
+          <span className="text-sm">{t("si") || "Yeah"}</span>
         </div>
       </div>
 
@@ -2216,12 +2423,14 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl p-0 gap-0 [&>button]:hidden max-h-[90vh] flex flex-col bg-background ml-1 mr-3">
-        <DialogHeader className="p-6 pb-4">
+    <DialogContent className="max-w-[50rem] p-0 gap-0 [&>button]:hidden max-h-[90vh] flex flex-col bg-background ml-1 mr-3">
+        <DialogHeader className="p-6 pb-6">
           <div className="flex items-center justify-between relative">
             <div className="flex-1" />
-            <div className="absolute left-1/2 transform -translate-x-1/2">
-              <DialogTitle className="text-xl sm:text-2xl font-semibold text-foreground text-center tracking-tight">{t("newJob") || "New Job"}</DialogTitle>
+            <div className="absolute left-1/2 transform -translate-x-1/2 mb-3">
+              <DialogTitle className="text-xl sm:text-2xl font-semibold text-foreground text-center tracking-tight">
+                {t("newJob") || "New Job"}
+              </DialogTitle>
             </div>
             <div className="flex-1 flex justify-end">
               <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => onOpenChange(false)}>
