@@ -91,7 +91,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
     startDate: "",
     endDate: "",
     clientId: "",
-    workCenterId: "",
+  workCenterIds: [] as string[],
     workerIds: [] as string[],
     observations: "",
     scheduleType: "free",
@@ -510,7 +510,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
         startDate: formData.startDate,
         endDate,
         clientId: Number.parseInt(formData.clientId),
-        workCenterId: Number.parseInt(formData.workCenterId),
+    workCenterIds: formData.workCenterIds ? formData.workCenterIds.map((id: string) => Number.parseInt(id)) : [],
         workerIds: formData.workerIds.map((id) => Number.parseInt(id)),
         note: formData.observations,
         shifts,
@@ -546,7 +546,9 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
           id: result.data.id,
           name: result.data.jobName,
           client: clients.find((c) => c.id === Number.parseInt(formData.clientId))?.name || "",
-          workCenter: workCenters.find((wc) => wc.id === Number.parseInt(formData.workCenterId))?.name || "",
+          workCenter: formData.workCenterIds && formData.workCenterIds.length
+            ? workCenters.find((wc) => wc.id === Number.parseInt(formData.workCenterIds[0]))?.name || ""
+            : "",
           startDate: formData.startDate,
           endDate: formData.endDate,
           workers: formData.workerIds.map((id) => workers.find((w) => w.id.toString() === id)?.name || ""),
@@ -574,7 +576,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
       startDate: "",
       endDate: "",
       clientId: "",
-      workCenterId: "",
+  workCenterIds: [],
       workerIds: [],
       observations: "",
       scheduleType: "free",
@@ -661,10 +663,24 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
     })
   }
 
+  const toggleWorkCenterSelection = (wcId: string) => {
+    setFormData((prev: any) => {
+      const workCenterIds = prev.workCenterIds.includes(wcId)
+        ? prev.workCenterIds.filter((id: string) => id !== wcId)
+        : [...prev.workCenterIds, wcId]
+      return { ...prev, workCenterIds }
+    })
+  }
+
   const isNextDisabled = () => {
     if (currentMainStep === 1) {
       if (currentSigningStep === 1) {
-        return !formData.denomination || !formData.startDate || !formData.clientId || !formData.workCenterId
+        return (
+          !formData.denomination ||
+          !formData.startDate ||
+          !formData.clientId ||
+          !(formData.workCenterIds && formData.workCenterIds.length > 0)
+        )
       }
       if (currentSigningStep === 2 && formData.scheduleType === "programming") {
         return !Object.values(formData.schedules).some(
@@ -767,6 +783,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
                     loadingWorkCenters={loadingWorkCenters}
                     loadingWorkers={loadingWorkers}
                     toggleWorkerSelection={toggleWorkerSelection}
+                    toggleWorkCenterSelection={toggleWorkCenterSelection}
                   />
                 )}
                 {currentSigningStep === 2 && (

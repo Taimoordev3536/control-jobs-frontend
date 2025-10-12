@@ -11,12 +11,13 @@ interface TimePickerProps {
   onChange?: (time: string) => void
   className?: string
   debug?: boolean // Add debug mode option
+  disabled?: boolean
 }
 
-export function TimePicker({ value = "", onChange, className, debug = false }: TimePickerProps) {
+export function TimePicker({ value = "", onChange, className, debug = false, disabled = false }: TimePickerProps) {
   const [isOpen, setIsOpen] = useState(false) // Don't auto-open, even in debug mode
   const [isPositioned, setIsPositioned] = useState(false)
-  const [selectedHour, setSelectedHour] = useState("08")
+  const [selectedHour, setSelectedHour] = useState("00")
   const [selectedMinute, setSelectedMinute] = useState("00")
   const [selectedPeriod, setSelectedPeriod] = useState("AM")
   const dropdownRef = useRef<HTMLDivElement>(null)
@@ -193,6 +194,19 @@ export function TimePicker({ value = "", onChange, className, debug = false }: T
     document.addEventListener('wheel', handleWheel, { passive: false });
     return () => document.removeEventListener('wheel', handleWheel);
   }, [isOpen]);
+
+  if (disabled) {
+    return (
+      <Button
+        variant="ghost"
+        size="sm"
+        className={cn("h-6 w-6 p-0 text-muted-foreground", className)}
+        disabled
+      >
+        <Clock className="h-3 w-3" />
+      </Button>
+    );
+  }
 
   return (
     <div className="relative z-50">

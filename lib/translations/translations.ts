@@ -1,7 +1,7 @@
 const translations: Record<string, Record<string, string>> = {
   en: {
     //Add modal json
-    addressPlaceholder: "Address (placeholder)",
+    addressPlaceholder: "Address",
     selectType: "Select type",
     activateAccessAccount: "Activate access account",
     postpone: "Postpone",
@@ -19,13 +19,22 @@ const translations: Record<string, Record<string, string>> = {
     accessEmail: "Access email:",
     accessEmailHelper: "Access email helper:",
 
-
+    //start end
+    start: "Start",
+    end: "End",
+    clearSchedules:"Clear schedules",
+    minutes:"minutes",
     // info tooltip add-job-modal
     selectWorkCentersInfo:
       "Select one or more work centers. The application will allow clock-in at all selected locations.",
     selectWorkersInfo:
       "Select one or more workers. The application will expect clock-ins from all selected workers.",
-
+    seasonsInfo:
+      "If you don’t have daylight saving time, leave the period blank.",
+    delayTips: "Time allowed to clock in without generating an alert.",
+    durationTips:"Time worked less without generating an alert.",
+    taskDurationTips: "Estimated time to complete the task.",
+    taskObservationTips: "Task instructions for the worker only.",
 
     // common observation filter addressPlaceholder email
     thisFieldIsRequired: "This field is required.",
@@ -298,6 +307,13 @@ const translations: Record<string, Record<string, string>> = {
     fri: "Fri",
     sat: "Sat",
     sun: "Sun",
+    monx: "M",
+    tuex: "T",
+    wedx: "W",
+    thux: "T",
+    frix: "F",
+    satx: "S",
+    sunx: "S",
     workingDays: "Working days",
     holidays: "Holidays",
     vacation: "Vacation",
@@ -369,6 +385,7 @@ const translations: Record<string, Record<string, string>> = {
     free: "Free",
     programming: "Programming",
     winter: "Normal",
+    normal: "Normal",
     summer: "Summer",
     day: "Day",
     morning: "Morning",
@@ -457,6 +474,8 @@ const translations: Record<string, Record<string, string>> = {
     no: "No",
 
     scheduleBy: "Schedule By",
+    firstWeekDay: "First Week Day",
+    lastWeekDay: "Last Week Day",
     dates: "Dates",
     weekdays: "Weekdays",
     monthlyWeekdays: "Monthly Weekdays",
@@ -466,11 +485,13 @@ const translations: Record<string, Record<string, string>> = {
     selectDays: "Select Days",
 
     // Day abbreviations for weekly selection
-    dayS: "S",
+    daySu: "Sun",
     dayM: "M",
     dayT: "T",
     dayW: "W",
+    dayTh: "Th",
     dayF: "F",
+    daysa: "S",
 
     // Month abbreviations for yearly selection
     jan: "Jan",
@@ -492,10 +513,12 @@ const translations: Record<string, Record<string, string>> = {
     errorCreatingJob: "Error creating job",
     customerSurvey: "Customer Survey",
     workerSurvey: "Worker Survey",
+    datePlaceholder: "dd/mm/yyyy",
+    newWorkCenter: "New Work Center",
   },
   es: {
       // add modal json
-    addressPlaceholder: "Dirección (placeholder)",
+    addressPlaceholder: "Dirección",
     selectType: "Seleccionar tipo",
     activateAccessAccount: "Activar cuenta de acceso",
     postpone: "Posponer",
@@ -513,11 +536,23 @@ const translations: Record<string, Record<string, string>> = {
     accessEmail: "Correo de acceso:",
     accessEmailHelper:"Asistente de correo de acceso:",
 
+    // start and end 
+    start: "Inicio",
+    end: "Fin",
+    clearSchedules:"Borrar",
+    minutes:"minutos",
+
     // info tooltip add-job-modal winter
     selectWorkCentersInfo:
       "Selecciona uno o varios centros de trabajo. La aplicación permitirá fichar en todas las ubicaciones seleccionadas.",
     selectWorkersInfo:
       "Selecciona uno o varios trabajadores. La aplicación esperará fichajes de todos los trabajadores seleccionados.",
+      seasonsInfo:
+      "Si no tienes horario de verano, deja en blanco el periodo.",
+      delayTips: "Tiempo permitido para fichar la entrada sin generar alerta.",
+      durationTips:"Tiempo trabajado de menos sin generar alerta.",
+      taskDurationTips: "Tiempo estimado para realizar la tarea.",
+      taskObservationTips: "Instrucciones de la tarea sólo para el trabajador.",
 
 
 
@@ -790,11 +825,18 @@ const translations: Record<string, Record<string, string>> = {
     december: "Diciembre",
     mon: "Lun",
     tue: "Mar",
-    wed: "Mié",
+    wed: "(X)Mié",
     thu: "Jue",
     fri: "Vie",
     sat: "Sáb",
     sun: "Dom",
+    monx: "L",
+    tuex: "M",
+    wedx: "X",
+    thux: "J",
+    frix: "V",
+    satx: "S",
+    sunx: "D",
     workingDays: "Días laborables",
     holidays: "Festivos",
     vacation: "Vacaciones",
@@ -865,7 +907,8 @@ const translations: Record<string, Record<string, string>> = {
     schedules: "Horarios",
     free: "Libre",
     programming: "Programación",
-    winter: "Norman",
+    winter: "Habitual",
+    normal: "Invierno",
     summer: "Verano",
     day: "Día",
     morning: "Mañana",
@@ -956,21 +999,25 @@ const translations: Record<string, Record<string, string>> = {
     si: "Sí",
     no: "No",
 
-    scheduleBy: "Programar Por",
-    dates: "Fechas",
+    scheduleBy: "Programar",
+    firstWeekDay: "El primero de mes",
+    lastWeekDay: "El último de mes",
+    dates: "Días concretos",
     weekdays: "Días de la Semana",
     monthlyWeekdays: "Días Semanales Mensuales",
     monthlyDates: "Fechas Mensuales",
     yearlyMonths: "Meses Anuales",
-    yearlyDates: "Fechas Anuales",
+    yearlyDates: "Días concretos",
     selectDays: "Seleccionar Días",
 
     // Day abbreviations for weekly selection
-    dayS: "D",
+    daySu: "D",
     dayM: "L",
     dayT: "M",
     dayW: "X",
+    dayTh: "J",
     dayF: "V",
+    daySa: "S",
 
     // Month abbreviations for yearly selection
     jan: "Ene",
@@ -992,6 +1039,8 @@ const translations: Record<string, Record<string, string>> = {
     errorCreatingJob: "Error al crear job",
     customerSurvey: "Encuesta de Cliente",
     workerSurvey: "Encuesta de Trabajador",
+    datePlaceholder: "dd/mm/aaaa",
+    newWorkCenter: "Nuevo Centro de trabajo",
   },
 
   // Calendar translations
@@ -1024,6 +1073,7 @@ const translations: Record<string, Record<string, string>> = {
   year: "Año",
   month: "Mes",
   selectDate: "Seleccionar fecha", // Calendar-specific translations for date picker
+
 }
 
 export default translations

@@ -39,7 +39,7 @@ export default function ControlSurveysTab() {
 
         const formatted = (result.data || []).map((item: any) => ({
           id: item.id,
-          holder: item.client?.name || "-",
+          holder: item.clientName || item.client?.name || "-",
           job: item.jobName || "-",
           workCenter: item.workCenter?.name || "-",
           respondent: item.workers?.map((w: any) => w.name || w.code).join(", ") || "-",
@@ -62,7 +62,7 @@ export default function ControlSurveysTab() {
     <TabTableTemplate
       columns={columns}
       data={surveysData}
-      isLoading={isLoading}
+      loading={isLoading}
       emptyMessage={t("noSurveysDataAvailable")}
     />
   )

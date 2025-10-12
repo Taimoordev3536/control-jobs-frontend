@@ -49,6 +49,7 @@ interface DefinitionFormProps {
   loadingWorkCenters: boolean
   loadingWorkers: boolean
   toggleWorkerSelection: (workerId: string) => void
+  toggleWorkCenterSelection?: (wcId: string) => void
 }
 
 export function DefinitionForm({
@@ -116,7 +117,7 @@ export function DefinitionForm({
           value={formData.clientId}
           onValueChange={(value) => {
             updateFormData("clientId", value)
-            updateFormData("workCenterId", "")
+            updateFormData("workCenterIds", [])
           }}
         >
           <SelectTrigger className="mt-1">
@@ -136,30 +137,39 @@ export function DefinitionForm({
         <Label htmlFor="workCenter" className="text-sm font-medium text-foreground">
           {t("workCenter") || "Work Center"}
         </Label>
-        <Select
-          value={formData.workCenterId}
-          onValueChange={(value) => updateFormData("workCenterId", value)}
-          disabled={!formData.clientId}
-        >
-          <SelectTrigger className="mt-1">
-            <SelectValue
-              placeholder={
-                !formData.clientId
-                  ? "Select a client first"
-                  : loadingWorkCenters
-                    ? "Loading work centers..."
-                    : "Select a work center"
-              }
-            />
-          </SelectTrigger>
-          <SelectContent>
-            {workCenters.map((center) => (
-              <SelectItem key={center.id} value={center.id.toString()}>
-                {center.name} - {center.address}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {/* Multi-select work centers via checkboxes. Keep a fallback single select for compact UI. */}
+        <div className="mt-1 border rounded-md p-3 bg-background">
+          {formData.workCenterIds && formData.workCenterIds.length > 0 && (
+            <div className="mb-2">
+              {formData.workCenterIds.map((id: string) => {
+                const wc = workCenters.find((w) => w.id.toString() === id)
+                return wc ? (
+                  <div key={id} className="text-sm text-foreground">
+                    {wc.name}
+                  </div>
+                ) : null
+              })}
+            </div>
+          )}
+          <div className="max-h-40 overflow-y-auto">
+            {loadingWorkCenters ? (
+              <div className="text-sm text-muted-foreground">Loading work centers...</div>
+            ) : (
+              workCenters.map((center) => (
+                <div key={center.id} className="flex items-center space-x-2 py-1">
+                  <Checkbox
+                    id={`workcenter-${center.id}`}
+                    checked={formData.workCenterIds.includes(String(center.id))}
+                    onCheckedChange={() => (toggleWorkCenterSelection ? toggleWorkCenterSelection(String(center.id)) : updateFormData("workCenterIds", [String(center.id)]))}
+                  />
+                  <Label htmlFor={`workcenter-${center.id}`} className="text-sm cursor-pointer">
+                    {center.name} - {center.address}
+                  </Label>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
       </div>
 
       <div>
@@ -171,7 +181,7 @@ export function DefinitionForm({
           <div className="space-y-1 max-h-32 overflow-y-auto">
             {formData.workerIds.length > 0 && (
               <div className="mb-2">
-                {formData.workerIds.map((workerId) => {
+                {formData.workerIds.map((workerId: string) => {
                   const worker = workers.find((w) => w.id.toString() === workerId)
                   return worker ? (
                     <div key={workerId} className="text-sm text-foreground">

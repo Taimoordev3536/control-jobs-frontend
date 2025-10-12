@@ -37,7 +37,7 @@ export default function ControlAlertTab() {
         const result = await res.json()
         const formatted = (result.data || []).map((item: any) => ({
           id: item.id,
-          holder: item.client?.name || "-",
+          holder: item.clientName || item.client?.name || "-",
           job: item.jobName || "-",
           workCenter: item.workCenter?.name || "-",
           worker: item.workers?.map((w: any) => w.name).join(", ") || "-",
@@ -59,7 +59,7 @@ export default function ControlAlertTab() {
     <TabTableTemplate
       columns={columns}
       data={alertData}
-      isLoading={isLoading}
+      loading={isLoading}
       emptyMessage={t("noAlertDataAvailable")}
     />
   )

@@ -116,6 +116,9 @@
   .sidebar.collapsed {
     @apply w-16;
   }
+  /* .overflow-hidden {
+  overflow: hidden !important;
+} */
 
   .sidebar-header {
     @apply flex items-center h-[50px] px-3 border-b;

@@ -1,75 +1,62 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>OSM City/Postal Validation</title>
-  <style>
-    body { font-family: Arial, sans-serif; padding: 20px; }
-    input { width: 100%; padding: 10px; border: 1px solid #aaa; border-radius: 5px; }
-    ul { list-style: none; padding: 0; margin: 0; border: 1px solid #aaa; border-radius: 5px; max-height: 200px; overflow-y: auto; }
-    ul li { padding: 10px; cursor: pointer; }
-    ul li:hover { background: #f0f0f0; }
-    #selected { margin-top: 15px; padding: 10px; background: #eef; border-radius: 6px; }
-  </style>
+  <meta charset="UTF-8">
+  <title>Shift Type Selector</title>
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-  <h2>Search City / Province / Country / Postal</h2>
-  <input type="text" id="address-input" placeholder="Enter address..." />
-  <ul id="results"></ul>
-  <div id="selected"></div>
+<body class="min-h-screen flex items-center justify-center bg-gray-100 p-6">
+
+  <div class="bg-white rounded-2xl shadow-lg p-8 max-w-md w-full space-y-6">
+    <h2 class="text-2xl font-semibold text-gray-800 text-center">Shift Schedule Options</h2>
+
+    <!-- Weekly Range Selection -->
+    <div>
+      <h3 class="text-gray-700 font-medium mb-3">Schedule Range</h3>
+      <div class="flex items-center gap-6">
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input type="radio" name="scheduleRange" value="single" class="w-4 h-4 text-blue-600 focus:ring-blue-500">
+          <span>Single Day</span>
+        </label>
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input type="radio" name="scheduleRange" value="weekly" checked class="w-4 h-4 text-blue-600 focus:ring-blue-500">
+          <span>Weekly Range</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Continuous Mode Toggle -->
+    <div>
+      <h3 class="text-gray-700 font-medium mb-3">Continuous Mode</h3>
+      <div class="flex items-center justify-between bg-gray-50 p-4 rounded-xl">
+        <span class="text-gray-600">Generate Continuous Block</span>
+        <label class="relative inline-flex items-center cursor-pointer">
+          <input type="checkbox" id="isContinuous" class="sr-only peer">
+          <div class="w-14 h-8 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:bg-blue-600
+                      after:content-[''] after:absolute after:top-1 after:left-1 after:bg-white after:rounded-full 
+                      after:h-6 after:w-6 after:transition-all peer-checked:after:translate-x-6"></div>
+        </label>
+      </div>
+      <p id="modeDescription" class="mt-3 text-sm text-gray-500 text-center">
+        Currently set to <span class="font-semibold">Daily Fixed Shifts (08:00–18:00)</span>
+      </p>
+    </div>
+
+    <!-- Submit Button -->
+    <button class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-medium">
+      Generate Schedule
+    </button>
+  </div>
 
   <script>
-    const input = document.getElementById("address-input");
-    const resultsList = document.getElementById("results");
-    const selectedOutput = document.getElementById("selected");
-
-    let timeout = null;
-
-    input.addEventListener("input", () => {
-      clearTimeout(timeout);
-      const query = input.value.trim();
-
-      if (query.length < 3) {
-        resultsList.innerHTML = "";
-        return;
-      }
-
-      timeout = setTimeout(async () => {
-        const url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&q=${encodeURIComponent(query)}`;
-
-        const res = await fetch(url, {
-          headers: { "User-Agent": "DemoApp/1.0 (your-email@example.com)" }
-        });
-
-        const data = await res.json();
-        resultsList.innerHTML = "";
-
-        if (data.length === 0) {
-          resultsList.innerHTML = "<li>No results found</li>";
-          return;
-        }
-
-        data.forEach(place => {
-          const li = document.createElement("li");
-          li.textContent = place.display_name;
-          li.addEventListener("click", () => {
-            input.value = place.display_name;
-            resultsList.innerHTML = "";
-
-            const addr = place.address || {};
-            selectedOutput.innerHTML = `
-              <strong>✅ Selected Address:</strong><br>
-              City: ${addr.city || addr.town || addr.village || "-"}<br>
-              Province/State: ${addr.state || "-"}<br>
-              Country: ${addr.country || "-"}<br>
-              Postal Code: ${addr.postcode || "-"}
-            `;
-          });
-          resultsList.appendChild(li);
-        });
-      }, 400);
+    const toggle = document.getElementById('isContinuous');
+    const desc = document.getElementById('modeDescription');
+    toggle.addEventListener('change', () => {
+      desc.innerHTML = toggle.checked
+        ? `Currently set to <span class="font-semibold text-blue-600">Continuous Block (Mon 08:00 → Fri 18:00)</span>`
+        : `Currently set to <span class="font-semibold">Daily Fixed Shifts (08:00–18:00)</span>`;
     });
   </script>
+
 </body>
 </html>

@@ -39,7 +39,7 @@ export default function ControlSigningsTab() {
 
         const formatted = (result.data || []).map((item: any) => ({
           id: item.id,
-          holder: item.client?.name || "-",
+          holder: item.clientName || item.client?.name || "-",
           job: item.jobName || "-",
           workCenter: item.workCenter?.name || "-",
           worker: item.workers?.map((w: any) => w.name || w.code).join(", ") || "-",
@@ -62,7 +62,7 @@ export default function ControlSigningsTab() {
     <TabTableTemplate
       columns={columns}
       data={signingsData}
-      isLoading={isLoading}
+      loading={isLoading}
       emptyMessage={t("noSigningsDataAvailable")}
     />
   )

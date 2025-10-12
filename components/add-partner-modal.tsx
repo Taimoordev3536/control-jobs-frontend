@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react" // Added useRef and useEffect
 import { X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -24,20 +24,20 @@ const partnerTypes = [
   { label: "Silver", value: "Silver", tierId: 2 },
   { label: "Bronze", value: "Bronze", tierId: 3 },
   { label: "Affiliate", value: "Affiliate", tierId: 5 },
-];
+]
 
 const getPartnerTierId = (typeOfPartner: string): number => {
   switch (typeOfPartner) {
     case "Gold":
-      return 1;
+      return 1
     case "Silver":
-      return 2;
+      return 2
     case "Bronze":
-      return 3;
+      return 3
     case "Affiliate":
-      return 4;
+      return 4
     default:
-      return 0;
+      return 0
   }
 }
 
@@ -75,6 +75,15 @@ export default function AddPartnerModal({ open, onOpenChange, onPartnerAdded }: 
     commission: false,
   })
 
+  // Create a ref for the scrollable container
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+
+  // Scroll to top when currentStep changes
+  useEffect(() => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTo({ top: 0, behavior: "smooth" })
+    }
+  }, [currentStep])
 
   const steps = [
     { number: 1, label: t("Id") },
@@ -126,12 +135,11 @@ export default function AddPartnerModal({ open, onOpenChange, onPartnerAdded }: 
     setError(null)
     setIsLoading(true)
     try {
-      // Only allow admin
       if (getUserRole() !== "admin") {
         setError(t("onlyAdminCanAddPartner") || "Only admin can add a partner.")
         toast({
           title: t("onlyAdminCanAddPartner") || "Only admin can add a partner.",
-          variant: "destructive"
+          variant: "destructive",
         })
         setIsLoading(false)
         return
@@ -172,12 +180,12 @@ export default function AddPartnerModal({ open, onOpenChange, onPartnerAdded }: 
       const result = await response.json()
       toast({
         title: t("Partner created successfully!"),
-        description: formData.accessAccountStatus === "request" 
-          ? t("Credentials have been sent to the partner's email") 
-          : "",
-        variant: "default"
+        description:
+          formData.accessAccountStatus === "request"
+            ? t("Credentials have been sent to the partner's email")
+            : "",
+        variant: "default",
       })
-      // Map backend partner to frontend fields
       if (typeof onPartnerAdded === "function" && result.data) {
         const newPartner = {
           id: result.data.id,
@@ -189,7 +197,6 @@ export default function AddPartnerModal({ open, onOpenChange, onPartnerAdded }: 
         }
         onPartnerAdded(newPartner)
       }
-      // Delay closing modal to allow toast to show
       setTimeout(() => {
         onOpenChange(false)
         setCurrentStep(1)
@@ -223,7 +230,7 @@ export default function AddPartnerModal({ open, onOpenChange, onPartnerAdded }: 
       setError(err.message)
       toast({
         title: err.message || t("unexpectedError"),
-        variant: "destructive"
+        variant: "destructive",
       })
     } finally {
       setIsLoading(false)
@@ -278,7 +285,10 @@ export default function AddPartnerModal({ open, onOpenChange, onPartnerAdded }: 
           </div>
         </DialogHeader>
 
-        <div className="px-4 sm:px-6 pb-8 flex-1 overflow-y-auto">
+        <div
+          ref={scrollContainerRef}
+          className="px-4 sm:px-6 pb-8 flex-1 overflow-y-auto"
+        >
           {/* Step 1: ID */}
           {currentStep === 1 && (
             <div className="space-y-4">
@@ -363,13 +373,13 @@ export default function AddPartnerModal({ open, onOpenChange, onPartnerAdded }: 
             <div className="space-y-4">
               <div>
                 <Label htmlFor="nif" className="text-sm font-medium text-foreground">
-                  {t("nif")}
+                  {t("nif")} <span className="text-red-500">*</span>
                 </Label>
                 <Input
                   id="nif"
                   value={formData.nif}
                   onChange={(e) => updateFormData("nif", e.target.value)}
-                  className="mt-1"
+                  className={`mt-1 ${validationErrors.nif ? "border-red-500" : ""}`}
                 />
                 {validationErrors.nif && (
                   <p className="mt-1 text-sm text-red-500">{t("thisFieldIsRequired")}</p>
@@ -378,7 +388,7 @@ export default function AddPartnerModal({ open, onOpenChange, onPartnerAdded }: 
 
               <div>
                 <Label htmlFor="typeOfPartner" className="text-sm font-medium text-foreground">
-                  {t("Type")}
+                  {t("Type")} <span className="text-red-500">*</span>
                 </Label>
                 <Select
                   value={formData.typeOfPartner}
@@ -388,8 +398,10 @@ export default function AddPartnerModal({ open, onOpenChange, onPartnerAdded }: 
                     <SelectValue placeholder={t("selectType")} />
                   </SelectTrigger>
                   <SelectContent>
-                    {partnerTypes.map(pt => (
-                      <SelectItem key={pt.value} value={pt.value}>{pt.label}</SelectItem>
+                    {partnerTypes.map((pt) => (
+                      <SelectItem key={pt.value} value={pt.value}>
+                        {pt.label}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -400,14 +412,14 @@ export default function AddPartnerModal({ open, onOpenChange, onPartnerAdded }: 
 
               <div>
                 <Label htmlFor="commission" className="text-sm font-medium text-foreground">
-                  {t("commission")}
+                  {t("commission")} <span className="text-red-500">*</span>
                 </Label>
                 <div className="flex items-center mt-1">
                   <Input
                     id="commission"
                     value={formData.commission}
                     onChange={(e) => updateFormData("commission", e.target.value)}
-                    className="w-20"
+                    className={`w-20 ${validationErrors.commission ? "border-red-500" : ""}`}
                   />
                   <span className="ml-2 text-muted-foreground">%</span>
                 </div>
@@ -536,12 +548,12 @@ export default function AddPartnerModal({ open, onOpenChange, onPartnerAdded }: 
                   <Label htmlFor="accessEmail" className="text-sm font-medium text-foreground">
                     {t("accessEmail")}
                   </Label>
-                  <Input 
-                    id="accessEmail" 
-                    value={formData.accessEmail} 
+                  <Input
+                    id="accessEmail"
+                    value={formData.accessEmail}
                     onChange={(e) => updateFormData("accessEmail", e.target.value)}
                     placeholder={formData.email}
-                    className="mt-1" 
+                    className="mt-1"
                   />
                   <p className="mt-1 text-xs text-muted-foreground">{t("accessEmailHelper")}</p>
                 </div>

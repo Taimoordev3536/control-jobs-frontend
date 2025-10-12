@@ -62,7 +62,8 @@ export default function ControlTasksTab() {
         const result = await res.json()
         const formatted = (result.data || []).map((item: any) => ({
           id: item.id,
-          holder: item.client?.name || "-",
+          // Prefer backend-provided clientName (which falls back to employer name when client is null)
+          holder: item.clientName || item.client?.name || "-",
           job: item.jobName || "-",
           workCenter: item.workCenter?.name || "-",
           worker: item.workers?.map((w: any) => w.name).join(", ") || "-", // 👈 this is correct placement
@@ -85,7 +86,7 @@ export default function ControlTasksTab() {
     <TabTableTemplate
       columns={columns}
       data={tasksData}
-      isLoading={isLoading}
+      loading={isLoading}
       emptyMessage={t("noTasksDataAvailable")}
     />
   )

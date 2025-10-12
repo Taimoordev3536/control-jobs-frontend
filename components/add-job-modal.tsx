@@ -1,7 +1,9 @@
 "use client"
 
-import { useState, useEffect, useCallback, useMemo } from "react"
+import { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { X, Smartphone, Wifi, MapPin, Globe, QrCode, Info } from "lucide-react"
+import InterIcon from "../icons/alerts/Entrada.svg"
+import ExitIcon from "../icons/alerts/Salida.svg"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import DateInput from "@/components/ui/date-input"
@@ -18,7 +20,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { TimePicker } from "@/components/ui/time-picker"
 import { toast } from "@/hooks/use-toast"
 import { useTranslation } from "@/hooks/use-translation"
+import ManualDateField from "@/components/ui/manual-date-field"
 import { useAuth } from "@/hooks/use-auth"
+import {interIcon} from "../icons/alerts/Entrada.svg"
+import {exitIcon} from "../icons/alerts/Salida.svg"
 
 interface AddJobModalProps {
   open: boolean
@@ -32,8 +37,8 @@ interface TimeSlot {
 }
 
 interface DaySchedule {
-  tomorrow: TimeSlot
-  late: TimeSlot
+  morning: TimeSlot
+  afternoon: TimeSlot
   evening: TimeSlot
   total: string
 }
@@ -50,6 +55,7 @@ interface Client {
   responsible: string
   telephones: string
   asset: string
+  isSelf?: boolean
 }
 
 interface WorkCenter {
@@ -75,8 +81,8 @@ interface Worker {
 
 // Initial form data factory to avoid repetitive object creation
 const createInitialSchedule = (): DaySchedule => ({
-  tomorrow: { start: "", end: "" },
-  late: { start: "", end: "" },
+  morning: { start: "", end: "" },
+  afternoon: { start: "", end: "" },
   evening: { start: "", end: "" },
   total: "00:00",
 })
@@ -86,20 +92,33 @@ const createInitialFormData = () => ({
   startDate: "",
   endDate: "",
   clientId: "",
-  workCenterId: "1", // Always use mock WorkCenter id
+  workCenterIds: [] as string[],
   workerIds: [] as string[],
   observations: "",
   scheduleType: "free" as string,
-  seasonType: "winter" as string,
+  currentSeason: "normal" as "normal" | "summer",
+  // season-specific periods (e.g., summer)
+  seasonPeriods: [] as Array<{ season: string; startDate: string; endDate: string }>,
   schedules: {
-    monday: createInitialSchedule(),
-    tuesday: createInitialSchedule(),
-    wednesday: createInitialSchedule(),
-    thursday: createInitialSchedule(),
-    friday: createInitialSchedule(),
-    saturday: createInitialSchedule(),
-    sunday: createInitialSchedule(),
-  } as ScheduleData,
+    normal: {
+      monday: createInitialSchedule(),
+      tuesday: createInitialSchedule(),
+      wednesday: createInitialSchedule(),
+      thursday: createInitialSchedule(),
+      friday: createInitialSchedule(),
+      saturday: createInitialSchedule(),
+      sunday: createInitialSchedule(),
+    },
+    summer: {
+      monday: createInitialSchedule(),
+      tuesday: createInitialSchedule(),
+      wednesday: createInitialSchedule(),
+      thursday: createInitialSchedule(),
+      friday: createInitialSchedule(),
+      saturday: createInitialSchedule(),
+      sunday: createInitialSchedule(),
+    },
+  } as { normal: ScheduleData; summer: ScheduleData },
   totalWeeklyHours: "00:00",
   signingMethods: {
     mobile: { qrCode: true, wifi: true, ip: true, gps: true },
@@ -110,7 +129,7 @@ const createInitialFormData = () => ({
   task: "",
   taskObservations: "",
   duration: "",
-  shifts: { tomorrow: false, late: false, evening: false },
+  shifts: { morning: false, afternoon: false, evening: false },
   toBeCarriedOut: "during" as const,
   periodicity: "once" as string,
   interval: 1,
@@ -120,17 +139,19 @@ const createInitialFormData = () => ({
   weeklyDays: [] as number[],
   monthlyDays: [] as number[],
   monthlyWeekdays: [] as number[],
-  monthlyMode: "dates" as "dates" | "weekdays",
+  monthlyMode: "dates" as "dates" | "weekdays" | "firstWeekDay" | "lastWeekDay",
+  monthlyFirstWeekday: null as number | null,
+  monthlyLastWeekday: null as number | null,
   yearlyMonths: [] as number[],
   yearlyDays: [] as number[],
   alertTaskCompleted: false,
   pendingTaskAlert: false,
-  tasks: [] as Array<{
+    tasks: [] as Array<{
     id: string
     task: string
     observations: string
     duration: string
-    shifts: { tomorrow: boolean; late: boolean; evening: boolean }
+    shifts: { morning: boolean; afternoon: boolean; evening: boolean }
     toBeCarriedOut: string
     periodicity: string
     startDate: string
@@ -141,10 +162,13 @@ const createInitialFormData = () => ({
     monthlyDays: number[]
     monthlyWeekdays: number[]
     monthlyMode: string
+  monthlyFirstWeekday: number | null
+  monthlyLastWeekday: number | null
     yearlyMonths: number[]
     yearlyDays: number[]
     alertTaskCompleted: boolean
     pendingTaskAlert: boolean
+    workCenterIds?: string[]
   }>,
   customerSurvey: {
     questionText: "",
@@ -172,6 +196,9 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
   const [isLoading, setIsLoading] = useState(false)
   const [workCenterTooltipOpen, setWorkCenterTooltipOpen] = useState(false)
   const [workersTooltipOpen, setWorkersTooltipOpen] = useState(false)
+  const [seasonTooltipOpen, setSeasonTooltipOpen] = useState(false)
+  const [delayTooltipOpen, setDelayTooltipOpen] = useState(false)
+  const [durationTooltipOpen, setDurationTooltipOpen] = useState(false)
   const [enableTasks, setEnableTasks] = useState(false)
   const [enableSurveys, setEnableSurveys] = useState(false)
   const [surveyTab, setSurveyTab] = useState("customer")
@@ -184,11 +211,11 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
   const [workCenters, setWorkCenters] = useState<WorkCenter[]>([])
   const [workers, setWorkers] = useState<Worker[]>([])
   const [loadingClients, setLoadingClients] = useState(false)
-  // const [loadingWorkCenters, setLoadingWorkCenters] = useState(false) // Commented: API loading logic for work centers
+  const [loadingWorkCenters, setLoadingWorkCenters] = useState(false)
   const [loadingWorkers, setLoadingWorkers] = useState(false)
 
   const [formData, setFormData] = useState(createInitialFormData)
-  const [errors, setErrors] = useState<{ denomination?: string; startDate?: string; workers?: string }>({})
+  const [errors, setErrors] = useState<{ denomination?: string; startDate?: string; workers?: string; client?: string; workCenters?: string }>({})
 
   // Memoized constants
   const mainSteps = useMemo(
@@ -241,15 +268,51 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
   const fetchClients = useCallback(async () => {
     setLoadingClients(true)
     try {
-      const data = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_BASE_URL}/client`)
-      setClients(data?.data || [])
+      const data = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_BASE_URL}/client/for-add-job`)
+      let apiClients = data?.data || []
+      const userId = session?.user?.id ? Number(session.user.id) : null
+      const userName =
+        session?.user?.name || `${session?.user?.firstName || ""} ${session?.user?.lastName || ""}`.trim()
+
+      // Normalize and mark any returned client that matches the logged-in user
+      apiClients = apiClients.map((c: any) => ({
+        ...c,
+        id: c.id !== null ? Number(c.id) : c.id, // Preserve null ID for self-entry
+        isSelf: userId && (Number(c.id) === userId || (c.isSelf && c.name === userName)), // Check both ID and name/isSelf
+      }))
+
+      // If API didn't include the logged-in employer as a client, prepend it
+      if (userId && !apiClients.some((c: any) => c.isSelf || (Number(c.id) === userId && c.name === userName))) {
+        apiClients = [
+          {
+            id: userId,
+            name: userName || "Yourself",
+            locality: "",
+            type: "",
+            responsible: "",
+            telephones: "",
+            asset: "yeah",
+            isSelf: true,
+            isEmployer: true,
+          },
+          ...apiClients,
+        ]
+      } else {
+        // Ensure the self-entry (if present) is moved to the top
+        apiClients.sort((a: any, b: any) => {
+          if (a.isSelf === b.isSelf) return 0
+          return a.isSelf ? -1 : 1
+        })
+      }
+
+      setClients(apiClients)
     } catch (error) {
       console.error("Error fetching clients:", error)
       setClients([])
     } finally {
       setLoadingClients(false)
     }
-  }, [fetchWithAuth])
+  }, [fetchWithAuth, session])
 
   const fetchWorkers = useCallback(async () => {
     setLoadingWorkers(true)
@@ -265,56 +328,59 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
   }, [fetchWithAuth])
 
   const fetchWorkCenters = useCallback(async () => {
-    // Always use mock WorkCenter for all clients
-    setWorkCenters([
-      {
-        id: 1,
-        name: "WorkCenter 1",
-        address: "",
-        contactName: "",
-        contactPhone: "",
-        contactEmail: "",
-        clientId: Number(formData.clientId),
-        createdAt: "",
-        updatedAt: "",
-      },
-    ])
-    // setLoadingWorkCenters(false); // Commented: not needed for mock logic
+    // If clientId is empty or invalid, clear list
+    if (formData.clientId == null) {
+      setWorkCenters([])
+      return
+    }
 
-    /*
-      // Previous code to fetch work centers from API
-      // if (!formData.clientId) {
-      //   setWorkCenters([])
-      //   return
-      // }
-      // setLoadingWorkCenters(true)
-      // try {
-      //   const data = await fetchWithAuth(
-      //     `${process.env.NEXT_PUBLIC_API_BASE_URL}/client/${formData.clientId}/work-centers`,
-      //   )
-      //   setWorkCenters(data?.data || [])
-      // } catch (error) {
-      //   console.error("Error fetching work centers:", error)
-      //   setWorkCenters([])
-      // } finally {
-      //   setLoadingWorkCenters(false)
-      // }
-      */
-  }, [formData.clientId])
+    const clientIdNum = Number(formData.clientId)
+    if (isNaN(clientIdNum)) {
+      // invalid selection (e.g. non-numeric like 'self')
+      setWorkCenters([])
+      return
+    }
+
+    setLoadingWorkCenters(true)
+    try {
+      const data = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_BASE_URL}/client/${clientIdNum}/work-centers`)
+
+      // API may return array directly or { data: [...] }
+      const apiCenters = Array.isArray(data) ? data : data?.data || []
+      // Normalize ids as numbers; preserve null clientId for employer-owned centers
+      const normalized = (apiCenters || []).map((wc: any) => ({
+        ...wc,
+        id: Number(wc.id),
+        clientId: wc.clientId !== null && wc.clientId !== undefined ? Number(wc.clientId) : null,
+      }))
+      setWorkCenters(normalized)
+
+      // If there's at least one center and current workCenterIds is empty, set to first id
+      if (normalized.length && (!formData.workCenterIds || formData.workCenterIds.length === 0)) {
+        setFormData((prev) => ({ ...prev, workCenterIds: [String(normalized[0].id)] }))
+      }
+    } catch (error) {
+      console.error("Error fetching work centers:", error)
+      setWorkCenters([])
+    } finally {
+      setLoadingWorkCenters(false)
+    }
+  }, [formData.clientId, fetchWithAuth])
 
   // Time calculation functions
   const timeToMinutes = useCallback((timeStr: string): number => {
     if (!timeStr) return 0
-    const [time, period] = timeStr.split(" ")
-    if (!time || !period) return 0
-    const [hours, minutes] = time.split(":").map(Number)
-    let totalMinutes = minutes
-    if (period === "AM") {
-      totalMinutes += hours === 12 ? 0 : hours * 60
+    if (timeStr.includes(' ')) {
+      const [time, period] = timeStr.split(" ")
+      const [hours, minutes] = time.split(":").map(Number)
+      let h = hours
+      if (period.toUpperCase() === "PM" && h < 12) h += 12
+      if (period.toUpperCase() === "AM" && h === 12) h = 0
+      return h * 60 + (minutes || 0)
     } else {
-      totalMinutes += hours === 12 ? 12 * 60 : (hours + 12) * 60
+      const [hours, minutes] = timeStr.split(":").map(Number)
+      return (hours || 0) * 60 + (minutes || 0)
     }
-    return totalMinutes
   }, [])
 
   const minutesToTime = useCallback((minutes: number): string => {
@@ -323,10 +389,149 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
     return `${hours.toString().padStart(2, "0")}:${mins.toString().padStart(2, "0")}`
   }, [])
 
+  type ShiftKey = "morning" | "afternoon" | "evening"
+  const SHIFT_KEYS: ShiftKey[] = ["morning", "afternoon", "evening"]
+  const shiftOrder: Record<ShiftKey, number> = { morning: 0, afternoon: 1, evening: 2 }
+  const DAY_KEYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"] as const
+  type DayKey = (typeof DAY_KEYS)[number]
+
+  interface TimeEvent {
+    kind: "start" | "end"
+    dayIndex: number
+    shift: ShiftKey
+    minutes: number
+  }
+
+  // Build chronological list of all start/end events across the entire week
+  const collectTimeEvents = useCallback(
+    (schedules: ScheduleData): TimeEvent[] => {
+      const events: TimeEvent[] = []
+      DAY_KEYS.forEach((dayKey, idx) => {
+        const ds = schedules[dayKey]
+        if (!ds) return
+        SHIFT_KEYS.forEach((sk) => {
+          const slot = ds[sk]
+          if (slot?.start) {
+            const m = timeToMinutes(slot.start)
+            if (m >= 0) {
+              events.push({ kind: "start", dayIndex: idx, shift: sk, minutes: m })
+            }
+          }
+          if (slot?.end) {
+            const m = timeToMinutes(slot.end)
+            if (m >= 0) {
+              events.push({ kind: "end", dayIndex: idx, shift: sk, minutes: m })
+            }
+          }
+        })
+      })
+      // Order by dayIndex then minutes
+      events.sort((a, b) => a.dayIndex - b.dayIndex || a.minutes - b.minutes)
+      return events
+    },
+    [timeToMinutes],
+  )
+
+  // Distribute minutes for one contiguous block across days
+  const addBlockToPerDay = (perDay: number[], startDay: number, startMin: number, endDay: number, endMin: number) => {
+    const MIN_PER_DAY = 24 * 60
+    if (startDay === endDay) {
+      const diff = Math.max(0, endMin - startMin)
+      perDay[startDay] += diff
+      return
+    }
+    // Start day: from start to midnight
+    perDay[startDay] += Math.max(0, MIN_PER_DAY - startMin)
+    // Full in-between days
+    for (let d = startDay + 1; d < endDay; d++) {
+      perDay[d] += MIN_PER_DAY
+    }
+    // End day: from midnight to end
+    perDay[endDay] += Math.max(0, endMin)
+  }
+
+  // Compute per-day totals and weekly total for possibly multiple multi-day blocks
+  const computeMultiDayTotals = useCallback(
+    (schedules: ScheduleData) => {
+      const events = collectTimeEvents(schedules)
+      const perDay: number[] = Array(7).fill(0)
+      const disabledSlots = new Set<string>()
+      let openStart: TimeEvent | null = null
+
+      for (const ev of events) {
+        if (ev.kind === "start") {
+          openStart = ev
+        } else if (ev.kind === "end") {
+          if (openStart) {
+            const startIsBefore =
+              ev.dayIndex > openStart.dayIndex ||
+              (ev.dayIndex === openStart.dayIndex && ev.minutes >= openStart.minutes)
+            if (startIsBefore) {
+              addBlockToPerDay(perDay, openStart.dayIndex, openStart.minutes, ev.dayIndex, ev.minutes)
+              
+              // Calculate disables
+              const startDayKey = DAY_KEYS[openStart.dayIndex]
+              const endDayKey = DAY_KEYS[ev.dayIndex]
+              const startShiftIdx = shiftOrder[openStart.shift]
+              const endShiftIdx = shiftOrder[ev.shift]
+              const isMulti = openStart.dayIndex !== ev.dayIndex || openStart.shift !== ev.shift
+
+              if (isMulti) {
+                disabledSlots.add(`${startDayKey}-${openStart.shift}-end`)
+                disabledSlots.add(`${endDayKey}-${ev.shift}-start`)
+              }
+
+              if (openStart.dayIndex === ev.dayIndex) {
+                // same day, disable between shifts
+                for (let s = startShiftIdx + 1; s < endShiftIdx; s++) {
+                  const sh = SHIFT_KEYS[s]
+                  disabledSlots.add(`${startDayKey}-${sh}-start`)
+                  disabledSlots.add(`${startDayKey}-${sh}-end`)
+                }
+              } else {
+                // multi day, disable after start on start day
+                for (let s = startShiftIdx + 1; s < 3; s++) {
+                  const sh = SHIFT_KEYS[s]
+                  disabledSlots.add(`${startDayKey}-${sh}-start`)
+                  disabledSlots.add(`${startDayKey}-${sh}-end`)
+                }
+                // disable before end on end day
+                for (let s = 0; s < endShiftIdx; s++) {
+                  const sh = SHIFT_KEYS[s]
+                  disabledSlots.add(`${endDayKey}-${sh}-start`)
+                  disabledSlots.add(`${endDayKey}-${sh}-end`)
+                }
+                // middle days all
+                for (let d = openStart.dayIndex + 1; d < ev.dayIndex; d++) {
+                  const dk = DAY_KEYS[d]
+                  SHIFT_KEYS.forEach(sh => {
+                    disabledSlots.add(`${dk}-${sh}-start`)
+                    disabledSlots.add(`${dk}-${sh}-end`)
+                  })
+                }
+              }
+
+              openStart = null
+            }
+          }
+        }
+      }
+
+      // Convert to strings
+      const totalsByDay: Record<DayKey, string> = {} as any
+      DAY_KEYS.forEach((dk, i) => {
+        totalsByDay[dk] = minutesToTime(perDay[i])
+      })
+      const weeklyMinutes = perDay.reduce((acc, m) => acc + m, 0)
+      return { totalsByDay, weeklyTotal: minutesToTime(weeklyMinutes), disabledSlots }
+    },
+    [collectTimeEvents, minutesToTime],
+  )
+
   const calculateDayTotal = useCallback(
     (daySchedule: DaySchedule): string => {
       let totalMinutes = 0
-      const shifts = [daySchedule.tomorrow, daySchedule.late, daySchedule.evening]
+      const shifts = [daySchedule.morning, daySchedule.afternoon, daySchedule.evening]
 
       shifts.forEach((shift) => {
         if (shift.start && shift.end) {
@@ -342,16 +547,6 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
     [timeToMinutes, minutesToTime],
   )
 
-  const calculateWeeklyTotal = useCallback((): string => {
-    let totalMinutes = 0
-    Object.values(formData.schedules).forEach((daySchedule) => {
-      const dayTotal = calculateDayTotal(daySchedule)
-      const [hours, minutes] = dayTotal.split(":").map(Number)
-      totalMinutes += hours * 60 + minutes
-    })
-    return minutesToTime(totalMinutes)
-  }, [formData.schedules, calculateDayTotal, minutesToTime])
-
   // Form update functions
   const updateFormData = useCallback((field: string, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
@@ -365,26 +560,64 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
   }, [])
 
   const updateScheduleTime = useCallback(
-    (day: string, shift: string, timeType: "start" | "end", value: string) => {
+    (day: string, shift: ShiftKey, timeType: "start" | "end", value: string) => {
       setFormData((prev) => {
         const newSchedules = { ...prev.schedules }
-        const daySchedule = newSchedules[day] as DaySchedule
-        if (daySchedule && typeof daySchedule === "object" && shift in daySchedule) {
-          const shiftData = daySchedule[shift as keyof DaySchedule] as TimeSlot
-          if (shiftData && typeof shiftData === "object") {
-            shiftData[timeType] = value
-          }
-        }
-        newSchedules[day].total = calculateDayTotal(newSchedules[day])
+        const currentSeasonSchedules = { ...newSchedules[prev.currentSeason] }
+        const daySchedule = { ...currentSeasonSchedules[day] }
+        const shiftData = { ...daySchedule[shift] } as TimeSlot
+        shiftData[timeType] = value
+        daySchedule[shift] = shiftData
+        currentSeasonSchedules[day] = daySchedule
+        newSchedules[prev.currentSeason] = currentSeasonSchedules
+
+        const { totalsByDay, weeklyTotal } = computeMultiDayTotals(currentSeasonSchedules)
+        DAY_KEYS.forEach((dk) => {
+          currentSeasonSchedules[dk].total = totalsByDay[dk]
+        })
+
         return {
           ...prev,
           schedules: newSchedules,
-          totalWeeklyHours: calculateWeeklyTotal(),
+          totalWeeklyHours: weeklyTotal,
         }
       })
     },
-    [calculateDayTotal, calculateWeeklyTotal],
+    [computeMultiDayTotals],
   )
+
+  // Clear all schedule entries for the current season (e.g., normal or summer)
+  const clearCurrentSeasonSchedules = useCallback(() => {
+    setFormData((prev) => {
+      const season = prev.currentSeason
+      const newSchedules = { ...prev.schedules }
+      // reset each day to initial empty schedule
+      newSchedules[season] = {
+        monday: createInitialSchedule(),
+        tuesday: createInitialSchedule(),
+        wednesday: createInitialSchedule(),
+        thursday: createInitialSchedule(),
+        friday: createInitialSchedule(),
+        saturday: createInitialSchedule(),
+        sunday: createInitialSchedule(),
+      }
+
+      // recompute totals
+      const { totalsByDay, weeklyTotal } = computeMultiDayTotals(newSchedules[season])
+      Object.keys(totalsByDay).forEach((dk) => {
+        // @ts-expect-error indexing by dynamic key
+        newSchedules[season][dk].total = totalsByDay[dk as DayKey]
+      })
+
+      return {
+        ...prev,
+        schedules: newSchedules,
+        totalWeeklyHours: weeklyTotal,
+      }
+    })
+
+    toast({ title: "Borrado", description: "Horarios borrados" })
+  }, [computeMultiDayTotals])
 
   const toggleWorkerSelection = useCallback((workerId: string) => {
     setFormData((prev) => ({
@@ -393,6 +626,14 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
         ? prev.workerIds.filter((id) => id !== workerId)
         : [...prev.workerIds, workerId],
     }))
+  }, [])
+
+  const toggleWorkCenterSelection = useCallback((wcId: string) => {
+    setFormData((prev) => {
+      const exists = prev.workCenterIds.includes(wcId)
+      const newWorkCenterIds = exists ? prev.workCenterIds.filter((id) => id !== wcId) : [...prev.workCenterIds, wcId]
+      return { ...prev, workCenterIds: newWorkCenterIds }
+    })
   }, [])
 
   const addTaskToList = () => {
@@ -408,6 +649,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
     const newTask = {
       id: Date.now().toString(),
       task: formData.task,
+      workCenterId: formData.taskWorkCenterId || null,
       observations: formData.taskObservations,
       duration: formData.duration,
       shifts: { ...formData.shifts },
@@ -430,11 +672,11 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
     setFormData((prev) => ({
       ...prev,
       tasks: [...prev.tasks, newTask],
-      // Reset task form fields (preserve job-level start/end)
       task: "",
       taskObservations: "",
+      taskWorkCenterId: "",
       duration: "",
-      shifts: { tomorrow: false, late: false, evening: false },
+      shifts: { morning: false, afternoon: false, evening: false },
       toBeCarriedOut: "during",
       periodicity: "once",
       taskStartDate: "",
@@ -464,10 +706,50 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
     }))
   }
 
-  const getShiftLabels = (shifts: { tomorrow: boolean; late: boolean; evening: boolean }) => {
+  // Drag & drop reorder for tasks
+  const dragItemIndex = useRef<number | null>(null)
+  const dragOverItemIndex = useRef<number | null>(null)
+
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    dragItemIndex.current = index
+    e.dataTransfer.effectAllowed = "move"
+  }
+
+  const handleDragEnter = (e: React.DragEvent, index: number) => {
+    dragOverItemIndex.current = index
+    e.preventDefault()
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    const from = dragItemIndex.current
+    const to = dragOverItemIndex.current
+    if (from == null || to == null || from === to) return
+
+    setFormData((prev) => {
+      const newTasks = [...prev.tasks]
+      const [moved] = newTasks.splice(from, 1)
+      newTasks.splice(to, 0, moved)
+      return { ...prev, tasks: newTasks }
+    })
+
+    dragItemIndex.current = null
+    dragOverItemIndex.current = null
+  }
+
+  const handleDragEnd = () => {
+    dragItemIndex.current = null
+    dragOverItemIndex.current = null
+  }
+
+  const getShiftLabels = (shifts: { morning: boolean; afternoon: boolean; evening: boolean }) => {
     const labels = []
-    if (shifts.tomorrow) labels.push("Morning")
-    if (shifts.late) labels.push("Afternoon")
+    if (shifts.morning) labels.push("Morning")
+    if (shifts.afternoon) labels.push("Afternoon")
     if (shifts.evening) labels.push("Evening")
     return labels.join(", ") || "None"
   }
@@ -485,6 +767,14 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
       }
       if (!formData.startDate) {
         newErrors.startDate = t("thisFieldIsRequired")
+      }
+      // Client is required (same as startDate)
+      if (!formData.clientId && formData.clientId !== 0) {
+        newErrors.client = t("thisFieldIsRequired")
+      }
+      // At least one work center must be selected
+      if (!formData.workCenterIds || formData.workCenterIds.length === 0) {
+        newErrors.workCenters = t("thisFieldIsRequired")
       }
       if (!formData.workerIds || formData.workerIds.length === 0) {
         newErrors.workers = t("thisFieldIsRequired")
@@ -530,31 +820,117 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
     setFormData(createInitialFormData())
   }, [])
 
+  // Helper: convert common UI date formats (MM/DD, MM/DD/YYYY or YYYY-MM-DD) to ISO YYYY-MM-DD
+  // Placed here so it's initialized before any handlers that use it.
+  const toISODate = (input?: string | null): string | null => {
+    if (!input) return null
+    const s = input.trim()
+    // already ISO YYYY-MM-DD
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s
+    // MM/DD or MM/DD/YYYY or M/D or M/D/YY
+    const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?$/)
+    if (m) {
+      let month = Number(m[1])
+      let day = Number(m[2])
+      let year = m[3] ? Number(m[3]) : new Date().getFullYear()
+      if (year < 100) year += 2000
+      // Basic validation by constructing UTC date
+      const d = new Date(Date.UTC(year, month - 1, day))
+      if (d.getUTCFullYear() === year && d.getUTCMonth() === month - 1 && d.getUTCDate() === day) {
+        const mm = String(month).padStart(2, "0")
+        const dd = String(day).padStart(2, "0")
+        return `${year}-${mm}-${dd}`
+      }
+    }
+    return null
+  }
+
   const handleCreate = useCallback(async () => {
     setIsLoading(true)
     try {
       const endDate = formData.endDate || "2126-08-01"
 
-      // Build shifts array
-      const shifts: any[] = []
-      const shiftTypeMap = { tomorrow: "morning", late: "noon", evening: "evening" }
+      // toISODate helper is defined earlier; no duplicate definition here.
 
-      Object.entries(formData.schedules).forEach(([day, schedule]) => {
-        Object.entries(shiftTypeMap).forEach(([key, shiftType]) => {
-          const shift = schedule[key as keyof DaySchedule] as TimeSlot
-          if (shift.start && shift.end) {
-            shifts.push({
-              day: day.charAt(0).toUpperCase() + day.slice(1),
-              shiftType,
-              startTime: shift.start,
-              endTime: shift.end,
-              totalHours: Math.floor((timeToMinutes(shift.end) - timeToMinutes(shift.start)) / 60),
-              scheduleType: (formData.scheduleType as string) === "programming" ? "fixed" : "flexible",
-              season: formData.seasonType,
-            })
+      // Build seasonalSchedules payload by converting morning/afternoon/evening
+      // table entries into contiguous shift blocks that may span multiple days.
+      // The resulting shape matches the backend expectation:
+      // { season, startDate, endDate, shifts: [{ startWeekday, endWeekday, baseStartTime, baseEndTime, isContinuous, totalHours }] }
+      const seasonalSchedules: any[] = []
+
+      if (formData.scheduleType === "programming") {
+        ;(["normal", "summer"] as const).forEach((season) => {
+          const seasonSchedules = formData.schedules[season]
+
+          // use shared toISODate helper defined above
+
+          // collect chronological start/end events for this season
+          const events = collectTimeEvents(seasonSchedules)
+
+          let openStart: { dayIndex: number; minutes: number; shift: ShiftKey } | null = null
+
+          const blocks: Array<{
+            startWeekday: string
+            endWeekday: string
+            baseStartTime: string
+            baseEndTime: string
+            isContinuous: boolean
+            totalHours: number
+          }> = []
+
+          for (const ev of events) {
+            if (ev.kind === "start") {
+              openStart = { dayIndex: ev.dayIndex, minutes: ev.minutes, shift: ev.shift }
+            } else if (ev.kind === "end") {
+              if (openStart) {
+                const startAbs = openStart.dayIndex * 24 * 60 + openStart.minutes
+                const endAbs = ev.dayIndex * 24 * 60 + ev.minutes
+                if (endAbs > startAbs) {
+                  const startWeekday = DAY_KEYS[openStart.dayIndex]
+                  const endWeekday = DAY_KEYS[ev.dayIndex]
+                  const baseStartTime = minutesToTime(openStart.minutes)
+                  const baseEndTime = minutesToTime(ev.minutes)
+                  const isContinuous = openStart.dayIndex !== ev.dayIndex || openStart.shift !== ev.shift
+                  const totalHours = Math.floor((endAbs - startAbs) / 60)
+
+                  blocks.push({ startWeekday, endWeekday, baseStartTime, baseEndTime, isContinuous, totalHours })
+                }
+                openStart = null
+              }
+            }
+          }
+
+          // Find optional season period (start/end) provided by the user
+          const seasonPeriod = (Array.isArray(formData.seasonPeriods) ? formData.seasonPeriods : []).find(
+            (p: any) => p && p.season === season,
+          )
+
+          const seasonObj: any = { season, shifts: blocks }
+          if (seasonPeriod) {
+            const s = toISODate(seasonPeriod.startDate)
+            const e = toISODate(seasonPeriod.endDate)
+            if (s) seasonObj.startDate = s
+            if (e) seasonObj.endDate = e
+          }
+          seasonalSchedules.push(seasonObj)
+        })
+      }
+
+      // toISODate helper is defined above
+
+      // Prepare seasonPeriods payload: normalize dates to ISO (YYYY-MM-DD) and only include valid entries
+      const seasonPeriodsPayload: any[] = []
+      if (Array.isArray(formData.seasonPeriods)) {
+        formData.seasonPeriods.forEach((p: any) => {
+          if (!p || !p.season) return
+          const startIso = toISODate(p.startDate)
+          const endIso = toISODate(p.endDate)
+          if (startIso && endIso) {
+            seasonPeriodsPayload.push({ season: p.season, startDate: startIso, endDate: endIso })
           }
         })
-      })
+      }
+
       // Build signing methods
       const signingMethods: any[] = []
       if (formData.signingMethods.mobile) {
@@ -587,35 +963,12 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
         })
       }
 
-      // const tasks: any[] = []
-      // if (enableTasks && formData.tasks.length > 0) {
-      //   formData.tasks.forEach((task) => {
-      //     const selectedShifts = Object.entries(task.shifts)
-      //       .filter(([_, enabled]) => enabled)
-      //       .map(([key]) => (key === "tomorrow" ? "morning" : key === "late" ? "afternoon" : "evening"))
-
-      //     tasks.push({
-      //       name: task.task,
-      //       note: task.observations,
-      //       expectedDuration: Number.parseInt(task.duration) || 1,
-      //       shift: selectedShifts[0] || "morning",
-      //       timing: task.toBeCarriedOut,
-      //       periodicity: task.periodicity,
-      //       periodicityValue: task.periodicityValue,
-      //       periodicityDate: task.periodicityDate,
-      //       weeklyDays: task.weeklyDays,
-      //       monthlyDay: task.monthlyDay,
-      //       alertTask: task.alertTaskCompleted,
-      //       pendingTask: task.pendingTaskAlert,
-      //     })
-      //   })
-      // }
       const tasks: any[] = []
       if (enableTasks && formData.tasks.length > 0) {
         formData.tasks.forEach((task) => {
           const selectedShifts = Object.entries(task.shifts)
             .filter(([_, enabled]) => enabled)
-            .map(([key]) => (key === "tomorrow" ? "morning" : key === "late" ? "noon" : "evening"))
+            .map(([key]) => (key === "morning" ? "morning" : key === "afternoon" ? "noon" : "evening"))
 
           const taskPayload: any = {
             name: task.task,
@@ -626,6 +979,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
             periodicity: task.periodicity,
             alertTask: task.alertTaskCompleted,
             pendingTask: task.pendingTaskAlert,
+            ...(typeof task.workCenterId !== 'undefined' && task.workCenterId !== null && task.workCenterId !== '' ? { workCenterId: Number(task.workCenterId) } : {}),
           }
 
           // Common fields
@@ -697,13 +1051,15 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
         startDate: formData.startDate,
         endDate,
         clientId: Number.parseInt(formData.clientId),
-        workCenterId: 1, // Always use mock WorkCenter id as integer
+  workCenterIds: formData.workCenterIds ? formData.workCenterIds.map((id) => Number.parseInt(id)) : [],
         workerIds: formData.workerIds.map((id) => Number.parseInt(id)),
         note: formData.observations,
-        shifts,
+        scheduleType: formData.scheduleType === "programming" ? "seasonal" : "free",
+        seasonalSchedules: formData.scheduleType === "programming" ? seasonalSchedules : [],
         signingMethods,
         alerts,
         tasks,
+        ...(seasonPeriodsPayload.length > 0 && { seasonPeriods: seasonPeriodsPayload }),
         ...(survey && { survey }),
       }
 
@@ -758,13 +1114,26 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
 
   // Effects
   useEffect(() => {
+    if (!session?.accessToken) return
     fetchClients()
     fetchWorkers()
-  }, [fetchClients, fetchWorkers])
+  }, [fetchClients, fetchWorkers, session?.accessToken])
 
   useEffect(() => {
     fetchWorkCenters()
   }, [fetchWorkCenters])
+
+  // No per-task single work center: tasks inherit job-level workCenterIds. No effect required.
+
+  useEffect(() => {
+    if (formData.scheduleType === "programming") {
+      const currentSeasonSchedules = formData.schedules[formData.currentSeason]
+      const { weeklyTotal } = computeMultiDayTotals(currentSeasonSchedules)
+      setFormData((prev) => ({ ...prev, totalWeeklyHours: weeklyTotal }))
+    } else {
+      setFormData((prev) => ({ ...prev, totalWeeklyHours: "00:00" }))
+    }
+  }, [formData.currentSeason, formData.schedules, formData.scheduleType, computeMultiDayTotals])
 
   // Render functions for better organization
   const renderProgressSteps = () => (
@@ -824,7 +1193,10 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
 
       <div>
         <Label htmlFor="denomination" className="text-sm font-medium text-foreground">
-          {t("denomination") || "Denomination"}
+          <span>
+            {t("denomination") || "Denomination"}
+            <span className="text-destructive ml-1">*</span>
+          </span>
         </Label>
         <Input
           id="denomination"
@@ -839,8 +1211,11 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
       <div className="grid grid-cols-2 gap-4">
         <div>
           <Label htmlFor="startDate" className="text-sm font-medium text-foreground">
-            {t("startDate") || "Start Date"}
-          </Label>
+              <span>
+                {t("startDate") || "Start Date"}
+                <span className="text-destructive ml-1">*</span>
+              </span>
+            </Label>
           <div className="relative">
             <DateInput
               id="startDate"
@@ -848,6 +1223,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
               onChange={(e) => updateFormData("startDate", e.target.value)}
               className="mt-1 w-40"
             />
+
             {errors.startDate && <div className="text-sm text-destructive mt-1">{errors.startDate}</div>}
           </div>
         </div>
@@ -867,32 +1243,44 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
       </div>
 
       <div>
-        <Label htmlFor="client" className="text-sm font-medium text-foreground">
-          {t("client") || "Client"}
+        <Label htmlFor="client" className="text-sm font-medium text-foreground flex items-center gap-1">
+          <span>
+            {t("client") || "Client"}
+            <span className="text-destructive ml-1">*</span>
+          </span>
         </Label>
         <Select
-          value={formData.clientId}
+          value={formData.clientId ? formData.clientId.toString() : ""}
           onValueChange={(value) => {
-            updateFormData("clientId", value)
-            updateFormData("workCenterId", "")
+            updateFormData("clientId", value ? Number(value) : null)
+            // clear selected work centers when client changes
+            updateFormData("workCenterIds", [])
           }}
+          disabled={loadingClients}
         >
           <SelectTrigger className="mt-1 text-muted-foreground">
             <SelectValue placeholder={loadingClients ? t("loadingClients") : t("selectAClient")} />
           </SelectTrigger>
           <SelectContent>
-            {clients.map((client) => (
-              <SelectItem key={client.id} value={client.id.toString()}>
-                {client.name}
+            {clients.map((client, index) => (
+              <SelectItem
+                key={client.id !== null ? client.id : `self-${index}`} // Use index for null IDs to avoid duplicate keys
+                value={client.id !== null ? client.id.toString() : "self"} // Use a unique string for null IDs
+              >
+                {client.name} {client.isSelf ? "(yourself)" : ""}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
+    {errors.client && <div className="text-sm text-destructive mt-1">{errors.client}</div>}
       </div>
 
       <div>
-        <Label htmlFor="workCenter" className="text-sm font-medium text-foreground flex items-center gap-1">
-          {t("workCenter") || "Work Center"}
+        <Label className="text-sm font-medium text-foreground flex items-center gap-1">
+          <span>
+            {t("workCenter") || "Work Center"}
+            <span className="text-destructive ml-1">*</span>
+          </span>
           <TooltipProvider>
             <Tooltip open={workCenterTooltipOpen} onOpenChange={setWorkCenterTooltipOpen} delayDuration={0}>
               <TooltipTrigger asChild>
@@ -911,25 +1299,54 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
             </Tooltip>
           </TooltipProvider>
         </Label>
-        <Select
-          value={formData.workCenterId}
-          onValueChange={(value) => updateFormData("workCenterId", value)}
-          disabled={!formData.clientId}
-        >
-          <SelectTrigger className="mt-1">
-            <SelectValue placeholder={!formData.clientId ? "Select a client first" : "Select a work center"} />
-          </SelectTrigger>
-          <SelectContent>
-            {/* Only show the mock WorkCenter with id 1 and value '1' */}
-            <SelectItem key={workCenters[0]?.id || "1"} value="1">
-              {workCenters[0]?.name || "Default WorkCenter"}
-            </SelectItem>
-          </SelectContent>
-        </Select>
+        {errors.workCenters && <div className="text-sm text-destructive mt-1">{errors.workCenters}</div>}
+
+        <div className="mt-1 border rounded-md p-3 min-h-[120px] bg-background">
+          <div className="space-y-1 max-h-40 overflow-y-auto">
+            {formData.workCenterIds.length > 0 && (
+              <div className="mb-2">
+                {formData.workCenterIds.map((wcId) => {
+                  const wc = workCenters.find((w) => String(w.id) === wcId)
+                  return wc ? (
+                    <div key={wcId} className="text-sm text-foreground">
+                      {wc.name}
+                    </div>
+                  ) : null
+                })}
+              </div>
+            )}
+
+            <div className="border-t pt-2">
+              {!formData.clientId ? (
+                <div className="text-sm text-muted-foreground">Select a client first</div>
+              ) : loadingWorkCenters ? (
+                <div className="text-sm text-muted-foreground">Loading work centers...</div>
+              ) : workCenters && workCenters.length ? (
+                workCenters.map((wc) => (
+                  <div key={wc.id} className="flex items-center space-x-2 py-1">
+                    <Checkbox
+                      id={`wc-${wc.id}`}
+                      checked={formData.workCenterIds.includes(String(wc.id))}
+                      onCheckedChange={() => toggleWorkCenterSelection(String(wc.id))}
+                    />
+                    <Label htmlFor={`wc-${wc.id}`} className="text-sm cursor-pointer">
+                      {wc.name} {wc.address ? `- ${wc.address}` : ""}
+                    </Label>
+                  </div>
+                ))
+              ) : (
+                <div className="text-sm text-muted-foreground">No work centers available for this client</div>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
       <div>
         <Label className="text-sm font-medium text-foreground flex items-center gap-1">
-          {t("workers") || "Workers"}
+          <span>
+            {t("workers") || "Workers"}
+            <span className="text-destructive ml-1">*</span>
+          </span>
           <TooltipProvider>
             <Tooltip open={workersTooltipOpen} onOpenChange={setWorkersTooltipOpen} delayDuration={0}>
               <TooltipTrigger asChild>
@@ -1000,344 +1417,193 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
     </div>
   )
 
-  // const renderSchedulesStep = () => (
-  //   <div className="space-y-4">
-  //     <h3 className="text-lg font-medium text-center mb-4 underline">{t("schedules") || "Schedules"}</h3>
+  const renderSchedulesStep = () => {
+    const currentSeasonSchedules = formData.schedules[formData.currentSeason]
+    const { disabledSlots } = computeMultiDayTotals(currentSeasonSchedules)
 
-  //     <div className="flex items-center justify-between mb-4">
-  //       <div className="flex items-center gap-3">
-  //         <span className="text-sm font-medium">{t("free") || "Free"}</span>
-  //         <Switch
-  //           checked={(formData.scheduleType as string) === "programming"}
-  //           onCheckedChange={(checked) => updateFormData("scheduleType", checked ? "programming" : "free")}
-  //         />
-  //         <span className="text-sm font-medium">{t("programming") || "Programming"}</span>
-  //       </div>
-  //       {(formData.scheduleType as string) === "programming" && (
-  //         <div className="flex items-center gap-3">
-  //           <span className="text-sm font-medium">{t("winter") || "Winter"}</span>
-  //           <Switch
-  //             checked={(formData.seasonType as string) === "summer"}
-  //             onCheckedChange={(checked) => updateFormData("seasonType", checked ? "summer" : "winter")}
-  //           />
-  //           <span className="text-sm font-medium">{t("summer") || "Summer"}</span>
-  //         </div>
-  //       )}
-  //     </div>
+    return (
+      <div className="space-y-4">
+        <h3 className="text-lg font-medium text-center mb-4 underline">{t("schedules") || "Schedules"}</h3>
 
-  //     {(formData.scheduleType as string) === "programming" && (
-  //       <div className="w-full">
-  //         <table className="w-full border-collapse">
-  //           <thead>
-  //             <tr className="bg-muted/30">
-  //               <th className="border border-border px-3 py-2 text-left font-medium text-sm w-20">
-  //                 {t("day") || "Day"}
-  //               </th>
-  //               <th className="border border-border px-2 py-2 text-center font-medium text-sm">
-  //                 {t("tomorrow") || "Tomorrow"}
-  //               </th>
-  //               <th className="border border-border px-2 py-2 text-center font-medium text-sm">
-  //                 {t("late") || "Late"}
-  //               </th>
-  //               <th className="border border-border px-2 py-2 text-center font-medium text-sm">
-  //                 {t("evening") || "Evening"}
-  //               </th>
-  //               <th className="border border-border px-2 py-2 text-center font-medium text-sm w-16">Total</th>
-  //             </tr>
-  //           </thead>
-  //           <tbody>
-  //             {daysOfWeek.map((day) => (
-  //               <tr key={day.key} className="hover:bg-muted/20">
-  //                 <td className="border border-border px-3 py-2 font-medium text-sm bg-muted/10">{day.label}</td>
-  //                 <td className="border border-border px-1 py-1">
-  //                   <div className="flex items-center justify-center gap-1">
-  //                     <div className="relative">
-  //                       <Input
-  //                         placeholder="--:--"
-  //                         className="w-16 h-6 text-xs text-center pr-5 border-gray-300"
-  //                         value={formData.schedules[day.key]?.tomorrow?.start || ""}
-  //                         readOnly
-  //                       />
-  //                       <div className="absolute right-1 top-1/2 transform -translate-y-1/2 z-50">
-  //                         <TimePicker
-  //                           value={formData.schedules[day.key]?.tomorrow?.start}
-  //                           onChange={(time) => updateScheduleTime(day.key, "tomorrow", "start", time)}
-  //                         />
-  //                       </div>
-  //                     </div>
-  //                     <span className="text-xs text-muted-foreground">-</span>
-  //                     <div className="relative">
-  //                       <Input
-  //                         placeholder="--:--"
-  //                         className="w-16 h-6 text-xs text-center pr-5 border-gray-300"
-  //                         value={formData.schedules[day.key]?.tomorrow?.end || ""}
-  //                         readOnly
-  //                       />
-  //                       <div className="absolute right-1 top-1/2 transform -translate-y-1/2 z-50">
-  //                         <TimePicker
-  //                           value={formData.schedules[day.key]?.tomorrow?.end}
-  //                           onChange={(time) => updateScheduleTime(day.key, "tomorrow", "end", time)}
-  //                         />
-  //                       </div>
-  //                     </div>
-  //                   </div>
-  //                 </td>
-  //                 <td className="border border-border px-1 py-1">
-  //                   <div className="flex items-center justify-center gap-1">
-  //                     <div className="relative">
-  //                       <Input
-  //                         placeholder="--:--"
-  //                         className="w-16 h-6 text-xs text-center pr-5 border-gray-300"
-  //                         value={formData.schedules[day.key]?.late?.start || ""}
-  //                         readOnly
-  //                       />
-  //                       <div className="absolute right-1 top-1/2 transform -translate-y-1/2 z-50">
-  //                         <TimePicker
-  //                           value={formData.schedules[day.key]?.late?.start}
-  //                           onChange={(time) => updateScheduleTime(day.key, "late", "start", time)}
-  //                         />
-  //                       </div>
-  //                     </div>
-  //                     <span className="text-xs text-muted-foreground">-</span>
-  //                     <div className="relative">
-  //                       <Input
-  //                         placeholder="--:--"
-  //                         className="w-16 h-6 text-xs text-center pr-5 border-gray-300"
-  //                         value={formData.schedules[day.key]?.late?.end || ""}
-  //                         readOnly
-  //                       />
-  //                       <div className="absolute right-1 top-1/2 transform -translate-y-1/2 z-50">
-  //                         <TimePicker
-  //                           value={formData.schedules[day.key]?.late?.end}
-  //                           onChange={(time) => updateScheduleTime(day.key, "late", "end", time)}
-  //                         />
-  //                       </div>
-  //                     </div>
-  //                   </div>
-  //                 </td>
-  //                 <td className="border border-border px-1 py-1">
-  //                   <div className="flex items-center justify-center gap-1">
-  //                     <div className="relative">
-  //                       <Input
-  //                         placeholder="--:--"
-  //                         className="w-16 h-6 text-xs text-center pr-5 border-gray-300"
-  //                         value={formData.schedules[day.key]?.evening?.start || ""}
-  //                         readOnly
-  //                       />
-  //                       <div className="absolute right-1 top-1/2 transform -translate-y-1/2 z-50">
-  //                         <TimePicker
-  //                           value={formData.schedules[day.key]?.evening?.start}
-  //                           onChange={(time) => updateScheduleTime(day.key, "evening", "start", time)}
-  //                         />
-  //                       </div>
-  //                     </div>
-  //                     <span className="text-xs text-muted-foreground">-</span>
-  //                     <div className="relative">
-  //                       <Input
-  //                         placeholder="--:--"
-  //                         className="w-16 h-6 text-xs text-center pr-5 border-gray-300"
-  //                         value={formData.schedules[day.key]?.evening?.end || ""}
-  //                         readOnly
-  //                       />
-  //                       <div className="absolute right-1 top-1/2 transform -translate-y-1/2 z-50">
-  //                         <TimePicker
-  //                           value={formData.schedules[day.key]?.evening?.end}
-  //                           onChange={(time) => updateScheduleTime(day.key, "evening", "end", time)}
-  //                         />
-  //                       </div>
-  //                     </div>
-  //                   </div>
-  //                 </td>
-  //                 <td className="border border-border px-2 py-2 text-center font-mono text-xs bg-muted/5">
-  //                   {formData.schedules[day.key]?.total || "00:00"}
-  //                 </td>
-  //               </tr>
-  //             ))}
-  //           </tbody>
-  //         </table>
-  //       </div>
-  //     )}
-  //   </div>
-  // )
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-[1px]">
+            <span className="text-sm font-medium">{t("free") || "Free"}</span>
+            <Switch
+              className="scale-[0.65]"
+              checked={(formData.scheduleType as string) === "programming"}
+              onCheckedChange={(checked) => updateFormData("scheduleType", checked ? "programming" : "free")}
+            />
+            <span className="text-sm font-medium">{t("programming") || "Programming"}</span>
+          </div>
 
-const renderSchedulesStep = () => (
-  <div className="space-y-4">
-    <h3 className="text-lg font-medium text-center mb-4 underline">{t("schedules") || "Schedules"}</h3>
+          {/* center: seasonal switch when programming */}
+          {(formData.scheduleType as string) === "programming" && (
+            <div className="flex-1 flex items-center justify-center ">
+              <div className="flex items-center gap-[1px]">
+                <span className="text-sm font-medium">{t("normal") || "Normal"}</span>
+                <Switch
+                  className="scale-[0.65]"
+                  checked={(formData.currentSeason as string) === "summer"}
+                  onCheckedChange={(checked) => updateFormData("currentSeason", checked ? "summer" : "normal")}
+                />
+                <span className="text-sm font-medium">{t("summer") || "Summer"}</span>
+                <TooltipProvider>
+                  <Tooltip open={seasonTooltipOpen} onOpenChange={setSeasonTooltipOpen} delayDuration={0}>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        className="inline-flex items-center p-0 ml-1"
+                        aria-label="Seasons info"
+                        onClick={() => setSeasonTooltipOpen((s) => !s)}
+                      >
+                        <Info className="w-3 h-3 text-muted-foreground cursor-help" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="right" align="center" sideOffset={6} className="max-w-[12.6rem]">
+                      {t("seasonsInfo")}
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+            </div>
+          )}
 
-    <div className="flex items-center justify-between mb-4">
-      <div className="flex items-center gap-[1px]">
-        <span className="text-sm font-medium">{t("free") || "Free"}</span>
-        <Switch
-          className="scale-[0.65]"
-          checked={(formData.scheduleType as string) === "programming"}
-          onCheckedChange={(checked) => updateFormData("scheduleType", checked ? "programming" : "free")}
-        />
-        <span className="text-sm font-medium">{t("programming") || "Programming"}</span>
-      </div>
-      {(formData.scheduleType as string) === "programming" && (
-        <div className="flex items-center gap-[1px]">
-          <span className="text-sm font-medium">{t("winter") || "Winter"}</span>
-          <Switch
-            className="scale-[0.65]"
-            checked={(formData.seasonType as string) === "summer"}
-            onCheckedChange={(checked) => updateFormData("seasonType", checked ? "summer" : "winter")}
-          />
-          <span className="text-sm font-medium">{t("summer") || "Summer"}</span>
+          {/* right: when summer selected show season range inputs in header */}
+          {(formData.scheduleType as string) === "programming" && formData.currentSeason === "summer" && (
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2">
+                <ManualDateField
+                  label={t("start") || "Start"}
+                  value={formData.seasonPeriods.find((p) => p.season === "summer")?.startDate || null}
+                  onChange={(v) => {
+                    const updated = formData.seasonPeriods.filter((p) => p.season !== "summer")
+                    updated.push({ season: "summer", startDate: v || "", endDate: formData.seasonPeriods.find((p) => p.season === "summer")?.endDate || "" })
+                    updateFormData("seasonPeriods", updated)
+                  }}
+                  format={"MM/DD"}
+                  placeholder={"MM/DD"}
+                />
+                <span className="text-sm">{t("to") || "to"}</span>
+                <ManualDateField
+                  label={t("end") || "End"}
+                  value={formData.seasonPeriods.find((p) => p.season === "summer")?.endDate || null}
+                  onChange={(v) => {
+                    const updated = formData.seasonPeriods.filter((p) => p.season !== "summer")
+                    updated.push({ season: "summer", startDate: formData.seasonPeriods.find((p) => p.season === "summer")?.startDate || "", endDate: v || "" })
+                    updateFormData("seasonPeriods", updated)
+                  }}
+                  format={"MM/DD"}
+                  placeholder={"MM/DD"}
+                  size="sm"
+                />
+              </div>
+            </div>
+          )}
         </div>
-      )}
-    </div>
 
-    {(formData.scheduleType as string) === "programming" && (
-      <div className="w-full">
-        <table className="w-full border-collapse">
-          <thead  >
-            <tr className="bg-gray-100 border-b-[3px] border-[#7547a3]">
-              <th className="border border-border px-2 py-2 text-center font-medium text-sm w-20">
-                {t("day") || "Day"}
-              </th>
-              <th className="border border-border px-2 py-2 text-center font-medium text-sm w-24">
-                {t("morning") || "Morning"}
-              </th>
-              <th className="border border-border px-2 py-2 text-center font-medium text-sm w-24">
-                {t("afternoon") || "Afternoon"}
-              </th>
-              <th className="border border-border px-2 py-2 text-center font-medium text-sm w-24">
-                {t("evening") || "Evening"}
-              </th>
-              <th className="border border-border px-2 py-2 text-center font-medium text-sm w-16">Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            {daysOfWeek.map((day) => (
-              <tr key={day.key} className="hover:bg-muted/20">
-                <td className="border border-border px-3 py-2 font-medium text-sm bg-muted/10">{day.label}</td>
-                <td className="border border-border px-2 py-1">
-                  <div className="flex items-center justify-center gap-2">
-                    <div className="relative">
-                      <Input
-                        placeholder="--:--"
-                        className={`w-20 h-6 text-xs text-center pr-7 border-gray-300 ${
-                          formData.schedules[day.key]?.tomorrow?.start ? 'bg-gray-100' : ''
-                        }`}
-                        value={formData.schedules[day.key]?.tomorrow?.start || ""}
-                        readOnly
-                      />
-                      <div className="absolute right-1 top-1/2 transform -translate-y-1/2 z-50">
-                        <TimePicker
-                          value={formData.schedules[day.key]?.tomorrow?.start}
-                          onChange={(time) => updateScheduleTime(day.key, "tomorrow", "start", time)}
-                        />
-                      </div>
-                    </div>
-                    <span className="text-xs text-muted-foreground">-</span>
-                    <div className="relative">
-                      <Input
-                        placeholder="--:--"
-                        className={`w-20 h-6 text-xs text-center pr-7 border-gray-300 ${
-                          formData.schedules[day.key]?.tomorrow?.end ? 'bg-gray-100' : ''
-                        }`}
-                        value={formData.schedules[day.key]?.tomorrow?.end || ""}
-                        readOnly
-                      />
-                      <div className="absolute right-1 top-1/2 transform -translate-y-1/2 z-50">
-                        <TimePicker
-                          value={formData.schedules[day.key]?.tomorrow?.end}
-                          onChange={(time) => updateScheduleTime(day.key, "tomorrow", "end", time)}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </td>
-                <td className="border border-border px-2 py-1">
-                  <div className="flex items-center justify-center gap-2">
-                    <div className="relative">
-                      <Input
-                        placeholder="--:--"
-                        className={`w-20 h-6 text-xs text-center pr-7 border-gray-300 ${
-                          formData.schedules[day.key]?.late?.start ? 'bg-gray-100' : ''
-                        }`}
-                        value={formData.schedules[day.key]?.late?.start || ""}
-                        readOnly
-                      />
-                      <div className="absolute right-1 top-1/2 transform -translate-y-1/2 z-50">
-                        <TimePicker
-                          value={formData.schedules[day.key]?.late?.start}
-                          onChange={(time) => updateScheduleTime(day.key, "late", "start", time)}
-                        />
-                      </div>
-                    </div>
-                    <span className="text-xs text-muted-foreground">-</span>
-                    <div className="relative">
-                      <Input
-                        placeholder="--:--"
-                        className={`w-20 h-6 text-xs text-center pr-7 border-gray-300 ${
-                          formData.schedules[day.key]?.late?.end ? 'bg-gray-100' : ''
-                        }`}
-                        value={formData.schedules[day.key]?.late?.end || ""}
-                        readOnly
-                      />
-                      <div className="absolute right-1 top-1/2 transform -translate-y-1/2 z-50">
-                        <TimePicker
-                          value={formData.schedules[day.key]?.late?.end}
-                          onChange={(time) => updateScheduleTime(day.key, "late", "end", time)}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </td>
-                <td className="border border-border px-2 py-1">
-                  <div className="flex items-center justify-center gap-2">
-                    <div className="relative">
-                      <Input
-                        placeholder="--:--"
-                        className={`w-20 h-6 text-xs text-center pr-7 border-gray-300 ${
-                          formData.schedules[day.key]?.evening?.start ? 'bg-gray-100' : ''
-                        }`}
-                        value={formData.schedules[day.key]?.evening?.start || ""}
-                        readOnly
-                      />
-                      <div className="absolute right-1 top-1/2 transform -translate-y-1/2 z-50">
-                        <TimePicker
-                          value={formData.schedules[day.key]?.evening?.start}
-                          onChange={(time) => updateScheduleTime(day.key, "evening", "start", time)}
-                        />
-                      </div>
-                    </div>
-                    <span className="text-xs text-muted-foreground">-</span>
-                    <div className="relative">
-                      <Input
-                        placeholder="--:--"
-                        className={`w-20 h-6 text-xs text-center pr-7 border-gray-300 ${
-                          formData.schedules[day.key]?.evening?.end ? 'bg-gray-100' : ''
-                        }`}
-                        value={formData.schedules[day.key]?.evening?.end || ""}
-                        readOnly
-                      />
-                      <div className="absolute right-1 top-1/2 transform -translate-y-1/2 z-50">
-                        <TimePicker
-                          value={formData.schedules[day.key]?.evening?.end}
-                          onChange={(time) => updateScheduleTime(day.key, "evening", "end", time)}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </td>
-                <td className={`border border-border px-2 py-2 text-center font-mono text-xs ${
-                  formData.schedules[day.key]?.total && formData.schedules[day.key]?.total !== "00:00" ? 'bg-gray-100' : 'bg-muted/5'
-                }`}>
-                  {formData.schedules[day.key]?.total || "00:00"}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <div className="flex justify-end mt-3">
-          <div className="bg-gray-100 text-sm font-semibold px-4 py-2 rounded">{calculateWeeklyTotal()}</div>
-        </div>
+        {(formData.scheduleType as string) === "programming" && (
+          <div className="w-full">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="bg-gray-100 border-b-[3px] border-[#7547a3]">
+                  <th className="border border-border px-2 py-2 text-center font-medium text-sm w-20">
+                    {t("day") || "Day"}
+                  </th>
+                  <th className="border border-border px-2 py-2 text-center font-medium text-sm w-24">
+                    {t("morning") || "Morning"}
+                  </th>
+                  <th className="border border-border px-2 py-2 text-center font-medium text-sm w-24">
+                    {t("afternoon") || "Afternoon"}
+                  </th>
+                  <th className="border border-border px-2 py-2 text-center font-medium text-sm w-24">
+                    {t("evening") || "Evening"}
+                  </th>
+                  <th className="border border-border px-2 py-2 text-center font-medium text-sm w-16">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {daysOfWeek.map((day) => (
+                  <tr key={day.key} className="hover:bg-muted/20">
+                    <td className="border border-border px-3 py-2 font-medium text-sm bg-muted/10">{day.label}</td>
+                    {SHIFT_KEYS.map((shift) => (
+                      <td key={shift} className="border border-border px-2 py-1">
+                        <div className="flex items-center justify-center gap-2">
+                          <div className="relative">
+                            <Input
+                              placeholder="--:--"
+                              className={`w-20 h-6 text-xs text-center pr-7 border-gray-300 ${
+                                formData.schedules[formData.currentSeason][day.key]?.[shift]?.start ? "bg-gray-100" : ""
+                              }`}
+                              value={
+                                disabledSlots.has(`${day.key}-${shift}-start`) 
+                                  ? "--:--" 
+                                  : formData.schedules[formData.currentSeason][day.key]?.[shift]?.start || "--:--"
+                              }
+                              readOnly
+                            />
+                            <div className="absolute right-1 top-1/2 transform -translate-y-1/2 z-50">
+                              <TimePicker
+                                value={formData.schedules[formData.currentSeason][day.key]?.[shift]?.start}
+                                onChange={(time) => updateScheduleTime(day.key, shift, "start", time)}
+                                disabled={disabledSlots.has(`${day.key}-${shift}-start`)}
+                              />
+                            </div>
+                          </div>
+                          <span className="text-xs text-muted-foreground">-</span>
+                          <div className="relative">
+                            <Input
+                              placeholder="--:--"
+                              className={`w-20 h-6 text-xs text-center pr-7 border-gray-300 ${
+                                formData.schedules[formData.currentSeason][day.key]?.[shift]?.end ? "bg-gray-100" : ""
+                              }`}
+                              value={
+                                disabledSlots.has(`${day.key}-${shift}-end`) 
+                                  ? "--:--" 
+                                  : formData.schedules[formData.currentSeason][day.key]?.[shift]?.end || "--:--"
+                              }
+                              readOnly
+                            />
+                            <div className="absolute right-1 top-1/2 transform -translate-y-1/2 z-50">
+                              <TimePicker
+                                value={formData.schedules[formData.currentSeason][day.key]?.[shift]?.end}
+                                onChange={(time) => updateScheduleTime(day.key, shift, "end", time)}
+                                disabled={disabledSlots.has(`${day.key}-${shift}-end`)}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                    ))}
+                    <td
+                      className={`border border-border px-2 py-2 text-center font-mono text-xs ${
+                        formData.schedules[formData.currentSeason][day.key]?.total && formData.schedules[formData.currentSeason][day.key]?.total !== "00:00"
+                          ? "bg-gray-100"
+                          : "bg-muted/5"
+                      }`}
+                    >
+                      {formData.schedules[formData.currentSeason][day.key]?.total || "00:00"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="flex justify-end mt-3">
+              <div className="bg-gray-100 text-sm px-3 py-2 rounded">{formData.totalWeeklyHours || "00:00"}</div>
+            </div>
+            <div className="flex items-center justify-center mt-4">
+              <Button
+                variant="destructive"
+                onClick={clearCurrentSeasonSchedules}
+                className="bg-yellow-500 hover:bg-yellow-600 text-white px-6"
+              >
+                {t("clearSchedules") || "Borrar"}
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
-    )}
-  </div>
-)
+    )
+  }
 
   const renderSigningMethodsStep = () => (
     <div className="space-y-8">
@@ -1439,7 +1705,7 @@ const renderSchedulesStep = () => (
           <span className="text-sm font-medium">{t("verifyIdentity") || "Verify Identity"}</span>
           <div className="flex items-center gap-2">
             <span className="text-sm">{t("no") || "No"}</span>
-            <Switch
+            <Switch className="scale-[0.65]"
               checked={formData.verifyIdentity}
               onCheckedChange={(checked) => updateFormData("verifyIdentity", checked)}
             />
@@ -1459,27 +1725,8 @@ const renderSchedulesStep = () => (
         <div className="space-y-6">
           <div className="text-center">
             <div
-              className="inline-flex items-center justify-center w-16 h-16 rounded-lg mb-3"
-              style={{ backgroundColor: "#f6eef9" }}
-            >
-              <div className="w-12 h-12 border-2 border-foreground rounded-lg flex items-center justify-center relative bg-background">
-                <div className="absolute left-1 w-3 h-3 bg-foreground rounded-full">
-                  <div className="w-1 h-1 bg-background rounded-full mt-1 ml-1"></div>
-                </div>
-                <div className="ml-2">
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    className="text-foreground"
-                  >
-                    <path d="M9 12l2 2 4-4" />
-                  </svg>
-                </div>
-              </div>
+              className="inline-flex items-center justify-center w-16 h-16 rounded-lg mb-3">
+                <InterIcon className="w-12 h-12 text-foreground" />
             </div>
             <h4 className="font-medium px-3 py-1 rounded" style={{ color: "#662D91", backgroundColor: "#f6eef9" }}>
               {t("entrance") || "Entrance"}
@@ -1494,7 +1741,7 @@ const renderSchedulesStep = () => (
                 onCheckedChange={(checked) => updateNestedFormData("entrance", "whenSigningIn", checked)}
               />
               <Label htmlFor="entrance-signing" className="text-sm text-foreground">
-                {t("whenSigningIn") || "When signing in"}
+                {t("whenSigningIn") || "Al fichar"}
               </Label>
             </div>
 
@@ -1504,9 +1751,30 @@ const renderSchedulesStep = () => (
                 checked={formData.entrance.delay}
                 onCheckedChange={(checked) => updateNestedFormData("entrance", "delay", checked)}
               />
-              <Label htmlFor="entrance-delay" className="text-sm text-foreground">
-                {t("delay") || "Delay"} <Info className="w-4 h-4 inline ml-1 text-muted-foreground" />
+              <Label htmlFor="entrance-delay" className="text-sm text-foreground flex items-center">
+                {t("delay") || "Retraso"}
+                <TooltipProvider>
+                  <Tooltip open={delayTooltipOpen} onOpenChange={setDelayTooltipOpen} delayDuration={0}>
+                    <TooltipTrigger asChild>
+                      <button type="button" className="inline-flex items-center p-0 ml-1" aria-label="Delay tips" onClick={() => setDelayTooltipOpen(s => !s)}>
+                        <Info className="w-3 h-3 text-muted-foreground cursor-help" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="right" align="center" sideOffset={6} className="max-w-xs">
+                      {t("delayTips")}
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </Label>
+
+              <Input
+                type="number"
+                value={formData.entrance.delayValue}
+                onChange={(e) => updateNestedFormData("entrance", "delayValue", e.target.value)}
+                className="ml-2 w-20 bg-background border-input text-sm"
+                placeholder="10"
+              />
+              <span className="text-sm text-muted-foreground">{t("minutes") || "minutos"}</span>
             </div>
           </div>
         </div>
@@ -1515,27 +1783,8 @@ const renderSchedulesStep = () => (
         <div className="space-y-6">
           <div className="text-center">
             <div
-              className="inline-flex items-center justify-center w-16 h-16 rounded-lg mb-3"
-              style={{ backgroundColor: "#f6eef9" }}
-            >
-              <div className="w-12 h-12 border-2 border-foreground rounded-lg flex items-center justify-center relative bg-background">
-                <div className="absolute right-1 w-3 h-3 bg-foreground rounded-full">
-                  <div className="w-1 h-1 bg-background rounded-full mt-1 ml-1"></div>
-                </div>
-                <div className="mr-2">
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    className="text-foreground"
-                  >
-                    <path d="M9 12l2 2 4-4" />
-                  </svg>
-                </div>
-              </div>
+              className="inline-flex items-center justify-center w-16 h-16 rounded-lg mb-3">
+              <ExitIcon className="w-12 h-12 text-foreground" />
             </div>
             <h4 className="font-medium px-3 py-1 rounded" style={{ color: "#662D91", backgroundColor: "#f6eef9" }}>
               {t("exit") || "Exit"}
@@ -1550,7 +1799,7 @@ const renderSchedulesStep = () => (
                 onCheckedChange={(checked) => updateNestedFormData("exit", "whenSigningIn", checked)}
               />
               <Label htmlFor="exit-signing" className="text-sm text-foreground">
-                {t("whenSigningIn") || "When signing in"}
+                {t("whenSigningIn") || "Al fichar"}
               </Label>
             </div>
 
@@ -1560,37 +1809,36 @@ const renderSchedulesStep = () => (
                 checked={formData.exit.duration}
                 onCheckedChange={(checked) => updateNestedFormData("exit", "duration", checked)}
               />
-              <Label htmlFor="exit-duration" className="text-sm text-foreground">
-                {t("duration") || "Duration"} <Info className="w-4 h-4 inline ml-1 text-muted-foreground" />
+              <Label htmlFor="exit-duration" className="text-sm text-foreground flex items-center">
+                {t("duration") || "Duración"}
+                <TooltipProvider>
+                  <Tooltip open={durationTooltipOpen} onOpenChange={setDurationTooltipOpen} delayDuration={0}>
+                    <TooltipTrigger asChild>
+                      <button type="button" className="inline-flex items-center p-0 ml-1" aria-label="Duration tips" onClick={() => setDurationTooltipOpen(s => !s)}>
+                        <Info className="w-3 h-3 text-muted-foreground cursor-help" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="right" align="center" sideOffset={6} className="max-w-xs">
+                      {t("durationTips")}
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </Label>
+
+              <Input
+                type="number"
+                value={formData.exit.durationValue}
+                onChange={(e) => updateNestedFormData("exit", "durationValue", e.target.value)}
+                className="ml-2 w-20 bg-background border-input text-sm"
+                placeholder="00"
+              />
+              <span className="text-sm text-muted-foreground">{t("minutes") || "minutos"}</span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Input fields for delay and duration */}
-      <div className="grid grid-cols-2 gap-12 mt-8">
-        <div>
-          <Label className="text-sm font-medium text-foreground">{t("delay") || "Delay"}</Label>
-          <Input
-            type="number"
-            value={formData.entrance.delayValue}
-            onChange={(e) => updateNestedFormData("entrance", "delayValue", e.target.value)}
-            className="mt-1 w-24 bg-background border-input"
-            placeholder="10"
-          />
-        </div>
-        <div>
-          <Label className="text-sm font-medium text-foreground">{t("duration") || "Duration"}</Label>
-          <Input
-            type="number"
-            value={formData.exit.durationValue}
-            onChange={(e) => updateNestedFormData("exit", "durationValue", e.target.value)}
-            className="mt-1 w-24 bg-background border-input"
-            placeholder="30"
-          />
-        </div>
-      </div>
+      {/* Inputs are shown inline inside each column to match design */}
     </div>
   )
 
@@ -1600,13 +1848,43 @@ const renderSchedulesStep = () => (
         <h3 className="text-lg font-medium mb-4">{t("introduceTasksNow") || "Enter tasks now?"}</h3>
         <div className="flex items-center justify-center gap-2">
           <span className="text-sm">{t("no") || "No"}</span>
-          <Switch checked={enableTasks} onCheckedChange={setEnableTasks} />
+          <Switch className="scale-[0.65]" checked={enableTasks} onCheckedChange={setEnableTasks} />
           <span className="text-sm">{t("si") || "Yeah"}</span>
         </div>
       </div>
 
       {enableTasks && (
         <div className="space-y-6 mt-8">
+          {/* Tasks use job-level workCenterIds. Show the selected work centers for context. */}
+          <div>
+            <Label className="text-sm font-medium text-foreground">{t("workCenter") || "Work Center(s)"}</Label>
+            <div className="mt-1">
+              {formData.workCenterIds && formData.workCenterIds.length > 0 ? (
+                <Select
+                  value={formData.taskWorkCenterId ? String(formData.taskWorkCenterId) : ""}
+                  onValueChange={(value) => updateFormData("taskWorkCenterId", value)}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder={t("selectWorkCenter") || "Select a work center"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {formData.workCenterIds.map((wcId) => {
+                      const wc = workCenters.find((w) => String(w.id) === String(wcId))
+                      return wc ? (
+                        <SelectItem key={wc.id} value={String(wc.id)}>
+                          {wc.name} {wc.address ? ` - ${wc.address}` : ""}
+                        </SelectItem>
+                      ) : null
+                    })}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <div className="p-2 bg-muted/30 border border-border rounded text-sm text-muted-foreground">
+                  {t("selectAClientFirst") || "Select a client first"}
+                </div>
+              )}
+            </div>
+          </div>
           <div>
             <Label htmlFor="task" className="text-sm font-medium text-foreground">
               {t("task") || "Task"}
@@ -1619,102 +1897,60 @@ const renderSchedulesStep = () => (
             />
           </div>
 
-          <div>
-            <Label htmlFor="taskObservations" className="text-sm font-medium text-foreground flex items-center gap-1">
-              {t("observations") || "Observations"}
-              <Info className="w-4 h-4 text-muted-foreground" />
-            </Label>
-            <Textarea
-              id="taskObservations"
-              value={formData.taskObservations}
-              onChange={(e) => updateFormData("taskObservations", e.target.value)}
-              className="mt-1 min-h-[48px]"
-              rows={2}
-            />
-          </div>
+          
 
-          <div className="grid grid-cols-2 gap-8">
+          <div className="grid gap-8" style={{ gridTemplateColumns: '70% 20%' }}>
             <div>
-              <Label htmlFor="duration" className="text-sm font-medium text-foreground flex items-center gap-1">
-                {t("duration") || "Duration"}
-                <Info className="w-4 h-4 text-muted-foreground" />
+              <Label htmlFor="taskObservations" className="text-sm font-medium text-foreground flex items-center gap-1">
+                {t("observations") || "Observations"}
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <Info className="w-3 h-3 text-muted-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      {t("taskObservationTips")}
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </Label>
-              <div className="flex items-center gap-2 mt-1">
-                <Input
-                  id="duration"
-                  value={formData.duration}
-                  onChange={(e) => updateFormData("duration", e.target.value)}
-                  placeholder="--:-- --"
-                  className="w-24"
-                />
-                <TimePicker value={formData.duration} onChange={(time) => updateFormData("duration", time)} />
-              </div>
+              <Textarea
+                id="taskObservations"
+                value={formData.taskObservations}
+                onChange={(e) => updateFormData("taskObservations", e.target.value)}
+                className="mt-1 min-h-[24px]"
+                rows={2}
+              />
             </div>
 
             <div>
-              <Label className="text-sm font-medium text-foreground flex items-center gap-1">
-                {t("toBeCarriedOut") || "To be carried out"}
-                <Info className="w-4 h-4 text-muted-foreground" />
-              </Label>
-              <div className="mt-2 space-y-3">
-                <div className="flex gap-6">
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="tomorrow"
-                      checked={formData.shifts.tomorrow}
-                      onCheckedChange={(checked) => updateNestedFormData("shifts", "tomorrow", checked)}
-                    />
-                    <Label htmlFor="tomorrow" className="text-sm">
-                      {t("morning") || "Morning"}
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="late"
-                      checked={formData.shifts.late}
-                      onCheckedChange={(checked) => updateNestedFormData("shifts", "late", checked)}
-                    />
-                    <Label htmlFor="late" className="text-sm">
-                      {t("afternoon") || "Afternoon"}
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="evening"
-                      checked={formData.shifts.evening}
-                      onCheckedChange={(checked) => updateNestedFormData("shifts", "evening", checked)}
-                    />
-                    <Label htmlFor="evening" className="text-sm">
-                      {t("evening") || "Evening"}
-                    </Label>
-                  </div>
+              <div>
+                <Label htmlFor="duration" className="text-sm font-medium text-foreground flex items-center gap-1">
+                  {t("duration") || "Duration"}
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger>
+                        <Info className="w-3 h-3 text-muted-foreground cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        {t("taskDurationTips")}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </Label>
+                <div className="flex items-center gap-2 mt-1">
+                  <Input
+                    id="duration"
+                    value={formData.duration}
+                    onChange={(e) => updateFormData("duration", e.target.value)}
+                    placeholder="hh:mm"
+                    className="w-24"
+                  />
+                  {/* <TimePicker value={formData.duration} onChange={(time) => updateFormData("duration", time)} /> */}
                 </div>
-
-                <RadioGroup
-                  value={formData.toBeCarriedOut}
-                  onValueChange={(value) => updateFormData("toBeCarriedOut", value)}
-                  className="flex gap-6"
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="before" id="before" />
-                    <Label htmlFor="before" className="text-sm">
-                      {t("before") || "Before"}
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="during" id="during" />
-                    <Label htmlFor="during" className="text-sm">
-                      {t("during") || "During"}
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="after" id="after" />
-                    <Label htmlFor="after" className="text-sm">
-                      {t("after") || "After"}
-                    </Label>
-                  </div>
-                </RadioGroup>
               </div>
+
+              {/* removed shifts & toBeCarriedOut controls as per UI update - kept Duration only */}
             </div>
           </div>
 
@@ -1739,63 +1975,61 @@ const renderSchedulesStep = () => (
               <div className="mt-4 p-4 bg-muted/30 border border-border rounded-lg">
                 {(formData.periodicity as string) !== "once" && (
                   <div className="mb-4">
-                    <Label className="text-sm font-medium mb-2 block">{t("startDate") || "Start Date"}</Label>
-                    <DateInput
-                      value={formData.taskStartDate}
-                      onChange={(e) => updateFormData("taskStartDate", e.target.value)}
-                      className="w-40"
-                      placeholder={t("startDate") || "Start date"}
-                    />
-                  </div>
-                )}
-
-                {((formData.periodicity as string) === "daily" ||
-                  (formData.periodicity as string) === "weekly" ||
-                  (formData.periodicity as string) === "monthly" ||
-                  (formData.periodicity as string) === "yearly") && (
-                  <>
-                    <div className="mb-4">
-                      <Label className="text-sm font-medium mb-2 block">
-                        {t("endDate") || "End Date"} ({t("optional") || "optional"})
-                      </Label>
-                      <DateInput
-                        value={formData.taskEndDate}
-                        onChange={(e) => updateFormData("taskEndDate", e.target.value)}
-                        className="w-40"
-                        placeholder={`${t("endDate") || "End date"} (${t("optional") || "optional"})`}
-                      />
-                    </div>
-                    <div className="mb-4">
-                      <Label className="text-sm font-medium mb-2 block">{t("interval") || "Interval"}</Label>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-muted-foreground">{t("every") || "Every"}</span>
-                        <Input
-                          type="number"
-                          value={formData.interval}
-                          onChange={(e) => updateFormData("interval", Number(e.target.value))}
-                          className="w-16 text-center"
-                          min="1"
+                    <div className="grid grid-cols-3 gap-6 items-end">
+                      <div>
+                        <Label className="text-sm font-medium mb-2 block">{t("startDate") || "Start Date"}</Label>
+                        <DateInput
+                          value={formData.taskStartDate}
+                          onChange={(e) => updateFormData("taskStartDate", e.target.value)}
+                          className="w-full"
+                          placeholder={t("startDate") || "Start date"}
                         />
-                        <span className="text-sm text-muted-foreground">
-                          {(formData.periodicity as string) === "daily"
-                            ? formData.interval === 1
-                              ? t("day") || "day"
-                              : t("days") || "days"
-                            : (formData.periodicity as string) === "weekly"
+                      </div>
+
+                      <div>
+                        <Label className="text-sm font-medium mb-2 block">
+                          {t("endDate") || "End Date"} ({t("optional") || "optional"})
+                        </Label>
+                        <DateInput
+                          value={formData.taskEndDate}
+                          onChange={(e) => updateFormData("taskEndDate", e.target.value)}
+                          className="w-full"
+                          placeholder={`${t("endDate") || "End date"} (${t("optional") || "optional"})`}
+                        />
+                      </div>
+
+                      <div>
+                        <Label className="text-sm font-medium mb-2 block">{t("interval") || "Interval"}</Label>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-muted-foreground">{t("every") || "Every"}</span>
+                          <Input
+                            type="number"
+                            value={formData.interval}
+                            onChange={(e) => updateFormData("interval", Number(e.target.value))}
+                            className="w-16 text-center"
+                            min="1"
+                          />
+                          <span className="text-sm text-muted-foreground">
+                            {(formData.periodicity as string) === "daily"
                               ? formData.interval === 1
-                                ? t("week") || "week"
-                                : t("weeks") || "weeks"
-                              : (formData.periodicity as string) === "monthly"
+                                ? t("day") || "day"
+                                : t("days") || "days"
+                              : (formData.periodicity as string) === "weekly"
                                 ? formData.interval === 1
-                                  ? t("month") || "month"
-                                  : t("months") || "months"
-                                : formData.interval === 1
-                                  ? t("year") || "year"
-                                  : t("years") || "years"}
-                        </span>
+                                  ? t("week") || "week"
+                                  : t("weeks") || "weeks"
+                                : (formData.periodicity as string) === "monthly"
+                                  ? formData.interval === 1
+                                    ? t("month") || "month"
+                                    : t("months") || "months"
+                                  : formData.interval === 1
+                                    ? t("year") || "year"
+                                    : t("years") || "years"}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                  </>
+                  </div>
                 )}
 
                 {(formData.periodicity as string) === "once" && (
@@ -1815,19 +2049,19 @@ const renderSchedulesStep = () => (
                     <Label className="text-sm font-medium mb-2 block">{t("selectDays")}</Label>
                     <div className="flex gap-2">
                       {[
-                        { key: 0, label: t("dayS"), full: t("sunday") },
+                        { key: 0, label: t("daySu"), full: t("sunday") },
                         { key: 1, label: t("dayM"), full: t("monday") },
                         { key: 2, label: t("dayT"), full: t("tuesday") },
                         { key: 3, label: t("dayW"), full: t("wednesday") },
-                        { key: 4, label: t("dayT"), full: t("thursday") },
+                        { key: 4, label: t("dayTh"), full: t("thursday") },
                         { key: 5, label: t("dayF"), full: t("friday") },
-                        { key: 6, label: t("dayS"), full: t("saturday") },
+                        { key: 6, label: t("daySa"), full: t("saturday") },
                       ].map((day) => (
                         <button
                           key={day.key}
                           type="button"
                           className={`
-                            w-8 h-8 flex items-center justify-center text-sm font-medium rounded border-2 transition-all
+                            w-8 h-8 flex items-center justify-center text-sm font-medium rounded border transition-all
                             ${
                               formData.weeklyDays?.includes(day.key)
                                 ? "border-primary bg-primary text-primary-foreground"
@@ -1893,12 +2127,50 @@ const renderSchedulesStep = () => (
                         >
                           {t("weekdays")}
                         </button>
+                        <button
+                          type="button"
+                          className={`
+                            flex-1 py-3 px-4 text-sm font-medium rounded border-2 transition-all text-center
+                            ${
+                              formData.monthlyMode === "firstWeekDay"
+                                ? "border-primary bg-primary text-primary-foreground"
+                                : "border-border bg-background hover:border-primary hover:bg-muted"
+                            }
+                          `}
+                          onClick={() => {
+                            updateFormData("monthlyMode", "firstWeekDay")
+                            updateFormData("monthlyDays", [])
+                            updateFormData("monthlyWeekdays", [])
+                            updateFormData("monthlyFirstWeekday", null)
+                          }}
+                        >
+                          {t("firstWeekDay") || "First Weekday"}
+                        </button>
+                        <button
+                          type="button"
+                          className={`
+                            flex-1 py-3 px-4 text-sm font-medium rounded border-2 transition-all text-center
+                            ${
+                              formData.monthlyMode === "lastWeekDay"
+                                ? "border-primary bg-primary text-primary-foreground"
+                                : "border-border bg-background hover:border-primary hover:bg-muted"
+                            }
+                          `}
+                          onClick={() => {
+                            updateFormData("monthlyMode", "lastWeekDay")
+                            updateFormData("monthlyDays", [])
+                            updateFormData("monthlyWeekdays", [])
+                            updateFormData("monthlyLastWeekday", null)
+                          }}
+                        >
+                          {t("lastWeekDay") || "Last Weekday"}
+                        </button>
                       </div>
                     </div>
 
                     {formData.monthlyMode === "dates" && (
                       <div>
-                        <Label className="text-sm font-medium mb-2 block">{t("monthlyDates")}</Label>
+                        {/* <Label className="text-sm font-medium mb-2 block">{t("monthlyDates")}</Label> */}
                         <div className="flex flex-wrap gap-2">
                           {Array.from({ length: 31 }, (_, i) => i + 1).map((date) => (
                             <button
@@ -1931,9 +2203,9 @@ const renderSchedulesStep = () => (
                       </div>
                     )}
 
-                    {formData.monthlyMode === "weekdays" && (
+                    {(formData.monthlyMode === "weekdays" || formData.monthlyMode === "firstWeekDay" || formData.monthlyMode === "lastWeekDay") && (
                       <div>
-                        <Label className="text-sm font-medium mb-2 block">{t("monthlyWeekdays")}</Label>
+                        {/* <Label className="text-sm font-medium mb-2 block">{t("monthlyWeekdays")}</Label> */}
                         <div className="flex flex-wrap gap-3">
                           {[
                             { key: "sunday", label: t("sunday"), value: 0 },
@@ -1945,24 +2217,55 @@ const renderSchedulesStep = () => (
                             { key: "saturday", label: t("saturday"), value: 6 },
                           ].map((day) => (
                             <div key={day.key} className="flex items-center space-x-2">
-                              <Checkbox
-                                id={`monthly-${day.key}`}
-                                checked={formData.monthlyWeekdays?.includes(day.value) || false}
-                                onCheckedChange={(checked) => {
-                                  const currentDays = formData.monthlyWeekdays || []
-                                  if (checked) {
-                                    updateFormData("monthlyWeekdays", [...currentDays, day.value])
-                                  } else {
-                                    updateFormData(
-                                      "monthlyWeekdays",
-                                      currentDays.filter((d) => d !== day.value),
-                                    )
-                                  }
-                                }}
-                              />
-                              <Label htmlFor={`monthly-${day.key}`} className="text-sm cursor-pointer">
-                                {day.label}
-                              </Label>
+                              {formData.monthlyMode === "weekdays" ? (
+                                <>
+                                  <Checkbox
+                                    id={`monthly-${day.key}`}
+                                    checked={formData.monthlyWeekdays?.includes(day.value) || false}
+                                    onCheckedChange={(checked) => {
+                                      const currentDays = formData.monthlyWeekdays || []
+                                      if (checked) {
+                                        updateFormData("monthlyWeekdays", [...currentDays, day.value])
+                                      } else {
+                                        updateFormData(
+                                          "monthlyWeekdays",
+                                          currentDays.filter((d) => d !== day.value),
+                                        )
+                                      }
+                                    }}
+                                  />
+                                  <Label htmlFor={`monthly-${day.key}`} className="text-sm cursor-pointer">
+                                    {day.label}
+                                  </Label>
+                                </>
+                              ) : (
+                                // firstWeekDay or lastWeekDay: single-select radio-like behavior
+                                <>
+                                  <input
+                                    type="radio"
+                                    name={formData.monthlyMode}
+                                    id={`monthly-${day.key}`}
+                                    checked={
+                                      formData.monthlyMode === "firstWeekDay"
+                                        ? formData.monthlyFirstWeekday === day.value
+                                        : formData.monthlyLastWeekday === day.value
+                                    }
+                                    onChange={() => {
+                                      if (formData.monthlyMode === "firstWeekDay") {
+                                        updateFormData("monthlyFirstWeekday", day.value)
+                                        updateFormData("monthlyLastWeekday", null)
+                                      } else {
+                                        updateFormData("monthlyLastWeekday", day.value)
+                                        updateFormData("monthlyFirstWeekday", null)
+                                      }
+                                    }}
+                                    className="form-radio text-primary"
+                                  />
+                                  <Label htmlFor={`monthly-${day.key}`} className="text-sm cursor-pointer ml-2">
+                                    {day.label}
+                                  </Label>
+                                </>
+                              )}
                             </div>
                           ))}
                         </div>
@@ -1994,7 +2297,7 @@ const renderSchedulesStep = () => (
                             key={month.key}
                             type="button"
                             className={`
-                              px-3 py-2 text-sm font-medium rounded border-2 transition-all
+                              px-2 py-1 text-sm font-medium rounded border-2 transition-all
                               ${
                                 formData.yearlyMonths?.includes(month.value)
                                   ? "border-primary bg-primary text-primary-foreground"
@@ -2079,7 +2382,7 @@ const renderSchedulesStep = () => (
             </div>
           </div>
 
-          <div className="flex justify-between items-center pt-4">
+            <div className="flex justify-between items-center pt-4">
             <div className="flex gap-2">
               <Button onClick={addTaskToList} className="text-white px-6" style={{ backgroundColor: "#662D91" }}>
                 {t("add") || "Add"}
@@ -2092,7 +2395,7 @@ const renderSchedulesStep = () => (
                     task: "",
                     taskObservations: "",
                     duration: "",
-                    shifts: { tomorrow: false, late: false, evening: false },
+                    shifts: { morning: false, afternoon: false, evening: false },
                     toBeCarriedOut: "during",
                     periodicity: "once",
                     startDate: "",
@@ -2114,13 +2417,7 @@ const renderSchedulesStep = () => (
                 {t("cancel") || "Cancel"}
               </Button>
             </div>
-            <Button
-              variant="destructive"
-              onClick={() => setFormData((prev) => ({ ...prev, tasks: [] }))}
-              className="bg-yellow-500 hover:bg-yellow-600 text-white px-6"
-            >
-              {t("eliminate") || "Eliminate"}
-            </Button>
+            {/* Removed the 'Eliminate' (clear all) button - users can delete individual tasks from the table */}
           </div>
 
           {formData.tasks.length > 0 && (
@@ -2129,49 +2426,68 @@ const renderSchedulesStep = () => (
                 <table className="w-full">
                   <thead className="text-white" style={{ backgroundColor: "#662D91" }}>
                     <tr>
-                      <th className="px-4 py-2 text-left text-sm font-medium">
-                        {t("toBeCarriedOut") || "To be carried out"}
-                      </th>
                       <th className="px-4 py-2 text-left text-sm font-medium">{t("order") || "Order"}</th>
                       <th className="px-4 py-2 text-left text-sm font-medium">{t("task") || "Task"}</th>
                       <th className="px-4 py-2 text-left text-sm font-medium">{t("periodicity") || "Periodicity"}</th>
                       <th className="px-4 py-2 text-left text-sm font-medium">{t("duration") || "Duration"}</th>
                       <th className="px-4 py-2 text-left text-sm font-medium">{t("alerts") || "Alerts"}</th>
+                      <th className="px-4 py-2 text-left text-sm font-medium"> </th>
                     </tr>
                   </thead>
                   <tbody>
-                    {formData.tasks.map((task, index) => (
-                      <tr key={task.id} className="border-t hover:bg-gray-50">
-                        <td className="px-4 py-2 text-sm capitalize">{task.toBeCarriedOut}</td>
-                        <td className="px-4 py-2 text-sm">{index + 1}</td>
-                        <td className="px-4 py-2 text-sm">{task.task}</td>
-                        <td className="px-4 py-2 text-sm">
-                          {task.periodicity === "once"
-                            ? task.onceDate
-                            : `${t("every") || "Every"} ${task.interval} ${
-                                task.periodicity === "daily"
-                                  ? task.interval === 1
-                                    ? t("day") || "day"
-                                    : t("days") || "days"
-                                  : task.periodicity === "weekly"
+                    {formData.tasks.map((task, index) => {
+                      const isDragOver = dragOverItemIndex.current === index
+                      return (
+                        <tr
+                          key={task.id}
+                          className={`border-t hover:bg-gray-50 ${isDragOver ? "bg-muted/20" : ""}`}
+                          draggable
+                          onDragStart={(e) => handleDragStart(e, index)}
+                          onDragEnter={(e) => handleDragEnter(e, index)}
+                          onDragOver={handleDragOver}
+                          onDrop={handleDrop}
+                          onDragEnd={handleDragEnd}
+                        >
+                          <td className="px-4 py-2 text-sm">{index + 1}</td>
+                          <td className="px-4 py-2 text-sm">{task.task}</td>
+                          <td className="px-4 py-2 text-sm">
+                            {task.periodicity === "once"
+                              ? task.onceDate
+                              : `${t("every") || "Every"} ${task.interval} ${
+                                  task.periodicity === "daily"
                                     ? task.interval === 1
-                                      ? t("week") || "week"
-                                      : t("weeks") || "weeks"
-                                    : task.periodicity === "monthly"
+                                      ? t("day") || "day"
+                                      : t("days") || "days"
+                                    : task.periodicity === "weekly"
                                       ? task.interval === 1
-                                        ? t("month") || "month"
-                                        : t("months") || "months"
-                                      : task.interval === 1
-                                        ? t("year") || "year"
-                                        : t("years") || "years"
-                              }`}
-                        </td>
-                        <td className="px-4 py-2 text-sm">{task.duration || "--:-- --"}</td>
-                        <td className="px-4 py-2 text-sm">
-                          {task.alertTaskCompleted || task.pendingTaskAlert ? "👍" : ""}
-                        </td>
-                      </tr>
-                    ))}
+                                        ? t("week") || "week"
+                                        : t("weeks") || "weeks"
+                                      : task.periodicity === "monthly"
+                                        ? task.interval === 1
+                                          ? t("month") || "month"
+                                          : t("months") || "months"
+                                        : task.interval === 1
+                                          ? t("year") || "year"
+                                          : t("years") || "years"
+                                }`}
+                          </td>
+                          <td className="px-4 py-2 text-sm">{task.duration || "--:-- --"}</td>
+                          <td className="px-4 py-2 text-sm">
+                            {task.alertTaskCompleted || task.pendingTaskAlert ? "👍" : ""}
+                          </td>
+                          <td className="px-4 py-2 text-sm text-right">
+                            <button
+                              type="button"
+                              aria-label={`delete-task-${task.id}`}
+                              onClick={() => removeTaskFromList(task.id)}
+                              className="text-red-500 hover:text-red-700 px-2 py-1"
+                            >
+                              ✖
+                            </button>
+                          </td>
+                        </tr>
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -2188,7 +2504,7 @@ const renderSchedulesStep = () => (
         <h3 className="text-lg font-medium mb-4">{t("introduceSurveysNow") || "Introduce surveys now?"}</h3>
         <div className="flex items-center justify-center gap-2">
           <span className="text-sm">{t("no") || "No"}</span>
-          <Switch checked={enableSurveys} onCheckedChange={setEnableSurveys} />
+          <Switch className="scale-[0.65]" checked={enableSurveys} onCheckedChange={setEnableSurveys} />
           <span className="text-sm">{t("si") || "Yeah"}</span>
         </div>
       </div>
@@ -2423,7 +2739,7 @@ const renderSchedulesStep = () => (
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-    <DialogContent className="max-w-[50rem] p-0 gap-0 [&>button]:hidden max-h-[90vh] flex flex-col bg-background ml-1 mr-3">
+      <DialogContent className="max-w-[50rem] p-0 gap-0 [&>button]:hidden max-h-[90vh] flex flex-col bg-background ml-1 mr-3">
         <DialogHeader className="p-6 pb-6">
           <div className="flex items-center justify-between relative">
             <div className="flex-1" />
@@ -2481,3 +2797,4 @@ const renderSchedulesStep = () => (
     </Dialog>
   )
 }
+

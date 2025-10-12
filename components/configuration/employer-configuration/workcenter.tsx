@@ -12,7 +12,7 @@ interface ClientWorkCenterTabProps {
   clientId: string
 }
 
-export function ClientWorkCenterTab({ clientId }: ClientWorkCenterTabProps) {
+export default function Workcenter({ clientId }: ClientWorkCenterTabProps) {
   const { t } = useTranslation()
   const router = useRouter()
   const { session } = useAuth()
@@ -22,9 +22,16 @@ export function ClientWorkCenterTab({ clientId }: ClientWorkCenterTabProps) {
 
   useEffect(() => {
     const fetchWorkCenters = async () => {
-      if (!session?.accessToken || !clientId) return
+      if (!session?.accessToken) return
+      // If clientId is not provided or is the string 'employer' or empty,
+      // call the token-based employer endpoint. Otherwise call the client-specific endpoint.
+      const useEmployerEndpoint = !clientId || clientId === 'employer'
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/client/${clientId}/work-centers`, {
+        const url = useEmployerEndpoint
+          ? `${process.env.NEXT_PUBLIC_API_BASE_URL}/client/employer/work-centers`
+          : `${process.env.NEXT_PUBLIC_API_BASE_URL}/client/${clientId}/work-centers`
+
+        const res = await fetch(url, {
           headers: {
             Authorization: `Bearer ${session.accessToken}`,
             "Content-Type": "application/json",

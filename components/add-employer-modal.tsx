@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react" // Added useRef
 import { X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -36,7 +36,7 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded }
     responsible: "",
     activateAccount: "postpone",
     accessEmail: "",
-  class: "placeholder",
+    class: "placeholder",
     address: "",
     landline: "",
     mobile: "",
@@ -53,6 +53,16 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded }
     nif: false,
     class: false,
   })
+
+  // Create a ref for the scrollable container
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+
+  // Scroll to top when currentStep changes
+  useEffect(() => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTo({ top: 0, behavior: "smooth" })
+    }
+  }, [currentStep])
 
   const steps = [
     { number: 1, label: t("Id") },
@@ -87,7 +97,7 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded }
     { name: "Home", id: 1 },
     { name: "Static", id: 2 },
     { name: "Remote", id: 3 },
-  ];
+  ]
 
   const paymentMethods = [
     { name: t("Transfer"), id: 1 },
@@ -95,7 +105,7 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded }
     { name: t("Card"), id: 3 },
     { name: t("PayPal"), id: 4 },
     { name: t("Others"), id: 5 },
-  ];
+  ]
 
   const handleNext = () => {
     if (currentStep === 1) {
@@ -141,7 +151,7 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded }
         phone: formData.mobile,
         landline: formData.landline,
         typeId: Number.parseInt(formData.fee),
-  subTypeId: formData.class === "company" ? 3 : 1,
+        subTypeId: formData.class === "company" ? 3 : 1,
         fee: Number.parseFloat(formData.fee) || 0,
         discount: Number.parseFloat(formData.discount) || 0,
         paymentMethodId: Number.parseInt(formData.paymentMethod),
@@ -233,7 +243,7 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded }
       responsible: "",
       activateAccount: "postpone",
       accessEmail: "",
-  class: "placeholder",
+      class: "placeholder",
       address: "",
       landline: "",
       mobile: "",
@@ -298,7 +308,7 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded }
           </div>
         </DialogHeader>
 
-        <div className="px-6 pb-8 flex-1 overflow-y-auto">
+        <div ref={scrollContainerRef} className="px-6 pb-8 flex-1 overflow-y-auto">
           {/* Step 1: ID */}
           {currentStep === 1 && (
             <div className="space-y-4">
@@ -308,14 +318,14 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded }
                 </Label>
                 <Select value={formData.class} onValueChange={(value) => updateFormData("class", value)}>
                   <SelectTrigger className="mt-1">
-                      <SelectValue placeholder={t("selectClass")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="placeholder">{t("selectClass")}</SelectItem>
-                      <SelectItem value="individual">Individual</SelectItem>
-                      <SelectItem value="self-employed">Self-Employed</SelectItem>
-                      <SelectItem value="company">Company</SelectItem>
-                    </SelectContent>
+                    <SelectValue placeholder={t("selectClass")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="placeholder">{t("selectClass")}</SelectItem>
+                    <SelectItem value="individual">Individual</SelectItem>
+                    <SelectItem value="self-employed">Self-Employed</SelectItem>
+                    <SelectItem value="company">Company</SelectItem>
+                  </SelectContent>
                 </Select>
                 {validationErrors.class && (
                   <p className="mt-1 text-sm text-destructive">{t("thisFieldIsRequired")}</p>
@@ -398,7 +408,7 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded }
 
           {/* Step 2: Billing */}
           {currentStep === 2 && (
-            <div className="space-y-4">
+            <div className="space-y-3">
               <div>
                 <Label htmlFor="partner" className="text-sm font-medium text-foreground">
                   {t("partner")} <span className="text-destructive">*</span>
@@ -539,11 +549,11 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded }
                   <Label htmlFor="accessEmail" className="text-sm font-medium text-foreground">
                     {t("accessEmail")}
                   </Label>
-                  <Input 
-                    id="accessEmail" 
-                    value={formData.accessEmail} 
+                  <Input
+                    id="accessEmail"
+                    value={formData.accessEmail}
                     onChange={(e) => updateFormData("accessEmail", e.target.value)}
-                    className="mt-1" 
+                    className="mt-1"
                     placeholder={formData.email}
                   />
                   <p className="mt-1 text-xs text-muted-foreground">{t("accessEmailHelper") || "Leave empty to use the main email address"}</p>
