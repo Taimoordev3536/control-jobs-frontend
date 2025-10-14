@@ -19,7 +19,6 @@ export function TimePicker({ value = "", onChange, className, debug = false, dis
   const [isPositioned, setIsPositioned] = useState(false)
   const [selectedHour, setSelectedHour] = useState("00")
   const [selectedMinute, setSelectedMinute] = useState("00")
-  const [selectedPeriod, setSelectedPeriod] = useState("AM")
   const dropdownRef = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
   const hourListRef = useRef<HTMLDivElement>(null)
@@ -28,26 +27,20 @@ export function TimePicker({ value = "", onChange, className, debug = false, dis
   // Parse initial value
   useEffect(() => {
     if (value) {
-      const [time, period] = value.split(" ")
-      if (time && period) {
+      // Accept formats: "HH:MM" or "HH:MM AM/PM"
+      const parts = value.split(" ")
+      const time = parts[0]
+      const period = parts[1]
+      if (time) {
         const [hour, minute] = time.split(":")
-        setSelectedHour(hour)
-        setSelectedMinute(minute)
-        setSelectedPeriod(period)
-      } else if (time) {
-        const [hour, minute] = time.split(":")
-        const hourNum = Number.parseInt(hour)
-        if (hourNum === 0) {
-          setSelectedHour("12")
-          setSelectedPeriod("AM")
-        } else if (hourNum <= 12) {
-          setSelectedHour(hour.padStart(2, "0"))
-          setSelectedPeriod("AM")
-        } else {
-          setSelectedHour((hourNum - 12).toString().padStart(2, "0"))
-          setSelectedPeriod("PM")
+        let hourNum = Number.parseInt(hour || "0")
+        if (period) {
+          const p = period.toUpperCase()
+          if (p === "PM" && hourNum < 12) hourNum += 12
+          if (p === "AM" && hourNum === 12) hourNum = 0
         }
-        setSelectedMinute(minute || "00")
+        setSelectedHour(String(hourNum).padStart(2, "0"))
+        setSelectedMinute((minute || "00").padStart(2, "0"))
       }
     }
   }, [value])
@@ -73,7 +66,7 @@ export function TimePicker({ value = "", onChange, className, debug = false, dis
     return () => document.removeEventListener("mousedown", handleClickOutside)
   }, [isOpen])
 
-  const hours = ["00","01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"]
+  const hours = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0"))
   const minutes = [
     "00", "01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13", "14", "15", "16", "17", "18",
     "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36", "37",
@@ -104,7 +97,7 @@ export function TimePicker({ value = "", onChange, className, debug = false, dis
       const buttonRect = buttonRef.current.getBoundingClientRect()
       const spaceBelow = window.innerHeight - buttonRect.bottom
       const spaceAbove = buttonRect.top
-      const dropdownWidth = 150 // Match the width in the JSX
+  const dropdownWidth = 110 // Match the width in the JSX (smaller now that AM/PM column removed)
       
       // Calculate horizontal position - ensure it doesn't go off-screen
       let leftPosition = buttonRect.left + window.scrollX - (dropdownWidth / 2) + 12 // Center relative to button
@@ -232,9 +225,9 @@ export function TimePicker({ value = "", onChange, className, debug = false, dis
         <div
           ref={dropdownRef}
           className="bg-white border border-gray-300 rounded-md shadow-lg p-2 z-50"
-          style={{ 
-            ...dropdownStyle,
-            width: "150px",
+      style={{ 
+        ...dropdownStyle,
+        width: "110px",
             transition: "opacity 0.1s ease-in-out",
             pointerEvents: "auto" // Ensure the dropdown is always interactive
           }}
@@ -276,7 +269,7 @@ export function TimePicker({ value = "", onChange, className, debug = false, dis
                         e.preventDefault();
                         e.stopPropagation();
                         setSelectedHour(hour);
-                        const timeString = `${hour}:${selectedMinute} ${selectedPeriod}`;
+                        const timeString = `${hour}:${selectedMinute}`;
                         onChange?.(timeString);
                       }}
                       onMouseDown={(e) => e.stopPropagation()}
@@ -316,8 +309,11 @@ export function TimePicker({ value = "", onChange, className, debug = false, dis
                         e.preventDefault();
                         e.stopPropagation();
                         setSelectedMinute(minute);
-                        const timeString = `${selectedHour}:${minute} ${selectedPeriod}`;
+                        const timeString = `${selectedHour}:${minute}`;
                         onChange?.(timeString);
+                        // close dropdown after selecting minute
+                        setIsOpen(false);
+                        setIsPositioned(false);
                       }}
                       onMouseDown={(e) => e.stopPropagation()}
                       onTouchStart={(e) => e.stopPropagation()}
@@ -329,51 +325,10 @@ export function TimePicker({ value = "", onChange, className, debug = false, dis
               </div>
 
               {/* AM/PM Column - Simple Buttons */}
-              <div className="w-[48px]">
-                <div className="text-xs font-medium text-center mb-1 text-gray-600">Period</div>
-                <div 
-                  className="flex flex-col gap-1"
-                  onTouchStart={(e) => e.stopPropagation()} 
-                  onMouseDown={(e) => e.stopPropagation()}
-                >
-                  {["AM", "PM"].map((period) => (
-                    <button
-                      key={period}
-                      className={`text-center py-1 text-xs border rounded ${
-                        selectedPeriod === period 
-                          ? 'bg-blue-500 text-white' 
-                          : 'hover:bg-gray-100'
-                      }`}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        setSelectedPeriod(period);
-                        const timeString = `${selectedHour}:${selectedMinute} ${period}`;
-                        onChange?.(timeString);
-                      }}
-                    >
-                      {period}
-                    </button>
-                  ))}
-                </div>
-              </div>
+              {/* No AM/PM column in 24-hour mode */}
             </div>
             
-            {/* Done Button */}
-            <button
-              className="w-full bg-blue-500 hover:bg-blue-600 text-white text-xs py-1 rounded"
-              onTouchStart={(e) => e.stopPropagation()} 
-              onMouseDown={(e) => e.stopPropagation()}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                // Always close when Done is clicked
-                setIsOpen(false);
-                setIsPositioned(false);
-              }}
-            >
-              Done
-            </button>
+            {/* Done button removed — dropdown will close after minute selection */}
             {/* Debug text removed */}
           </div>
         </div>,

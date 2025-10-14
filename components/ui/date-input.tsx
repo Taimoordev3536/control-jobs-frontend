@@ -38,12 +38,21 @@ export const DateInput: React.FC<DateInputProps> = ({
   const [viewDate, setViewDate] = useState<Date>(
     () => parseISO(value) || new Date()
   );
+  // visible text inside the input (dd/mm/yyyy for Europe)
+  const [inputValue, setInputValue] = useState<string>(() => {
+    const d = parseISO(value);
+    return d ? formatDisplay(d) : (value || "");
+  });
   const [isBelow, setIsBelow] = useState(true);
   const ref = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
-    setViewDate(parseISO(value) || new Date());
+    const parsed = parseISO(value);
+    setViewDate(parsed || new Date());
+    // update visible input when parent value changes
+    if (parsed) setInputValue(formatDisplay(parsed));
+    else if (!value) setInputValue("");
   }, [value]);
 
   useEffect(() => {
@@ -75,7 +84,8 @@ export const DateInput: React.FC<DateInputProps> = ({
   }, []);
 
   const startOfMonth = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1);
-  const startWeekday = startOfMonth.getDay();
+  // make week start on Monday: shift JS getDay() (0=Sun) to Monday-first (0=Mon)
+  const startWeekday = (startOfMonth.getDay() + 6) % 7;
   const daysInMonth = new Date(
     viewDate.getFullYear(),
     viewDate.getMonth() + 1,
@@ -96,6 +106,8 @@ export const DateInput: React.FC<DateInputProps> = ({
       } as unknown as React.ChangeEvent<HTMLInputElement>;
       onChange(ev);
     }
+    // update visible text to dd/mm/yyyy
+    setInputValue(formatDisplay(newDate));
     setOpen(false);
   };
 
@@ -117,9 +129,9 @@ export const DateInput: React.FC<DateInputProps> = ({
       ][viewDate.getMonth()]
     ) || viewDate.toLocaleString(language, { month: "long" });
 
-  const weekDays = ["monx", "tuex", "wedx", "thux", "frix", "satx", "sunx"].map((k) =>
-    t(k)
-  );
+  // original keys are Sunday-first; translate then reorder to Monday-first
+  const originalWeekDays = ["sunx","monx", "tuex", "wedx", "thux", "frix", "satx"].map((k) => t(k));
+  const weekDays = [originalWeekDays[1], originalWeekDays[2], originalWeekDays[3], originalWeekDays[4], originalWeekDays[5], originalWeekDays[6], originalWeekDays[0]];
 
   const cells: Array<Array<number | null>> = [];
   let week: Array<number | null> = [];
@@ -136,7 +148,45 @@ export const DateInput: React.FC<DateInputProps> = ({
     cells.push(week);
   }
 
-  const displayValue = value || "";
+  const displayValue = inputValue;
+
+  // Helpers to parse/display dd/mm/yyyy from manual input
+  function formatDisplay(date: Date) {
+    const d = String(date.getDate()).padStart(2, "0");
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const y = date.getFullYear();
+    return `${d}/${m}/${y}`;
+  }
+
+  function tryParseInputToISO(raw: string): string | null {
+    if (!raw) return null;
+    const s = raw.trim();
+    // dd/mm/yyyy or d/m/yy
+    const dm = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+    if (dm) {
+      let day = Number(dm[1]);
+      let month = Number(dm[2]);
+      let year = Number(dm[3]);
+      if (year < 100) year += 2000;
+      const dateObj = new Date(year, month - 1, day);
+      if (dateObj && dateObj.getFullYear() === year && dateObj.getMonth() === month - 1 && dateObj.getDate() === day) {
+        return formatISO(dateObj);
+      }
+      return null;
+    }
+    // ISO yyyy-mm-dd
+    const iso = parseISO(s);
+    if (iso) return formatISO(iso);
+    return null;
+  }
+
+  // format input as dd/mm/yyyy while typing (allow only digits and auto-insert slashes)
+  function formatAsYouType(raw: string) {
+    const digits = raw.replace(/\D/g, "").slice(0, 8); // ddmmyyyy max
+    if (digits.length <= 2) return digits;
+    if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+    return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+  }
 
   // Add year and month dropdowns
   const currentYear = viewDate.getFullYear();
@@ -158,11 +208,36 @@ export const DateInput: React.FC<DateInputProps> = ({
       <div className="relative w-full">
         <Input
           ref={inputRef}
-          readOnly
           value={displayValue}
+          onChange={(e) => {
+            setInputValue(formatAsYouType(e.target.value));
+          }}
+          onBlur={(e) => {
+            const iso = tryParseInputToISO(e.target.value);
+            if (iso && onChange) {
+              const ev = { target: { value: iso } } as unknown as React.ChangeEvent<HTMLInputElement>;
+              onChange(ev);
+            }
+            // if parsed, normalize visible format, otherwise leave user text
+            if (iso) setInputValue(formatDisplay(parseISO(iso)!));
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              const iso = tryParseInputToISO((e.target as HTMLInputElement).value);
+              if (iso && onChange) {
+                const ev = { target: { value: iso } } as unknown as React.ChangeEvent<HTMLInputElement>;
+                onChange(ev);
+                setInputValue(formatDisplay(parseISO(iso)!));
+                setOpen(false);
+              }
+            }
+          }}
+          inputMode="numeric"
+          pattern="\d{2}/\d{2}/\d{4}"
+          maxLength={10}
           className={`pr-12 ${className}`}
-          placeholder={placeholder || t?.("datePlaceholder") || "Select date"}
-          aria-label={placeholder || t?.("datePlaceholder") || "Select date"}
+          placeholder={placeholder || t?.("datePlaceholder") || "dd/mm/aaaa"}
+          aria-label={placeholder || t?.("datePlaceholder") || "dd/mm/aaaa"}
           {...(rest as any)}
         />
         <button

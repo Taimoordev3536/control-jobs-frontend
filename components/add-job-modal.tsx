@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react"
-import { X, Smartphone, Wifi, MapPin, Globe, QrCode, Info } from "lucide-react"
+import { X, Smartphone, Wifi, MapPin, Globe, QrCode, Info, LockKeyholeOpen } from "lucide-react"
 import InterIcon from "../icons/alerts/Entrada.svg"
 import ExitIcon from "../icons/alerts/Salida.svg"
 import { Button } from "@/components/ui/button"
@@ -125,7 +125,7 @@ const createInitialFormData = () => ({
   },
   verifyIdentity: false,
   entrance: { whenSigningIn: false, delay: false, delayValue: "10" },
-  exit: { whenSigningIn: false, duration: false, durationValue: "30" },
+  exit: { whenSigningIn: false, duration: false, durationValue: "00" },
   task: "",
   taskObservations: "",
   duration: "",
@@ -209,6 +209,8 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
   // API Data
   const [clients, setClients] = useState<Client[]>([])
   const [workCenters, setWorkCenters] = useState<WorkCenter[]>([])
+  const [workCenterQuery, setWorkCenterQuery] = useState("")
+  const [workerQuery, setWorkerQuery] = useState("")
   const [workers, setWorkers] = useState<Worker[]>([])
   const [loadingClients, setLoadingClients] = useState(false)
   const [loadingWorkCenters, setLoadingWorkCenters] = useState(false)
@@ -216,6 +218,84 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
 
   const [formData, setFormData] = useState(createInitialFormData)
   const [errors, setErrors] = useState<{ denomination?: string; startDate?: string; workers?: string; client?: string; workCenters?: string }>({})
+
+  // Temporary input values when user is typing times in schedule cells
+  const [tempValues, setTempValues] = useState<Record<string, string>>({})
+
+  useEffect(() => {
+    // Clear transient edits when the authoritative formData changes (e.g., reset)
+    setTempValues({})
+  }, [formData])
+
+  const formatAsYouType = (raw: string) => {
+    // Keep only digits
+    const digitsOnly = raw.replace(/[^0-9]/g, "")
+    if (digitsOnly.length === 0) return ""
+
+    // Extract hour and minute parts from typed digits
+    let hourPart = digitsOnly.slice(0, 2)
+    let minutePart = digitsOnly.slice(2, 4)
+
+    // Clamp hour to 00-23 when two digits are present
+    if (hourPart.length === 2) {
+      const h = parseInt(hourPart, 10)
+      if (!Number.isNaN(h) && h > 23) {
+        hourPart = "23"
+      }
+    }
+
+    // Clamp minutes to 00-59 when present
+    if (minutePart.length >= 1) {
+      if (minutePart.length === 1) {
+        // single digit minute is fine while typing
+      } else {
+        const m = parseInt(minutePart.slice(0, 2), 10)
+        if (!Number.isNaN(m) && m > 59) {
+          minutePart = "59"
+        }
+      }
+    }
+
+    // If user typed only hour digits (1-2 digits) show them without colon while typing
+    if (digitsOnly.length <= 2) return hourPart
+
+    // Otherwise show HH:MM (limit to 5 chars)
+    return `${hourPart}:${minutePart}`.slice(0, 5)
+  }
+
+  const isValidTime = (val: string) => /^([01]\d|2[0-3]):[0-5]\d$/.test(val)
+
+  const commitValue = (dayKey: string, shiftKey: ShiftKey, timeType: "start" | "end", cellKey: string) => {
+    const parentVal = formData.schedules[formData.currentSeason][dayKey]?.[shiftKey]?.[timeType] || ""
+    const candidate = (tempValues[cellKey] ?? parentVal).trim()
+
+    if (candidate === "") {
+      // Clear parent value
+      updateScheduleTime(dayKey, shiftKey, timeType, "")
+      setTempValues((p) => {
+        const c = { ...p }
+        delete c[cellKey]
+        return c
+      })
+      return
+    }
+
+    if (isValidTime(candidate)) {
+      updateScheduleTime(dayKey, shiftKey, timeType, candidate)
+      setTempValues((p) => {
+        const c = { ...p }
+        delete c[cellKey]
+        return c
+      })
+    } else {
+      // invalid: revert to parent's value
+      setTempValues((p) => {
+        const c = { ...p }
+        delete c[cellKey]
+        return c
+      })
+    }
+  }
 
   // Memoized constants
   const mainSteps = useMemo(
@@ -355,10 +435,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
       }))
       setWorkCenters(normalized)
 
-      // If there's at least one center and current workCenterIds is empty, set to first id
-      if (normalized.length && (!formData.workCenterIds || formData.workCenterIds.length === 0)) {
-        setFormData((prev) => ({ ...prev, workCenterIds: [String(normalized[0].id)] }))
-      }
+      // Do not auto-select the first work center. Let the user choose.
     } catch (error) {
       console.error("Error fetching work centers:", error)
       setWorkCenters([])
@@ -435,19 +512,20 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
   // Distribute minutes for one contiguous block across days
   const addBlockToPerDay = (perDay: number[], startDay: number, startMin: number, endDay: number, endMin: number) => {
     const MIN_PER_DAY = 24 * 60
+    // Support endDay possibly > 6 (spanning into next week). Use modulo to map into perDay array.
     if (startDay === endDay) {
       const diff = Math.max(0, endMin - startMin)
-      perDay[startDay] += diff
+      perDay[startDay % 7] += diff
       return
     }
     // Start day: from start to midnight
-    perDay[startDay] += Math.max(0, MIN_PER_DAY - startMin)
+    perDay[startDay % 7] += Math.max(0, MIN_PER_DAY - startMin)
     // Full in-between days
     for (let d = startDay + 1; d < endDay; d++) {
-      perDay[d] += MIN_PER_DAY
+      perDay[d % 7] += MIN_PER_DAY
     }
     // End day: from midnight to end
-    perDay[endDay] += Math.max(0, endMin)
+    perDay[endDay % 7] += Math.max(0, endMin)
   }
 
   // Compute per-day totals and weekly total for possibly multiple multi-day blocks
@@ -458,20 +536,29 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
       const disabledSlots = new Set<string>()
       let openStart: TimeEvent | null = null
 
-      for (const ev of events) {
+      // To support blocks that wrap to the next week (end day < start day), we process an
+      // extended events list where each event is duplicated with dayIndex + 7. This lets us
+      // match a start on e.g. Sunday (6) with an end on Friday (4) which will appear as dayIndex 11
+      // in the extended list.
+      const extended = events.concat(events.map((e) => ({ ...e, dayIndex: e.dayIndex + 7 })))
+      for (const ev of extended) {
         if (ev.kind === "start") {
-          openStart = ev
+          // Only consider starts that originate in the original week (dayIndex < 7)
+          if (ev.dayIndex < 7 && !openStart) {
+            openStart = ev
+          }
         } else if (ev.kind === "end") {
           if (openStart) {
             const startIsBefore =
               ev.dayIndex > openStart.dayIndex ||
               (ev.dayIndex === openStart.dayIndex && ev.minutes >= openStart.minutes)
             if (startIsBefore) {
+              // Use ev.dayIndex as possibly > 6 (wrapped to next week)
               addBlockToPerDay(perDay, openStart.dayIndex, openStart.minutes, ev.dayIndex, ev.minutes)
-              
-              // Calculate disables
-              const startDayKey = DAY_KEYS[openStart.dayIndex]
-              const endDayKey = DAY_KEYS[ev.dayIndex]
+
+              // Calculate disables; use modulo mapping for day keys where necessary
+              const startDayKey = DAY_KEYS[openStart.dayIndex % 7]
+              const endDayKey = DAY_KEYS[ev.dayIndex % 7]
               const startShiftIdx = shiftOrder[openStart.shift]
               const endShiftIdx = shiftOrder[ev.shift]
               const isMulti = openStart.dayIndex !== ev.dayIndex || openStart.shift !== ev.shift
@@ -481,8 +568,8 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
                 disabledSlots.add(`${endDayKey}-${ev.shift}-start`)
               }
 
-              if (openStart.dayIndex === ev.dayIndex) {
-                // same day, disable between shifts
+              if (openStart.dayIndex % 7 === ev.dayIndex % 7) {
+                // Same nominal weekday (could be same week or wrapped to next), disable between shifts on that weekday
                 for (let s = startShiftIdx + 1; s < endShiftIdx; s++) {
                   const sh = SHIFT_KEYS[s]
                   disabledSlots.add(`${startDayKey}-${sh}-start`)
@@ -501,10 +588,10 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
                   disabledSlots.add(`${endDayKey}-${sh}-start`)
                   disabledSlots.add(`${endDayKey}-${sh}-end`)
                 }
-                // middle days all
+                // middle days all (iterate from next day after start to the day before end)
                 for (let d = openStart.dayIndex + 1; d < ev.dayIndex; d++) {
-                  const dk = DAY_KEYS[d]
-                  SHIFT_KEYS.forEach(sh => {
+                  const dk = DAY_KEYS[d % 7]
+                  SHIFT_KEYS.forEach((sh) => {
                     disabledSlots.add(`${dk}-${sh}-start`)
                     disabledSlots.add(`${dk}-${sh}-end`)
                   })
@@ -827,20 +914,42 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
     const s = input.trim()
     // already ISO YYYY-MM-DD
     if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s
-    // MM/DD or MM/DD/YYYY or M/D or M/D/YY
+    // Try MM/DD or DD/MM with optional year (MM/DD/YYYY or DD/MM/YYYY) or short forms
     const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?$/)
     if (m) {
-      let month = Number(m[1])
-      let day = Number(m[2])
+      const part1 = Number(m[1])
+      const part2 = Number(m[2])
       let year = m[3] ? Number(m[3]) : new Date().getFullYear()
       if (year < 100) year += 2000
-      // Basic validation by constructing UTC date
-      const d = new Date(Date.UTC(year, month - 1, day))
-      if (d.getUTCFullYear() === year && d.getUTCMonth() === month - 1 && d.getUTCDate() === day) {
-        const mm = String(month).padStart(2, "0")
-        const dd = String(day).padStart(2, "0")
-        return `${year}-${mm}-${dd}`
+
+      // Heuristic: if first part > 12 it's almost certainly a day (DD/MM).
+      // Otherwise try MM/DD first, but fall back to DD/MM if the date is invalid.
+      let month = part1
+      let day = part2
+
+      if (part1 > 12 && part2 <= 31) {
+        month = part2
+        day = part1
       }
+
+      let d = new Date(Date.UTC(year, month - 1, day))
+      if (!(d.getUTCFullYear() === year && d.getUTCMonth() === month - 1 && d.getUTCDate() === day)) {
+        // Try the swapped interpretation (DD/MM)
+        const altMonth = part2
+        const altDay = part1
+        const dd = new Date(Date.UTC(year, altMonth - 1, altDay))
+        if (dd.getUTCFullYear() === year && dd.getUTCMonth() === altMonth - 1 && dd.getUTCDate() === altDay) {
+          month = altMonth
+          day = altDay
+          d = dd
+        } else {
+          return null
+        }
+      }
+
+      const mm = String(month).padStart(2, "0")
+      const ddStr = String(day).padStart(2, "0")
+      return `${year}-${mm}-${ddStr}`
     }
     return null
   }
@@ -1221,7 +1330,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
               id="startDate"
               value={formData.startDate}
               onChange={(e) => updateFormData("startDate", e.target.value)}
-              className="mt-1 w-40"
+              className="mt-1 w-36"
             />
 
             {errors.startDate && <div className="text-sm text-destructive mt-1">{errors.startDate}</div>}
@@ -1236,7 +1345,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
               id="endDate"
               value={formData.endDate}
               onChange={(e) => updateFormData("endDate", e.target.value)}
-              className="mt-1 w-40"
+              className="mt-1 w-36"
             />
           </div>
         </div>
@@ -1258,7 +1367,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
           }}
           disabled={loadingClients}
         >
-          <SelectTrigger className="mt-1 text-muted-foreground">
+          <SelectTrigger className="mt-1 text-foreground">
             <SelectValue placeholder={loadingClients ? t("loadingClients") : t("selectAClient")} />
           </SelectTrigger>
           <SelectContent>
@@ -1267,7 +1376,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
                 key={client.id !== null ? client.id : `self-${index}`} // Use index for null IDs to avoid duplicate keys
                 value={client.id !== null ? client.id.toString() : "self"} // Use a unique string for null IDs
               >
-                {client.name} {client.isSelf ? "(yourself)" : ""}
+                {client.name} {client.isSelf ? `(${t("mySelf")})` : ""}
               </SelectItem>
             ))}
           </SelectContent>
@@ -1318,22 +1427,34 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
 
             <div className="border-t pt-2">
               {!formData.clientId ? (
-                <div className="text-sm text-muted-foreground">Select a client first</div>
+                <div className="text-sm text-muted-foreground">{t("workCenterSelector")}</div>
               ) : loadingWorkCenters ? (
                 <div className="text-sm text-muted-foreground">Loading work centers...</div>
               ) : workCenters && workCenters.length ? (
-                workCenters.map((wc) => (
-                  <div key={wc.id} className="flex items-center space-x-2 py-1">
-                    <Checkbox
-                      id={`wc-${wc.id}`}
-                      checked={formData.workCenterIds.includes(String(wc.id))}
-                      onCheckedChange={() => toggleWorkCenterSelection(String(wc.id))}
+                <div>
+                  <div className="mb-2 ml-3 mr-6">
+                    <Input
+                      placeholder={t("search") || "Search..."}
+                      value={workCenterQuery}
+                      onChange={(e) => setWorkCenterQuery(e.target.value)}
+                      className="w-full mb-2"
                     />
-                    <Label htmlFor={`wc-${wc.id}`} className="text-sm cursor-pointer">
-                      {wc.name} {wc.address ? `- ${wc.address}` : ""}
-                    </Label>
+                    {workCenters
+                      .filter((wc) => wc.name.toLowerCase().includes(workCenterQuery.toLowerCase()) || (wc.address || "").toLowerCase().includes(workCenterQuery.toLowerCase()))
+                      .map((wc) => (
+                        <div key={wc.id} className="flex items-center space-x-2 py-1">
+                          <Checkbox
+                            id={`wc-${wc.id}`}
+                            checked={formData.workCenterIds.includes(String(wc.id))}
+                            onCheckedChange={() => toggleWorkCenterSelection(String(wc.id))}
+                          />
+                          <Label htmlFor={`wc-${wc.id}`} className="text-sm text-muted-foreground cursor-pointer">
+                            {wc.name} {wc.address ? `- ${wc.address}` : ""}
+                          </Label>
+                        </div>
+                      ))}
                   </div>
-                ))
+                </div>
               ) : (
                 <div className="text-sm text-muted-foreground">No work centers available for this client</div>
               )}
@@ -1383,18 +1504,33 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
               {loadingWorkers ? (
                 <div className="text-sm text-muted-foreground">Loading workers...</div>
               ) : (
-                workers.map((worker) => (
-                  <div key={worker.id} className="flex items-center space-x-2 py-1">
-                    <Checkbox
-                      id={`worker-${worker.id}`}
-                      checked={formData.workerIds.includes(worker.id.toString())}
-                      onCheckedChange={() => toggleWorkerSelection(worker.id.toString())}
+                <div>
+                  <div className="mb-2 ml-3 mr-6">
+                    <Input
+                      placeholder={t("search") || "Search..."}
+                      value={workerQuery}
+                      onChange={(e) => setWorkerQuery(e.target.value)}
+                      className="w-full mb-2"
                     />
-                    <Label htmlFor={`worker-${worker.id}`} className="text-sm cursor-pointer">
-                      {worker.name} - {worker.occupation}
-                    </Label>
+                    {workers
+                      .filter((w) =>
+                        w.name.toLowerCase().includes(workerQuery.toLowerCase()) ||
+                        (w.occupation || "").toLowerCase().includes(workerQuery.toLowerCase()),
+                      )
+                      .map((worker) => (
+                        <div key={worker.id} className="flex items-center space-x-2 py-1">
+                          <Checkbox
+                            id={`worker-${worker.id}`}
+                            checked={formData.workerIds.includes(worker.id.toString())}
+                            onCheckedChange={() => toggleWorkerSelection(worker.id.toString())}
+                          />
+                          <Label htmlFor={`worker-${worker.id}`} className="text-sm text-muted-foreground cursor-pointer">
+                            {worker.name} - {worker.occupation}
+                          </Label>
+                        </div>
+                      ))}
                   </div>
-                ))
+                </div>
               )}
             </div>
           </div>
@@ -1480,8 +1616,8 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
                     updated.push({ season: "summer", startDate: v || "", endDate: formData.seasonPeriods.find((p) => p.season === "summer")?.endDate || "" })
                     updateFormData("seasonPeriods", updated)
                   }}
-                  format={"MM/DD"}
-                  placeholder={"MM/DD"}
+                  format={"DD/MM"}
+                  placeholder={"DD/MM"}
                 />
                 <span className="text-sm">{t("to") || "to"}</span>
                 <ManualDateField
@@ -1492,8 +1628,8 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
                     updated.push({ season: "summer", startDate: formData.seasonPeriods.find((p) => p.season === "summer")?.startDate || "", endDate: v || "" })
                     updateFormData("seasonPeriods", updated)
                   }}
-                  format={"MM/DD"}
-                  placeholder={"MM/DD"}
+                  format={"DD/MM"}
+                  placeholder={"DD/MM"}
                   size="sm"
                 />
               </div>
@@ -1506,19 +1642,19 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
             <table className="w-full border-collapse">
               <thead>
                 <tr className="bg-gray-100 border-b-[3px] border-[#7547a3]">
-                  <th className="border border-border px-2 py-2 text-center font-medium text-sm w-20">
+                  <th className="border border-border px-2 py-1 text-center font-medium text-sm w-20">
                     {t("day") || "Day"}
                   </th>
-                  <th className="border border-border px-2 py-2 text-center font-medium text-sm w-24">
+                  <th className="border border-border px-2 py-1 text-center font-medium text-sm w-24">
                     {t("morning") || "Morning"}
                   </th>
-                  <th className="border border-border px-2 py-2 text-center font-medium text-sm w-24">
+                  <th className="border border-border px-2 py-1 text-center font-medium text-sm w-24">
                     {t("afternoon") || "Afternoon"}
                   </th>
-                  <th className="border border-border px-2 py-2 text-center font-medium text-sm w-24">
+                  <th className="border border-border px-2 py-1 text-center font-medium text-sm w-24">
                     {t("evening") || "Evening"}
                   </th>
-                  <th className="border border-border px-2 py-2 text-center font-medium text-sm w-16">Total</th>
+                  <th className="border border-border px-2 py-1 text-center font-medium text-sm w-16">Total</th>
                 </tr>
               </thead>
               <tbody>
@@ -1529,18 +1665,31 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
                       <td key={shift} className="border border-border px-2 py-1">
                         <div className="flex items-center justify-center gap-2">
                           <div className="relative">
-                            <Input
-                              placeholder="--:--"
-                              className={`w-20 h-6 text-xs text-center pr-7 border-gray-300 ${
-                                formData.schedules[formData.currentSeason][day.key]?.[shift]?.start ? "bg-gray-100" : ""
-                              }`}
-                              value={
-                                disabledSlots.has(`${day.key}-${shift}-start`) 
-                                  ? "--:--" 
-                                  : formData.schedules[formData.currentSeason][day.key]?.[shift]?.start || "--:--"
-                              }
-                              readOnly
-                            />
+                            {(() => {
+                              const cellKey = `${day.key}-${shift}-start`
+                              const parentVal = formData.schedules[formData.currentSeason][day.key]?.[shift]?.start || ""
+                              const shown = tempValues[cellKey] ?? (disabledSlots.has(`${day.key}-${shift}-start`) ? "--:--" : parentVal)
+                              return (
+                                <Input
+                                  placeholder="--:--"
+                                  inputMode="numeric"
+                                  pattern="[0-9:]*"
+                                  maxLength={5}
+                                  className={`w-[4.5rem] h-6 text-xs text-center pr-7 pl-1 border-gray-300 ${parentVal ? "bg-gray-100" : ""}`}
+                                  value={shown}
+                                  onChange={(e) => setTempValues((p) => ({ ...p, [cellKey]: formatAsYouType(e.target.value) }))}
+                                  onBlur={() => commitValue(day.key, shift, "start", cellKey)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                      e.preventDefault()
+                                      commitValue(day.key, shift, "start", cellKey)
+                                      ;(e.target as HTMLInputElement).blur()
+                                    }
+                                  }}
+                                  readOnly={disabledSlots.has(`${day.key}-${shift}-start`)}
+                                />
+                              )
+                            })()}
                             <div className="absolute right-1 top-1/2 transform -translate-y-1/2 z-50">
                               <TimePicker
                                 value={formData.schedules[formData.currentSeason][day.key]?.[shift]?.start}
@@ -1551,18 +1700,31 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
                           </div>
                           <span className="text-xs text-muted-foreground">-</span>
                           <div className="relative">
-                            <Input
-                              placeholder="--:--"
-                              className={`w-20 h-6 text-xs text-center pr-7 border-gray-300 ${
-                                formData.schedules[formData.currentSeason][day.key]?.[shift]?.end ? "bg-gray-100" : ""
-                              }`}
-                              value={
-                                disabledSlots.has(`${day.key}-${shift}-end`) 
-                                  ? "--:--" 
-                                  : formData.schedules[formData.currentSeason][day.key]?.[shift]?.end || "--:--"
-                              }
-                              readOnly
-                            />
+                            {(() => {
+                              const cellKey = `${day.key}-${shift}-end`
+                              const parentVal = formData.schedules[formData.currentSeason][day.key]?.[shift]?.end || ""
+                              const shown = tempValues[cellKey] ?? (disabledSlots.has(`${day.key}-${shift}-end`) ? "--:--" : parentVal)
+                              return (
+                                <Input
+                                  placeholder="--:--"
+                                  inputMode="numeric"
+                                  pattern="[0-9:]*"
+                                  maxLength={5}
+                                  className={`w-[4.5rem] h-6 text-xs text-center pr-7 pl-1 border-gray-300 ${parentVal ? "bg-gray-100" : ""}`}
+                                  value={shown}
+                                  onChange={(e) => setTempValues((p) => ({ ...p, [cellKey]: formatAsYouType(e.target.value) }))}
+                                  onBlur={() => commitValue(day.key, shift, "end", cellKey)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                      e.preventDefault()
+                                      commitValue(day.key, shift, "end", cellKey)
+                                      ;(e.target as HTMLInputElement).blur()
+                                    }
+                                  }}
+                                  readOnly={disabledSlots.has(`${day.key}-${shift}-end`)}
+                                />
+                              )
+                            })()}
                             <div className="absolute right-1 top-1/2 transform -translate-y-1/2 z-50">
                               <TimePicker
                                 value={formData.schedules[formData.currentSeason][day.key]?.[shift]?.end}
@@ -1587,18 +1749,10 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
                 ))}
               </tbody>
             </table>
-            <div className="flex justify-end mt-3">
-              <div className="bg-gray-100 text-sm px-3 py-2 rounded">{formData.totalWeeklyHours || "00:00"}</div>
+            <div className="flex justify-end mt-1">
+              <div className="bg-gray-100 text-sm px-3 py-1 rounded">{formData.totalWeeklyHours || "00:00"}</div>
             </div>
-            <div className="flex items-center justify-center mt-4">
-              <Button
-                variant="destructive"
-                onClick={clearCurrentSeasonSchedules}
-                className="bg-yellow-500 hover:bg-yellow-600 text-white px-6"
-              >
-                {t("clearSchedules") || "Borrar"}
-              </Button>
-            </div>
+            {/* 'Borrar' moved to modal footer to align with Previous/Next buttons on schedules step */}
           </div>
         )}
       </div>
@@ -1612,10 +1766,43 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
       <div className="space-y-8">
         {/* Mobile Device */}
         <div className="flex items-center gap-8">
-          <div className="w-20 h-20 flex items-center justify-center">
+          {/* <div className="w-20 h-20 flex items-center justify-center">
             <Smartphone className="w-12 h-12 text-foreground" />
+          </div> */}
+          <div className=" flex items-center justify-center">
+            {t("methods")}:
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger>
+                  <Info className="w-3 h-3 text-muted-foreground cursor-help ml-2" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  {t("signingMethodTips")}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
-          <div className="flex gap-8">
+          <div className="ml-6 flex gap-8">
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="mobile-web"
+                checked={formData.signingMethods.mobile.wifi}
+                onCheckedChange={(checked) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    signingMethods: {
+                      mobile: { ...prev.signingMethods.mobile, wifi: !!checked },
+                    },
+                  }))
+                }
+              />
+              <div className="flex flex-col items-center">
+                <LockKeyholeOpen className="w-8 h-8 mb-1" />
+                <Label htmlFor="mobile-web" className="text-sm">
+                  Web
+                </Label>
+              </div>
+            </div>
             <div className="flex items-center space-x-2">
               <Checkbox
                 id="mobile-qr"
@@ -1636,7 +1823,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
                 </Label>
               </div>
             </div>
-            <div className="flex items-center space-x-2">
+            {/* <div className="flex items-center space-x-2">
               <Checkbox
                 id="mobile-wifi"
                 checked={formData.signingMethods.mobile.wifi}
@@ -1655,7 +1842,8 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
                   Wifi
                 </Label>
               </div>
-            </div>
+            </div> */}
+ 
             <div className="flex items-center space-x-2">
               <Checkbox
                 id="mobile-ip"
@@ -1767,14 +1955,27 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
                 </TooltipProvider>
               </Label>
 
-              <Input
-                type="number"
-                value={formData.entrance.delayValue}
-                onChange={(e) => updateNestedFormData("entrance", "delayValue", e.target.value)}
-                className="ml-2 w-20 bg-background border-input text-sm"
-                placeholder="10"
-              />
-              <span className="text-sm text-muted-foreground">{t("minutes") || "minutos"}</span>
+              {formData.entrance.delay && (
+                <>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={59}
+                    value={formData.entrance.delayValue}
+                    onChange={(e) => {
+                      const raw = e.target.value
+                      const n = Number(raw)
+                      if (raw === "") return updateNestedFormData("entrance", "delayValue", "")
+                      if (Number.isNaN(n)) return
+                      const clamped = Math.max(0, Math.min(59, Math.floor(n)))
+                      updateNestedFormData("entrance", "delayValue", String(clamped))
+                    }}
+                    className="ml-2 w-20 bg-background border-input text-sm"
+                    placeholder="10"
+                  />
+                  <span className="text-sm text-muted-foreground">{t("minutes") || "minutos"}</span>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -1825,14 +2026,27 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
                 </TooltipProvider>
               </Label>
 
-              <Input
-                type="number"
-                value={formData.exit.durationValue}
-                onChange={(e) => updateNestedFormData("exit", "durationValue", e.target.value)}
-                className="ml-2 w-20 bg-background border-input text-sm"
-                placeholder="00"
-              />
-              <span className="text-sm text-muted-foreground">{t("minutes") || "minutos"}</span>
+              {formData.exit.duration && (
+                <>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={59}
+                    value={formData.exit.durationValue}
+                    onChange={(e) => {
+                      const raw = e.target.value
+                      const n = Number(raw)
+                      if (raw === "") return updateNestedFormData("exit", "durationValue", "")
+                      if (Number.isNaN(n)) return
+                      const clamped = Math.max(0, Math.min(59, Math.floor(n)))
+                      updateNestedFormData("exit", "durationValue", String(clamped))
+                    }}
+                    className="ml-2 w-20 bg-background border-input text-sm"
+                    placeholder="00"
+                  />
+                  <span className="text-sm text-muted-foreground">{t("minutes") || "minutos"}</span>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -2739,8 +2953,8 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[50rem] p-0 gap-0 [&>button]:hidden max-h-[90vh] flex flex-col bg-background ml-1 mr-3">
-        <DialogHeader className="p-6 pb-6">
+      <DialogContent className="max-w-[50rem] p-0 gap-0 max-h-[90vh] flex flex-col bg-background ml-1 mr-3">
+        <DialogHeader className="p-6 pb-6 space-y-4">
           <div className="flex items-center justify-between relative">
             <div className="flex-1" />
             <div className="absolute left-1/2 transform -translate-x-1/2 mb-3">
@@ -2748,11 +2962,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
                 {t("newJob") || "New Job"}
               </DialogTitle>
             </div>
-            <div className="flex-1 flex justify-end">
-              <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => onOpenChange(false)}>
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
+            <div className="flex-1 flex justify-end" />
           </div>
 
           {renderProgressSteps()}
@@ -2777,22 +2987,36 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
           {currentMainStep === 3 && renderSurveysStep()}
         </div>
 
-        <div className="flex items-center justify-between p-6">
-          <Button
-            variant="secondary"
-            onClick={handlePrevious}
-            disabled={currentMainStep === 1 && currentSigningStep === 1}
-          >
-            {t("previous") || "Previous"}
-          </Button>
-          {currentMainStep === 3 ? (
-            <Button onClick={handleCreate} disabled={isLoading}>
-              {isLoading ? t("creating") || "Creating..." : t("create") || "Create"}
-            </Button>
-          ) : (
-            <Button onClick={handleNext}>{t("next") || "Next"}</Button>
-          )}
-        </div>
+  {/* Footer: when Previous is hidden (definition step) keep Next/Create aligned to the right */}
+  <div
+    className={`flex items-center p-2 px-6 ${currentMainStep === 1 && currentSigningStep === 1 ? "justify-end" : "justify-between"}`}
+  >
+    {/* Hide the Previous button when rendering the Definition signing step */}
+    {!(currentMainStep === 1 && currentSigningStep === 1) && (
+      <Button variant="secondary" onClick={handlePrevious} disabled={currentMainStep === 1 && currentSigningStep === 1}>
+        {t("previous") || "Previous"}
+      </Button>
+    )}
+
+    {/* Show destructive 'Borrar' between Previous and Next when on Schedules sub-step */}
+    {currentMainStep === 1 && currentSigningStep === 2 && (
+      <Button
+        variant="destructive"
+        onClick={clearCurrentSeasonSchedules}
+        className="bg-yellow-500 hover:bg-yellow-600 text-white px-6"
+      >
+        {t("clearSchedules") || "Borrar"}
+      </Button>
+    )}
+
+    {currentMainStep === 3 ? (
+      <Button onClick={handleCreate} disabled={isLoading}>
+        {isLoading ? t("creating") || "Creating..." : t("create") || "Create"}
+      </Button>
+    ) : (
+      <Button onClick={handleNext}>{t("next") || "Next"}</Button>
+    )}
+  </div>
       </DialogContent>
     </Dialog>
   )

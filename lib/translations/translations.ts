@@ -18,11 +18,14 @@ const translations: Record<string, Record<string, string>> = {
     activationOfAccessAccount: "Activation of access account:",
     accessEmail: "Access email:",
     accessEmailHelper: "Access email helper:",
+    workCenterSelector: "Select work centers",
 
+    search: "Search...",
+    mySelf: "Myself",
     //start end
     start: "Start",
     end: "End",
-    clearSchedules:"Clear schedules",
+    clearSchedules:"Clear",
     minutes:"minutes",
     // info tooltip add-job-modal
     selectWorkCentersInfo:
@@ -35,6 +38,7 @@ const translations: Record<string, Record<string, string>> = {
     durationTips:"Time worked less without generating an alert.",
     taskDurationTips: "Estimated time to complete the task.",
     taskObservationTips: "Task instructions for the worker only.",
+    signingMethodTips:"Launches the verification that your device has configured: PIN, Pattern, fingerprint or facial recognition",
 
     // common observation filter addressPlaceholder email
     thisFieldIsRequired: "This field is required.",
@@ -365,6 +369,7 @@ const translations: Record<string, Record<string, string>> = {
     definition: "Definition",
     schedules: "Schedules",
     signingMethods: "Signing Methods",
+    methods: "Methods",
     alerts: "Alerts",
     tasks: "Tasks",
     surveys: "Surveys",
@@ -535,12 +540,15 @@ const translations: Record<string, Record<string, string>> = {
     activationOfAccessAccount: "Activación de cuenta de acceso:",
     accessEmail: "Correo de acceso:",
     accessEmailHelper:"Asistente de correo de acceso:",
+    workCenterSelector: "Selecciona centros de trabajo",
 
+    search: "Buscar...",
+    mySelf: "Yo mismo",
     // start and end 
     start: "Inicio",
     end: "Fin",
-    clearSchedules:"Borrar",
-    minutes:"minutos",
+    clearSchedules: "Borrar",
+    minutes: "minutos",
 
     // info tooltip add-job-modal winter
     selectWorkCentersInfo:
@@ -553,6 +561,8 @@ const translations: Record<string, Record<string, string>> = {
       durationTips:"Tiempo trabajado de menos sin generar alerta.",
       taskDurationTips: "Tiempo estimado para realizar la tarea.",
       taskObservationTips: "Instrucciones de la tarea sólo para el trabajador.",
+      signingMethodTips:"Lanza la verificación que tenga configurado su dispositivo: PIN, Patrón, huella o reconocimiento facial",
+
 
 
 
@@ -887,6 +897,7 @@ const translations: Record<string, Record<string, string>> = {
     definition: "Definición",
     schedules: "Horarios",
     signingMethods: "Métodos de fichaje",
+    methods: "Métodos",
     alerts: "Alertas",
     tasks: "Tareas",
     surveys: "Encuestas",
@@ -908,7 +919,7 @@ const translations: Record<string, Record<string, string>> = {
     free: "Libre",
     programming: "Programación",
     winter: "Habitual",
-    normal: "Invierno",
+    normal: "Habitual",
     summer: "Verano",
     day: "Día",
     morning: "Mañana",

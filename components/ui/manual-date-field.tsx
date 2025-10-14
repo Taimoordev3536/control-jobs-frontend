@@ -14,6 +14,7 @@ type ManualDateFieldProps = {
   format?: string
   placeholder?: string
   className?: string
+  size?: string
   onChange?: (value: string | null) => void
 }
 
@@ -26,14 +27,25 @@ export default function ManualDateField({
   className,
   onChange,
 }: ManualDateFieldProps) {
-  const parse = (v: any) => (v ? dayjs(v) : null)
+  // Try to parse incoming value which may be ISO (YYYY-MM-DD) or localized (DD/MM or MM/DD)
+  const parseIncoming = (v?: string | null) => {
+    if (!v) return null
+    const s = v.trim()
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return dayjs(s)
+    // Try DD/MM then MM/DD
+    const ddmm = dayjs(s, 'DD/MM', true)
+    if (ddmm.isValid()) return ddmm
+    const mmdd = dayjs(s, 'MM/DD', true)
+    if (mmdd.isValid()) return mmdd
+    // Fallback: let dayjs try a generic parse
+    const guess = dayjs(s)
+    return guess.isValid() ? guess : null
+  }
 
-  const [internal, setInternal] = useState<Dayjs | null>(
-    value ? dayjs(value) : defaultValue ? (typeof defaultValue === 'string' ? dayjs(defaultValue) : defaultValue) : null,
-  )
+  const [internal, setInternal] = useState<Dayjs | null>(parseIncoming(value ?? null) ?? (defaultValue ? (typeof defaultValue === 'string' ? dayjs(defaultValue) : defaultValue) : null))
 
   useEffect(() => {
-    setInternal(value ? dayjs(value) : defaultValue ? (typeof defaultValue === 'string' ? dayjs(defaultValue) : defaultValue) : null)
+    setInternal(parseIncoming(value ?? null) ?? (defaultValue ? (typeof defaultValue === 'string' ? dayjs(defaultValue) : defaultValue) : null))
   }, [value, defaultValue])
 
   // default to a narrower, compact input; height is controlled via MUI sx below
@@ -45,23 +57,27 @@ export default function ManualDateField({
         label={label}
         value={internal}
         onChange={(v) => {
-          setInternal(v as Dayjs | null)
-          if (onChange) onChange(v ? dayjs(v).format(format) : null)
+          const dv = v as Dayjs | null
+          setInternal(dv)
+          if (onChange) {
+            if (!dv) return onChange(null)
+            // Emit ISO YYYY-MM-DD to parent for consistent storage
+            const iso = dayjs(dv).format('YYYY-MM-DD')
+            onChange(iso)
+          }
         }}
         format={format}
-        views={["month", "day"]}
-        openTo="month"
         slotProps={{
           textField: {
             placeholder: placeholder || format,
             className: inputClass,
-            size: 'small',
+            size: (typeof ({} as any).size === 'string' ? 'small' : 'small') as any,
             sx: {
               width: 90,
               minWidth: 90,
               // compact the internal MUI input controls to reduce overall height
               '& .MuiInputBase-root': { height: 10, minHeight: 20, padding: '0 4px' },
-              '& .MuiInputBase-input': { padding: '1px 4px', fontSize: 4, lineHeight: '8px'},
+              '& .MuiInputBase-input': { padding: '1px 4px', fontSize: 4, lineHeight: '8px' },
             },
           },
         }}
