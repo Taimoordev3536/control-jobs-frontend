@@ -295,8 +295,63 @@ export const DateInput: React.FC<DateInputProps> = ({
               }
             }, 0);
 
-            // clear any previous error while typing
-            if (error) setError(null);
+            // Per-field validation while typing (show immediate feedback)
+            // newFormatted looks like: "", "1", "12", "12/", "12/3", "12/03/2020" etc.
+            const partial = newFormatted.match(/^(\d{1,2})(?:\/(\d{1,2}))?(?:\/(\d{2,4}))?$/);
+            if (partial) {
+              const dStr = partial[1];
+              const mStr = partial[2];
+              const yStr = partial[3];
+
+              // Validate day when two digits entered for day
+              if (dStr && dStr.length === 2) {
+                const dayNum = Number(dStr);
+                if (dayNum < 1 || dayNum > 31) {
+                  setError(t?.("invalidDay") || "Day must be between 1 and 31");
+                  return;
+                }
+              }
+
+              // Validate month when two digits entered for month
+              if (mStr && mStr.length === 2) {
+                const monthNum = Number(mStr);
+                if (monthNum < 1 || monthNum > 12) {
+                  setError(t?.("invalidMonth") || "Month must be between 1 and 12");
+                  return;
+                }
+              }
+
+              // Validate year when user entered >=2 digits (allow 2-digit years)
+              if (yStr && yStr.length >= 2) {
+                let yearNum = Number(yStr);
+                if (yStr.length === 2) yearNum += 2000;
+                const minYear = years[0];
+                const maxYear = years[years.length - 1];
+                if (yearNum < minYear || yearNum > maxYear) {
+                  setError(t?.("invalidYear") || `Year must be between ${minYear} and ${maxYear}`);
+                  return;
+                }
+
+                // If day and month are present, ensure the full date is valid
+                if (dStr && mStr) {
+                  const dayNum = Number(dStr);
+                  const monthNum = Number(mStr);
+                  const dateObj = new Date(yearNum, monthNum - 1, dayNum);
+                  if (
+                    !(dateObj.getFullYear() === yearNum && dateObj.getMonth() === monthNum - 1 && dateObj.getDate() === dayNum)
+                  ) {
+                    setError(t?.("invalidDate") || "Invalid date for given month/year");
+                    return;
+                  }
+                }
+              }
+
+              // no error found for current partial input
+              if (error) setError(null);
+            } else {
+              // Not matching partial numeric pattern (user typed extra chars) - clear error to avoid blocking typing
+              if (error) setError(null);
+            }
           }}
           onBlur={(e) => {
             const raw = e.target.value;
