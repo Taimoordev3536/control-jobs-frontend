@@ -248,8 +248,10 @@ export const DateInput: React.FC<DateInputProps> = ({
 
   return (
     <div className="relative inline-block" ref={ref}>
+      {/* input + icon wrapper: keep fixed min-h so error text below won't push the icon */}
       <div className="relative w-full">
-        <Input
+        <div className="relative w-full" style={{ minHeight: 40 }}>
+          <Input
           ref={inputRef}
           value={displayValue}
           onChange={(e) => {
@@ -335,7 +337,7 @@ export const DateInput: React.FC<DateInputProps> = ({
             }
           }}
           inputMode="numeric"
-          pattern="\d{2}/\d{2}/\d{4}"
+          pattern="\\d{2}/\\d{2}/\\d{4}"
           maxLength={10}
           className={`pr-12 ${className}`}
           aria-invalid={!!error}
@@ -343,12 +345,7 @@ export const DateInput: React.FC<DateInputProps> = ({
           aria-label={placeholder || t?.("datePlaceholder") || "dd/mm/aaaa"}
           {...(rest as any)}
         />
-        {error && (
-          <div className="text-xs text-red-600 mt-1" role="alert">
-            {error}
-          </div>
-        )}
-        <button
+          <button
           type="button"
           onClick={() => setOpen((s) => !s)}
           className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground p-1"
@@ -368,7 +365,13 @@ export const DateInput: React.FC<DateInputProps> = ({
             />
           </svg>
         </button>
+        </div>
       </div>
+      {error && (
+        <div className="text-xs text-red-600 mt-1" role="alert">
+          {error}
+        </div>
+      )}
 
 {open && (
   <div
