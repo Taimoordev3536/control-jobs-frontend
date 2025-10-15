@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react"
-import { X, Smartphone, Wifi, MapPin, Globe, QrCode, Info, LockKeyholeOpen } from "lucide-react"
+import { X, Smartphone, Wifi, MapPin, Globe, QrCode, Info, LockKeyholeOpen,Laptop } from "lucide-react"
 import InterIcon from "../icons/alerts/Entrada.svg"
 import ExitIcon from "../icons/alerts/Salida.svg"
 import { Button } from "@/components/ui/button"
@@ -1319,11 +1319,23 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <Label htmlFor="startDate" className="text-sm font-medium text-foreground">
+          <Label htmlFor="startDate" className="text-sm font-medium text-foreground flex items-center gap-1">
               <span>
                 {t("startDate") || "Start Date"}
                 <span className="text-destructive ml-1">*</span>
               </span>
+              <TooltipProvider>
+                <Tooltip delayDuration={0}>
+                  <TooltipTrigger asChild>
+                    <button type="button" className="inline-flex items-center p-0" aria-label={t("startDate") || "Start date info"}>
+                      <Info className="w-3 h-3 text-muted-foreground cursor-help" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" align="center" sideOffset={6} className="max-w-[12.6rem]">
+                    {t("jobStartDateTip")}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </Label>
           <div className="relative">
             <DateInput
@@ -1561,7 +1573,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
       <div className="space-y-4">
         <h3 className="text-lg font-medium text-center mb-4 underline">{t("schedules") || "Schedules"}</h3>
 
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between gap-4 mb-4 ml-4">
           <div className="flex items-center gap-[1px]">
             <span className="text-sm font-medium">{t("free") || "Free"}</span>
             <Switch
@@ -1606,7 +1618,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
 
           {/* right: when summer selected show season range inputs in header */}
           {(formData.scheduleType as string) === "programming" && formData.currentSeason === "summer" && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 mr-4">
               <div className="flex items-center gap-2">
                 <ManualDateField
                   label={t("start") || "Start"}
@@ -1763,18 +1775,15 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
     <div className="space-y-8">
       <h3 className="text-lg font-medium text-center mb-6 underline">{t("signingMethods") || "Signing methods"}</h3>
 
-      <div className="space-y-8">
+      <div className="">
         {/* Mobile Device */}
         <div className="flex items-center gap-8">
-          {/* <div className="w-20 h-20 flex items-center justify-center">
+          <div className="w-20 h-20 flex items-center justify-center">
             <Smartphone className="w-12 h-12 text-foreground" />
-          </div> */}
-          <div className=" flex items-center justify-center">
-            {t("methods")}:
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger>
-                  <Info className="w-3 h-3 text-muted-foreground cursor-help ml-2" />
+                  <Info className="w-3 h-3 text-muted-foreground cursor-help" />
                 </TooltipTrigger>
                 <TooltipContent>
                   {t("signingMethodTips")}
@@ -1886,6 +1895,66 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
             </div>
           </div>
         </div>
+        <br />
+         {/* Desktop Device */}
+        <div className="flex items-center gap-8">
+          <div className="w-20 h-20 flex items-center justify-center">
+            <Laptop className="w-12 h-12 text-foreground" />
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger>
+                  <Info className="w-3 h-3 text-muted-foreground cursor-help ml-2" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  {t("signingMethodTips")}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+          <div className="ml-6 flex gap-8">
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="mobile-web"
+                checked={formData.signingMethods.mobile.wifi}
+                onCheckedChange={(checked) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    signingMethods: {
+                      mobile: { ...prev.signingMethods.mobile, wifi: !!checked },
+                    },
+                  }))
+                }
+              />
+              <div className="flex flex-col items-center">
+                <LockKeyholeOpen className="w-8 h-8 mb-1" />
+                <Label htmlFor="mobile-web" className="text-sm">
+                  Web
+                </Label>
+              </div>
+            </div>
+ 
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="mobile-ip"
+                checked={formData.signingMethods.mobile.ip}
+                onCheckedChange={(checked) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    signingMethods: {
+                      mobile: { ...prev.signingMethods.mobile, ip: !!checked },
+                    },
+                  }))
+                }
+              />
+              <div className="flex flex-col items-center">
+                <Globe className="w-8 h-8 mb-1" />
+                <Label htmlFor="mobile-ip" className="text-sm">
+                  IP
+                </Label>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="mt-12 text-center">
@@ -1922,7 +1991,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
           </div>
 
           <div className="space-y-4">
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-3 ">
               <Checkbox
                 id="entrance-signing"
                 checked={formData.entrance.whenSigningIn}
@@ -1936,6 +2005,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
             <div className="flex items-center space-x-3">
               <Checkbox
                 id="entrance-delay"
+                // className="mt-4"
                 checked={formData.entrance.delay}
                 onCheckedChange={(checked) => updateNestedFormData("entrance", "delay", checked)}
               />
@@ -1993,7 +2063,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
           </div>
 
           <div className="space-y-4">
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-3 ">
               <Checkbox
                 id="exit-signing"
                 checked={formData.exit.whenSigningIn}
@@ -2998,8 +3068,8 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
       </Button>
     )}
 
-    {/* Show destructive 'Borrar' between Previous and Next when on Schedules sub-step */}
-    {currentMainStep === 1 && currentSigningStep === 2 && (
+    {/* Show destructive 'Borrar' between Previous and Next when on Schedules sub-step and schedule type is programming */}
+    {currentMainStep === 1 && currentSigningStep === 2 && (formData.scheduleType as string) === "programming" && (
       <Button
         variant="destructive"
         onClick={clearCurrentSeasonSchedules}

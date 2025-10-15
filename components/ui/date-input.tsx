@@ -100,6 +100,13 @@ export const DateInput: React.FC<DateInputProps> = ({
 
   const pickDate = (day: number) => {
     const newDate = new Date(viewDate.getFullYear(), viewDate.getMonth(), day);
+    // do not allow picking past dates
+    const today = new Date();
+    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    if (newDate < todayStart) {
+      setError(t?.("invalidDate") || "invalidDate");
+      return;
+    }
     const iso = formatISO(newDate);
     if (onChange) {
       const ev = {
@@ -109,6 +116,7 @@ export const DateInput: React.FC<DateInputProps> = ({
     }
     // update visible text to dd/mm/yyyy
     setInputValue(formatDisplay(newDate));
+    setError(null);
     setOpen(false);
   };
 
@@ -228,6 +236,10 @@ export const DateInput: React.FC<DateInputProps> = ({
     ) {
       return t?.("invalidDate") || "Invalid date for given month/year";
     }
+    // disallow past dates (must be today or in the future)
+    const today = new Date();
+    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    if (dateObj < todayStart) return t?.("invalidDate") || "invalidDate";
     return null;
   }
 
@@ -341,6 +353,13 @@ export const DateInput: React.FC<DateInputProps> = ({
                     !(dateObj.getFullYear() === yearNum && dateObj.getMonth() === monthNum - 1 && dateObj.getDate() === dayNum)
                   ) {
                     setError(t?.("invalidDate") || "Invalid date for given month/year");
+                    return;
+                  }
+                  // disallow past dates
+                  const today = new Date();
+                  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                  if (dateObj < todayStart) {
+                    setError(t?.("invalidDate") || "invalidDate");
                     return;
                   }
                 }

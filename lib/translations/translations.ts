@@ -28,6 +28,7 @@ const translations: Record<string, Record<string, string>> = {
     invalidMonth: "Invalid Month",
     invalidDay: "Invalid Day",
     invalidYear: "Invalid Year",
+    invalidDate: "Invalid Date",
 
     //start end
     start: "Start",
@@ -47,6 +48,8 @@ const translations: Record<string, Record<string, string>> = {
     taskDurationTips: "Estimated time to complete the task.",
     taskObservationTips: "Task instructions for the worker only.",
     signingMethodTips:"Launches the verification that your device has configured: PIN, Pattern, fingerprint or facial recognition",
+  // info tooltip for start date in add-job-modal
+  jobStartDateTip: "Past dates are not allowed. Please select today or a future date.",
 
     // common observation filter addressPlaceholder email
     thisFieldIsRequired: "This field is required.",
@@ -558,6 +561,7 @@ const translations: Record<string, Record<string, string>> = {
     invalidMonth: "mes inválido",
     invalidDay: "día inválido",
     invalidYear: "año inválido",
+    invalidDate: "Fecha inválida",
 
     // start and end 
     start: "Inicio",
@@ -571,6 +575,8 @@ const translations: Record<string, Record<string, string>> = {
       "Selecciona uno o varios centros de trabajo. La aplicación permitirá fichar en todas las ubicaciones seleccionadas.",
     selectWorkersInfo:
       "Selecciona uno o varios trabajadores. La aplicación esperará fichajes de todos los trabajadores seleccionados.",
+    // info tooltip for start date in add-job-modal
+    jobStartDateTip: "No se permiten fechas pasadas. Por favor, selecciona hoy o una fecha futura.",
       seasonsInfo:
       "Si no tienes horario de verano, deja en blanco el periodo.",
       delayTips: "Tiempo permitido para fichar la entrada sin generar alerta.",
