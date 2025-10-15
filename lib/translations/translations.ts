@@ -27,6 +27,7 @@ const translations: Record<string, Record<string, string>> = {
 
     invalidMonth: "Invalid Month",
     invalidDay: "Invalid Day",
+    invalidYear: "Invalid Year",
 
     //start end
     start: "Start",
@@ -556,6 +557,7 @@ const translations: Record<string, Record<string, string>> = {
 
     invalidMonth: "mes inválido",
     invalidDay: "día inválido",
+    invalidYear: "año inválido",
 
     // start and end 
     start: "Inicio",
