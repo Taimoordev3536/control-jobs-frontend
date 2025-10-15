@@ -5,6 +5,7 @@ import { Clock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { createPortal } from "react-dom"
+import { useTranslation } from "@/hooks/use-translation"
 
 interface TimePickerProps {
   value?: string
@@ -23,6 +24,8 @@ export function TimePicker({ value = "", onChange, className, debug = false, dis
   const buttonRef = useRef<HTMLButtonElement>(null)
   const hourListRef = useRef<HTMLDivElement>(null)
   const minuteListRef = useRef<HTMLDivElement>(null)
+
+  const { t } = useTranslation()
 
   // Parse initial value
   useEffect(() => {
@@ -243,7 +246,7 @@ export function TimePicker({ value = "", onChange, className, debug = false, dis
             <div className="flex gap-0.5">
               {/* Hours Column - Custom Scrollable Div */}
               <div className="w-[48px]">
-                <div className="text-xs font-medium text-center mb-1 text-gray-600">Hour</div>
+                <div className="text-xs font-medium text-center mb-1 text-gray-600">{t("hour")}</div>
                 <div 
                   className="h-24 w-full border rounded text-xs overflow-y-auto"
                   style={{ 
@@ -283,7 +286,7 @@ export function TimePicker({ value = "", onChange, className, debug = false, dis
 
               {/* Minutes Column - Custom Scrollable Div */}
               <div className="w-[48px]">
-                <div className="text-xs font-medium text-center mb-1 text-gray-600">Min</div>
+                <div className="text-xs font-medium text-center mb-1 text-gray-600">{t("min")}</div>
                 <div 
                   className="h-24 w-full border rounded text-xs overflow-y-auto"
                   style={{ 

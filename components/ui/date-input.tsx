@@ -44,6 +44,7 @@ export const DateInput: React.FC<DateInputProps> = ({
     return d ? formatDisplay(d) : (value || "");
   });
   const [isBelow, setIsBelow] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const ref = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
@@ -168,8 +169,17 @@ export const DateInput: React.FC<DateInputProps> = ({
       let month = Number(dm[2]);
       let year = Number(dm[3]);
       if (year < 100) year += 2000;
+      // explicit validation: day 1-31, month 1-12
+      if (month < 1 || month > 12) return null;
+      if (day < 1 || day > 31) return null;
+      // create date and ensure it matches (catches invalid day/month combos like 31/02)
       const dateObj = new Date(year, month - 1, day);
-      if (dateObj && dateObj.getFullYear() === year && dateObj.getMonth() === month - 1 && dateObj.getDate() === day) {
+      if (
+        dateObj &&
+        dateObj.getFullYear() === year &&
+        dateObj.getMonth() === month - 1 &&
+        dateObj.getDate() === day
+      ) {
         return formatISO(dateObj);
       }
       return null;
@@ -186,6 +196,39 @@ export const DateInput: React.FC<DateInputProps> = ({
     if (digits.length <= 2) return digits;
     if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
     return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+  }
+
+  // parse day/month/year from a raw dd/mm/yyyy-ish string
+  function parseDMY(raw: string): { day: number; month: number; year: number } | null {
+    const s = raw.trim();
+    const dm = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+    if (!dm) return null;
+    let day = Number(dm[1]);
+    let month = Number(dm[2]);
+    let year = Number(dm[3]);
+    if (year < 100) year += 2000;
+    return { day, month, year };
+  }
+
+  function validateDMY(day: number, month: number, year: number): string | null {
+    if (day < 1 || day > 31) return t("invalidDay") || "Day must be between 1 and 31";
+    if (month < 1 || month > 12) return t("invalidMonth") || "Month must be between 1 and 12";
+    // check year in selectable range
+    const minYear = years[0];
+    const maxYear = years[years.length - 1];
+    if (year < minYear || year > maxYear)
+      return (
+        t?.("invalidYear") ||
+        `Year must be between ${minYear} and ${maxYear}`
+      );
+    // also ensure the specific day exists for that month/year (e.g., 31/02)
+    const dateObj = new Date(year, month - 1, day);
+    if (
+      !(dateObj.getFullYear() === year && dateObj.getMonth() === month - 1 && dateObj.getDate() === day)
+    ) {
+      return t?.("invalidDate") || "Invalid date for given month/year";
+    }
+    return null;
   }
 
   // Add year and month dropdowns
@@ -210,25 +253,84 @@ export const DateInput: React.FC<DateInputProps> = ({
           ref={inputRef}
           value={displayValue}
           onChange={(e) => {
-            setInputValue(formatAsYouType(e.target.value));
+            const el = e.target as HTMLInputElement;
+            const raw = el.value;
+            // Find how many digits are before the caret in the previous value
+            const prev = inputRef.current ? inputRef.current.value : displayValue;
+            const prevPos = el.selectionStart ?? prev.length;
+
+            function countDigitsBefore(str: string, pos: number) {
+              let cnt = 0;
+              for (let i = 0; i < Math.min(pos, str.length); i++) if (/[0-9]/.test(str[i])) cnt++;
+              return cnt;
+            }
+
+            const digitsBefore = countDigitsBefore(prev, prevPos);
+            const newFormatted = formatAsYouType(raw);
+
+            // Find caret position in newFormatted that corresponds to same number of digits
+            function findPosForDigits(str: string, digitsTarget: number) {
+              let cnt = 0;
+              for (let i = 0; i < str.length; i++) {
+                if (/[0-9]/.test(str[i])) cnt++;
+                if (cnt === digitsTarget) return i + 1; // caret after this digit
+              }
+              return str.length;
+            }
+
+            const newPos = findPosForDigits(newFormatted, digitsBefore);
+
+            setInputValue(newFormatted);
+            // restore caret after state update
+            setTimeout(() => {
+              if (inputRef.current) {
+                try {
+                  inputRef.current.selectionStart = newPos;
+                  inputRef.current.selectionEnd = newPos;
+                } catch (e) {
+                  // ignore
+                }
+              }
+            }, 0);
+
+            // clear any previous error while typing
+            if (error) setError(null);
           }}
           onBlur={(e) => {
-            const iso = tryParseInputToISO(e.target.value);
+            const raw = e.target.value;
+            const iso = tryParseInputToISO(raw);
             if (iso && onChange) {
               const ev = { target: { value: iso } } as unknown as React.ChangeEvent<HTMLInputElement>;
               onChange(ev);
+              setError(null);
+            } else if (raw) {
+              // attempt to provide a helpful validation message
+              const parsed = parseDMY(raw);
+              if (parsed) {
+                const v = validateDMY(parsed.day, parsed.month, parsed.year);
+                setError(v);
+              } else {
+                setError(t?.("invalidDateFormat") || "Invalid date format");
+              }
             }
             // if parsed, normalize visible format, otherwise leave user text
             if (iso) setInputValue(formatDisplay(parseISO(iso)!));
           }}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
-              const iso = tryParseInputToISO((e.target as HTMLInputElement).value);
+              const raw = (e.target as HTMLInputElement).value;
+              const iso = tryParseInputToISO(raw);
               if (iso && onChange) {
                 const ev = { target: { value: iso } } as unknown as React.ChangeEvent<HTMLInputElement>;
                 onChange(ev);
                 setInputValue(formatDisplay(parseISO(iso)!));
+                setError(null);
                 setOpen(false);
+              } else {
+                // show validation
+                const parsed = parseDMY(raw);
+                if (parsed) setError(validateDMY(parsed.day, parsed.month, parsed.year));
+                else setError(t?.("invalidDateFormat") || "Invalid date format");
               }
             }
           }}
@@ -236,10 +338,16 @@ export const DateInput: React.FC<DateInputProps> = ({
           pattern="\d{2}/\d{2}/\d{4}"
           maxLength={10}
           className={`pr-12 ${className}`}
+          aria-invalid={!!error}
           placeholder={placeholder || t?.("datePlaceholder") || "dd/mm/aaaa"}
           aria-label={placeholder || t?.("datePlaceholder") || "dd/mm/aaaa"}
           {...(rest as any)}
         />
+        {error && (
+          <div className="text-xs text-red-600 mt-1" role="alert">
+            {error}
+          </div>
+        )}
         <button
           type="button"
           onClick={() => setOpen((s) => !s)}

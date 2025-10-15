@@ -1429,7 +1429,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
               {!formData.clientId ? (
                 <div className="text-sm text-muted-foreground">{t("workCenterSelector")}</div>
               ) : loadingWorkCenters ? (
-                <div className="text-sm text-muted-foreground">Loading work centers...</div>
+                <div className="text-sm text-muted-foreground">{t("loadingWorkCenters")}</div>
               ) : workCenters && workCenters.length ? (
                 <div>
                   <div className="mb-2 ml-3 mr-6">
@@ -1456,7 +1456,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
                   </div>
                 </div>
               ) : (
-                <div className="text-sm text-muted-foreground">No work centers available for this client</div>
+                <div className="text-sm text-muted-foreground">{t("noWorkCentersAvailable")}</div>
               )}
             </div>
           </div>
@@ -1574,7 +1574,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
 
           {/* center: seasonal switch when programming */}
           {(formData.scheduleType as string) === "programming" && (
-            <div className="flex-1 flex items-center justify-center ">
+            <div className="flex-1 flex items-center justify-space-between ml-12 h-10 ">
               <div className="flex items-center gap-[1px]">
                 <span className="text-sm font-medium">{t("normal") || "Normal"}</span>
                 <Switch

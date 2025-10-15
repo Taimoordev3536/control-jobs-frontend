@@ -20,13 +20,20 @@ const translations: Record<string, Record<string, string>> = {
     accessEmailHelper: "Access email helper:",
     workCenterSelector: "Select work centers",
 
+    noWorkCentersAvailable: "No work centers available for this client",
+    loadingWorkCenters: "Loading work centers...",
     search: "Search...",
     mySelf: "Myself",
+
+    invalidMonth: "Invalid Month",
+    invalidDay: "Invalid Day",
+
     //start end
     start: "Start",
     end: "End",
     clearSchedules:"Clear",
     minutes:"minutes",
+    min: "min",
     // info tooltip add-job-modal
     selectWorkCentersInfo:
       "Select one or more work centers. The application will allow clock-in at all selected locations.",
@@ -542,13 +549,20 @@ const translations: Record<string, Record<string, string>> = {
     accessEmailHelper:"Asistente de correo de acceso:",
     workCenterSelector: "Selecciona centros de trabajo",
 
+    noWorkCentersAvailable: "No hay centros de trabajo",
+    loadingWorkCenters: "Cargando centros de trabajo...",
     search: "Buscar...",
     mySelf: "Yo mismo",
+
+    invalidMonth: "mes inválido",
+    invalidDay: "día inválido",
+
     // start and end 
     start: "Inicio",
     end: "Fin",
     clearSchedules: "Borrar",
     minutes: "minutos",
+    min: "Mín",
 
     // info tooltip add-job-modal winter
     selectWorkCentersInfo:
@@ -657,7 +671,7 @@ const translations: Record<string, Record<string, string>> = {
     data: "Datos",
     holder: "Titular",
     job: "Trabajo",
-    workCenter: "Centro de Trabajo",
+    workCenter: "Centros de Trabajo",
     worker: "Trabajador",
     notification: "Notificación",
     hours: "Horas",
