@@ -34,6 +34,7 @@ interface AddJobModalProps {
 interface TimeSlot {
   start: string
   end: string
+  isContinuous?: boolean
 }
 
 interface DaySchedule {
@@ -121,7 +122,10 @@ const createInitialFormData = () => ({
   } as { normal: ScheduleData; summer: ScheduleData },
   totalWeeklyHours: "00:00",
   signingMethods: {
-    mobile: { qrCode: true, wifi: true, ip: true, gps: true },
+    // Only Web (wifi) selected by default per device. Devices are independent.
+    mobile: { qrCode: false, wifi: true, ip: false, gps: false },
+    laptop: { wifi: true, ip: false },
+    phone: { callerId: false },
   },
   verifyIdentity: false,
   entrance: { whenSigningIn: false, delay: false, delayValue: "10" },
@@ -295,6 +299,46 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
         return c
       })
     }
+  }
+
+  // Ensure mutual exclusion between Web (wifi) and other signing methods per device.
+  // device: 'mobile' | 'laptop' | 'phone'
+  const updateSigningMethod = (
+    device: 'mobile' | 'laptop' | 'phone',
+    method: string,
+    checked: boolean,
+  ) => {
+    setFormData((prev) => {
+      const deviceObj = { ...(prev.signingMethods as any)[device] } || {}
+
+      // If toggling wifi (Web)
+      if (method === 'wifi') {
+        if (checked) {
+          // Enable wifi and disable other methods for this device only
+          const newDevice: Record<string, boolean> = {}
+          Object.keys(deviceObj).forEach((k) => {
+            newDevice[k] = k === 'wifi'
+          })
+          // If device had keys but none named 'wifi', ensure wifi exists
+          if (!('wifi' in newDevice)) newDevice['wifi'] = true
+          return { ...prev, signingMethods: { ...prev.signingMethods, [device]: newDevice } }
+        }
+
+        // just disabling wifi for that device
+        return { ...prev, signingMethods: { ...prev.signingMethods, [device]: { ...deviceObj, wifi: false } } }
+      }
+
+      // Enabling a non-web method should disable wifi for that device
+      if (checked) {
+        return {
+          ...prev,
+          signingMethods: { ...prev.signingMethods, [device]: { ...deviceObj, [method]: true, wifi: false } },
+        }
+      }
+
+      // disabling a non-web method
+      return { ...prev, signingMethods: { ...prev.signingMethods, [device]: { ...deviceObj, [method]: false } } }
+    })
   }
 
   // Memoized constants
@@ -531,78 +575,162 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
   // Compute per-day totals and weekly total for possibly multiple multi-day blocks
   const computeMultiDayTotals = useCallback(
     (schedules: ScheduleData) => {
-      const events = collectTimeEvents(schedules)
       const perDay: number[] = Array(7).fill(0)
       const disabledSlots = new Set<string>()
-      let openStart: TimeEvent | null = null
+      const processedShifts = new Set<string>()
 
-      // To support blocks that wrap to the next week (end day < start day), we process an
-      // extended events list where each event is duplicated with dayIndex + 7. This lets us
-      // match a start on e.g. Sunday (6) with an end on Friday (4) which will appear as dayIndex 11
-      // in the extended list.
-      const extended = events.concat(events.map((e) => ({ ...e, dayIndex: e.dayIndex + 7 })))
-      for (const ev of extended) {
-        if (ev.kind === "start") {
-          // Only consider starts that originate in the original week (dayIndex < 7)
-          if (ev.dayIndex < 7 && !openStart) {
-            openStart = ev
+      // First pass: Process complete single shifts (both start and end times present)
+      DAY_KEYS.forEach((dayKey, dayIndex) => {
+        const daySchedule = schedules[dayKey]
+        SHIFT_KEYS.forEach((shift) => {
+          const shiftData = daySchedule[shift]
+          if (shiftData.start && shiftData.end) {
+            // Complete single shift - calculate hours and mark as processed
+            const startMinutes = timeToMinutes(shiftData.start)
+            const endMinutes = timeToMinutes(shiftData.end)
+            if (endMinutes > startMinutes) {
+              perDay[dayIndex] += endMinutes - startMinutes
+              processedShifts.add(`${dayKey}-${shift}`)
+            }
           }
-        } else if (ev.kind === "end") {
-          if (openStart) {
-            const startIsBefore =
-              ev.dayIndex > openStart.dayIndex ||
-              (ev.dayIndex === openStart.dayIndex && ev.minutes >= openStart.minutes)
-            if (startIsBefore) {
-              // Use ev.dayIndex as possibly > 6 (wrapped to next week)
-              addBlockToPerDay(perDay, openStart.dayIndex, openStart.minutes, ev.dayIndex, ev.minutes)
+        })
+      })
 
-              // Calculate disables; use modulo mapping for day keys where necessary
-              const startDayKey = DAY_KEYS[openStart.dayIndex % 7]
-              const endDayKey = DAY_KEYS[ev.dayIndex % 7]
-              const startShiftIdx = shiftOrder[openStart.shift]
-              const endShiftIdx = shiftOrder[ev.shift]
-              const isMulti = openStart.dayIndex !== ev.dayIndex || openStart.shift !== ev.shift
+      // Second pass: Process multi-day continuous shifts
+      // Only create continuous shifts if there's a clear intent (adjacent time slots with logical continuity)
+      const events = collectTimeEvents(schedules)
+      const pendingStarts: TimeEvent[] = []
 
-              if (isMulti) {
-                disabledSlots.add(`${startDayKey}-${openStart.shift}-end`)
-                disabledSlots.add(`${endDayKey}-${ev.shift}-start`)
+      // Find shifts with only start time (no end time on same day/shift)
+      DAY_KEYS.forEach((dayKey) => {
+        const daySchedule = schedules[dayKey]
+        SHIFT_KEYS.forEach((shift) => {
+          const shiftData = daySchedule[shift]
+          const shiftKey = `${dayKey}-${shift}`
+          
+          // Only consider if not already processed as a complete shift
+          if (!processedShifts.has(shiftKey)) {
+            if (shiftData.start && !shiftData.end) {
+              // This is a potential multi-day start
+              const dayIndex = DAY_KEYS.indexOf(dayKey)
+              pendingStarts.push({
+                dayIndex,
+                shift,
+                minutes: timeToMinutes(shiftData.start),
+                kind: "start"
+              })
+            }
+          }
+        })
+      })
+
+      // Find matching end times for pending starts with stricter logic
+      const extendedEvents = events.concat(events.map((e) => ({ ...e, dayIndex: e.dayIndex + 7 })))
+      
+      pendingStarts.forEach((startEvent) => {
+        // Look for the next end event that could match this start - but with stricter criteria
+        const matchingEnd = extendedEvents.find((ev) => {
+          if (ev.kind !== "end") return false
+          
+          const endShiftKey = `${DAY_KEYS[ev.dayIndex % 7]}-${ev.shift}`
+          if (processedShifts.has(endShiftKey)) return false
+          
+          const endDaySchedule = schedules[DAY_KEYS[ev.dayIndex % 7]]
+          const endShiftData = endDaySchedule[ev.shift]
+          
+          // Must have end time but no start time (defining end of multi-day shift)
+          if (!endShiftData.end || endShiftData.start) return false
+          
+          // Must come after the start event
+          const isAfterStart = ev.dayIndex > startEvent.dayIndex || 
+            (ev.dayIndex === startEvent.dayIndex && ev.minutes >= startEvent.minutes)
+          
+          if (!isAfterStart) return false
+          
+          // NEW LOGIC: Only create continuous shifts if they are logically connected
+          // This means checking if there are no other complete shifts between start and end
+          const hasCompleteShiftsBetween = () => {
+            // Check if there are any complete shifts between the start and end
+            for (let d = startEvent.dayIndex; d <= ev.dayIndex; d++) {
+              const dayKey = DAY_KEYS[d % 7]
+              const daySchedule = schedules[dayKey]
+              
+              for (const shift of SHIFT_KEYS) {
+                const shiftData = daySchedule[shift]
+                const shiftKey = `${dayKey}-${shift}`
+                
+                // Skip the start and end shifts themselves
+                if (d === startEvent.dayIndex && shift === startEvent.shift) continue
+                if (d === ev.dayIndex && shift === ev.shift) continue
+                
+                // If there's a complete shift between start and end, don't create continuous
+                if (shiftData.start && shiftData.end && !processedShifts.has(shiftKey)) {
+                  return true
+                }
               }
+            }
+            return false
+          }
+          
+          // Only create continuous shift if there are no complete shifts in between
+          // AND the gap is reasonable (not more than 2-3 days apart unless explicitly continuous)
+          const dayGap = ev.dayIndex - startEvent.dayIndex
+          if (dayGap > 3) {
+            return false // Don't auto-connect shifts more than 3 days apart
+          }
+          
+          return !hasCompleteShiftsBetween()
+        })
 
-              if (openStart.dayIndex % 7 === ev.dayIndex % 7) {
-                // Same nominal weekday (could be same week or wrapped to next), disable between shifts on that weekday
-                for (let s = startShiftIdx + 1; s < endShiftIdx; s++) {
-                  const sh = SHIFT_KEYS[s]
-                  disabledSlots.add(`${startDayKey}-${sh}-start`)
-                  disabledSlots.add(`${startDayKey}-${sh}-end`)
-                }
-              } else {
-                // multi day, disable after start on start day
-                for (let s = startShiftIdx + 1; s < 3; s++) {
-                  const sh = SHIFT_KEYS[s]
-                  disabledSlots.add(`${startDayKey}-${sh}-start`)
-                  disabledSlots.add(`${startDayKey}-${sh}-end`)
-                }
-                // disable before end on end day
-                for (let s = 0; s < endShiftIdx; s++) {
-                  const sh = SHIFT_KEYS[s]
-                  disabledSlots.add(`${endDayKey}-${sh}-start`)
-                  disabledSlots.add(`${endDayKey}-${sh}-end`)
-                }
-                // middle days all (iterate from next day after start to the day before end)
-                for (let d = openStart.dayIndex + 1; d < ev.dayIndex; d++) {
-                  const dk = DAY_KEYS[d % 7]
-                  SHIFT_KEYS.forEach((sh) => {
-                    disabledSlots.add(`${dk}-${sh}-start`)
-                    disabledSlots.add(`${dk}-${sh}-end`)
-                  })
-                }
-              }
-
-              openStart = null
+        if (matchingEnd) {
+          // Found a valid multi-day continuous shift
+          addBlockToPerDay(perDay, startEvent.dayIndex, startEvent.minutes, matchingEnd.dayIndex, matchingEnd.minutes)
+          
+          // Mark both shifts as processed
+          processedShifts.add(`${DAY_KEYS[startEvent.dayIndex]}-${startEvent.shift}`)
+          processedShifts.add(`${DAY_KEYS[matchingEnd.dayIndex % 7]}-${matchingEnd.shift}`)
+          
+          // Calculate disabled slots for this continuous block
+          const startDayKey = DAY_KEYS[startEvent.dayIndex]
+          const endDayKey = DAY_KEYS[matchingEnd.dayIndex % 7]
+          const startShiftIdx = shiftOrder[startEvent.shift]
+          const endShiftIdx = shiftOrder[matchingEnd.shift]
+          
+          // Disable the connected slots
+          disabledSlots.add(`${startDayKey}-${startEvent.shift}-end`)
+          disabledSlots.add(`${endDayKey}-${matchingEnd.shift}-start`)
+          
+          if (startEvent.dayIndex % 7 === matchingEnd.dayIndex % 7) {
+            // Same day, disable shifts between start and end
+            for (let s = startShiftIdx + 1; s < endShiftIdx; s++) {
+              const sh = SHIFT_KEYS[s]
+              disabledSlots.add(`${startDayKey}-${sh}-start`)
+              disabledSlots.add(`${startDayKey}-${sh}-end`)
+            }
+          } else {
+            // Multi-day: disable after start on start day
+            for (let s = startShiftIdx + 1; s < 3; s++) {
+              const sh = SHIFT_KEYS[s]
+              disabledSlots.add(`${startDayKey}-${sh}-start`)
+              disabledSlots.add(`${startDayKey}-${sh}-end`)
+            }
+            // Disable before end on end day
+            for (let s = 0; s < endShiftIdx; s++) {
+              const sh = SHIFT_KEYS[s]
+              disabledSlots.add(`${endDayKey}-${sh}-start`)
+              disabledSlots.add(`${endDayKey}-${sh}-end`)
+            }
+            // Disable all shifts on middle days
+            for (let d = startEvent.dayIndex + 1; d < matchingEnd.dayIndex; d++) {
+              const dk = DAY_KEYS[d % 7]
+              SHIFT_KEYS.forEach((sh) => {
+                disabledSlots.add(`${dk}-${sh}-start`)
+                disabledSlots.add(`${dk}-${sh}-end`)
+              })
             }
           }
         }
-      }
+      })
 
       // Convert to strings
       const totalsByDay: Record<DayKey, string> = {} as any
@@ -612,7 +740,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
       const weeklyMinutes = perDay.reduce((acc, m) => acc + m, 0)
       return { totalsByDay, weeklyTotal: minutesToTime(weeklyMinutes), disabledSlots }
     },
-    [collectTimeEvents, minutesToTime],
+    [collectTimeEvents, minutesToTime, timeToMinutes],
   )
 
   const calculateDayTotal = useCallback(
@@ -874,6 +1002,18 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
       }
 
       // Otherwise advance signing sub-steps or main step
+      // If we're on the Signing Methods sub-step (3) require at least one method selected
+      if (currentSigningStep === 3) {
+        const sm = formData.signingMethods || {}
+        const anySelected = Object.values(sm).some((device: any) =>
+          Object.values(device || {}).some((v: any) => !!v),
+        )
+        if (!anySelected) {
+          setErrors({ signingMethods: t("requiredSigningMethods") })
+          return
+        }
+      }
+
       if (currentSigningStep < 4) {
         setCurrentSigningStep(currentSigningStep + 1)
       } else {
@@ -1586,7 +1726,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
 
           {/* center: seasonal switch when programming */}
           {(formData.scheduleType as string) === "programming" && (
-            <div className="flex-1 flex items-center justify-space-between ml-12 h-10 ">
+            <div className="flex-1 flex items-center justify-between ml-24 h-10">
               <div className="flex items-center gap-[1px]">
                 <span className="text-sm font-medium">{t("normal") || "Normal"}</span>
                 <Switch
@@ -1773,20 +1913,31 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
 
   const renderSigningMethodsStep = () => (
     <div className="space-y-8">
-      <h3 className="text-lg font-medium text-center mb-6 underline">{t("signingMethods") || "Signing methods"}</h3>
+      <h3 className="text-lg font-medium text-center mb-6 underline">{t("signingMethods") || "Signing methods"}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger>
+                  <Info className="inline-flex items-center p-0 w-3 h-3 text-muted-foreground cursor-help ml-1" />
+                </TooltipTrigger>
+                <TooltipContent side="right" align="center" sideOffset={6} className="max-w-[12.6rem]">
+                  {t("signingMethodTitleTips")}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+      </h3>
 
-      <div className="">
+      <div className="ml-8">
         {/* Mobile Device */}
         <div className="flex items-center gap-8">
           <div className="w-20 h-20 flex items-center justify-center">
-            <Smartphone className="w-12 h-12 text-foreground" />
+            <Smartphone className="w-16 h-16 text-foreground" />
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger>
                   <Info className="w-3 h-3 text-muted-foreground cursor-help" />
                 </TooltipTrigger>
-                <TooltipContent>
-                  {t("signingMethodTips")}
+                <TooltipContent side="right" align="center" sideOffset={6} className="max-w-[12.6rem]">
+                  {t("signingMethodTipsMobile")}
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -1796,14 +1947,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
               <Checkbox
                 id="mobile-web"
                 checked={formData.signingMethods.mobile.wifi}
-                onCheckedChange={(checked) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    signingMethods: {
-                      mobile: { ...prev.signingMethods.mobile, wifi: !!checked },
-                    },
-                  }))
-                }
+                onCheckedChange={(checked) => updateSigningMethod('mobile', 'wifi', !!checked)}
               />
               <div className="flex flex-col items-center">
                 <LockKeyholeOpen className="w-8 h-8 mb-1" />
@@ -1812,59 +1956,12 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
                 </Label>
               </div>
             </div>
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="mobile-qr"
-                checked={formData.signingMethods.mobile.qrCode}
-                onCheckedChange={(checked) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    signingMethods: {
-                      mobile: { ...prev.signingMethods.mobile, qrCode: !!checked },
-                    },
-                  }))
-                }
-              />
-              <div className="flex flex-col items-center">
-                <QrCode className="w-8 h-8 mb-1" />
-                <Label htmlFor="mobile-qr" className="text-sm">
-                  QR Code
-                </Label>
-              </div>
-            </div>
-            {/* <div className="flex items-center space-x-2">
-              <Checkbox
-                id="mobile-wifi"
-                checked={formData.signingMethods.mobile.wifi}
-                onCheckedChange={(checked) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    signingMethods: {
-                      mobile: { ...prev.signingMethods.mobile, wifi: !!checked },
-                    },
-                  }))
-                }
-              />
-              <div className="flex flex-col items-center">
-                <Wifi className="w-8 h-8 mb-1" />
-                <Label htmlFor="mobile-wifi" className="text-sm">
-                  Wifi
-                </Label>
-              </div>
-            </div> */}
- 
+
             <div className="flex items-center space-x-2">
               <Checkbox
                 id="mobile-ip"
                 checked={formData.signingMethods.mobile.ip}
-                onCheckedChange={(checked) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    signingMethods: {
-                      mobile: { ...prev.signingMethods.mobile, ip: !!checked },
-                    },
-                  }))
-                }
+                onCheckedChange={(checked) => updateSigningMethod('mobile', 'ip', !!checked)}
               />
               <div className="flex flex-col items-center">
                 <Globe className="w-8 h-8 mb-1" />
@@ -1873,23 +1970,31 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
                 </Label>
               </div>
             </div>
+ 
             <div className="flex items-center space-x-2">
               <Checkbox
                 id="mobile-gps"
                 checked={formData.signingMethods.mobile.gps}
-                onCheckedChange={(checked) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    signingMethods: {
-                      mobile: { ...prev.signingMethods.mobile, gps: !!checked },
-                    },
-                  }))
-                }
+                onCheckedChange={(checked) => updateSigningMethod('mobile', 'gps', !!checked)}
               />
               <div className="flex flex-col items-center">
                 <MapPin className="w-8 h-8 mb-1" />
                 <Label htmlFor="mobile-gps" className="text-sm">
                   GPS
+                </Label>
+              </div>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="mobile-qr"
+                checked={formData.signingMethods.mobile.qrCode}
+                onCheckedChange={(checked) => updateSigningMethod('mobile', 'qrCode', !!checked)}
+              />
+              <div className="flex flex-col items-center">
+                <QrCode className="w-8 h-8 mb-1" />
+                <Label htmlFor="mobile-qr" className="text-sm">
+                  QR Code
                 </Label>
               </div>
             </div>
@@ -1899,14 +2004,15 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
          {/* Desktop Device */}
         <div className="flex items-center gap-8">
           <div className="w-20 h-20 flex items-center justify-center">
-            <Laptop className="w-12 h-12 text-foreground" />
+            <Laptop className="w-16 h-16 text-foreground" />
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger>
-                  <Info className="w-3 h-3 text-muted-foreground cursor-help ml-2" />
+
+                  <Info className=" w-3 h-3 text-muted-foreground cursor-help ml-1" />
                 </TooltipTrigger>
-                <TooltipContent>
-                  {t("signingMethodTips")}
+                <TooltipContent side="right" align="center" sideOffset={6} className="max-w-[12.6rem]">
+                  {t("signingMethodTipsDesktop")}
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -1914,16 +2020,9 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
           <div className="ml-6 flex gap-8">
             <div className="flex items-center space-x-2">
               <Checkbox
-                id="mobile-web"
-                checked={formData.signingMethods.mobile.wifi}
-                onCheckedChange={(checked) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    signingMethods: {
-                      mobile: { ...prev.signingMethods.mobile, wifi: !!checked },
-                    },
-                  }))
-                }
+                id="desktop-web"
+                checked={formData.signingMethods.laptop?.wifi}
+                onCheckedChange={(checked) => updateSigningMethod('laptop', 'wifi', !!checked)}
               />
               <div className="flex flex-col items-center">
                 <LockKeyholeOpen className="w-8 h-8 mb-1" />
@@ -1935,16 +2034,9 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
  
             <div className="flex items-center space-x-2">
               <Checkbox
-                id="mobile-ip"
-                checked={formData.signingMethods.mobile.ip}
-                onCheckedChange={(checked) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    signingMethods: {
-                      mobile: { ...prev.signingMethods.mobile, ip: !!checked },
-                    },
-                  }))
-                }
+                id="desktop-ip"
+                checked={formData.signingMethods.laptop?.ip}
+                onCheckedChange={(checked) => updateSigningMethod('laptop', 'ip', !!checked)}
               />
               <div className="flex flex-col items-center">
                 <Globe className="w-8 h-8 mb-1" />
@@ -1955,14 +2047,28 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
             </div>
           </div>
         </div>
+      {/* Show validation error for signing methods if any */}
+      {errors.signingMethods && (
+        <p className="mt-2 text-sm text-red-500 text-center">{errors.signingMethods}</p>
+      )}
       </div>
 
       <div className="mt-12 text-center">
-        <div className="flex items-center justify-center gap-4">
-          <span className="text-sm font-medium">{t("verifyIdentity") || "Verify Identity"}</span>
-          <div className="flex items-center gap-2">
-            <span className="text-sm">{t("no") || "No"}</span>
-            <Switch className="scale-[0.65]"
+        <div className="flex items-center justify-center">
+          <span className="text-sm p-1 font-medium">{t("verifyIdentity") || "Verify Identity"}</span>
+                     <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger>
+                  <Info className="inline-flex items-center p-0 w-3 h-3 text-muted-foreground cursor-help ml-1" />
+                </TooltipTrigger>
+                <TooltipContent side="right" align="center" sideOffset={6} className="max-w-[12.6rem]">
+                  {t("signingMethodIdentityTips")}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          <div className="flex items-center pl-2">
+            <span className=" text-sm">{t("no") || "No"}</span>
+            <Switch className=" scale-[0.65]"
               checked={formData.verifyIdentity}
               onCheckedChange={(checked) => updateFormData("verifyIdentity", checked)}
             />
@@ -1970,6 +2076,10 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
           </div>
         </div>
       </div>
+      {/* Show validation error for signing methods if any
+      {errors.signingMethods && (
+        <p className="mt-2 text-sm text-red-500 text-center">{errors.signingMethods}</p>
+      )} */}
     </div>
   )
 
@@ -2005,16 +2115,16 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
             <div className="flex items-center space-x-3">
               <Checkbox
                 id="entrance-delay"
-                // className="mt-4"
+                className="mt-3"
                 checked={formData.entrance.delay}
                 onCheckedChange={(checked) => updateNestedFormData("entrance", "delay", checked)}
               />
-              <Label htmlFor="entrance-delay" className="text-sm text-foreground flex items-center">
+              <Label htmlFor="entrance-delay" className="text-sm text-foreground flex items-center mt-3">
                 {t("delay") || "Retraso"}
                 <TooltipProvider>
                   <Tooltip open={delayTooltipOpen} onOpenChange={setDelayTooltipOpen} delayDuration={0}>
                     <TooltipTrigger asChild>
-                      <button type="button" className="inline-flex items-center p-0 ml-1" aria-label="Delay tips" onClick={() => setDelayTooltipOpen(s => !s)}>
+                      <button type="button" className="inline-flex items-center p-0 ml-2" aria-label="Delay tips" onClick={() => setDelayTooltipOpen(s => !s)}>
                         <Info className="w-3 h-3 text-muted-foreground cursor-help" />
                       </button>
                     </TooltipTrigger>
@@ -2040,7 +2150,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
                       const clamped = Math.max(0, Math.min(59, Math.floor(n)))
                       updateNestedFormData("entrance", "delayValue", String(clamped))
                     }}
-                    className="ml-2 w-20 bg-background border-input text-sm"
+                    className="ml-2 w-20 h-8 bg-background border-input text-sm"
                     placeholder="10"
                   />
                   <span className="text-sm text-muted-foreground">{t("minutes") || "minutos"}</span>
@@ -2077,10 +2187,11 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
             <div className="flex items-center space-x-3">
               <Checkbox
                 id="exit-duration"
+                className="mt-3"
                 checked={formData.exit.duration}
                 onCheckedChange={(checked) => updateNestedFormData("exit", "duration", checked)}
               />
-              <Label htmlFor="exit-duration" className="text-sm text-foreground flex items-center">
+              <Label htmlFor="exit-duration" className="text-sm text-foreground flex items-center mt-3">
                 {t("duration") || "Duración"}
                 <TooltipProvider>
                   <Tooltip open={durationTooltipOpen} onOpenChange={setDurationTooltipOpen} delayDuration={0}>
@@ -2111,7 +2222,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
                       const clamped = Math.max(0, Math.min(59, Math.floor(n)))
                       updateNestedFormData("exit", "durationValue", String(clamped))
                     }}
-                    className="ml-2 w-20 bg-background border-input text-sm"
+                    className="ml-2 w-20 h-8 bg-background border-input text-sm"
                     placeholder="00"
                   />
                   <span className="text-sm text-muted-foreground">{t("minutes") || "minutos"}</span>

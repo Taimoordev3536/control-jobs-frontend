@@ -47,12 +47,19 @@ const translations: Record<string, Record<string, string>> = {
     durationTips:"Time worked less without generating an alert.",
     taskDurationTips: "Estimated time to complete the task.",
     taskObservationTips: "Task instructions for the worker only.",
-    signingMethodTips:"Launches the verification that your device has configured: PIN, Pattern, fingerprint or facial recognition",
+    signingMethodTipsMobile:"Methods of signing allowed with Smartphone or Tablet",
+    signingMethodTipsDesktop:"Methods of signing allowed with PC or Laptop",
+  signingMethodTitleTips: "Web: Allows clocking in while authenticated in the application.\nIP: Allows clocking in while authenticated in the application and within a specific IP range.\nGPS: Allows clocking in while authenticated in the application and within a defined GPS range.\nQR: Allows clocking in while authenticated in the application and by scanning a QR code.",
+signingMethodIdentityTips: "Launches the verification that your device has configured: PIN, Pattern, fingerprint or facial recognition",
+
+
+
   // info tooltip for start date in add-job-modal
   jobStartDateTip: "Past dates are not allowed. Please select today or a future date.",
 
     // common observation filter addressPlaceholder email
     thisFieldIsRequired: "This field is required.",
+    requiredSigningMethods: "At least one signing method is required.",
 
     loadingClients: "Loading clients...",
     selectAClient: "Select a client",
@@ -583,14 +590,17 @@ const translations: Record<string, Record<string, string>> = {
       durationTips:"Tiempo trabajado de menos sin generar alerta.",
       taskDurationTips: "Tiempo estimado para realizar la tarea.",
       taskObservationTips: "Instrucciones de la tarea sólo para el trabajador.",
-      signingMethodTips:"Lanza la verificación que tenga configurado su dispositivo: PIN, Patrón, huella o reconocimiento facial",
-
+      signingMethodTipsMobile:"Métodos de fichaje permitidos con Smartphone o Tablet",
+      signingMethodTipsDesktop:"Métodos de fichaje permitidos con PC o Laptop",
+      signingMethodIdentityTips: "Lanza la verificación que tenga configurado su dispositivo: PIN, Patrón, huella o reconocimiento facial",
+  signingMethodTitleTips: "Web: Permite fichar estando autenticado en la aplicación.\nIP: Permite fichar estando autenticado en la aplicación y dentro de una IP concreta.\nGPS: Permite fichar estando autenticado en la aplicación y dentro de rango GPS concreto.\nQR: Permite fichar estando autenticado en la aplicación y escaneando un código QR.",
 
 
 
     // common Disc web information Introducir nombre del trabajo
 
     thisFieldIsRequired: "Este campo es obligatorio.",
+    requiredSigningMethods: "Se requiere al menos un método de firma.",
 
     loadingClients: "Cargando clientes...",
     selectAClient: "Selecciona el destinatario del Job",

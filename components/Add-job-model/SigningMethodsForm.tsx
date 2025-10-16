@@ -21,11 +21,11 @@ export function SigningMethodsForm({ formData, setFormData, updateFormData }: Si
 
       <div className="space-y-8">
         {/* Mobile Device */}
-        <div className="flex items-center gap-8">
+        <div className="flex items-center justify-center gap-8">
           <div className="w-20 h-20 flex items-center justify-center">
             <Smartphone className="w-12 h-12 text-foreground" />
           </div>
-          <div className="flex gap-8">
+          <div className="flex gap-8 justify-center">
             <div className="flex items-center space-x-2">
               <Checkbox
                 id="mobile-qr"
@@ -35,7 +35,7 @@ export function SigningMethodsForm({ formData, setFormData, updateFormData }: Si
                     ...formData,
                     signingMethods: {
                       ...formData.signingMethods,
-                      mobile: { ...formData.signingMethods.mobile, qrCode: !!checked },
+                      mobile: { ...formData.signingMethods.mobile, qrCode: !!checked, wifi: !!formData.signingMethods.mobile.wifi && !checked ? formData.signingMethods.mobile.wifi : formData.signingMethods.mobile.wifi },
                     },
                   })
                 }
@@ -56,7 +56,7 @@ export function SigningMethodsForm({ formData, setFormData, updateFormData }: Si
                     ...formData,
                     signingMethods: {
                       ...formData.signingMethods,
-                      mobile: { ...formData.signingMethods.mobile, wifi: !!checked },
+                      mobile: { qrCode: false, wifi: !!checked, ip: false, gps: false },
                     },
                   })
                 }
@@ -77,7 +77,7 @@ export function SigningMethodsForm({ formData, setFormData, updateFormData }: Si
                     ...formData,
                     signingMethods: {
                       ...formData.signingMethods,
-                      mobile: { ...formData.signingMethods.mobile, gps: !!checked },
+                      mobile: { ...formData.signingMethods.mobile, gps: !!checked, wifi: checked ? false : formData.signingMethods.mobile.wifi },
                     },
                   })
                 }
@@ -93,11 +93,11 @@ export function SigningMethodsForm({ formData, setFormData, updateFormData }: Si
         </div>
 
         {/* Laptop */}
-        <div className="flex items-center gap-8">
+        <div className="flex items-center justify-center gap-8">
           <div className="w-20 h-20 flex items-center justify-center">
             <Laptop className="w-12 h-12 text-foreground" />
           </div>
-          <div className="flex gap-8">
+          <div className="flex gap-8 justify-center">
             <div className="flex items-center space-x-2">
               <Checkbox
                 id="laptop-ip"
@@ -107,7 +107,7 @@ export function SigningMethodsForm({ formData, setFormData, updateFormData }: Si
                     ...formData,
                     signingMethods: {
                       ...formData.signingMethods,
-                      laptop: { ...formData.signingMethods.laptop, ip: !!checked },
+                      laptop: { ...formData.signingMethods.laptop, ip: !!checked, wifi: checked ? false : formData.signingMethods.laptop.wifi },
                     },
                   })
                 }
@@ -128,7 +128,7 @@ export function SigningMethodsForm({ formData, setFormData, updateFormData }: Si
                     ...formData,
                     signingMethods: {
                       ...formData.signingMethods,
-                      laptop: { ...formData.signingMethods.laptop, wifi: !!checked },
+                      laptop: { ip: false, wifi: !!checked },
                     },
                   })
                 }
@@ -144,11 +144,11 @@ export function SigningMethodsForm({ formData, setFormData, updateFormData }: Si
         </div>
 
         {/* Phone */}
-        <div className="flex items-center gap-8">
+        <div className="flex items-center justify-center gap-8">
           <div className="w-20 h-20 flex items-center justify-center">
             <Phone className="w-12 h-12 text-foreground" />
           </div>
-          <div className="flex gap-8">
+          <div className="flex gap-8 justify-center">
             <div className="flex items-center space-x-2">
               <Checkbox
                 id="phone-caller"
@@ -158,7 +158,7 @@ export function SigningMethodsForm({ formData, setFormData, updateFormData }: Si
                     ...formData,
                     signingMethods: {
                       ...formData.signingMethods,
-                      phone: { ...formData.signingMethods.phone, callerId: !!checked },
+                      phone: { callerId: !!checked },
                     },
                   })
                 }
