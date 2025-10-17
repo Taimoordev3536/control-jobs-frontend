@@ -1001,6 +1001,21 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
         return
       }
 
+      // Validate startDate is a valid date and not before today
+      const startIso = toISODate(formData.startDate)
+      if (!startIso) {
+        setErrors({ startDate: t("invalidDate") })
+        return
+      }
+      // Compare dates using local date (no time)
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      const startDateObj = new Date(startIso + "T00:00:00")
+      if (startDateObj < today) {
+        setErrors({ startDate: t("invalidDate") })
+        return
+      }
+
       // Otherwise advance signing sub-steps or main step
       // If we're on the Signing Methods sub-step (3) require at least one method selected
       if (currentSigningStep === 3) {
