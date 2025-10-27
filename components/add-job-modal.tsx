@@ -1700,8 +1700,8 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
               <TooltipProvider>
                 <Tooltip delayDuration={0}>
                   <TooltipTrigger asChild>
-                    <button type="button" className="inline-flex items-center p-0" aria-label={t("startDate") || "Start date info"}>
-                      <Info className="w-3 h-3 text-muted-foreground cursor-help" />
+                    <button type="button" className="inline-flex items-center p-0" aria-label={t("startDate") || "Start date info"} tabIndex={-1}>
+                      <Info tabIndex={-1} className="w-3 h-3 text-muted-foreground cursor-help" />
                     </button>
                   </TooltipTrigger>
                   <TooltipContent side="right" align="center" sideOffset={6} className="max-w-[12.6rem]">
@@ -1710,17 +1710,17 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
                 </Tooltip>
               </TooltipProvider>
             </Label>
-          <div className="relative">
-            <DateInput
-              id="startDate"
-              value={formData.startDate}
-              onChange={(e) => updateFormData("startDate", e.target.value)}
-              className="mt-1 w-36"
-            />
+            <div className="relative">
+              <DateInput
+                id="startDate"
+                value={formData.startDate}
+                onChange={(e) => updateFormData("startDate", e.target.value)}
+                className="mt-1 w-36"
+              />
 
-            {errors.startDate && <div className="text-sm text-destructive mt-1">{errors.startDate}</div>}
+              {errors.startDate && <div className="text-sm text-destructive mt-1">{errors.startDate}</div>}
+            </div>
           </div>
-        </div>
         <div>
           <Label htmlFor="endDate" className="text-sm font-medium text-foreground">
             {t("endDate") || "End Date"}
@@ -1784,8 +1784,9 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
                   className="inline-flex items-center p-0"
                   aria-label="Ayuda centro de trabajo"
                   onClick={() => setWorkCenterTooltipOpen((s) => !s)}
+                  tabIndex={-1}
                 >
-                  <Info className="w-3 h-3 text-muted-foreground cursor-help" />
+                  <Info tabIndex={-1} className="w-3 h-3 text-muted-foreground cursor-help" />
                 </button>
               </TooltipTrigger>
               <TooltipContent side="right" align="center" sideOffset={6} className="max-w-[12.6rem]">
@@ -1854,23 +1855,24 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
             {t("workers") || "Workers"}
             <span className="text-destructive ml-1">*</span>
           </span>
-          <TooltipProvider>
-            <Tooltip open={workersTooltipOpen} onOpenChange={setWorkersTooltipOpen} delayDuration={0}>
+            <TooltipProvider>
+              <Tooltip open={workersTooltipOpen} onOpenChange={setWorkersTooltipOpen} delayDuration={0}>
               <TooltipTrigger asChild>
                 <button
                   type="button"
                   className="inline-flex items-center p-0"
                   aria-label="Ayuda trabajadores"
                   onClick={() => setWorkersTooltipOpen((s) => !s)}
+                  tabIndex={-1}
                 >
-                  <Info className="w-3 h-3 text-muted-foreground cursor-help" />
+                  <Info tabIndex={-1} className="w-3 h-3 text-muted-foreground cursor-help" />
                 </button>
               </TooltipTrigger>
               <TooltipContent side="right" align="center" sideOffset={6} className="max-w-[12.6rem]">
                 {t("selectWorkersInfo")}
               </TooltipContent>
             </Tooltip>
-          </TooltipProvider>
+            </TooltipProvider>
         </Label>
         <div className="mt-1 border rounded-md p-3 min-h-[120px] bg-background">
           <div className="space-y-1 max-h-32 overflow-y-auto">
@@ -1971,16 +1973,17 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
                 <span className="text-sm font-medium">{t("summer") || "Summer"}</span>
                 <TooltipProvider>
                   <Tooltip open={seasonTooltipOpen} onOpenChange={setSeasonTooltipOpen} delayDuration={0}>
-                    <TooltipTrigger asChild>
-                      <button
-                        type="button"
-                        className="inline-flex items-center p-0 ml-1"
-                        aria-label="Seasons info"
-                        onClick={() => setSeasonTooltipOpen((s) => !s)}
-                      >
-                        <Info className="w-3 h-3 text-muted-foreground cursor-help" />
-                      </button>
-                    </TooltipTrigger>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          className="inline-flex items-center p-0 ml-1"
+                          aria-label="Seasons info"
+                          onClick={() => setSeasonTooltipOpen((s) => !s)}
+                          tabIndex={-1}
+                        >
+                          <Info tabIndex={-1} className="w-3 h-3 text-muted-foreground cursor-help" />
+                        </button>
+                      </TooltipTrigger>
                     <TooltipContent side="right" align="center" sideOffset={6} className="max-w-[12.6rem]">
                       {t("seasonsInfo")}
                     </TooltipContent>
@@ -2151,7 +2154,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger>
-                  <Info className="inline-flex items-center p-0 w-3 h-3 text-muted-foreground cursor-help ml-1" />
+                  <Info tabIndex={-1} className="inline-flex items-center p-0 w-3 h-3 text-muted-foreground cursor-help ml-1" />
                 </TooltipTrigger>
                 <TooltipContent side="right" align="left" sideOffset={6} className="max-w-[12.6rem] text-left whitespace-pre-line">
                   {t("signingMethodTitleTips")}
@@ -2167,9 +2170,9 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
             <Smartphone className="w-16 h-16 text-foreground" />
             <TooltipProvider>
               <Tooltip>
-                <TooltipTrigger>
-                  <Info className="w-3 h-3 text-muted-foreground cursor-help" />
-                </TooltipTrigger>
+                  <TooltipTrigger>
+                    <Info tabIndex={-1} className="w-3 h-3 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
                 <TooltipContent side="right" align="center" sideOffset={6} className="max-w-[12.6rem]">
                   {t("signingMethodTipsMobile")}
                 </TooltipContent>
@@ -2243,7 +2246,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
               <Tooltip>
                 <TooltipTrigger>
 
-                  <Info className=" w-3 h-3 text-muted-foreground cursor-help ml-1" />
+                  <Info tabIndex={-1} className=" w-3 h-3 text-muted-foreground cursor-help ml-1" />
                 </TooltipTrigger>
                 <TooltipContent side="right" align="center" sideOffset={6} className="max-w-[12.6rem]">
                   {t("signingMethodTipsDesktop")}
@@ -2282,9 +2285,9 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
           </div>
         </div>
       {/* Show validation error for signing methods if any */}
-      {errors.signingMethods && (
+      {/* {errors.signingMethods && (
         <p className="mt-2 text-sm text-red-500 text-center">{errors.signingMethods}</p>
-      )}
+      )} */}
       </div>
 
       <div className="mt-12 text-center">
@@ -2293,7 +2296,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
                      <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger>
-                  <Info className="inline-flex items-center p-0 w-3 h-3 text-muted-foreground cursor-help ml-1" />
+                  <Info tabIndex={-1} className="inline-flex items-center p-0 w-3 h-3 text-muted-foreground cursor-help ml-1" />
                 </TooltipTrigger>
                 <TooltipContent side="right" align="center" sideOffset={6} className="max-w-[12.6rem]">
                   {t("signingMethodIdentityTips")}
@@ -2310,10 +2313,10 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
           </div>
         </div>
       </div>
-      {/* Show validation error for signing methods if any
+     {/* Show validation error for signing methods if any */}
       {errors.signingMethods && (
         <p className="mt-2 text-sm text-red-500 text-center">{errors.signingMethods}</p>
-      )} */}
+      )}
     </div>
   )
 
@@ -2358,8 +2361,8 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
                 <TooltipProvider>
                   <Tooltip open={delayTooltipOpen} onOpenChange={setDelayTooltipOpen} delayDuration={0}>
                     <TooltipTrigger asChild>
-                      <button type="button" className="inline-flex items-center p-0 ml-2" aria-label="Delay tips" onClick={() => setDelayTooltipOpen(s => !s)}>
-                        <Info className="w-3 h-3 text-muted-foreground cursor-help" />
+                      <button type="button" className="inline-flex items-center p-0 ml-2" aria-label="Delay tips" onClick={() => setDelayTooltipOpen(s => !s)} tabIndex={-1}>
+                        <Info tabIndex={-1} className="w-3 h-3 text-muted-foreground cursor-help" />
                       </button>
                     </TooltipTrigger>
                     <TooltipContent side="right" align="center" sideOffset={6} className="max-w-xs">
@@ -2430,8 +2433,8 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
                 <TooltipProvider>
                   <Tooltip open={durationTooltipOpen} onOpenChange={setDurationTooltipOpen} delayDuration={0}>
                     <TooltipTrigger asChild>
-                      <button type="button" className="inline-flex items-center p-0 ml-1" aria-label="Duration tips" onClick={() => setDurationTooltipOpen(s => !s)}>
-                        <Info className="w-3 h-3 text-muted-foreground cursor-help" />
+                      <button type="button" className="inline-flex items-center p-0 ml-1" aria-label="Duration tips" onClick={() => setDurationTooltipOpen(s => !s)} tabIndex={-1}>
+                        <Info tabIndex={-1} className="w-3 h-3 text-muted-foreground cursor-help" />
                       </button>
                     </TooltipTrigger>
                     <TooltipContent side="right" align="center" sideOffset={6} className="max-w-xs">
@@ -2491,7 +2494,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger>
-                    <Info className="inline-flex items-center p-0 w-3 h-3 text-muted-foreground cursor-help ml-1" />
+                    <Info tabIndex={-1} className="inline-flex items-center p-0 w-3 h-3 text-muted-foreground cursor-help ml-1" />
                   </TooltipTrigger>
                   <TooltipContent side="right" align="center" sideOffset={6} className="max-w-[12.6rem]">
                     {t("taskWorkCenterTips") || "taskWorkCenterTips"}
@@ -2556,7 +2559,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger>
-                      <Info className="w-3 h-3 text-muted-foreground cursor-help" />
+                      <Info tabIndex={-1} className="w-3 h-3 text-muted-foreground cursor-help" />
                     </TooltipTrigger>
                     <TooltipContent>
                       {t("taskObservationTips")}
@@ -2580,7 +2583,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger>
-                        <Info className="w-3 h-3 text-muted-foreground cursor-help" />
+                        <Info tabIndex={-1} className="w-3 h-3 text-muted-foreground cursor-help" />
                       </TooltipTrigger>
                       <TooltipContent>
                         {t("taskDurationTips")}
@@ -3224,7 +3227,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger>
-                            <Info className="w-3 h-3 text-muted-foreground cursor-help ml-1" />
+                            <Info tabIndex={-1} className="w-3 h-3 text-muted-foreground cursor-help ml-1" />
                           </TooltipTrigger>
                           <TooltipContent>
                             {t("surveyMonitoringValueTips")}
@@ -3279,7 +3282,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger>
-                      <Info className="w-3 h-3 text-muted-foreground cursor-help ml-1" />
+                      <Info tabIndex={-1} className="w-3 h-3 text-muted-foreground cursor-help ml-1" />
                     </TooltipTrigger>
                     <TooltipContent>
                       {t("surveyPriodicityTips")}
@@ -3504,7 +3507,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger>
-                          <Info className="w-3 h-3 text-muted-foreground cursor-help ml-1" />
+                          <Info tabIndex={-1} className="w-3 h-3 text-muted-foreground cursor-help ml-1" />
                         </TooltipTrigger>
                         <TooltipContent>
                           {t("surveyMonitoringValueTips")}
@@ -3559,7 +3562,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger>
-                          <Info className="w-3 h-3 text-muted-foreground cursor-help ml-1" />
+                          <Info tabIndex={-1} className="w-3 h-3 text-muted-foreground cursor-help ml-1" />
                         </TooltipTrigger>
                         <TooltipContent>
                           {t("surveyPriodicityTips")}

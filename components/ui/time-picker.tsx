@@ -198,6 +198,7 @@ export function TimePicker({ value = "", onChange, className, debug = false, dis
         size="sm"
         className={cn("h-6 w-6 p-0 text-muted-foreground", className)}
         disabled
+        tabIndex={-1}
       >
         <Clock className="h-3 w-3" />
       </Button>
@@ -220,6 +221,7 @@ export function TimePicker({ value = "", onChange, className, debug = false, dis
           }
         }}
         type="button"
+        tabIndex={-1}
       >
         <Clock className="h-3 w-3" />
       </Button>
