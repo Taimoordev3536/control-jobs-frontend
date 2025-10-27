@@ -18,6 +18,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Slider } from "@/components/ui/slider"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { TimePicker } from "@/components/ui/time-picker"
+import TimeField, { isValidDuration } from "@/components/ui/time-field"
 import { toast } from "@/hooks/use-toast"
 import { useTranslation } from "@/hooks/use-translation"
 import ManualDateField from "@/components/ui/manual-date-field"
@@ -182,6 +183,14 @@ const createInitialFormData = () => ({
     periodicity: "daily" as const,
     periodicityValue: "1",
     hour: "08:00",
+  // Scheduling fields (match task periodicity model)
+    interval: 1,
+    weeklyDays: [] as number[],
+    monthlyDays: [] as number[],
+    monthlyWeekdays: [] as number[],
+    monthlyMode: "dates" as string,
+    monthlyFirstWeekday: null as number | null,
+    monthlyLastWeekday: null as number | null,
   },
   workerSurvey: {
     questionText: "",
@@ -191,6 +200,14 @@ const createInitialFormData = () => ({
     periodicity: "daily" as const,
     periodicityValue: "1",
     hour: "08:00",
+  // Scheduling fields
+    interval: 1,
+    weeklyDays: [] as number[],
+    monthlyDays: [] as number[],
+    monthlyWeekdays: [] as number[],
+    monthlyMode: "dates" as string,
+    monthlyFirstWeekday: null as number | null,
+    monthlyLastWeekday: null as number | null,
   },
 })
 
@@ -221,7 +238,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
   const [loadingWorkers, setLoadingWorkers] = useState(false)
 
   const [formData, setFormData] = useState(createInitialFormData)
-  const [errors, setErrors] = useState<{ denomination?: string; startDate?: string; workers?: string; client?: string; workCenters?: string }>({})
+  const [errors, setErrors] = useState<Record<string, string>>({})
 
   // Temporary input values when user is typing times in schedule cells
   const [tempValues, setTempValues] = useState<Record<string, string>>({})
@@ -629,7 +646,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
       
       pendingStarts.forEach((startEvent) => {
         // Look for the next end event that could match this start - but with stricter criteria
-        const matchingEnd = extendedEvents.find((ev) => {
+        let matchingEnd = extendedEvents.find((ev) => {
           if (ev.kind !== "end") return false
           
           const endShiftKey = `${DAY_KEYS[ev.dayIndex % 7]}-${ev.shift}`
@@ -681,6 +698,21 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
           
           return !hasCompleteShiftsBetween()
         })
+
+        // If strict matching failed, fall back to a relaxed match to avoid missing intended continuous shifts
+        if (!matchingEnd) {
+          matchingEnd = extendedEvents.find((ev) => {
+            if (ev.kind !== "end") return false
+            const endShiftKey = `${DAY_KEYS[ev.dayIndex % 7]}-${ev.shift}`
+            if (processedShifts.has(endShiftKey)) return false
+            const endDaySchedule = schedules[DAY_KEYS[ev.dayIndex % 7]]
+            const endShiftData = endDaySchedule[ev.shift]
+            if (!endShiftData.end || endShiftData.start) return false
+            const isAfterStart = ev.dayIndex > startEvent.dayIndex || 
+              (ev.dayIndex === startEvent.dayIndex && ev.minutes >= startEvent.minutes)
+            return !!isAfterStart
+          })
+        }
 
         if (matchingEnd) {
           // Found a valid multi-day continuous shift
@@ -761,6 +793,23 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
     },
     [timeToMinutes, minutesToTime],
   )
+
+  // Helper to parse task duration strings like 'HH:MM' into minutes
+  const parseDurationToMinutes = useCallback((dur?: string | null) => {
+    if (!dur) return 0
+    const m = String(dur).trim().match(/^(\d{1,2}):([0-5]\d)$/)
+    if (!m) return 0
+    const h = Number(m[1])
+    const mm = Number(m[2])
+    if (Number.isNaN(h) || Number.isNaN(mm)) return 0
+    return h * 60 + mm
+  }, [])
+
+  const tasksTotalMinutes = useMemo(() => {
+    return (formData.tasks || []).reduce((acc, t: any) => acc + parseDurationToMinutes(t.duration), 0)
+  }, [formData.tasks, parseDurationToMinutes])
+
+  const tasksTotalDisplay = minutesToTime(tasksTotalMinutes)
 
   // Form update functions
   const updateFormData = useCallback((field: string, value: any) => {
@@ -854,17 +903,52 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
   const addTaskToList = () => {
     if (!formData.task.trim()) {
       toast({
-        title: "Task Required",
-        description: "Please enter a task name",
+        title: t("taskRequired"),
+        description: t("taskRequiredDescription"),
         variant: "destructive",
       })
       return
     }
 
+  // Validate duration format if provided
+    if (formData.duration && !isValidDuration(formData.duration)) {
+      toast({
+        title: "Invalid duration",
+        description: "Please enter a valid duration in hh:mm format",
+        variant: "destructive",
+      })
+      // also mark field-level error
+      setErrors((prev) => ({ ...prev, duration: t("invalidTime") || "Invalid time" }))
+      return
+    }
+
+    // Validate task start/end dates when periodicity uses dates
+    if (formData.taskStartDate) {
+      const taskStartIso = toISODate(formData.taskStartDate)
+      if (!taskStartIso) {
+        setErrors((prev) => ({ ...prev, taskStartDate: t("invalidDate") }))
+        return
+      }
+      if (formData.taskEndDate) {
+        const taskEndIso = toISODate(formData.taskEndDate)
+        if (!taskEndIso) {
+          setErrors((prev) => ({ ...prev, taskEndDate: t("invalidDate") }))
+          return
+        }
+        const startObj = new Date(taskStartIso + "T00:00:00")
+        const endObj = new Date(taskEndIso + "T00:00:00")
+        if (endObj < startObj) {
+          setErrors((prev) => ({ ...prev, taskEndDate: t("endDateMustBeEqualOrAfterStart") || "End date must be equal or after Start date" }))
+          return
+        }
+      }
+    }
+
     const newTask = {
       id: Date.now().toString(),
       task: formData.task,
-      workCenterId: formData.taskWorkCenterId || null,
+      // Coerce taskWorkCenterId to number so virtual ids (-1/-2) are stored as numbers
+      workCenterId: formData.taskWorkCenterId ? (Number(formData.taskWorkCenterId) || null) : null,
       observations: formData.taskObservations,
       duration: formData.duration,
       shifts: { ...formData.shifts },
@@ -878,6 +962,8 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
       monthlyDays: formData.monthlyDays,
       monthlyWeekdays: formData.monthlyWeekdays,
       monthlyMode: formData.monthlyMode,
+      monthlyFirstWeekday: formData.monthlyFirstWeekday,
+      monthlyLastWeekday: formData.monthlyLastWeekday,
       yearlyMonths: formData.yearlyMonths,
       yearlyDays: formData.yearlyDays,
       alertTaskCompleted: formData.alertTaskCompleted,
@@ -902,6 +988,8 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
       monthlyDays: [],
       monthlyWeekdays: [],
       monthlyMode: "dates",
+      monthlyFirstWeekday: null,
+      monthlyLastWeekday: null,
       yearlyMonths: [],
       yearlyDays: [],
       alertTaskCompleted: false,
@@ -1016,6 +1104,24 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
         return
       }
 
+      // If an end date was provided, ensure it's valid and not before the start date
+      if (formData.endDate) {
+        const endIso = toISODate(formData.endDate)
+        if (!endIso) {
+          setErrors({ endDate: t("invalidDate") })
+          return
+        }
+        const endDateObj = new Date(endIso + "T00:00:00")
+        if (isNaN(endDateObj.getTime())) {
+          setErrors({ endDate: t("invalidDate") })
+          return
+        }
+        if (endDateObj < startDateObj) {
+          setErrors({ endDate: t("endDateMustBeEqualOrAfterStart") || "End date must be equal or after Start date" })
+          return
+        }
+      }
+
       // Otherwise advance signing sub-steps or main step
       // If we're on the Signing Methods sub-step (3) require at least one method selected
       if (currentSigningStep === 3) {
@@ -1036,6 +1142,40 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
         setCurrentSigningStep(1)
       }
     } else if (currentMainStep === 2) {
+      // If user has partially filled the task form (draft), validate its dates before allowing to advance
+      const draftPresent = (() => {
+        // Consider draft present if there's a task name or any date/periodicity/interval set
+        if ((formData.task || "").trim() !== "") return true
+        if (formData.taskStartDate) return true
+        if (formData.taskEndDate) return true
+        if (formData.periodicity && formData.periodicity !== "once") return true
+        return false
+      })()
+
+      if (draftPresent) {
+        // If start provided, ensure it's valid
+        if (formData.taskStartDate) {
+          const s = toISODate(formData.taskStartDate)
+          if (!s) {
+            setErrors((prev) => ({ ...prev, taskStartDate: t("invalidDate") }))
+            return
+          }
+          if (formData.taskEndDate) {
+            const e = toISODate(formData.taskEndDate)
+            if (!e) {
+              setErrors((prev) => ({ ...prev, taskEndDate: t("invalidDate") }))
+              return
+            }
+            const startObj = new Date(s + "T00:00:00")
+            const endObj = new Date(e + "T00:00:00")
+            if (endObj < startObj) {
+              setErrors((prev) => ({ ...prev, taskEndDate: t("endDateMustBeEqualOrAfterStart") || "End date must be equal or after Start date" }))
+              return
+            }
+          }
+        }
+      }
+
       setCurrentMainStep(3)
     }
   }, [currentMainStep, currentSigningStep, formData, setErrors])
@@ -1265,6 +1405,13 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
             if (task.monthlyMode === "weekdays" && task.monthlyWeekdays.length > 0) {
               taskPayload.monthlyWeekdays = task.monthlyWeekdays
             }
+            // First/Last weekday modes map to backend monthlyStartWeekday/monthlyEndWeekday
+            if (task.monthlyMode === "firstWeekDay" && typeof task.monthlyFirstWeekday !== 'undefined' && task.monthlyFirstWeekday !== null) {
+              taskPayload.monthlyStartWeekday = Number(task.monthlyFirstWeekday)
+            }
+            if (task.monthlyMode === "lastWeekDay" && typeof task.monthlyLastWeekday !== 'undefined' && task.monthlyLastWeekday !== null) {
+              taskPayload.monthlyEndWeekday = Number(task.monthlyLastWeekday)
+            }
           }
           if (task.periodicity === "yearly") {
             if (task.yearlyMonths.length > 0) {
@@ -1279,21 +1426,39 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
         })
       }
 
-      // Build survey
-      let survey: any = null
+      // Build surveys for customer and worker (if enabled)
+      const parseMonitoringValue = (val: any) => {
+        // Slider component sometimes returns an array (for ranges). We store a single threshold number 1..10
+        let n = 1
+        if (Array.isArray(val)) {
+          n = Number(val[0]) || 1
+        } else {
+          n = Number(val) || 1
+        }
+        if (Number.isNaN(n)) n = 1
+        if (n < 1) n = 1
+        if (n > 10) n = 10
+        return n
+      }
+
+      let customerSurveyPayload: any = null
+      let workerSurveyPayload: any = null
+
       if (enableSurveys) {
-        const questions: any[] = []
+        // Customer survey
+        const custQuestions: any[] = []
         if (formData.customerSurvey.questionText) {
-          questions.push({
+          custQuestions.push({
             questionText: formData.customerSurvey.questionText,
             questionType: "rating",
+            // store options as string for compatibility with previous format
             options: "1,2,3,4,5,6,7,8,9,10",
             isRequired: true,
             order: 1,
           })
         }
         if (formData.customerSurvey.textAlertTracking) {
-          questions.push({
+          custQuestions.push({
             questionText: formData.customerSurvey.textAlertTracking,
             questionType: "text",
             isRequired: false,
@@ -1301,14 +1466,66 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
           })
         }
 
-        if (questions.length > 0) {
-          survey = {
-            title: "Job Survey",
-            description: formData.customerSurvey.farewellText || "Please fill after job completion.",
-            questions,
+        if (custQuestions.length > 0) {
+          customerSurveyPayload = {
+            // Single question shown as survey-level question
+            questionText: formData.customerSurvey.questionText,
+            // Farewell/greeting text
+            greetingText: formData.customerSurvey.farewellText || "Please fill after job completion.",
+            // Numeric threshold
+            rateDigit: parseMonitoringValue(formData.customerSurvey.monitoringValue),
+            // If provided, text alert that will be stored as a text-question as well
+            textAlertTracking: formData.customerSurvey.textAlertTracking || null,
+            periodicity: formData.customerSurvey.periodicity,
+            interval: Number(formData.customerSurvey.interval) || 1,
+            // time to send
+            sendTime: formData.customerSurvey.hour || null,
+            // weeklyDays (UI) -> monthlyWeekdays in backend model
+            monthlyWeekdays: formData.customerSurvey.weeklyDays?.length ? formData.customerSurvey.weeklyDays : (formData.customerSurvey.monthlyWeekdays || []),
+            monthlyDays: formData.customerSurvey.monthlyDays || [],
+            monthlyStartWeekday: formData.customerSurvey.monthlyFirstWeekday,
+            monthlyEndWeekday: formData.customerSurvey.monthlyLastWeekday,
+          }
+        }
+
+        // Worker survey
+        const workQuestions: any[] = []
+        if (formData.workerSurvey.questionText) {
+          workQuestions.push({
+            questionText: formData.workerSurvey.questionText,
+            questionType: "rating",
+            options: "1,2,3,4,5,6,7,8,9,10",
+            isRequired: true,
+            order: 1,
+          })
+        }
+        if (formData.workerSurvey.textAlertTracking) {
+          workQuestions.push({
+            questionText: formData.workerSurvey.textAlertTracking,
+            questionType: "text",
+            isRequired: false,
+            order: 2,
+          })
+        }
+
+        if (workQuestions.length > 0) {
+          workerSurveyPayload = {
+            questionText: formData.workerSurvey.questionText,
+            greetingText: formData.workerSurvey.farewellText || "Please fill after job completion.",
+            rateDigit: parseMonitoringValue(formData.workerSurvey.monitoringValue),
+            textAlertTracking: formData.workerSurvey.textAlertTracking || null,
+            periodicity: formData.workerSurvey.periodicity,
+            interval: Number(formData.workerSurvey.interval) || 1,
+            sendTime: formData.workerSurvey.hour || null,
+            monthlyWeekdays: formData.workerSurvey.weeklyDays?.length ? formData.workerSurvey.weeklyDays : (formData.workerSurvey.monthlyWeekdays || []),
+            monthlyDays: formData.workerSurvey.monthlyDays || [],
+            monthlyStartWeekday: formData.workerSurvey.monthlyFirstWeekday,
+            monthlyEndWeekday: formData.workerSurvey.monthlyLastWeekday,
           }
         }
       }
+
+      // No survey start/end date validations: surveys don't use explicit start/end dates anymore.
 
       const payload = {
         jobName: formData.denomination,
@@ -1324,7 +1541,8 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
         alerts,
         tasks,
         ...(seasonPeriodsPayload.length > 0 && { seasonPeriods: seasonPeriodsPayload }),
-        ...(survey && { survey }),
+        ...(customerSurveyPayload && { customerSurvey: customerSurveyPayload }),
+        ...(workerSurveyPayload && { workerSurvey: workerSurveyPayload }),
       }
 
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/jobs`, {
@@ -1514,6 +1732,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
               onChange={(e) => updateFormData("endDate", e.target.value)}
               className="mt-1 w-36"
             />
+            {errors.endDate && <div className="text-sm text-destructive mt-1">{errors.endDate}</div>}
           </div>
         </div>
       </div>
@@ -1934,7 +2153,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
                 <TooltipTrigger>
                   <Info className="inline-flex items-center p-0 w-3 h-3 text-muted-foreground cursor-help ml-1" />
                 </TooltipTrigger>
-                <TooltipContent side="right" align="center" sideOffset={6} className="max-w-[12.6rem]">
+                <TooltipContent side="right" align="left" sideOffset={6} className="max-w-[12.6rem] text-left whitespace-pre-line">
                   {t("signingMethodTitleTips")}
                 </TooltipContent>
               </Tooltip>
@@ -2267,7 +2486,19 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
         <div className="space-y-6 mt-8">
           {/* Tasks use job-level workCenterIds. Show the selected work centers for context. */}
           <div>
-            <Label className="text-sm font-medium text-foreground">{t("workCenter") || "Work Center(s)"}</Label>
+            <Label className="text-sm font-medium text-foreground flex items-center gap-1">
+              <span>{t("workCenter") || "Work Center(s)"}</span>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger>
+                    <Info className="inline-flex items-center p-0 w-3 h-3 text-muted-foreground cursor-help ml-1" />
+                  </TooltipTrigger>
+                  <TooltipContent side="right" align="center" sideOffset={6} className="max-w-[12.6rem]">
+                    {t("taskWorkCenterTips") || "taskWorkCenterTips"}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </Label>
             <div className="mt-1">
               {formData.workCenterIds && formData.workCenterIds.length > 0 ? (
                 <Select
@@ -2278,6 +2509,9 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
                     <SelectValue placeholder={t("selectWorkCenter") || "Select a work center"} />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem key="-1" value="-1">
+                      {t("itinereEntrada") || "In itinere - In"}
+                    </SelectItem>
                     {formData.workCenterIds.map((wcId) => {
                       const wc = workCenters.find((w) => String(w.id) === String(wcId))
                       return wc ? (
@@ -2286,6 +2520,11 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
                         </SelectItem>
                       ) : null
                     })}
+                    {/* Virtual/inline work centers: In itinere (Entrada) and In itinere (Salida) */}
+                 
+                    <SelectItem key="-2" value="-2">
+                      {t("itinereSalida") || "In itinere - Out"}
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               ) : (
@@ -2304,6 +2543,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
               value={formData.task}
               onChange={(e) => updateFormData("task", e.target.value)}
               className="mt-1"
+              placeholder={t("taskPlaceholder") || "Task description"}
             />
           </div>
 
@@ -2349,10 +2589,10 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
                   </TooltipProvider>
                 </Label>
                 <div className="flex items-center gap-2 mt-1">
-                  <Input
+                  <TimeField
                     id="duration"
                     value={formData.duration}
-                    onChange={(e) => updateFormData("duration", e.target.value)}
+                    onChange={(v) => updateFormData("duration", v)}
                     placeholder="hh:mm"
                     className="w-24"
                   />
@@ -2391,9 +2631,10 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
                         <DateInput
                           value={formData.taskStartDate}
                           onChange={(e) => updateFormData("taskStartDate", e.target.value)}
-                          className="w-full"
-                          placeholder={t("startDate") || "Start date"}
+                          className=" w-36"
+                          placeholder="dd/mm/aaaa"
                         />
+                        {errors.taskStartDate && <div className="text-sm text-destructive mt-1">{errors.taskStartDate}</div>}
                       </div>
 
                       <div>
@@ -2403,9 +2644,10 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
                         <DateInput
                           value={formData.taskEndDate}
                           onChange={(e) => updateFormData("taskEndDate", e.target.value)}
-                          className="w-full"
-                          placeholder={`${t("endDate") || "End date"} (${t("optional") || "optional"})`}
+                          className=" w-36"
+                          placeholder="dd/mm/aaaa"
                         />
+                         {errors.taskEndDate && <div className="text-sm text-destructive mt-1">{errors.taskEndDate}</div>}
                       </div>
 
                       <div>
@@ -2448,8 +2690,8 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
                     <DateInput
                       value={formData.onceDate}
                       onChange={(e) => updateFormData("onceDate", e.target.value)}
-                      className="w-40"
-                      placeholder={t("selectDate") || "Select date"}
+                      className="w-36"
+                      placeholder="dd/mm/aaaa"
                     />
                   </div>
                 )}
@@ -2459,13 +2701,13 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
                     <Label className="text-sm font-medium mb-2 block">{t("selectDays")}</Label>
                     <div className="flex gap-2">
                       {[
-                        { key: 0, label: t("daySu"), full: t("sunday") },
                         { key: 1, label: t("dayM"), full: t("monday") },
                         { key: 2, label: t("dayT"), full: t("tuesday") },
                         { key: 3, label: t("dayW"), full: t("wednesday") },
                         { key: 4, label: t("dayTh"), full: t("thursday") },
                         { key: 5, label: t("dayF"), full: t("friday") },
                         { key: 6, label: t("daySa"), full: t("saturday") },
+                        { key: 0, label: t("daySu"), full: t("sunday") },
                       ].map((day) => (
                         <button
                           key={day.key}
@@ -2618,13 +2860,13 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
                         {/* <Label className="text-sm font-medium mb-2 block">{t("monthlyWeekdays")}</Label> */}
                         <div className="flex flex-wrap gap-3">
                           {[
-                            { key: "sunday", label: t("sunday"), value: 0 },
                             { key: "monday", label: t("monday"), value: 1 },
                             { key: "tuesday", label: t("tuesday"), value: 2 },
                             { key: "wednesday", label: t("wednesday"), value: 3 },
                             { key: "thursday", label: t("thursday"), value: 4 },
                             { key: "friday", label: t("friday"), value: 5 },
                             { key: "saturday", label: t("saturday"), value: 6 },
+                            { key: "sunday", label: t("sunday"), value: 0 },
                           ].map((day) => (
                             <div key={day.key} className="flex items-center space-x-2">
                               {formData.monthlyMode === "weekdays" ? (
@@ -2838,6 +3080,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
                     <tr>
                       <th className="px-4 py-2 text-left text-sm font-medium">{t("order") || "Order"}</th>
                       <th className="px-4 py-2 text-left text-sm font-medium">{t("task") || "Task"}</th>
+                      <th className="px-4 py-2 text-left text-sm font-medium">{t("workCenter") || "Workcenter"}</th>
                       <th className="px-4 py-2 text-left text-sm font-medium">{t("periodicity") || "Periodicity"}</th>
                       <th className="px-4 py-2 text-left text-sm font-medium">{t("duration") || "Duration"}</th>
                       <th className="px-4 py-2 text-left text-sm font-medium">{t("alerts") || "Alerts"}</th>
@@ -2861,6 +3104,16 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
                           <td className="px-4 py-2 text-sm">{index + 1}</td>
                           <td className="px-4 py-2 text-sm">{task.task}</td>
                           <td className="px-4 py-2 text-sm">
+                            {(() => {
+                              const wc = workCenters.find((w) => String(w.id) === String((task as any).workCenterId))
+                                if (wc) return wc.name
+                                // Friendly labels for virtual work centers stored as negative ids
+                                if ((task as any).workCenterId === -1 || String((task as any).workCenterId) === "-1") return (t("itinereEntrada") || "In itinere - In")
+                                if ((task as any).workCenterId === -2 || String((task as any).workCenterId) === "-2") return (t("itinereSalida") || "In itinere - Out")
+                                return (task as any).workCenterId ? String((task as any).workCenterId) : "-"
+                            })()}
+                          </td>
+                          <td className="px-4 py-2 text-sm">
                             {task.periodicity === "once"
                               ? task.onceDate
                               : `${t("every") || "Every"} ${task.interval} ${
@@ -2883,7 +3136,14 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
                           </td>
                           <td className="px-4 py-2 text-sm">{task.duration || "--:-- --"}</td>
                           <td className="px-4 py-2 text-sm">
-                            {task.alertTaskCompleted || task.pendingTaskAlert ? "👍" : ""}
+                            <div className="flex items-center gap-2">
+                              {task.alertTaskCompleted && (
+                                <span title={t("alertTaskCompleted") || "Alert completed"} className="text-green-600">👍</span>
+                              )}
+                              {task.pendingTaskAlert && (
+                                <span title={t("pendingTaskAlert") || "Pending alert"} className="text-yellow-600">👎</span>
+                              )}
+                            </div>
                           </td>
                           <td className="px-4 py-2 text-sm text-right">
                             <button
@@ -2899,6 +3159,19 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
                       )
                     })}
                   </tbody>
+                  <tfoot className="bg-gray-200">
+                    <tr>
+                      <td />
+                      <td />
+                      <td />
+                      <td />
+                    <td className="px-4 py-2 text-sm font-semibold bg-[#EDE7F6] border-2 border-[#6A1B9A] rounded-lg text-[#4A148C]" >
+                        {tasksTotalDisplay}
+                      </td>
+                      <td />
+                      <td />
+                    </tr>
+                  </tfoot>
                 </table>
               </div>
             </div>
@@ -2934,20 +3207,31 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
               <div className="space-y-6">
                 <div>
                   <Label htmlFor="customerQuestionText" className="text-sm font-medium text-foreground">
-                    {t("questionText") || "Question Text"}
+                    {t("questionText") || "Texto de la pregunta"}
                   </Label>
                   <Input
                     id="customerQuestionText"
                     value={formData.customerSurvey.questionText}
                     onChange={(e) => updateNestedFormData("customerSurvey", "questionText", e.target.value)}
                     className="mt-1"
+                    placeholder={t("questionTextPlaceHolder") || "Texto de la pregunta"}
                   />
                 </div>
 
                 <div>
                   <Label htmlFor="customerMonitoringValue" className="text-sm font-medium text-foreground">
-                    {t("monitoringValue") || "Monitoring Value"}
-                  </Label>
+                      {t("monitoringValue") || "Límite de alerta"}
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <Info className="w-3 h-3 text-muted-foreground cursor-help ml-1" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            {t("surveyMonitoringValueTips")}
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </Label>
                   <Slider
                     defaultValue={formData.customerSurvey.monitoringValue}
                     max={10}
@@ -2955,82 +3239,245 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
                     onValueChange={(value) => updateNestedFormData("customerSurvey", "monitoringValue", value)}
                     className="mt-2"
                   />
+                  {/* Numeric scale below slider (0..10) to match screenshot */}
+                  <div className="flex items-center justify-between text-xs text-muted-foreground mt-2 px-1">
+                    {Array.from({ length: 11 }, (_, i) => (
+                      <span key={i} className="w-6 text-center">{i}</span>
+                    ))}
+                  </div>
                 </div>
 
                 <div>
                   <Label htmlFor="customerTextAlertTracking" className="text-sm font-medium text-foreground">
-                    {t("textAlertTracking") || "Text Alert Tracking"}
+                    {t("textAlertTracking") || "Mensaje de alerta"}
                   </Label>
                   <Textarea
                     id="customerTextAlertTracking"
                     value={formData.customerSurvey.textAlertTracking}
                     onChange={(e) => updateNestedFormData("customerSurvey", "textAlertTracking", e.target.value)}
-                    className="mt-1"
-                    rows={3}
+                    className="mt-1 min-h-[48px]"
+                    placeholder={t("textAlertTrackingPlaceHolder") || "Indícanos en qué debemos mejorar"}
+                    rows={1}
                   />
                 </div>
 
                 <div>
                   <Label htmlFor="customerFarewellText" className="text-sm font-medium text-foreground">
-                    {t("farewellText") || "Farewell Text"}
+                    {t("farewellText") || "Mensaje de despedida"}
                   </Label>
                   <Textarea
                     id="customerFarewellText"
                     value={formData.customerSurvey.farewellText}
                     onChange={(e) => updateNestedFormData("customerSurvey", "farewellText", e.target.value)}
-                    className="mt-1"
-                    rows={3}
+                    className="mt-1 min-h-[48px]"
+                    placeholder={t("farewellTextPlaceHolder") || "Gracias por tu colaboración"}
+                    rows={1}
                   />
                 </div>
+                <div>
+                  <Label className="text-sm font-medium text-foreground">{t("periodicity") || "Periodicidad"}</Label>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <Info className="w-3 h-3 text-muted-foreground cursor-help ml-1" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      {t("surveyPriodicityTips")}
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                  <Select
+                    value={formData.customerSurvey.periodicity}
+                    onValueChange={(value) => updateNestedFormData("customerSurvey", "periodicity", value)}
+                  >
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder={t("selectPeriodicity") || "Seleccione periodicidad"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="daily">{t("daily") || "Diaria"}</SelectItem>
+                      <SelectItem value="weekly">{t("weekly") || "Semanal"}</SelectItem>
+                      <SelectItem value="monthly">{t("monthly") || "Mensual"}</SelectItem>
+                    </SelectContent>
+                  </Select>
 
-                <div className="grid grid-cols-2 gap-8">
-                  <div>
-                    <Label className="text-sm font-medium text-foreground">{t("periodicity") || "Periodicity"}</Label>
-                    <Select
-                      value={formData.customerSurvey.periodicity}
-                      onValueChange={(value) => updateNestedFormData("customerSurvey", "periodicity", value)}
-                    >
-                      <SelectTrigger className="mt-1">
-                        <SelectValue placeholder={t("selectPeriodicity") || "Select periodicity"} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="daily">{t("daily") || "Daily"}</SelectItem>
-                        <SelectItem value="weekly">{t("weekly") || "Weekly"}</SelectItem>
-                        <SelectItem value="monthly">{t("monthly") || "Monthly"}</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="customerPeriodicityValue" className="text-sm font-medium text-foreground">
-                      {t("periodicityValue") || "Periodicity Value"}
-                    </Label>
-                    <Input
-                      id="customerPeriodicityValue"
-                      type="number"
-                      value={formData.customerSurvey.periodicityValue}
-                      onChange={(e) => updateNestedFormData("customerSurvey", "periodicityValue", e.target.value)}
-                      className="mt-1 w-24"
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="customerHour" className="text-sm font-medium text-foreground">
-                      {t("hour") || "Hour"}
-                    </Label>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Input
-                        id="customerHour"
-                        value={formData.customerSurvey.hour}
-                        onChange={(e) => updateNestedFormData("customerSurvey", "hour", e.target.value)}
-                        placeholder="08:00"
-                        className="w-24"
-                      />
-                      <TimePicker
-                        value={formData.customerSurvey.hour}
-                        onChange={(time) => updateNestedFormData("customerSurvey", "hour", time)}
-                      />
+                  <div className="mt-4 p-4 bg-muted/30 border border-border rounded-lg">
+                    <div className="grid grid-cols-1 gap-6 items-end">
+                      <div>
+                        <Label className="text-sm font-medium mb-2 block">{t("interval") || "Intervalo"}</Label>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-muted-foreground">{t("every") || "Cada"}</span>
+                          <Input
+                            type="number"
+                            value={formData.customerSurvey.interval}
+                            onChange={(e) => updateNestedFormData("customerSurvey", "interval", Number(e.target.value))}
+                            className="w-16 text-center"
+                            min="1"
+                          />
+                          <span className="text-sm text-muted-foreground">{(formData.customerSurvey.periodicity === "daily" ? (formData.customerSurvey.interval === 1 ? t("day") || "Día" : t("days") || "Días") : formData.customerSurvey.periodicity === "weekly" ? (formData.customerSurvey.interval === 1 ? t("week") || "Semana" : t("weeks") || "Semanas") : (formData.customerSurvey.interval === 1 ? t("month") || "Mes" : t("months") || "Meses"))}</span>
+                        </div>
+                      </div>
                     </div>
+
+                    {formData.customerSurvey.periodicity === "weekly" && (
+                      <div className="mt-4">
+                        <Label className="text-sm font-medium mb-2 block">{t("selectDays") || "Seleccionar Días"}</Label>
+                        <div className="flex gap-2">
+                          {[
+                            { key: 1, label: t("dayM"), full: t("monday") },
+                            { key: 2, label: t("dayT"), full: t("tuesday") },
+                            { key: 3, label: t("dayW"), full: t("wednesday") },
+                            { key: 4, label: t("dayTh"), full: t("thursday") },
+                            { key: 5, label: t("dayF"), full: t("friday") },
+                            { key: 6, label: t("daySa"), full: t("saturday") },
+                            { key: 0, label: t("daySu"), full: t("sunday") },
+                          ].map((day) => (
+                            <button
+                              key={day.key}
+                              type="button"
+                              className={`
+                                w-8 h-8 flex items-center justify-center text-sm font-medium rounded border transition-all
+                                ${
+                                  formData.customerSurvey.weeklyDays?.includes(day.key)
+                                    ? "border-primary bg-primary text-primary-foreground"
+                                    : "border-border bg-background hover:border-primary hover:bg-muted"
+                                }
+                              `}
+                              onClick={() => {
+                                const currentDays = formData.customerSurvey.weeklyDays || []
+                                if (currentDays.includes(day.key)) {
+                                  updateNestedFormData(
+                                    "customerSurvey",
+                                    "weeklyDays",
+                                    currentDays.filter((d) => d !== day.key),
+                                  )
+                                } else {
+                                  updateNestedFormData("customerSurvey", "weeklyDays", [...currentDays, day.key])
+                                }
+                              }}
+                              title={day.full}
+                            >
+                              {day.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {formData.customerSurvey.periodicity === "monthly" && (
+                      <div className="mt-4 space-y-4">
+                        <Label className="text-sm font-medium mb-2 block">{t("scheduleBy") || "Programar"}</Label>
+                        <div className="flex gap-3">
+                          <button
+                            type="button"
+                            className={`flex-1 py-3 px-4 text-sm font-medium rounded border-2 transition-all text-center ${formData.customerSurvey.monthlyMode === "dates" ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background hover:border-primary hover:bg-muted"}`}
+                            onClick={() => updateNestedFormData("customerSurvey", "monthlyMode", "dates")}
+                          >
+                            {t("dates") || "Días concretos"}
+                          </button>
+                          <button
+                            type="button"
+                            className={`flex-1 py-3 px-4 text-sm font-medium rounded border-2 transition-all text-center ${formData.customerSurvey.monthlyMode === "weekdays" ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background hover:border-primary hover:bg-muted"}`}
+                            onClick={() => updateNestedFormData("customerSurvey", "monthlyMode", "weekdays")}
+                          >
+                            {t("weekdays") || "Días de la Semana"}
+                          </button>
+                          <button
+                            type="button"
+                            className={`flex-1 py-3 px-4 text-sm font-medium rounded border-2 transition-all text-center ${formData.customerSurvey.monthlyMode === "firstWeekDay" ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background hover:border-primary hover:bg-muted"}`}
+                            onClick={() => updateNestedFormData("customerSurvey", "monthlyMode", "firstWeekDay")}
+                          >
+                            {t("firstWeekDay") || "El primero del mes"}
+                          </button>
+                          <button
+                            type="button"
+                            className={`flex-1 py-3 px-4 text-sm font-medium rounded border-2 transition-all text-center ${formData.customerSurvey.monthlyMode === "lastWeekDay" ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background hover:border-primary hover:bg-muted"}`}
+                            onClick={() => updateNestedFormData("customerSurvey", "monthlyMode", "lastWeekDay")}
+                          >
+                            {t("lastWeekDay") || "El último del mes"}
+                          </button>
+                        </div>
+
+                        {formData.customerSurvey.monthlyMode === "dates" && (
+                          <div className="flex flex-wrap gap-2">
+                            {Array.from({ length: 31 }, (_, i) => i + 1).map((date) => (
+                              <button
+                                key={date}
+                                type="button"
+                                className={`w-8 h-8 flex items-center justify-center text-sm font-medium rounded border-2 transition-all ${formData.customerSurvey.monthlyDays?.includes(date) ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background hover:border-primary hover:bg-muted"}`}
+                                onClick={() => {
+                                  const current = formData.customerSurvey.monthlyDays || []
+                                  if (current.includes(date)) {
+                                    updateNestedFormData("customerSurvey", "monthlyDays", current.filter((d) => d !== date))
+                                  } else {
+                                    updateNestedFormData("customerSurvey", "monthlyDays", [...current, date])
+                                  }
+                                }}
+                              >
+                                {date}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+
+                        {(formData.customerSurvey.monthlyMode === "weekdays" || formData.customerSurvey.monthlyMode === "firstWeekDay" || formData.customerSurvey.monthlyMode === "lastWeekDay") && (
+                          <div className="flex flex-wrap gap-3">
+                            {[
+                              { key: "monday", label: t("monday"), value: 1 },
+                              { key: "tuesday", label: t("tuesday"), value: 2 },
+                              { key: "wednesday", label: t("wednesday"), value: 3 },
+                              { key: "thursday", label: t("thursday"), value: 4 },
+                              { key: "friday", label: t("friday"), value: 5 },
+                              { key: "saturday", label: t("saturday"), value: 6 },
+                              { key: "sunday", label: t("sunday"), value: 0 },
+                            ].map((day) => (
+                              <div key={day.key} className="flex items-center space-x-2">
+                                {formData.customerSurvey.monthlyMode === "weekdays" ? (
+                                  <>
+                                    <Checkbox
+                                      id={`customer-monthly-${day.key}`}
+                                      checked={formData.customerSurvey.monthlyWeekdays?.includes(day.value) || false}
+                                      onCheckedChange={(checked) => {
+                                        const current = formData.customerSurvey.monthlyWeekdays || []
+                                        if (checked) {
+                                          updateNestedFormData("customerSurvey", "monthlyWeekdays", [...current, day.value])
+                                        } else {
+                                          updateNestedFormData("customerSurvey", "monthlyWeekdays", current.filter((d) => d !== day.value))
+                                        }
+                                      }}
+                                    />
+                                    <Label htmlFor={`customer-monthly-${day.key}`} className="text-sm cursor-pointer">
+                                      {day.label}
+                                    </Label>
+                                  </>
+                                ) : (
+                                  <>
+                                    <input
+                                      type="radio"
+                                      name={`customer-monthly-${formData.customerSurvey.monthlyMode}`}
+                                      id={`customer-monthly-${day.key}-radio`}
+                                      checked={formData.customerSurvey.monthlyMode === "firstWeekDay" ? formData.customerSurvey.monthlyFirstWeekday === day.value : formData.customerSurvey.monthlyLastWeekday === day.value}
+                                      onChange={() => {
+                                        if (formData.customerSurvey.monthlyMode === "firstWeekDay") {
+                                          updateNestedFormData("customerSurvey", "monthlyFirstWeekday", day.value)
+                                          updateNestedFormData("customerSurvey", "monthlyLastWeekday", null)
+                                        } else {
+                                          updateNestedFormData("customerSurvey", "monthlyLastWeekday", day.value)
+                                          updateNestedFormData("customerSurvey", "monthlyFirstWeekday", null)
+                                        }
+                                      }}
+                                      className="form-radio text-primary"
+                                    />
+                                    <Label htmlFor={`customer-monthly-${day.key}-radio`} className="text-sm cursor-pointer ml-2">
+                                      {day.label}
+                                    </Label>
+                                  </>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -3040,19 +3487,30 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
               <div className="space-y-6">
                 <div>
                   <Label htmlFor="workerQuestionText" className="text-sm font-medium text-foreground">
-                    {t("questionText") || "Question Text"}
+                    {t("questionText") || "Texto de la pregunta"}
                   </Label>
                   <Input
                     id="workerQuestionText"
                     value={formData.workerSurvey.questionText}
                     onChange={(e) => updateNestedFormData("workerSurvey", "questionText", e.target.value)}
                     className="mt-1"
+                    placeholder={t("questionTextPlaceHolder") || "Texto de la pregunta"}
                   />
                 </div>
 
                 <div>
                   <Label htmlFor="workerMonitoringValue" className="text-sm font-medium text-foreground">
-                    {t("monitoringValue") || "Monitoring Value"}
+                    {t("monitoringValue") || "Límite de alerta"}
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <Info className="w-3 h-3 text-muted-foreground cursor-help ml-1" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {t("surveyMonitoringValueTips")}
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   </Label>
                   <Slider
                     defaultValue={formData.workerSurvey.monitoringValue}
@@ -3061,87 +3519,279 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
                     onValueChange={(value) => updateNestedFormData("workerSurvey", "monitoringValue", value)}
                     className="mt-2"
                   />
+                  <div className="flex items-center justify-between text-xs text-muted-foreground mt-2 px-1">
+                    {Array.from({ length: 11 }, (_, i) => (
+                      <span key={i} className="w-6 text-center">{i}</span>
+                    ))}
+                  </div>
                 </div>
 
                 <div>
                   <Label htmlFor="workerTextAlertTracking" className="text-sm font-medium text-foreground">
-                    {t("textAlertTracking") || "Text Alert Tracking"}
+                    {t("textAlertTracking") || "Mensaje de alerta"}
                   </Label>
                   <Textarea
                     id="workerTextAlertTracking"
                     value={formData.workerSurvey.textAlertTracking}
                     onChange={(e) => updateNestedFormData("workerSurvey", "textAlertTracking", e.target.value)}
-                    className="mt-1"
-                    rows={3}
+                    className="mt-1 min-h-[48px]"
+                    placeholder={t("textAlertTrackingPlaceHolder") || "Indícanos en qué debemos mejorar"}
+                    rows={1}
                   />
                 </div>
 
                 <div>
                   <Label htmlFor="workerFarewellText" className="text-sm font-medium text-foreground">
-                    {t("farewellText") || "Farewell Text"}
+                    {t("farewellText") || "Mensaje de despedida"}
                   </Label>
                   <Textarea
                     id="workerFarewellText"
                     value={formData.workerSurvey.farewellText}
                     onChange={(e) => updateNestedFormData("workerSurvey", "farewellText", e.target.value)}
-                    className="mt-1"
-                    rows={3}
+                    className="mt-1 min-h-[48px]"
+                    placeholder={t("farewellTextPlaceHolder") || "Gracias por tu colaboración"}
+                    rows={1}
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-8">
-                  <div>
-                    <Label className="text-sm font-medium text-foreground">{t("periodicity") || "Periodicity"}</Label>
-                    <Select
-                      value={formData.workerSurvey.periodicity}
-                      onValueChange={(value) => updateNestedFormData("workerSurvey", "periodicity", value)}
-                    >
-                      <SelectTrigger className="mt-1">
-                        <SelectValue placeholder={t("selectPeriodicity") || "Select periodicity"} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="daily">{t("daily") || "Daily"}</SelectItem>
-                        <SelectItem value="weekly">{t("weekly") || "Weekly"}</SelectItem>
-                        <SelectItem value="monthly">{t("monthly") || "Monthly"}</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                <div>
+                  <Label className="text-sm font-medium text-foreground">{t("periodicity") || "Periodicidad"}
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <Info className="w-3 h-3 text-muted-foreground cursor-help ml-1" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {t("surveyPriodicityTips")}
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </Label>
+                  <Select
+                    value={formData.workerSurvey.periodicity}
+                    onValueChange={(value) => updateNestedFormData("workerSurvey", "periodicity", value)}
+                  >
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder={t("selectPeriodicity") || "Seleccione periodicidad"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="daily">{t("daily") || "Diaria"}</SelectItem>
+                      <SelectItem value="weekly">{t("weekly") || "Semanal"}</SelectItem>
+                      <SelectItem value="monthly">{t("monthly") || "Mensual"}</SelectItem>
+                    </SelectContent>
+                  </Select>
 
-                  <div>
-                    <Label htmlFor="workerPeriodicityValue" className="text-sm font-medium text-foreground">
-                      {t("periodicityValue") || "Periodicity Value"}
-                    </Label>
-                    <Input
-                      id="workerPeriodicityValue"
-                      type="number"
-                      value={formData.workerSurvey.periodicityValue}
-                      onChange={(e) => updateNestedFormData("workerSurvey", "periodicityValue", e.target.value)}
-                      className="mt-1 w-24"
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="workerHour" className="text-sm font-medium text-foreground">
-                      {t("hour") || "Hour"}
-                    </Label>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Input
-                        id="workerHour"
-                        value={formData.workerSurvey.hour}
-                        onChange={(e) => updateNestedFormData("workerSurvey", "hour", e.target.value)}
-                        placeholder="08:00"
-                        className="w-24"
-                      />
-                      <TimePicker
-                        value={formData.workerSurvey.hour}
-                        onChange={(time) => updateNestedFormData("workerSurvey", "hour", time)}
-                      />
+                  <div className="mt-4 p-4 bg-muted/30 border border-border rounded-lg">
+                    <div className="grid grid-cols-1 gap-6 items-end">
+                      <div>
+                        <Label className="text-sm font-medium mb-2 block">{t("interval") || "Intervalo"}</Label>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-muted-foreground">{t("every") || "Cada"}</span>
+                          <Input
+                            type="number"
+                            value={formData.workerSurvey.interval}
+                            onChange={(e) => updateNestedFormData("workerSurvey", "interval", Number(e.target.value))}
+                            className="w-16 text-center"
+                            min="1"
+                          />
+                          <span className="text-sm text-muted-foreground">{(formData.workerSurvey.periodicity === "daily" ? (formData.workerSurvey.interval === 1 ? t("day") || "Día" : t("days") || "Días") : formData.workerSurvey.periodicity === "weekly" ? (formData.workerSurvey.interval === 1 ? t("week") || "Semana" : t("weeks") || "Semanas") : (formData.workerSurvey.interval === 1 ? t("month") || "Mes" : t("months") || "Meses"))}</span>
+                        </div>
+                      </div>
                     </div>
+
+                    {formData.workerSurvey.periodicity === "weekly" && (
+                      <div className="mt-4">
+                        <Label className="text-sm font-medium mb-2 block">{t("selectDays") || "Seleccionar Días"}</Label>
+                        <div className="flex gap-2">
+                          {[
+                            { key: 1, label: t("dayM"), full: t("monday") },
+                            { key: 2, label: t("dayT"), full: t("tuesday") },
+                            { key: 3, label: t("dayW"), full: t("wednesday") },
+                            { key: 4, label: t("dayTh"), full: t("thursday") },
+                            { key: 5, label: t("dayF"), full: t("friday") },
+                            { key: 6, label: t("daySa"), full: t("saturday") },
+                            { key: 0, label: t("daySu"), full: t("sunday") },
+                          ].map((day) => (
+                            <button
+                              key={day.key}
+                              type="button"
+                              className={`
+                                w-8 h-8 flex items-center justify-center text-sm font-medium rounded border transition-all
+                                ${
+                                  formData.workerSurvey.weeklyDays?.includes(day.key)
+                                    ? "border-primary bg-primary text-primary-foreground"
+                                    : "border-border bg-background hover:border-primary hover:bg-muted"
+                                }
+                              `}
+                              onClick={() => {
+                                const currentDays = formData.workerSurvey.weeklyDays || []
+                                if (currentDays.includes(day.key)) {
+                                  updateNestedFormData(
+                                    "workerSurvey",
+                                    "weeklyDays",
+                                    currentDays.filter((d) => d !== day.key),
+                                  )
+                                } else {
+                                  updateNestedFormData("workerSurvey", "weeklyDays", [...currentDays, day.key])
+                                }
+                              }}
+                              title={day.full}
+                            >
+                              {day.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {formData.workerSurvey.periodicity === "monthly" && (
+                      <div className="mt-4 space-y-4">
+                        <Label className="text-sm font-medium mb-2 block">{t("scheduleBy") || "Programar"}</Label>
+                        <div className="flex gap-3">
+                          <button
+                            type="button"
+                            className={`flex-1 py-3 px-4 text-sm font-medium rounded border-2 transition-all text-center ${formData.workerSurvey.monthlyMode === "dates" ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background hover:border-primary hover:bg-muted"}`}
+                            onClick={() => updateNestedFormData("workerSurvey", "monthlyMode", "dates")}
+                          >
+                            {t("dates") || "Días concretos"}
+                          </button>
+                          <button
+                            type="button"
+                            className={`flex-1 py-3 px-4 text-sm font-medium rounded border-2 transition-all text-center ${formData.workerSurvey.monthlyMode === "weekdays" ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background hover:border-primary hover:bg-muted"}`}
+                            onClick={() => updateNestedFormData("workerSurvey", "monthlyMode", "weekdays")}
+                          >
+                            {t("weekdays") || "Días de la Semana"}
+                          </button>
+                          <button
+                            type="button"
+                            className={`flex-1 py-3 px-4 text-sm font-medium rounded border-2 transition-all text-center ${formData.workerSurvey.monthlyMode === "firstWeekDay" ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background hover:border-primary hover:bg-muted"}`}
+                            onClick={() => updateNestedFormData("workerSurvey", "monthlyMode", "firstWeekDay")}
+                          >
+                            {t("firstWeekDay") || "El primero del mes"}
+                          </button>
+                          <button
+                            type="button"
+                            className={`flex-1 py-3 px-4 text-sm font-medium rounded border-2 transition-all text-center ${formData.workerSurvey.monthlyMode === "lastWeekDay" ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background hover:border-primary hover:bg-muted"}`}
+                            onClick={() => updateNestedFormData("workerSurvey", "monthlyMode", "lastWeekDay")}
+                          >
+                            {t("lastWeekDay") || "El último del mes"}
+                          </button>
+                        </div>
+
+                        {formData.workerSurvey.monthlyMode === "dates" && (
+                          <div className="flex flex-wrap gap-2">
+                            {Array.from({ length: 31 }, (_, i) => i + 1).map((date) => (
+                              <button
+                                key={date}
+                                type="button"
+                                className={`w-8 h-8 flex items-center justify-center text-sm font-medium rounded border-2 transition-all ${formData.workerSurvey.monthlyDays?.includes(date) ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background hover:border-primary hover:bg-muted"}`}
+                                onClick={() => {
+                                  const current = formData.workerSurvey.monthlyDays || []
+                                  if (current.includes(date)) {
+                                    updateNestedFormData("workerSurvey", "monthlyDays", current.filter((d) => d !== date))
+                                  } else {
+                                    updateNestedFormData("workerSurvey", "monthlyDays", [...current, date])
+                                  }
+                                }}
+                              >
+                                {date}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+
+                        {(formData.workerSurvey.monthlyMode === "weekdays" || formData.workerSurvey.monthlyMode === "firstWeekDay" || formData.workerSurvey.monthlyMode === "lastWeekDay") && (
+                          <div className="flex flex-wrap gap-3">
+                            {[
+                              { key: "monday", label: t("monday"), value: 1 },
+                              { key: "tuesday", label: t("tuesday"), value: 2 },
+                              { key: "wednesday", label: t("wednesday"), value: 3 },
+                              { key: "thursday", label: t("thursday"), value: 4 },
+                              { key: "friday", label: t("friday"), value: 5 },
+                              { key: "saturday", label: t("saturday"), value: 6 },
+                              { key: "sunday", label: t("sunday"), value: 0 },
+                            ].map((day) => (
+                              <div key={day.key} className="flex items-center space-x-2">
+                                {formData.workerSurvey.monthlyMode === "weekdays" ? (
+                                  <>
+                                    <Checkbox
+                                      id={`worker-monthly-${day.key}`}
+                                      checked={formData.workerSurvey.monthlyWeekdays?.includes(day.value) || false}
+                                      onCheckedChange={(checked) => {
+                                        const current = formData.workerSurvey.monthlyWeekdays || []
+                                        if (checked) {
+                                          updateNestedFormData("workerSurvey", "monthlyWeekdays", [...current, day.value])
+                                        } else {
+                                          updateNestedFormData("workerSurvey", "monthlyWeekdays", current.filter((d) => d !== day.value))
+                                        }
+                                      }}
+                                    />
+                                    <Label htmlFor={`worker-monthly-${day.key}`} className="text-sm cursor-pointer">
+                                      {day.label}
+                                    </Label>
+                                  </>
+                                ) : (
+                                  <>
+                                    <input
+                                      type="radio"
+                                      name={`worker-monthly-${formData.workerSurvey.monthlyMode}`}
+                                      id={`worker-monthly-${day.key}-radio`}
+                                      checked={formData.workerSurvey.monthlyMode === "firstWeekDay" ? formData.workerSurvey.monthlyFirstWeekday === day.value : formData.workerSurvey.monthlyLastWeekday === day.value}
+                                      onChange={() => {
+                                        if (formData.workerSurvey.monthlyMode === "firstWeekDay") {
+                                          updateNestedFormData("workerSurvey", "monthlyFirstWeekday", day.value)
+                                          updateNestedFormData("workerSurvey", "monthlyLastWeekday", null)
+                                        } else {
+                                          updateNestedFormData("workerSurvey", "monthlyLastWeekday", day.value)
+                                          updateNestedFormData("workerSurvey", "monthlyFirstWeekday", null)
+                                        }
+                                      }}
+                                      className="form-radio text-primary"
+                                    />
+                                    <Label htmlFor={`worker-monthly-${day.key}-radio`} className="text-sm cursor-pointer ml-2">
+                                      {day.label}
+                                    </Label>
+                                  </>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
             </TabsContent>
           </Tabs>
+
+          {/* Hour selector shown after the tabs (applies to currently selected survey tab) */}
+          <div className="mt-4">
+            <Label className="text-sm font-medium text-foreground">{t("surveySendTime") || "Hora envío"}</Label>
+            <div className="mt-1">
+              <div className="relative inline-block">
+                <Input
+                  id="surveyHour"
+                  value={surveyTab === "customer" ? formData.customerSurvey.hour : formData.workerSurvey.hour}
+                  onChange={(e) =>
+                    updateNestedFormData(surveyTab === "customer" ? "customerSurvey" : "workerSurvey", "hour", e.target.value)
+                  }
+                  placeholder="20:00"
+                  className="w-24 pr-8" // add right padding for the icon
+                />
+
+                <div className="absolute right-1 top-1/2 transform -translate-y-1/2">
+                  <TimePicker
+                    value={surveyTab === "customer" ? formData.customerSurvey.hour : formData.workerSurvey.hour}
+                    onChange={(time) =>
+                      updateNestedFormData(surveyTab === "customer" ? "customerSurvey" : "workerSurvey", "hour", time)
+                    }
+                    className="h-5 w-5"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -3189,9 +3839,9 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
   >
     {/* Hide the Previous button when rendering the Definition signing step */}
     {!(currentMainStep === 1 && currentSigningStep === 1) && (
-      <Button variant="secondary" onClick={handlePrevious} disabled={currentMainStep === 1 && currentSigningStep === 1}>
+      <button variant="secondary" onClick={handlePrevious} className="bg-[#7d7d7d] text-white font-normal p-2 rounded-lg" disabled={currentMainStep === 1 && currentSigningStep === 1}>
         {t("previous") || "Previous"}
-      </Button>
+      </button>
     )}
 
     {/* Show destructive 'Borrar' between Previous and Next when on Schedules sub-step and schedule type is programming */}
@@ -3205,13 +3855,15 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
       </Button>
     )}
 
-    {currentMainStep === 3 ? (
-      <Button onClick={handleCreate} disabled={isLoading}>
-        {isLoading ? t("creating") || "Creating..." : t("create") || "Create"}
-      </Button>
-    ) : (
-      <Button onClick={handleNext}>{t("next") || "Next"}</Button>
-    )}
+    <div className="flex items-center gap-3">
+      {currentMainStep === 3 ? (
+        <Button onClick={handleCreate} disabled={isLoading}>
+          {isLoading ? t("creating") || "Creating..." : t("create") || "Create"}
+        </Button>
+      ) : (
+        <Button onClick={handleNext}>{t("next") || "Next"}</Button>
+      )}
+    </div>
   </div>
       </DialogContent>
     </Dialog>

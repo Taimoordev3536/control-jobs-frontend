@@ -24,11 +24,17 @@ const translations: Record<string, Record<string, string>> = {
     loadingWorkCenters: "Loading work centers...",
     search: "Search...",
     mySelf: "Myself",
+    taskPlaceholder: "Enter task name",
+    invalidTime: "Invalid Time",
 
     invalidMonth: "Invalid Month",
     invalidDay: "Invalid Day",
     invalidYear: "Invalid Year",
     invalidDate: "Invalid Date",
+
+    //toaster of task name
+    taskRequired: "Task Required",
+    taskRequiredDescription: "Please enter a task name",
 
     //start end
     start: "Start",
@@ -36,6 +42,13 @@ const translations: Record<string, Record<string, string>> = {
     clearSchedules:"Clear",
     minutes:"minutes",
     min: "min",
+
+    //task Work Center 
+    itinereEntrada: "In itinere - In",
+    itinereSalida: "In itinere - Out",
+
+    selectWorkCenter: "Select work centers",
+
     // info tooltip add-job-modal
     selectWorkCentersInfo:
       "Select one or more work centers. The application will allow clock-in at all selected locations.",
@@ -51,7 +64,9 @@ const translations: Record<string, Record<string, string>> = {
     signingMethodTipsDesktop:"Methods of signing allowed with PC or Laptop",
   signingMethodTitleTips: "Web: Allows clocking in while authenticated in the application.\nIP: Allows clocking in while authenticated in the application and within a specific IP range.\nGPS: Allows clocking in while authenticated in the application and within a defined GPS range.\nQR: Allows clocking in while authenticated in the application and by scanning a QR code.",
 signingMethodIdentityTips: "Launches the verification that your device has configured: PIN, Pattern, fingerprint or facial recognition",
-
+taskWorkCenterTips: "‘In itinere’ options allow you to add tasks before entering the first work center or after leaving the last work center.",
+surveyPriodicityTips:"The daily frequency will send a survey every day that work is performed.",
+surveyMonitoringValueTips: "Set a limit. If responses are under this value, an alert is triggered.",
 
 
   // info tooltip for start date in add-job-modal
@@ -396,6 +411,7 @@ signingMethodIdentityTips: "Launches the verification that your device has confi
     denomination: "Denomination",
     startDate: "Start Date",
     endDate: "End Date",
+    endDateMustBeEqualOrAfterStart: "End date cannot be earlier than the start date.",
     client: "Client",
     workCenters: "Work Centers",
     workers: "Workers",
@@ -482,8 +498,12 @@ signingMethodIdentityTips: "Launches the verification that your device has confi
     workers: "Workers",
     questionText: "Question Text",
     monitoringValue: "Monitoring Value",
+    questionTextPlaceHolder: "Rate your satisfaction with the service received from 0 to 10.",
     textAlertTracking: "Text Alert Tracking",
-    farewellText: "Farewell Text",
+    textAlertTrackingPlaceHolder: "Let us know what we can improve.",
+    farewellText: "Greeting Text",
+    farewellTextPlaceHolder: "Thank you for your cooperation.",
+    surveySendTime: "Send Time",
     hour: "Hour",
 
     // Navigation buttons
@@ -534,8 +554,8 @@ signingMethodIdentityTips: "Launches the verification that your device has confi
     order: "Order",
     jobCreatedSuccessfully: "Job created successfully!",
     errorCreatingJob: "Error creating job",
-    customerSurvey: "Customer Survey",
-    workerSurvey: "Worker Survey",
+    customerSurvey: "Survey for Customer ",
+    workerSurvey: "Survey for Workers ",
     datePlaceholder: "dd/mm/yyyy",
     newWorkCenter: "New Work Center",
   },
@@ -564,11 +584,17 @@ signingMethodIdentityTips: "Launches the verification that your device has confi
     loadingWorkCenters: "Cargando centros de trabajo...",
     search: "Buscar...",
     mySelf: "Yo mismo",
+    taskPlaceholder: "Denominación de la tarea",
+    invalidTime: "Hora inválida",
 
     invalidMonth: "mes inválido",
     invalidDay: "día inválido",
     invalidYear: "año inválido",
     invalidDate: "Fecha inválida",
+
+      //toaster of task name
+    taskRequired: "Se requiere tarea",
+    taskRequiredDescription: "Tarea requerida. Por favor, introduzca el nombre de la tarea.",
 
     // start and end 
     start: "Inicio",
@@ -576,6 +602,12 @@ signingMethodIdentityTips: "Launches the verification that your device has confi
     clearSchedules: "Borrar",
     minutes: "minutos",
     min: "Mín",
+
+    //task Work Center 
+    itinereEntrada: "In itinere - Entrada",
+    itinereSalida: "In Itinere - Salida",
+
+    selectWorkCenter: "Seleccionar centros de trabajo",
 
     // info tooltip add-job-modal winter
     selectWorkCentersInfo:
@@ -589,13 +621,14 @@ signingMethodIdentityTips: "Launches the verification that your device has confi
       delayTips: "Tiempo permitido para fichar la entrada sin generar alerta.",
       durationTips:"Tiempo trabajado de menos sin generar alerta.",
       taskDurationTips: "Tiempo estimado para realizar la tarea.",
-      taskObservationTips: "Instrucciones de la tarea sólo para el trabajador.",
+      taskObservationTips: "Instrucciones de la tarea sólo visibles por el trabajador.",
       signingMethodTipsMobile:"Métodos de fichaje permitidos con Smartphone o Tablet",
       signingMethodTipsDesktop:"Métodos de fichaje permitidos con PC o Laptop",
       signingMethodIdentityTips: "Lanza la verificación que tenga configurado su dispositivo: PIN, Patrón, huella o reconocimiento facial",
-  signingMethodTitleTips: "Web: Permite fichar estando autenticado en la aplicación.\nIP: Permite fichar estando autenticado en la aplicación y dentro de una IP concreta.\nGPS: Permite fichar estando autenticado en la aplicación y dentro de rango GPS concreto.\nQR: Permite fichar estando autenticado en la aplicación y escaneando un código QR.",
-
-
+      signingMethodTitleTips: "Web: Permite fichar estando autenticado en la aplicación.\nIP: Permite fichar estando autenticado en la aplicación y dentro de una IP concreta.\nGPS: Permite fichar estando autenticado en la aplicación y dentro de rango GPS concreto.\nQR: Permite fichar estando autenticado en la aplicación y escaneando un código QR.",
+      taskWorkCenterTips: "Las opciones In itinere permiten añadir tareas antes de entrar al primer centro de trabajo o después de salir del último centro de trabajo.",
+      surveyPriodicityTips:"La periodicidad diaria enviará una encuesta cada día que se trabaje",
+      surveyMonitoringValueTips: "Establece un límite. Si las respuestas están por debajo de este valor, se activará una alerta.",
 
     // common Disc web information Introducir nombre del trabajo
 
@@ -938,6 +971,7 @@ signingMethodIdentityTips: "Launches the verification that your device has confi
     denomination: "Denominación",
     startDate: "Fecha Inicio",
     endDate: "Fecha Fin",
+    endDateMustBeEqualOrAfterStart: "La fecha de finalización no puede ser anterior a la fecha de inicio.",
     client: "Titular",
     workCenters: "Centros de Trabajo",
     workers: "Trabajadores",
@@ -1026,10 +1060,14 @@ signingMethodIdentityTips: "Launches the verification that your device has confi
     periodicityValue: "Valor de Periodicidad",
     customer: "Cliente",
     workers: "Trabajadores",
-    questionText: "Texto de Pregunta",
-    monitoringValue: "Valor de Monitoreo",
-    textAlertTracking: "Texto de Alerta de Seguimiento",
-    farewellText: "Texto de Despedida",
+    questionText: "Texto de la pregunta",
+    monitoringValue: "Límite de alerta",
+    questionTextPlaceHolder: "Valora de 0 a 10 tu satisfacción con el servicio recibido",
+    textAlertTracking: "Mensaje de alerta",
+    textAlertTrackingPlaceHolder: "Indícanos en qué debemos mejorar.",
+    farewellText: "Mensaje de despedida",
+    farewellTextPlaceHolder: "Gracias por tu colaboración",
+    surveySendTime: "Hora de envío",
     hour: "Hora",
 
     // Navigation buttons Holder
@@ -1043,8 +1081,8 @@ signingMethodIdentityTips: "Launches the verification that your device has confi
     no: "No",
 
     scheduleBy: "Programar",
-    firstWeekDay: "El primero de mes",
-    lastWeekDay: "El último de mes",
+    firstWeekDay: "El primero del mes",
+    lastWeekDay: "El último del mes",
     dates: "Días concretos",
     weekdays: "Días de la Semana",
     monthlyWeekdays: "Días Semanales Mensuales",
@@ -1080,8 +1118,8 @@ signingMethodIdentityTips: "Launches the verification that your device has confi
     order: "Orden",
     jobCreatedSuccessfully: "¡Job creado exitosamente!",
     errorCreatingJob: "Error al crear job",
-    customerSurvey: "Encuesta de Cliente",
-    workerSurvey: "Encuesta de Trabajador",
+    customerSurvey: "Parámetros para el Titular",
+    workerSurvey: "Parámetros para los Trabajadores",
     datePlaceholder: "dd/mm/aaaa",
     newWorkCenter: "Nuevo Centro de trabajo",
   },
@@ -1091,7 +1129,7 @@ signingMethodIdentityTips: "Launches the verification that your device has confi
   february: "Febrero",
   march: "Marzo",
   april: "Abril",
-  may: "Mayo",
+  may: "May",
   june: "Junio",
   july: "Julio",
   august: "Agosto",
