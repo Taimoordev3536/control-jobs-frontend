@@ -379,6 +379,14 @@ export const DateInput: React.FC<DateInputProps> = ({
               const ev = { target: { value: iso } } as unknown as React.ChangeEvent<HTMLInputElement>;
               onChange(ev);
               setError(null);
+            } else if (!raw) {
+              // User cleared the field: propagate empty value to parent so the
+              // form state does not keep the previous date.
+              if (onChange) {
+                const ev = { target: { value: "" } } as unknown as React.ChangeEvent<HTMLInputElement>;
+                onChange(ev);
+              }
+              setError(null);
             } else if (raw) {
               // attempt to provide a helpful validation message
               const parsed = parseDMY(raw);

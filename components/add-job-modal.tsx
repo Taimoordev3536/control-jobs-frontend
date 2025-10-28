@@ -238,6 +238,11 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
   const [loadingWorkers, setLoadingWorkers] = useState(false)
 
   const [formData, setFormData] = useState(createInitialFormData)
+  // Persist pairing registry across recomputes so previously inferred
+  // multi-day pairings aren't accidentally reassigned when users edit
+  // other slots. Keys use the form `${dayIndex}-${shift}-start` and
+  // `${dayIndex}-${shift}-end` so they remain stable across recomputes.
+  const pairingRegistryRef = useRef<Map<string, string>>(new Map())
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   // Temporary input values when user is typing times in schedule cells
@@ -591,10 +596,14 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
 
   // Compute per-day totals and weekly total for possibly multiple multi-day blocks
   const computeMultiDayTotals = useCallback(
-    (schedules: ScheduleData) => {
+    (schedules: ScheduleData, priorRegistry?: Map<string, string>) => {
+      const DEBUG = false // set true to enable debug logging for scheduling pairing
       const perDay: number[] = Array(7).fill(0)
       const disabledSlots = new Set<string>()
       const processedShifts = new Set<string>()
+
+      // Pairing registry (startKey -> endKey)
+      const pairingRegistry = new Map<string, string>(priorRegistry ? Array.from(priorRegistry.entries()) : [])
 
       // First pass: Process complete single shifts (both start and end times present)
       DAY_KEYS.forEach((dayKey, dayIndex) => {
@@ -614,146 +623,212 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
       })
 
       // Second pass: Process multi-day continuous shifts
-      // Only create continuous shifts if there's a clear intent (adjacent time slots with logical continuity)
       const events = collectTimeEvents(schedules)
-      const pendingStarts: TimeEvent[] = []
+      if (DEBUG) console.debug("computeMultiDayTotals: events:", events)
+
+      // Gather end events and build keys for indexing
+      const endEvents = events.filter((e) => e.kind === "end")
+      const endKeys = endEvents.map((ev) => `${ev.dayIndex}-${ev.shift}-end`)
 
       // Find shifts with only start time (no end time on same day/shift)
+      const pendingStartsMap = new Map<string, TimeEvent>()
       DAY_KEYS.forEach((dayKey) => {
         const daySchedule = schedules[dayKey]
         SHIFT_KEYS.forEach((shift) => {
           const shiftData = daySchedule[shift]
           const shiftKey = `${dayKey}-${shift}`
-          
-          // Only consider if not already processed as a complete shift
           if (!processedShifts.has(shiftKey)) {
             if (shiftData.start && !shiftData.end) {
-              // This is a potential multi-day start
               const dayIndex = DAY_KEYS.indexOf(dayKey)
-              pendingStarts.push({
-                dayIndex,
-                shift,
-                minutes: timeToMinutes(shiftData.start),
-                kind: "start"
-              })
+              const sKey = `${dayIndex}-${shift}-start`
+              pendingStartsMap.set(sKey, { dayIndex, shift, minutes: timeToMinutes(shiftData.start), kind: "start" })
             }
           }
         })
       })
 
-      // Find matching end times for pending starts with stricter logic
-      const extendedEvents = events.concat(events.map((e) => ({ ...e, dayIndex: e.dayIndex + 7 })))
-      
-      pendingStarts.forEach((startEvent) => {
-        // Look for the next end event that could match this start - but with stricter criteria
-        let matchingEnd = extendedEvents.find((ev) => {
-          if (ev.kind !== "end") return false
-          
-          const endShiftKey = `${DAY_KEYS[ev.dayIndex % 7]}-${ev.shift}`
-          if (processedShifts.has(endShiftKey)) return false
-          
-          const endDaySchedule = schedules[DAY_KEYS[ev.dayIndex % 7]]
-          const endShiftData = endDaySchedule[ev.shift]
-          
-          // Must have end time but no start time (defining end of multi-day shift)
-          if (!endShiftData.end || endShiftData.start) return false
-          
-          // Must come after the start event
-          const isAfterStart = ev.dayIndex > startEvent.dayIndex || 
-            (ev.dayIndex === startEvent.dayIndex && ev.minutes >= startEvent.minutes)
-          
-          if (!isAfterStart) return false
-          
-          // NEW LOGIC: Only create continuous shifts if they are logically connected
-          // This means checking if there are no other complete shifts between start and end
-          const hasCompleteShiftsBetween = () => {
-            // Check if there are any complete shifts between the start and end
-            for (let d = startEvent.dayIndex; d <= ev.dayIndex; d++) {
-              const dayKey = DAY_KEYS[d % 7]
-              const daySchedule = schedules[dayKey]
-              
-              for (const shift of SHIFT_KEYS) {
-                const shiftData = daySchedule[shift]
-                const shiftKey = `${dayKey}-${shift}`
-                
-                // Skip the start and end shifts themselves
-                if (d === startEvent.dayIndex && shift === startEvent.shift) continue
-                if (d === ev.dayIndex && shift === ev.shift) continue
-                
-                // If there's a complete shift between start and end, don't create continuous
-                if (shiftData.start && shiftData.end && !processedShifts.has(shiftKey)) {
-                  return true
-                }
-              }
-            }
-            return false
-          }
-          
-          // Only create continuous shift if there are no complete shifts in between
-          // AND the gap is reasonable (not more than 2-3 days apart unless explicitly continuous)
-          const dayGap = ev.dayIndex - startEvent.dayIndex
-          if (dayGap > 3) {
-            return false // Don't auto-connect shifts more than 3 days apart
-          }
-          
-          return !hasCompleteShiftsBetween()
-        })
+      const assignedEnds = new Set<number>()
+      const MAX_GAP = 6
 
-        // If strict matching failed, fall back to a relaxed match to avoid missing intended continuous shifts
-        if (!matchingEnd) {
-          matchingEnd = extendedEvents.find((ev) => {
-            if (ev.kind !== "end") return false
-            const endShiftKey = `${DAY_KEYS[ev.dayIndex % 7]}-${ev.shift}`
-            if (processedShifts.has(endShiftKey)) return false
-            const endDaySchedule = schedules[DAY_KEYS[ev.dayIndex % 7]]
-            const endShiftData = endDaySchedule[ev.shift]
-            if (!endShiftData.end || endShiftData.start) return false
-            const isAfterStart = ev.dayIndex > startEvent.dayIndex || 
-              (ev.dayIndex === startEvent.dayIndex && ev.minutes >= startEvent.minutes)
-            return !!isAfterStart
-          })
+      // Try to preserve prior pairings when still valid
+      for (const [sKey, eKey] of Array.from(pairingRegistry.entries())) {
+        const start = pendingStartsMap.get(sKey)
+        if (!start) {
+          // start not present anymore -> drop mapping
+          pairingRegistry.delete(sKey)
+          continue
+        }
+        const endIdx = endKeys.indexOf(eKey)
+        if (endIdx === -1) {
+          pairingRegistry.delete(sKey)
+          continue
+        }
+        const ev = endEvents[endIdx]
+        // validate end is still end-only
+        const endDaySchedule = schedules[DAY_KEYS[ev.dayIndex % 7]]
+        const endShiftData = endDaySchedule[ev.shift]
+        if (!endShiftData.end || endShiftData.start) {
+          pairingRegistry.delete(sKey)
+          continue
         }
 
-        if (matchingEnd) {
-          // Found a valid multi-day continuous shift
-          addBlockToPerDay(perDay, startEvent.dayIndex, startEvent.minutes, matchingEnd.dayIndex, matchingEnd.minutes)
-          
-          // Mark both shifts as processed
+        const adjustedDayIndex = ev.dayIndex >= start.dayIndex ? ev.dayIndex : ev.dayIndex + 7
+        const dayGap = adjustedDayIndex - start.dayIndex
+        if (adjustedDayIndex < start.dayIndex || dayGap > MAX_GAP) {
+          pairingRegistry.delete(sKey)
+          continue
+        }
+
+        // Ensure there are no complete shifts between start and this end
+        let hasCompleteBetween = false
+        for (let d = start.dayIndex; d <= adjustedDayIndex; d++) {
+          const dayKey = DAY_KEYS[d % 7]
+          const daySchedule = schedules[dayKey]
+          for (const shift of SHIFT_KEYS) {
+            const shiftData = daySchedule[shift]
+            const shiftKey = `${dayKey}-${shift}`
+            if (d === start.dayIndex && shift === start.shift) continue
+            if (d === adjustedDayIndex && shift === ev.shift) continue
+            if (shiftData.start && shiftData.end && !processedShifts.has(shiftKey)) {
+              hasCompleteBetween = true
+              break
+            }
+          }
+          if (hasCompleteBetween) break
+        }
+        if (hasCompleteBetween) {
+          pairingRegistry.delete(sKey)
+          continue
+        }
+
+        // Accept preserved pairing
+        assignedEnds.add(endIdx)
+        addBlockToPerDay(perDay, start.dayIndex, start.minutes, adjustedDayIndex, ev.minutes)
+        processedShifts.add(`${DAY_KEYS[start.dayIndex]}-${start.shift}`)
+        processedShifts.add(`${DAY_KEYS[adjustedDayIndex % 7]}-${ev.shift}`)
+
+        const startDayKey = DAY_KEYS[start.dayIndex]
+        const endDayKey = DAY_KEYS[adjustedDayIndex % 7]
+        const startShiftIdx = shiftOrder[start.shift]
+        const endShiftIdx = shiftOrder[ev.shift]
+        disabledSlots.add(`${startDayKey}-${start.shift}-end`)
+        disabledSlots.add(`${endDayKey}-${ev.shift}-start`)
+
+        if (start.dayIndex % 7 === adjustedDayIndex % 7) {
+          for (let s = startShiftIdx + 1; s < endShiftIdx; s++) {
+            const sh = SHIFT_KEYS[s]
+            disabledSlots.add(`${startDayKey}-${sh}-start`)
+            disabledSlots.add(`${startDayKey}-${sh}-end`)
+          }
+        } else {
+          for (let s = startShiftIdx + 1; s < 3; s++) {
+            const sh = SHIFT_KEYS[s]
+            disabledSlots.add(`${startDayKey}-${sh}-start`)
+            disabledSlots.add(`${startDayKey}-${sh}-end`)
+          }
+          for (let s = 0; s < endShiftIdx; s++) {
+            const sh = SHIFT_KEYS[s]
+            disabledSlots.add(`${endDayKey}-${sh}-start`)
+            disabledSlots.add(`${endDayKey}-${sh}-end`)
+          }
+          for (let d = start.dayIndex + 1; d < adjustedDayIndex; d++) {
+            const dk = DAY_KEYS[d % 7]
+            SHIFT_KEYS.forEach((sh) => {
+              disabledSlots.add(`${dk}-${sh}-start`)
+              disabledSlots.add(`${dk}-${sh}-end`)
+            })
+          }
+        }
+
+        // remove preserved start from pending
+        pendingStartsMap.delete(sKey)
+      }
+
+      // Remaining starts: stable nearest-end matching
+      const pendingStarts = Array.from(pendingStartsMap.values())
+      pendingStarts.sort((a, b) => a.dayIndex - b.dayIndex || a.minutes - b.minutes)
+      if (DEBUG) console.debug("computeMultiDayTotals: pendingStarts:", pendingStarts, "endEvents:", endEvents)
+
+      pendingStarts.forEach((startEvent) => {
+        let chosen: { ev: TimeEvent; adjustedDayIndex: number; endIndex: number } | null = null
+
+        for (let i = 0; i < endEvents.length; i++) {
+          if (assignedEnds.has(i)) continue
+          const ev = endEvents[i]
+
+          const adjustedDayIndex = ev.dayIndex >= startEvent.dayIndex ? ev.dayIndex : ev.dayIndex + 7
+          if (adjustedDayIndex < startEvent.dayIndex) continue
+          const dayGap = adjustedDayIndex - startEvent.dayIndex
+          if (dayGap > MAX_GAP) continue
+
+          const endDaySchedule = schedules[DAY_KEYS[ev.dayIndex % 7]]
+          const endShiftData = endDaySchedule[ev.shift]
+          if (!endShiftData.end || endShiftData.start) continue
+
+          // Ensure there are no complete shifts between start and this candidate end
+          let hasCompleteBetween = false
+          for (let d = startEvent.dayIndex; d <= adjustedDayIndex; d++) {
+            const dayKey = DAY_KEYS[d % 7]
+            const daySchedule = schedules[dayKey]
+            for (const shift of SHIFT_KEYS) {
+              const shiftData = daySchedule[shift]
+              const shiftKey = `${dayKey}-${shift}`
+              if (d === startEvent.dayIndex && shift === startEvent.shift) continue
+              if (d === adjustedDayIndex && shift === ev.shift) continue
+              if (shiftData.start && shiftData.end && !processedShifts.has(shiftKey)) {
+                hasCompleteBetween = true
+                break
+              }
+            }
+            if (hasCompleteBetween) break
+          }
+          if (hasCompleteBetween) continue
+
+          if (DEBUG) console.debug("consider candidate end", { start: startEvent, end: ev, adjustedDayIndex, dayGap })
+
+          if (
+            !chosen ||
+            adjustedDayIndex < chosen.adjustedDayIndex ||
+            (adjustedDayIndex === chosen.adjustedDayIndex && ev.minutes < chosen.ev.minutes)
+          ) {
+            chosen = { ev, adjustedDayIndex, endIndex: i }
+          }
+        }
+
+        if (chosen) {
+          const { ev, adjustedDayIndex, endIndex } = chosen
+          if (DEBUG) console.debug("chosen for start", startEvent, "=>", ev, "adjustedDayIndex", adjustedDayIndex)
+          assignedEnds.add(endIndex)
+          addBlockToPerDay(perDay, startEvent.dayIndex, startEvent.minutes, adjustedDayIndex, ev.minutes)
           processedShifts.add(`${DAY_KEYS[startEvent.dayIndex]}-${startEvent.shift}`)
-          processedShifts.add(`${DAY_KEYS[matchingEnd.dayIndex % 7]}-${matchingEnd.shift}`)
-          
-          // Calculate disabled slots for this continuous block
+          processedShifts.add(`${DAY_KEYS[adjustedDayIndex % 7]}-${ev.shift}`)
+
           const startDayKey = DAY_KEYS[startEvent.dayIndex]
-          const endDayKey = DAY_KEYS[matchingEnd.dayIndex % 7]
+          const endDayKey = DAY_KEYS[adjustedDayIndex % 7]
           const startShiftIdx = shiftOrder[startEvent.shift]
-          const endShiftIdx = shiftOrder[matchingEnd.shift]
-          
-          // Disable the connected slots
+          const endShiftIdx = shiftOrder[ev.shift]
+
           disabledSlots.add(`${startDayKey}-${startEvent.shift}-end`)
-          disabledSlots.add(`${endDayKey}-${matchingEnd.shift}-start`)
-          
-          if (startEvent.dayIndex % 7 === matchingEnd.dayIndex % 7) {
-            // Same day, disable shifts between start and end
+          disabledSlots.add(`${endDayKey}-${ev.shift}-start`)
+
+          if (startEvent.dayIndex % 7 === adjustedDayIndex % 7) {
             for (let s = startShiftIdx + 1; s < endShiftIdx; s++) {
               const sh = SHIFT_KEYS[s]
               disabledSlots.add(`${startDayKey}-${sh}-start`)
               disabledSlots.add(`${startDayKey}-${sh}-end`)
             }
           } else {
-            // Multi-day: disable after start on start day
             for (let s = startShiftIdx + 1; s < 3; s++) {
               const sh = SHIFT_KEYS[s]
               disabledSlots.add(`${startDayKey}-${sh}-start`)
               disabledSlots.add(`${startDayKey}-${sh}-end`)
             }
-            // Disable before end on end day
             for (let s = 0; s < endShiftIdx; s++) {
               const sh = SHIFT_KEYS[s]
               disabledSlots.add(`${endDayKey}-${sh}-start`)
               disabledSlots.add(`${endDayKey}-${sh}-end`)
             }
-            // Disable all shifts on middle days
-            for (let d = startEvent.dayIndex + 1; d < matchingEnd.dayIndex; d++) {
+            for (let d = startEvent.dayIndex + 1; d < adjustedDayIndex; d++) {
               const dk = DAY_KEYS[d % 7]
               SHIFT_KEYS.forEach((sh) => {
                 disabledSlots.add(`${dk}-${sh}-start`)
@@ -761,6 +836,11 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
               })
             }
           }
+
+          // Record pairing in registry
+          const startKey = `${startEvent.dayIndex}-${startEvent.shift}-start`
+          const endKey = `${ev.dayIndex}-${ev.shift}-end`
+          pairingRegistry.set(startKey, endKey)
         }
       })
 
@@ -770,7 +850,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
         totalsByDay[dk] = minutesToTime(perDay[i])
       })
       const weeklyMinutes = perDay.reduce((acc, m) => acc + m, 0)
-      return { totalsByDay, weeklyTotal: minutesToTime(weeklyMinutes), disabledSlots }
+      return { totalsByDay, weeklyTotal: minutesToTime(weeklyMinutes), disabledSlots, pairingRegistry }
     },
     [collectTimeEvents, minutesToTime, timeToMinutes],
   )
@@ -835,7 +915,8 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
         currentSeasonSchedules[day] = daySchedule
         newSchedules[prev.currentSeason] = currentSeasonSchedules
 
-        const { totalsByDay, weeklyTotal } = computeMultiDayTotals(currentSeasonSchedules)
+  const { totalsByDay, weeklyTotal, pairingRegistry } = computeMultiDayTotals(currentSeasonSchedules, pairingRegistryRef.current)
+  pairingRegistryRef.current = pairingRegistry
         DAY_KEYS.forEach((dk) => {
           currentSeasonSchedules[dk].total = totalsByDay[dk]
         })
@@ -867,7 +948,8 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
       }
 
       // recompute totals
-      const { totalsByDay, weeklyTotal } = computeMultiDayTotals(newSchedules[season])
+  const { totalsByDay, weeklyTotal, pairingRegistry } = computeMultiDayTotals(newSchedules[season], pairingRegistryRef.current)
+  pairingRegistryRef.current = pairingRegistry
       Object.keys(totalsByDay).forEach((dk) => {
         // @ts-expect-error indexing by dynamic key
         newSchedules[season][dk].total = totalsByDay[dk as DayKey]
@@ -1610,7 +1692,8 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
   useEffect(() => {
     if (formData.scheduleType === "programming") {
       const currentSeasonSchedules = formData.schedules[formData.currentSeason]
-      const { weeklyTotal } = computeMultiDayTotals(currentSeasonSchedules)
+      const { weeklyTotal, pairingRegistry } = computeMultiDayTotals(currentSeasonSchedules, pairingRegistryRef.current)
+      pairingRegistryRef.current = pairingRegistry
       setFormData((prev) => ({ ...prev, totalWeeklyHours: weeklyTotal }))
     } else {
       setFormData((prev) => ({ ...prev, totalWeeklyHours: "00:00" }))
@@ -1943,7 +2026,8 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
 
   const renderSchedulesStep = () => {
     const currentSeasonSchedules = formData.schedules[formData.currentSeason]
-    const { disabledSlots } = computeMultiDayTotals(currentSeasonSchedules)
+    const { disabledSlots, pairingRegistry } = computeMultiDayTotals(currentSeasonSchedules, pairingRegistryRef.current)
+    pairingRegistryRef.current = pairingRegistry
 
     return (
       <div className="space-y-4">
@@ -2377,14 +2461,14 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
                   <Input
                     type="number"
                     min={0}
-                    max={59}
+                    max={180}
                     value={formData.entrance.delayValue}
                     onChange={(e) => {
                       const raw = e.target.value
                       const n = Number(raw)
                       if (raw === "") return updateNestedFormData("entrance", "delayValue", "")
                       if (Number.isNaN(n)) return
-                      const clamped = Math.max(0, Math.min(59, Math.floor(n)))
+                      const clamped = Math.max(0, Math.min(180, Math.floor(n)))
                       updateNestedFormData("entrance", "delayValue", String(clamped))
                     }}
                     className="ml-2 w-20 h-8 bg-background border-input text-sm"
@@ -2449,14 +2533,14 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
                   <Input
                     type="number"
                     min={0}
-                    max={59}
+                    max={180}
                     value={formData.exit.durationValue}
                     onChange={(e) => {
                       const raw = e.target.value
                       const n = Number(raw)
                       if (raw === "") return updateNestedFormData("exit", "durationValue", "")
                       if (Number.isNaN(n)) return
-                      const clamped = Math.max(0, Math.min(59, Math.floor(n)))
+                      const clamped = Math.max(0, Math.min(180, Math.floor(n)))
                       updateNestedFormData("exit", "durationValue", String(clamped))
                     }}
                     className="ml-2 w-20 h-8 bg-background border-input text-sm"

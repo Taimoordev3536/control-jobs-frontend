@@ -633,7 +633,7 @@ surveyMonitoringValueTips: "Set a limit. If responses are under this value, an a
     // common Disc web information Introducir nombre del trabajo
 
     thisFieldIsRequired: "Este campo es obligatorio.",
-    requiredSigningMethods: "Se requiere al menos un método de firma.",
+    requiredSigningMethods: "Seleccione algún método de fichaje.",
 
     loadingClients: "Cargando clientes...",
     selectAClient: "Selecciona el destinatario del Job",
