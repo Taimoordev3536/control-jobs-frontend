@@ -35,17 +35,8 @@ export function useAuth() {
         description: t("loginSuccessDescription"),
       })
 
-      // Redirect based on user role
-      const userRole = session?.user?.role?.name?.toLowerCase()
-      const defaultRoutes: Record<string, string> = {
-        admin: "/partners",
-        partner: "/employers",
-        employer: "/jobs/control",
-        client: "/jobs/control",
-        worker: "/jobs/control",
-      }
-
-      router.push(defaultRoutes[userRole || "worker"] || "/jobs/control")
+      // Redirect to dashboard after successful login
+      router.push("/dashboard")
       return true
     } catch (error) {
       toast({

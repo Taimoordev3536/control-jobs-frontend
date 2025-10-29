@@ -21,11 +21,11 @@ export default withAuth(
 
     // Define role-based access rules
     const roleRoutes: Record<string, string[]> = {
-      admin: ["/partners", "/employers", "/invoices", "/commissions", "/rates", "/information", "/utilities", "/aid", "/tasks"],
-      partner: ["/employers", "/billing", "/information", "/utilities", "/aid", "/tasks"],
-      employer: ["/jobs", "/clients", "/workers", "/surveys", "/information", "/utilities", "/aid", "/tasks"],
-      client: ["/jobs", "/surveys", "/information", "/aid", "/tasks"],
-      worker: ["/jobs", "/occupation", "/surveys", "/information", "/aid", "/tasks"],
+      admin: ["/dashboard", "/partners", "/employers", "/invoices", "/commissions", "/rates", "/information", "/utilities", "/aid", "/tasks"],
+      partner: ["/dashboard", "/employers", "/billing", "/information", "/utilities", "/aid", "/tasks"],
+      employer: ["/dashboard", "/jobs", "/clients", "/workers", "/surveys", "/information", "/utilities", "/aid", "/tasks"],
+      client: ["/dashboard", "/jobs", "/surveys", "/information", "/aid", "/tasks"],
+      worker: ["/dashboard", "/jobs", "/occupation", "/surveys", "/information", "/aid", "/tasks"],
     }
 
     // Check if user has access to the current route
@@ -41,16 +41,8 @@ export default withAuth(
         !pathname.startsWith("/users") &&
         !pathname.startsWith("/wages")
       ) {
-        // Redirect to default route for the role
-        const defaultRoutes: Record<string, string> = {
-          admin: "/partners",
-          partner: "/employers",
-          employer: "/jobs/control",
-          client: "/jobs/control",
-          worker: "/jobs/control",
-        }
-
-        return NextResponse.redirect(new URL(defaultRoutes[userRole] || "/jobs/control", req.url))
+        // Redirect to dashboard as default route for all roles
+        return NextResponse.redirect(new URL("/dashboard", req.url))
       }
     }
 

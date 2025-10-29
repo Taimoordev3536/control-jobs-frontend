@@ -32,13 +32,13 @@ export default function LoginPage() {
     if (session) {
       const userRole = session.user?.role?.name?.toLowerCase()
       const defaultRoutes: Record<string, string> = {
-        admin: "/partners",
-        partner: "/employers",
-        employer: "/jobs/control",
-        client: "/jobs/control",
-        worker: "/jobs/control",
+        admin: "/dashboard",
+        partner: "/dashboard",
+        employer: "/dashboard",
+        client: "/dashboard",
+        worker: "/dashboard",
       }
-      router.push(defaultRoutes[userRole || "worker"] || "/jobs/control")
+      router.push(defaultRoutes[userRole || "worker"] || "/dashboard")
     }
   }, [session, router])
 

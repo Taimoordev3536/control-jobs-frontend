@@ -85,15 +85,18 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar }: Ap
   }
 
   const isActive = (path: string) => {
-    const menuItems = getMenuItems()
-    if (menuItems.length > 0 && pathname === "/" && path === menuItems[0].items?.[0]?.href) {
-      return true // Mark first sub-option of first menu as active on initial load
+    // If on root path, mark dashboard as active
+    if (pathname === "/" && path === "/dashboard") {
+      return true
     }
+    // If current pathname starts with the path
     return pathname.startsWith(path)
   }
 
   const getIcon = (iconKey: string) => {
     switch (iconKey) {
+      case "dashboard":
+        return <TodosIcon className="h-5 w-5" />
       case "control":
         return <ControlIcon className="h-5 w-5" />
       case "consultations":
@@ -146,6 +149,12 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar }: Ap
       case "worker":
         return [
           {
+            id: "dashboard",
+            title: t("dashboard"),
+            icon: () => <TodosIcon className="h-5 w-5" />,
+            href: "/dashboard",
+          },
+          {
             id: "jobs",
             title: t("jobs"),
             icon: () => <JobsIcon className="h-5 w-5" />,
@@ -187,6 +196,12 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar }: Ap
       case "client":
         return [
           {
+            id: "dashboard",
+            title: t("dashboard"),
+            icon: () => <TodosIcon className="h-5 w-5" />,
+            href: "/dashboard",
+          },
+          {
             id: "jobs",
             title: t("jobs"),
             icon: () => <JobsIcon className="h-5 w-5" />,
@@ -217,6 +232,12 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar }: Ap
 
       case "employer":
         return [
+          {
+            id: "dashboard",
+            title: t("dashboard"),
+            icon: () => <TodosIcon className="h-5 w-5" />,
+            href: "/dashboard",
+          },
           {
             id: "jobs",
             title: t("jobs"),
@@ -278,6 +299,12 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar }: Ap
       case "partner":
         return [
           {
+            id: "dashboard",
+            title: t("dashboard"),
+            icon: () => <TodosIcon className="h-5 w-5" />,
+            href: "/dashboard",
+          },
+          {
             id: "employers",
             title: t("employers"),
             icon: () => <EmployerIcon className="h-5 w-5" />,
@@ -322,6 +349,12 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar }: Ap
 
       case "admin":
         return [
+          {
+            id: "dashboard",
+            title: t("dashboard"),
+            icon: () => <TodosIcon className="h-5 w-5" />,
+            href: "/dashboard",
+          },
           {
             id: "merchants",
             title: t("merchants"),
@@ -467,7 +500,7 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar }: Ap
                   onClick={() => handleMenuClick(item.href)}
                 >
                   <div className="sidebar-item-icon">
-                    <item.icon className="h-4 w-4" />
+                    {typeof item.icon === "function" ? item.icon() : <item.icon className="h-4 w-4" />}
                   </div>
                   {!collapsed && <div className="sidebar-item-content">{item.title}</div>}
                 </Link>

@@ -14,23 +14,14 @@ export default function Home() {
       if (!isAuthenticated) {
         router.push("/login")
       } else {
-        // Redirect based on user role
-        const userRole = getUserRole()
-        const defaultRoutes: Record<string, string> = {
-          admin: "/partners",
-          partner: "/employers",
-          employer: "/jobs/control",
-          client: "/jobs/control",
-          worker: "/jobs/control",
-        }
-
-        router.push(defaultRoutes[userRole] || "/jobs/control")
+        // Redirect to dashboard for all authenticated users
+        router.push("/dashboard")
       }
     }
   }, [isAuthenticated, isLoading, getUserRole, router])
 
   if (isLoading) {
-    return <LoadingSpinner message="Loading..." />
+    return <LoadingSpinner />
   }
 
   return null
