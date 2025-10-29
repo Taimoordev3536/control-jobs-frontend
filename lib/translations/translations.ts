@@ -657,7 +657,7 @@ surveyMonitoringValueTips: "Set a limit. If responses are under this value, an a
     next: "Siguiente",
 
     // Navigation
-    dashboard: "Panel",
+    dashboard: "Dashboard",
     merchants: "Comerciantes",
     partners: "Partners",
     employers: "Empleadores",
