@@ -1,6 +1,7 @@
 "use client"
 
 import DataListTemplate, { ExcelIcon, CsvIcon, PdfIcon } from "@/components/ui/data-list-template"
+import { exportToCSV, exportToXLSX, exportToPDF } from "@/lib/export"
 import AddWorkerModal from "@/components/add-worker-modal"
 import { useRouter } from "next/navigation"
 import { Plus, Filter } from "lucide-react"
@@ -91,19 +92,19 @@ export default function WorkersPage() {
     },
     {
       icon: ExcelIcon,
-      onClick: () => console.log("Export Excel clicked"),
+      onClick: () => exportToXLSX(workers, columns, "workers.xlsx"),
       title: t("exportExcel"),
       type: "excel",
     },
     {
       icon: CsvIcon,
-      onClick: () => console.log("Export CSV clicked"),
+      onClick: () => exportToCSV(workers, columns, "workers.csv"),
       title: t("exportCsv"),
       type: "csv",
     },
     {
       icon: PdfIcon,
-      onClick: () => console.log("Export PDF clicked"),
+      onClick: () => exportToPDF(workers, columns, "workers.pdf"),
       title: t("exportPdf"),
       type: "pdf",
     },

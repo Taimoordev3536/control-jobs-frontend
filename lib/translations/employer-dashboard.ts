@@ -57,7 +57,7 @@ const employerDashboardTranslations: Record<string, Record<string, string>> = {
     minutes: "min",
 
     // Actions
-    viewDetails: "View Details",
+    viewDetails: "Details",
     view: "View",
     edit: "Edit",
     editJob: "Edit Job",
@@ -275,7 +275,7 @@ const employerDashboardTranslations: Record<string, Record<string, string>> = {
     minutes: "min",
 
     // Actions
-    viewDetails: "Ver Detalles",
+    viewDetails: "Detalles",
     view: "Ver",
     edit: "Editar",
     editJob: "Editar Trabajo",

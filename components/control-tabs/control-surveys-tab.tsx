@@ -5,7 +5,17 @@ import TabTableTemplate, { type TabTableColumn } from "@/components/ui/tab-table
 import { useTranslation } from "@/hooks/use-translation"
 import { useAuth } from "@/hooks/use-auth"
 
-export default function ControlSurveysTab() {
+export default function ControlSurveysTab({
+  showFilters,
+  onShowFiltersChange,
+  filters,
+  onFiltersChange,
+}: {
+  showFilters?: boolean
+  onShowFiltersChange?: (v: boolean) => void
+  filters?: Record<string, string>
+  onFiltersChange?: (f: Record<string, string>) => void
+}) {
   const { t } = useTranslation()
   const { session } = useAuth()
   const [isLoading, setIsLoading] = useState(true)
@@ -64,6 +74,10 @@ export default function ControlSurveysTab() {
       data={surveysData}
       loading={isLoading}
       emptyMessage={t("noSurveysDataAvailable")}
+      showFilters={showFilters}
+      onShowFiltersChange={onShowFiltersChange}
+      filters={filters}
+      onFiltersChange={onFiltersChange}
     />
   )
 }

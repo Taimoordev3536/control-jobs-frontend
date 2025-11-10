@@ -24,6 +24,11 @@ interface TabTableTemplateProps {
   itemsPerPage?: number
   totalRecords?: number
   showPagination?: boolean
+  // Optional external control for filters: parent can control visibility and filter values
+  showFilters?: boolean
+  onShowFiltersChange?: (visible: boolean) => void
+  filters?: Record<string, string>
+  onFiltersChange?: (filters: Record<string, string>) => void
 }
 
 export default function TabTableTemplate({
@@ -36,12 +41,31 @@ export default function TabTableTemplate({
   itemsPerPage = 10,
   totalRecords,
   showPagination = true,
+  showFilters,
+  onShowFiltersChange,
+  filters: filtersProp,
+  onFiltersChange: onFiltersChangeProp,
 }: TabTableTemplateProps) {
   const { t } = useTranslation()
   const [localColumns, setLocalColumns] = useState(columns)
   const [sortColumn, setSortColumn] = useState<string | null>(null)
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc")
   const [currentPage, setCurrentPage] = useState(1)
+  const [filtersVisibleInternal, setFiltersVisibleInternal] = useState(false)
+  const [filtersInternal, setFiltersInternal] = useState<Record<string, string>>({})
+
+  // Use controlled props when provided, otherwise fall back to internal state
+  const filtersVisible = typeof showFilters === "boolean" ? showFilters : filtersVisibleInternal
+  const setFiltersVisible = (v: boolean) => {
+    if (onShowFiltersChange) onShowFiltersChange(v)
+    else setFiltersVisibleInternal(v)
+  }
+
+  const filters = filtersProp ?? filtersInternal
+  const setFilters = (next: Record<string, string>) => {
+    if (onFiltersChangeProp) onFiltersChangeProp(next)
+    else setFiltersInternal(next)
+  }
 
   const total = totalRecords || data.length
   const totalPages = Math.ceil(total / itemsPerPage)
@@ -70,6 +94,21 @@ export default function TabTableTemplate({
         : bValue - aValue || 0
     })
   }, [data, sortColumn, sortDirection, localColumns])
+
+  // Filtering logic (per-column). Uses sortedData as input so filters apply after sorting.
+  const filteredData = useMemo(() => {
+    if (!filtersVisible) return sortedData
+    const activeFilters = Object.entries(filters).filter(([, v]) => v && v.trim() !== "")
+    if (activeFilters.length === 0) return sortedData
+
+    return sortedData.filter((row) => {
+      return activeFilters.every(([key, value]) => {
+        const cell = row?.[key]
+        const text = cell == null ? "" : String(cell)
+        return text.toLowerCase().includes(value.toLowerCase())
+      })
+    })
+  }, [sortedData, filters, filtersVisible])
 
   const handleSort = (column: string) => {
     const columnConfig = localColumns.find((col) => col.key === column)
@@ -151,40 +190,59 @@ export default function TabTableTemplate({
             <thead>
               <Droppable droppableId="columns" direction="horizontal">
                 {(provided) => (
-                  <tr
-                    ref={provided.innerRef}
-                    {...provided.droppableProps}
-                    className="bg-purple-50 dark:bg-purple-950/50 border-y-2 border-[#662D91]"
-                  >
-                    {localColumns.map((column, index) => (
-                      <Draggable key={column.key} draggableId={column.key} index={index}>
-                        {(provided, snapshot) => (
-                          <th
-                            ref={provided.innerRef}
-                            {...provided.draggableProps}
-                            {...provided.dragHandleProps}
-                            className={`px-6 py-2 text-sm font-semibold text-foreground transition-colors cursor-move ${
-                              snapshot.isDragging ? "bg-purple-200 dark:bg-purple-800" : ""
-                            } text-center border border-gray-300 dark:border-gray-700 ${
-                              column.sortable ? "hover:bg-purple-100 dark:hover:bg-purple-900/50" : ""
-                            }`}
-                            onClick={() => column.sortable && handleSort(column.key)}
-                          >
-                            <div className="flex items-center justify-center">
-                              {column.label}
-                              {column.sortable && getSortIcon(column.key)}
-                            </div>
+                  <>
+                    <tr
+                      ref={provided.innerRef}
+                      {...provided.droppableProps}
+                      className="bg-purple-50 dark:bg-purple-950/50 border-y-2 border-[#662D91]"
+                    >
+                      {localColumns.map((column, index) => (
+                        <Draggable key={column.key} draggableId={column.key} index={index}>
+                          {(provided, snapshot) => (
+                            <th
+                              ref={provided.innerRef}
+                              {...provided.draggableProps}
+                              {...provided.dragHandleProps}
+                              className={`px-6 py-2 text-sm font-semibold text-foreground transition-colors cursor-move ${
+                                snapshot.isDragging ? "bg-purple-200 dark:bg-purple-800" : ""
+                              } text-center border border-gray-300 dark:border-gray-700 ${
+                                column.sortable ? "hover:bg-purple-100 dark:hover:bg-purple-900/50" : ""
+                              }`}
+                              onClick={() => column.sortable && handleSort(column.key)}
+                            >
+                              <div className="flex items-center justify-center">
+                                {column.label}
+                                {column.sortable && getSortIcon(column.key)}
+                              </div>
+                            </th>
+                          )}
+                        </Draggable>
+                      ))}
+                      {provided.placeholder}
+                    </tr>
+
+                    {/* Filter inputs row - shown when filtersVisible */}
+                    {filtersVisible && (
+                      <tr className="bg-white">
+                        {localColumns.map((column) => (
+                          <th key={`filter-${column.key}`} className="px-5 py-2 text-sm font-normal text-foreground border border-gray-300 dark:border-gray-700">
+                            <input
+                              type="text"
+                              value={filters[column.key] || ""}
+                              onChange={(e) => setFilters((prev) => ({ ...prev, [column.key]: e.target.value }))}
+                              placeholder={t("filter") + "..."}
+                              className="w-full p-1 text-sm border rounded focus:outline-none focus:border-[#662D91] focus:ring-1 focus:ring-[#662D91]"
+                            />
                           </th>
-                        )}
-                      </Draggable>
-                    ))}
-                    {provided.placeholder}
-                  </tr>
+                        ))}
+                      </tr>
+                    )}
+                  </>
                 )}
               </Droppable>
             </thead>
             <tbody>
-              {sortedData.length === 0 ? (
+              {filteredData.length === 0 ? (
                 <tr>
                   <td
                     colSpan={columns.length}
@@ -194,7 +252,7 @@ export default function TabTableTemplate({
                   </td>
                 </tr>
               ) : (
-                sortedData
+                filteredData
                   .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
                   .map((row, index) => (
                     <tr
@@ -225,7 +283,7 @@ export default function TabTableTemplate({
       </div>
 
       {/* Pagination */}
-      {showPagination && sortedData.length > 0 && (
+      {showPagination && filteredData.length > 0 && (
         <div className="px-6 py-4 flex items-center justify-between border-t border-border bg-card bg-gray-100 dark:bg-gray-800">
           <div className="text-sm text-muted-foreground">
             {t("showingRecordsFrom")} {((currentPage - 1) * itemsPerPage + 1)} {t("to")}{" "}

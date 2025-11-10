@@ -1,62 +1,110 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Shift Type Selector</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Check-in Options</title>
+  <!-- Boxicons -->
+  <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet" />
+  <style>
+    body {
+      font-family: "Poppins", sans-serif;
+      background-color: #f9fafb;
+      color: #1f2937;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+
+    .checkin-container {
+      background: #ffffff;
+      padding: 2rem;
+      border-radius: 1.5rem;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      max-width: 600px;
+      width: 100%;
+    }
+
+    .checkin-title {
+      text-align: center;
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin-bottom: 1.5rem;
+      color: #4f46e5;
+    }
+
+    .section-title {
+      font-size: 1.1rem;
+      font-weight: 500;
+      color: #374151;
+      margin-top: 1rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .options-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1rem;
+    }
+
+    .option-btn {
+      background-color: #f3f4f6;
+      border: none;
+      border-radius: 1rem;
+      padding: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-size: 0.95rem;
+      font-weight: 500;
+      color: #1f2937;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      text-align: left;
+    }
+
+    .option-btn:hover {
+      background-color: #e0e7ff;
+      transform: translateY(-3px);
+      box-shadow: 0 3px 10px rgba(79, 70, 229, 0.2);
+    }
+
+    .option-btn i {
+      font-size: 1.5rem;
+      color: #4f46e5;
+    }
+
+    @media (max-width: 480px) {
+      .checkin-container {
+        padding: 1.5rem;
+      }
+      .option-btn {
+        font-size: 0.9rem;
+      }
+    }
+  </style>
 </head>
-<body class="min-h-screen flex items-center justify-center bg-gray-100 p-6">
+<body>
+  <div class="checkin-container">
+    <h2 class="checkin-title">Opciones de Registro de Entrada</h2>
 
-  <div class="bg-white rounded-2xl shadow-lg p-8 max-w-md w-full space-y-6">
-    <h2 class="text-2xl font-semibold text-gray-800 text-center">Shift Schedule Options</h2>
-
-    <!-- Weekly Range Selection -->
     <div>
-      <h3 class="text-gray-700 font-medium mb-3">Schedule Range</h3>
-      <div class="flex items-center gap-6">
-        <label class="flex items-center gap-2 cursor-pointer">
-          <input type="radio" name="scheduleRange" value="single" class="w-4 h-4 text-blue-600 focus:ring-blue-500">
-          <span>Single Day</span>
-        </label>
-        <label class="flex items-center gap-2 cursor-pointer">
-          <input type="radio" name="scheduleRange" value="weekly" checked class="w-4 h-4 text-blue-600 focus:ring-blue-500">
-          <span>Weekly Range</span>
-        </label>
+      <p class="section-title">📱 Móvil:</p>
+      <div class="options-grid">
+        <button class="option-btn"><i class='bx bx-qr'></i> Escanear código QR</button>
+        <button class="option-btn"><i class='bx bx-globe'></i> Mediante dirección IP</button>
+        <button class="option-btn"><i class='bx bx-map'></i> Usando ubicación GPS</button>
       </div>
     </div>
 
-    <!-- Continuous Mode Toggle -->
     <div>
-      <h3 class="text-gray-700 font-medium mb-3">Continuous Mode</h3>
-      <div class="flex items-center justify-between bg-gray-50 p-4 rounded-xl">
-        <span class="text-gray-600">Generate Continuous Block</span>
-        <label class="relative inline-flex items-center cursor-pointer">
-          <input type="checkbox" id="isContinuous" class="sr-only peer">
-          <div class="w-14 h-8 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:bg-blue-600
-                      after:content-[''] after:absolute after:top-1 after:left-1 after:bg-white after:rounded-full 
-                      after:h-6 after:w-6 after:transition-all peer-checked:after:translate-x-6"></div>
-        </label>
+      <p class="section-title">💻 PC/Portátil:</p>
+      <div class="options-grid">
+        <button class="option-btn"><i class='bx bx-log-in-circle'></i> Registro de entrada libre</button>
       </div>
-      <p id="modeDescription" class="mt-3 text-sm text-gray-500 text-center">
-        Currently set to <span class="font-semibold">Daily Fixed Shifts (08:00–18:00)</span>
-      </p>
     </div>
-
-    <!-- Submit Button -->
-    <button class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-medium">
-      Generate Schedule
-    </button>
   </div>
-
-  <script>
-    const toggle = document.getElementById('isContinuous');
-    const desc = document.getElementById('modeDescription');
-    toggle.addEventListener('change', () => {
-      desc.innerHTML = toggle.checked
-        ? `Currently set to <span class="font-semibold text-blue-600">Continuous Block (Mon 08:00 → Fri 18:00)</span>`
-        : `Currently set to <span class="font-semibold">Daily Fixed Shifts (08:00–18:00)</span>`;
-    });
-  </script>
-
 </body>
 </html>

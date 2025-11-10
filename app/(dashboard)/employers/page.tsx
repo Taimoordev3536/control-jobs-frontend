@@ -5,6 +5,7 @@ import { useState, useEffect } from "react"
 import { Plus, Filter } from "lucide-react"
 import { useRouter } from "next/navigation"
 import DataListTemplate, { ExcelIcon, CsvIcon, PdfIcon } from "@/components/ui/data-list-template"
+import { exportToCSV, exportToXLSX, exportToPDF } from "@/lib/export"
 import AddEmployerModal from "@/components/add-employer-modal"
 import { useTranslation } from "@/hooks/use-translation"
 import { useAuth } from "@/hooks/use-auth"
@@ -120,19 +121,19 @@ export default function EmployersPage() {
   },
   {
     icon: ExcelIcon,
-    onClick: () => console.log("Export Excel clicked"),
+    onClick: () => exportToXLSX(employers, columns, "employers.xlsx"),
     title: t("exportExcel"),
     type: "excel", // Add this line
   },
   {
     icon: CsvIcon,
-    onClick: () => console.log("Export CSV clicked"),
+    onClick: () => exportToCSV(employers, columns, "employers.csv"),
     title: t("exportCsv"),
     type: "csv", // Add this line
   },
   {
     icon: PdfIcon,
-    onClick: () => console.log("Export PDF clicked"),
+    onClick: () => exportToPDF(employers, columns, "employers.pdf"),
     title: t("exportPdf"),
     type: "pdf", // Add this line
   },

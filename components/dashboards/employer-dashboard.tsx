@@ -6,32 +6,25 @@ import {
   Search,
   Filter,
   Plus,
-  Eye,
-  Edit,
-  MoreHorizontal,
   Clock,
   CheckCircle,
   AlertCircle,
   PlayCircle,
   Calendar,
-  MapPin,
   Briefcase,
   Activity,
   Building,
-  UserCheck,
-  BarChart3,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Card, CardContent } from "@/components/ui/card"
 import { useTranslation } from "@/hooks/use-translation"
 import { LoadingSpinner } from "@/components/dashboard-loader"
 import { useAuth } from "@/hooks/use-auth"
 import AddJobModal from "@/components/add-job-modal"
 import JobDetail from "@/components/job-detail/job-detail"
+import { EmployerJobCard } from "@/components/dashboards/employer-job-card"
 
 interface ApiJob {
   jobId: number
@@ -82,6 +75,9 @@ interface Job {
     id: number
     name: string
   }
+  // optional linkage fields from API
+  clientId?: number | null
+  employerName?: string
   workCenter: {
     id: number
     name: string
@@ -102,13 +98,18 @@ interface Job {
   tags: string[]
   hasAttendanceRecord: boolean
   jobDurationDays: number
-  expectedHours: number
+  expectedHours?: number
+  // new schedule fields
+  scheduleType?: string // 'free' | 'fixed' | 'summer' | 'normal' | 'seasonal'
+  activeScheduleWeekHours?: number | null
+  // keep raw expectedDuration for legacy consumer components
+  expectedDuration?: number | null
   shift: {
     type: "morning" | "afternoon" | "evening"
     startTime?: string
     endTime?: string
     duration: string
-    scheduleType: "fixed" | "flexible"
+    scheduleType: string
   }
   tasks: Array<{
     id: number
@@ -133,6 +134,13 @@ interface Job {
     ip?: boolean
     callerId?: boolean
   }
+  // derived lists for UI: split by device type
+  signingMobile?: string[]
+  signingPc?: string[]
+  // new backend fields
+  hasClientSurvey?: boolean
+  hasWorkerSurvey?: boolean
+  workCenters?: Array<{ id?: number; name?: string }>
 }
 
 interface Stats {
@@ -178,8 +186,12 @@ export default function EmployerDashboard() {
 
   const occupations = [t("cleaning"), t("security"), t("maintenance"), t("delivery"), t("itSupport"), t("landscaping")]
 
-  // Get unique work centers from jobs data
-  const workCenters = Array.from(new Set(jobs.map((job) => job.workCenter.name))).filter(Boolean)
+  // Get unique work centers from jobs data (support workCenter or workCenters)
+  const workCenters = Array.from(
+    new Set(
+      jobs.map((job) => job.workCenter?.name || (job as any).workCenters?.[0]?.name || (job as any).workCenterNames || "")
+    )
+  ).filter(Boolean)
 
   // Format date for display
   const formatDateOnly = (date: Date) => {
@@ -202,8 +214,9 @@ export default function EmployerDashboard() {
     return `${start} - ${end}`
   }
 
-  // Transform API job data to frontend job format
-  const transformApiJobToJob = (apiJob: ApiJob): Job => {
+  // Transform API job data (new backend shape) to frontend job format
+  // Accept a flexible shape because backend now returns richer objects
+  const transformApiJobToJob = (apiJob: any): Job => {
     const currentDate = new Date()
 
     // Parse start and end dates from API response
@@ -218,7 +231,7 @@ export default function EmployerDashboard() {
       Boolean(
         apiJob.attendanceRecords &&
           apiJob.attendanceRecords.length > 0 &&
-          apiJob.attendanceRecords.some((record) => record.checkInTime && record.checkOutTime),
+      apiJob.attendanceRecords.some((record: any) => record.checkInTime && record.checkOutTime),
       ) || Boolean(apiJob.workSession?.checkInTime && apiJob.workSession?.checkOutTime)
 
     // Determine job status based on the same logic as client dashboard
@@ -241,9 +254,11 @@ export default function EmployerDashboard() {
       }
     }
 
-    // Infer occupation from tasks
-    let occupation = t("general")
-    const taskString = apiJob.tasks.join(" ").toLowerCase()
+  // Infer occupation from tasks
+  let occupation = t("general")
+  // tasks may be strings or objects { name }
+  const rawTaskNames = (apiJob.tasks || []).map((t: any) => (typeof t === 'string' ? t : t?.name || '') )
+  const taskString = rawTaskNames.join(" ").toLowerCase()
     if (taskString.includes("clean") || taskString.includes("sweep")) {
       occupation = t("cleaning")
     } else if (taskString.includes("security") || taskString.includes("guard")) {
@@ -258,31 +273,64 @@ export default function EmployerDashboard() {
       occupation = t("landscaping")
     }
 
-    // Create mock tasks for the job
-    const mockTasks = apiJob.tasks.map((task, index) => ({
-      id: index + 1,
-      name: task,
-      description: `Complete ${task.toLowerCase()} task`,
-      completed: Math.random() > 0.5,
-      duration: "2 hours",
-      timing: "during" as const,
-    }))
+    // Create mock tasks for the job (preserve id/name when available)
+    const mockTasks = (apiJob.tasks || []).map((task: any, index: number) => {
+      const name = typeof task === 'string' ? task : task?.name || `Task ${index + 1}`
+      return {
+        id: task?.id || index + 1,
+        name,
+        description: `Complete ${String(name).toLowerCase()} task`,
+        completed: Math.random() > 0.5,
+        duration: "2 hours",
+        timing: "during" as const,
+      }
+    })
+
+    // Normalize backend scheduleType (may be free | fixed | summer | normal | seasonal)
+    const backendScheduleTypeRaw = (apiJob.scheduleType || '').toString().toLowerCase()
+    const backendScheduleType = ['free','fixed','summer','normal','seasonal'].includes(backendScheduleTypeRaw)
+      ? backendScheduleTypeRaw
+      : (backendScheduleTypeRaw === 'programming' ? 'fixed' : backendScheduleTypeRaw || 'free')
+
+    // Determine expected hours for card display
+    let expectedHours: number | undefined = undefined
+    if (backendScheduleType === 'free') {
+      expectedHours = undefined
+    } else if (backendScheduleType === 'fixed') {
+      expectedHours = apiJob.expectedDuration ?? apiJob.expectedHours ?? 0
+    } else if (['summer','normal','seasonal'].includes(backendScheduleType)) {
+      // Prefer activeScheduleWeekHours from backend seasonal logic
+      expectedHours = apiJob.activeScheduleWeekHours ?? apiJob.expectedDuration ?? apiJob.expectedHours ?? 0
+    } else {
+      expectedHours = apiJob.expectedDuration ?? apiJob.expectedHours ?? 0
+    }
+
+    // Prefer explicit ids/names if backend provided them
+    const clientId = (apiJob as any).clientId ?? (apiJob as any)?.client?.id ?? null
+    const employerName = (apiJob as any).employerName ?? (apiJob as any)?.employer?.name ?? (session as any)?.user?.name ?? ''
 
     return {
       id: apiJob.jobId,
       title: apiJob.jobName,
       jobId: `JOB-${apiJob.jobId.toString().padStart(4, "0")}`,
       client: {
-        id: Math.floor(Math.random() * 100) + 1,
-        name: apiJob.clientName,
+        // keep a numeric id; fall back to a placeholder when missing
+        id: typeof clientId === 'number' ? clientId : (Math.floor(Math.random() * 100) + 1),
+        name: apiJob.clientName || apiJob.client?.name || '',
       },
+      // expose linkage fields for UI decisions
+      clientId: clientId,
+      employerName,
+      // Frontend expects a single workCenter object; derive from new `workCenters` array if present
       workCenter: {
         id: Math.floor(Math.random() * 10) + 1,
-        name: apiJob.workCenter,
-        address: `${apiJob.workCenter}, Business District`,
+        name: (apiJob.workCenters && apiJob.workCenters.length > 0)
+          ? apiJob.workCenters[0].name
+          : (apiJob.workCenter || apiJob.workCenterNames || ''),
+        address: `${(apiJob.workCenters && apiJob.workCenters.length > 0) ? apiJob.workCenters[0].name : (apiJob.workCenter || '')}, Business District`,
         coordinates: { lat: 40.7128, lng: -74.006 },
       },
-      workers: apiJob.workers.map((worker) => ({
+      workers: (apiJob.workers || []).map((worker: any) => ({
         id: worker.id,
         name: worker.name || `${t("worker")} ${worker.code}`, // Fallback to code if name is null
       })),
@@ -292,31 +340,81 @@ export default function EmployerDashboard() {
       duration: `${jobDurationDays} ${jobDurationDays === 1 ? t("day") : t("days")}`,
       shifts: apiJob.totalShifts,
       occupation,
-      tags: apiJob.tasks.slice(0, 3), // Use first 3 tasks as tags
+      tags: rawTaskNames.slice(0, 3), // Use first 3 tasks as tags
       hasAttendanceRecord,
       jobDurationDays,
-      expectedHours: apiJob.expectedDuration || 8, // Default to 8 hours if not provided
+      // expose both expectedDuration (raw from API) and expectedHours (frontend-friendly)
+      expectedDuration: apiJob.expectedDuration ?? apiJob.expectedHours ?? null,
+      expectedHours,
+      scheduleType: backendScheduleType,
+      activeScheduleWeekHours: apiJob.activeScheduleWeekHours ?? null,
       shift: {
         type: "morning",
         startTime: "09:00",
         endTime: "17:00",
         duration: "8 hours",
-        scheduleType: "fixed",
+        scheduleType: backendScheduleType,
       },
       tasks: mockTasks,
+      // expose new fields so components can use them (normalize signingMethods into boolean flags)
+      hasClientSurvey: !!apiJob.hasClientSurvey,
+      hasWorkerSurvey: !!apiJob.hasWorkerSurvey,
+      workCenters: apiJob.workCenters || [],
+      signingMethods: (() => {
+        const s = { qrCode: false, gps: false, wifi: false, ip: false, callerId: false }
+        ;(apiJob.signingMethods || []).forEach((m: any) => {
+          const details = (m.methodDetails || m.details || [])
+          if (Array.isArray(details)) {
+            details.forEach((d: any) => {
+              const dv = String(d || '').toLowerCase()
+              if (dv.includes('qr')) s.qrCode = true
+              if (dv.includes('gps')) s.gps = true
+              if (dv.includes('wifi') || dv.includes('web')) s.wifi = true
+              if (dv.includes('ip')) s.ip = true
+            })
+          }
+        })
+        return s
+      })(),
+      // split methods into mobile vs pc lists for UI rendering
+      signingMobile: (() => {
+        const list: string[] = []
+        ;(apiJob.signingMethods || []).forEach((m: any) => {
+          const type = String(m?.methodType || m?.type || '').toLowerCase()
+          if (!type.includes('mobile')) return
+          const details = (m.methodDetails || m.details || [])
+          ;(Array.isArray(details) ? details : [details]).forEach((d: any) => {
+            const s = String(d || '').toLowerCase()
+            if (s.includes('qr')) list.push('qrcode')
+            else if (s.includes('gps')) list.push('gps')
+            else if (s.includes('ip')) list.push('ip')
+            else if (s.includes('web') || s.includes('wifi')) list.push('web')
+          })
+        })
+        return Array.from(new Set(list.filter((v) => ['qrcode','gps','ip','web'].includes(v))))
+      })(),
+      signingPc: (() => {
+        const list: string[] = []
+        ;(apiJob.signingMethods || []).forEach((m: any) => {
+          const type = String(m?.methodType || m?.type || '').toLowerCase()
+          if (!(type.includes('pc') || type.includes('laptop') || type.includes('web'))) return
+          const details = (m.methodDetails || m.details || [])
+          ;(Array.isArray(details) ? details : [details]).forEach((d: any) => {
+            const s = String(d || '').toLowerCase()
+            if (s.includes('ip')) list.push('ip')
+            else if (s.includes('web') || s.includes('wifi')) list.push('web')
+            // ignore qr/gps for PC per spec
+          })
+        })
+        return Array.from(new Set(list.filter((v) => ['web','ip'].includes(v))))
+      })(),
       checkInTime: hasAttendanceRecord ? new Date(startDate.getTime() + 9 * 60 * 60 * 1000) : undefined,
       checkOutTime: hasAttendanceRecord ? new Date(startDate.getTime() + 17 * 60 * 60 * 1000) : undefined,
       breakTime: 30,
       workedTime: hasAttendanceRecord ? 8 * 60 : 0,
       totalBreakTime: 30,
       isOnBreak: false,
-      signingMethods: {
-        qrCode: true,
-        gps: true,
-        wifi: false,
-        ip: false,
-        callerId: false,
-      },
+      // legacy default signingMethods object retained for compatibility (already set above)
     }
   }
 
@@ -407,10 +505,11 @@ export default function EmployerDashboard() {
     const matchesSearch =
       job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       job.jobId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      job.client.name.toLowerCase().includes(searchTerm.toLowerCase())
+      (job.client?.name || (job as any).clientName || "").toLowerCase().includes(searchTerm.toLowerCase())
     const matchesStatus = statusFilter === "all" || job.status === statusFilter
     const matchesOccupation = occupationFilter === "all" || job.occupation === occupationFilter
-    const matchesWorkCenter = workCenterFilter === "all" || job.workCenter.name === workCenterFilter
+    const jobWorkCenterName = job.workCenter?.name || (job as any).workCenters?.[0]?.name || (job as any).workCenterNames || ""
+    const matchesWorkCenter = workCenterFilter === "all" || jobWorkCenterName === workCenterFilter
 
     return matchesSearch && matchesStatus && matchesOccupation && matchesWorkCenter
   })
@@ -652,209 +751,16 @@ export default function EmployerDashboard() {
           </CardContent>
         </Card>
 
-        {/* Compact Jobs Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-          {filteredJobs.map((job) => {
-            const statusConfig = getStatusConfig(job.status)
-            const StatusIcon = statusConfig.icon
-
-            return (
-              <Card
-                key={job.id}
-                className="group border border-gray-200 dark:border-gray-800 hover:shadow-lg transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1 bg-white dark:bg-gray-900"
-              >
-                {/* Status Indicator Line */}
-                <div
-                  className={`w-full h-0.5 ${
-                    job.status === "scheduled"
-                      ? "bg-blue-500"
-                      : job.status === "in_progress"
-                        ? "bg-green-500"
-                        : job.status === "completed"
-                          ? "bg-purple-500"
-                          : "bg-gray-500"
-                  }`}
-                ></div>
-                <CardHeader className="pb-2">
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <h3 className="text-lg font-bold text-gray-900 dark:text-white">{job.title}</h3>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge
-                          variant="outline"
-                          className="text-xs font-mono bg-gray-100 dark:bg-gray-800 h-5 border-gray-200 dark:border-gray-700"
-                        >
-                          {job.jobId}
-                        </Badge>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Badge className={`${statusConfig.color} flex items-center gap-1 h-6 text-xs`}>
-                        <StatusIcon className="w-3 h-3" />
-                        {statusConfig.label}
-                      </Badge>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                          >
-                            <MoreHorizontal className="h-3 w-3" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent
-                          align="end"
-                          className="w-40 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700"
-                        >
-                          <DropdownMenuItem
-                            className="text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                            onClick={() => handleViewDetails(job)}
-                          >
-                            <Eye className="h-3 w-3 mr-2" />
-                            {t("viewDetails")}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            className="text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                            onClick={() => handleEditJob(job.id)}
-                          >
-                            <Edit className="h-3 w-3 mr-2" />
-                            {t("editJob")}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
-                            <BarChart3 className="h-3 w-3 mr-2" />
-                            {t("analytics")}
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </div>
-                </CardHeader>
-
-                <CardContent className="space-y-3 pt-0">
-                  {/* Client & Location Info */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400">
-                        <Building className="w-3 h-3" />
-                        <span className="text-xs font-medium uppercase tracking-wide">{t("client")}</span>
-                      </div>
-                      <div className="text-xs font-semibold text-gray-900 dark:text-white truncate">
-                        {job.client.name}
-                      </div>
-                    </div>
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400">
-                        <MapPin className="w-3 h-3" />
-                        <span className="text-xs font-medium uppercase tracking-wide">{t("location")}</span>
-                      </div>
-                      <div className="text-xs font-semibold text-gray-900 dark:text-white truncate">
-                        {job.workCenter.name}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Job Duration - Single Box like Client Dashboard */}
-                  <div className="bg-gray-100 dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Calendar className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-                        <div className="flex flex-col">
-                          <span className="text-sm font-medium text-gray-900 dark:text-white">
-                            {formatDateRange(job.startDate, job.endDate)}
-                          </span>
-                          <span className="text-xs text-gray-500 dark:text-gray-400">
-                            {t("duration")}: {job.jobDurationDays} {job.jobDurationDays !== 1 ? t("days") : t("day")}
-                          </span>
-                        </div>
-                      </div>
-                      <Badge
-                        variant="secondary"
-                        className="text-xs bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
-                      >
-                        {job.expectedHours}
-                        {t("hour")}
-                      </Badge>
-                    </div>
-                  </div>
-
-                  {/* Tags */}
-                  <div className="flex flex-wrap gap-1">
-                    {job.tags.slice(0, 2).map((tag, index) => (
-                      <Badge
-                        key={index}
-                        variant="secondary"
-                        className="text-xs h-5 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
-                      >
-                        {tag}
-                      </Badge>
-                    ))}
-                    {job.tags.length > 2 && (
-                      <Badge
-                        variant="secondary"
-                        className="text-xs h-5 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
-                      >
-                        +{job.tags.length - 2}
-                      </Badge>
-                    )}
-                  </div>
-
-                  {/* Workers */}
-                  <div className="flex items-center justify-between pt-2 border-t border-gray-200 dark:border-gray-700">
-                    <div className="flex items-center gap-2">
-                      <div className="flex -space-x-1">
-                        {job.workers.slice(0, 3).map((worker, index) => (
-                          <div
-                            key={worker.id}
-                            className="w-6 h-6 rounded-full bg-gray-500 flex items-center justify-center text-white text-xs font-bold border border-white dark:border-gray-900 shadow-sm"
-                            title={worker.name}
-                          >
-                            {worker.name
-                              .split(" ")
-                              .map((n) => n[0])
-                              .join("")
-                              .toUpperCase()}
-                          </div>
-                        ))}
-                        {job.workers.length > 3 && (
-                          <div className="w-6 h-6 rounded-full bg-gray-400 flex items-center justify-center text-xs font-bold border border-white dark:border-gray-900">
-                            +{job.workers.length - 3}
-                          </div>
-                        )}
-                      </div>
-                      <div className="text-xs text-gray-600 dark:text-gray-400">
-                        <UserCheck className="w-3 h-3 inline mr-1" />
-                        {job.workers.length}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Action Buttons */}
-                  <div className="flex gap-2 pt-1">
-                    <Button
-                      size="sm"
-                      className="flex-1 h-7 text-xs bg-purple-600 hover:bg-purple-700 text-white"
-                      onClick={() => handleViewDetails(job)}
-                    >
-                      <Eye className="w-3 h-3 mr-1" />
-                      {t("viewDetails")}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="flex-1 h-7 text-xs bg-transparent border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
-                      onClick={() => handleEditJob(job.id)}
-                    >
-                      <Edit className="w-3 w-3 mr-1" />
-                      {t("edit")}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )
-          })}
+          {filteredJobs.map((job) => (
+            <EmployerJobCard
+              key={job.id}
+              job={job as any}
+              onViewDetails={(j: any) => handleViewDetails(j as any)}
+              onEdit={handleEditJob}
+              onViewRecords={(j: any) => handleViewDetails(j as any)}
+            />
+          ))}
         </div>
 
         {/* Empty State */}

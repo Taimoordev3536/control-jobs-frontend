@@ -294,6 +294,7 @@ import { useState } from "react"
 import { MoreVertical } from "lucide-react"
 import { useTranslation } from "@/hooks/use-translation"
 import AddJobModal from "@/components/add-job-modal"
+import { exportToCSV, exportToXLSX, exportToPDF } from "@/lib/export"
 import dynamic from "next/dynamic"
 
 // Import tab components dynamically
@@ -389,6 +390,7 @@ export default function JobsControlPage() {
   const { t } = useTranslation()
   const [activeTab, setActiveTab] = useState("alerts")
   const [showAddJobModal, setShowAddJobModal] = useState(false)
+  const [showFilters, setShowFilters] = useState(false)
 
   const tabs = [
     { key: "alerts", label: t("alerts") },
@@ -409,28 +411,28 @@ export default function JobsControlPage() {
       type: "filter",
       IconDefault: FilterIcon1,
       IconHover: FilterIcon2,
-      onClick: () => console.log("Filter clicked"),
+      onClick: () => setShowFilters((v) => !v),
       title: t("filter") || "Filter",
     },
     {
       type: "pdf",
       IconDefault: PdfIcon1,
       IconHover: PdfIcon2,
-      onClick: () => console.log("Export PDF clicked"),
+      onClick: () => exportToPDF([], [], "jobs-control.pdf"),
       title: t("exportPdf") || "Export PDF",
     },
     {
       type: "excel",
       IconDefault: ExcelIcon1,
       IconHover: ExcelIcon2,
-      onClick: () => console.log("Export Excel clicked"),
+      onClick: () => exportToXLSX([], [], "jobs-control.xls"),
       title: t("exportExcel") || "Export Excel",
     },
     {
       type: "csv",
       IconDefault: CsvIcon1,
       IconHover: CsvIcon2,
-      onClick: () => console.log("Export CSV clicked"),
+      onClick: () => exportToCSV([], [], "jobs-control.csv"),
       title: t("exportCsv") || "Export CSV",
     },
   ]
@@ -495,10 +497,18 @@ export default function JobsControlPage() {
 
         {/* Tab Content */}
         <div className="min-h-[400px]">
-          {activeTab === "alerts" && <ControlAlertTab />}
-          {activeTab === "signings" && <ControlSigningsTab />}
-          {activeTab === "tasks" && <ControlTasksTab />}
-          {activeTab === "surveys" && <ControlSurveysTab />}
+          {activeTab === "alerts" && (
+            <ControlAlertTab showFilters={showFilters} onShowFiltersChange={setShowFilters} />
+          )}
+          {activeTab === "signings" && (
+            <ControlSigningsTab showFilters={showFilters} onShowFiltersChange={setShowFilters} />
+          )}
+          {activeTab === "tasks" && (
+            <ControlTasksTab showFilters={showFilters} onShowFiltersChange={setShowFilters} />
+          )}
+          {activeTab === "surveys" && (
+            <ControlSurveysTab showFilters={showFilters} onShowFiltersChange={setShowFilters} />
+          )}
         </div>
       </div>
 

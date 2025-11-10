@@ -1345,46 +1345,73 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
       const seasonalSchedules: any[] = []
 
       if (formData.scheduleType === "programming") {
-        ;(["normal", "summer"] as const).forEach((season) => {
-          const seasonSchedules = formData.schedules[season]
-
-          // use shared toISODate helper defined above
-
-          // collect chronological start/end events for this season
-          const events = collectTimeEvents(seasonSchedules)
-
-          let openStart: { dayIndex: number; minutes: number; shift: ShiftKey } | null = null
-
-          const blocks: Array<{
+        // Robust shift pairing that supports week wrap-around (e.g., Sunday -> Monday)
+        const buildShiftBlocks = (schedules: ScheduleData) => {
+          type Block = {
             startWeekday: string
             endWeekday: string
             baseStartTime: string
             baseEndTime: string
             isContinuous: boolean
             totalHours: number
-          }> = []
+          }
 
-          for (const ev of events) {
-            if (ev.kind === "start") {
-              openStart = { dayIndex: ev.dayIndex, minutes: ev.minutes, shift: ev.shift }
-            } else if (ev.kind === "end") {
-              if (openStart) {
-                const startAbs = openStart.dayIndex * 24 * 60 + openStart.minutes
-                const endAbs = ev.dayIndex * 24 * 60 + ev.minutes
-                if (endAbs > startAbs) {
-                  const startWeekday = DAY_KEYS[openStart.dayIndex]
-                  const endWeekday = DAY_KEYS[ev.dayIndex]
-                  const baseStartTime = minutesToTime(openStart.minutes)
-                  const baseEndTime = minutesToTime(ev.minutes)
-                  const isContinuous = openStart.dayIndex !== ev.dayIndex || openStart.shift !== ev.shift
-                  const totalHours = Math.floor((endAbs - startAbs) / 60)
+          const events = collectTimeEvents(schedules)
+          const starts = events.filter((e) => e.kind === "start")
+          const ends = events.filter((e) => e.kind === "end")
 
-                  blocks.push({ startWeekday, endWeekday, baseStartTime, baseEndTime, isContinuous, totalHours })
-                }
-                openStart = null
+          // Sort deterministically
+          starts.sort((a, b) => a.dayIndex - b.dayIndex || a.minutes - b.minutes)
+          ends.sort((a, b) => a.dayIndex - b.dayIndex || a.minutes - b.minutes)
+
+          const assignedEnds = new Set<number>()
+          const blocks: Block[] = []
+
+          for (const sEv of starts) {
+            let chosen: { end: typeof ends[number]; endIndex: number; adjustedDayIndex: number } | null = null
+            for (let i = 0; i < ends.length; i++) {
+              if (assignedEnds.has(i)) continue
+              const eEv = ends[i]
+
+              // If end is on same day it must be after start minutes
+              let adjustedDayIndex = eEv.dayIndex >= sEv.dayIndex ? eEv.dayIndex : eEv.dayIndex + 7
+              if (adjustedDayIndex === sEv.dayIndex && eEv.minutes <= sEv.minutes) continue
+              // Limit to within the same week loop
+              const dayGap = adjustedDayIndex - sEv.dayIndex
+              if (dayGap < 0 || dayGap > 6) continue
+
+              if (
+                !chosen ||
+                adjustedDayIndex < chosen.adjustedDayIndex ||
+                (adjustedDayIndex === chosen.adjustedDayIndex && eEv.minutes < chosen.end.minutes)
+              ) {
+                chosen = { end: eEv, endIndex: i, adjustedDayIndex }
+              }
+            }
+
+            if (chosen) {
+              const startAbs = sEv.dayIndex * 24 * 60 + sEv.minutes
+              const endAbs = chosen.adjustedDayIndex * 24 * 60 + chosen.end.minutes
+              if (endAbs > startAbs) {
+                const startWeekday = DAY_KEYS[sEv.dayIndex]
+                const endWeekday = DAY_KEYS[chosen.adjustedDayIndex % 7]
+                const baseStartTime = minutesToTime(sEv.minutes)
+                const baseEndTime = minutesToTime(chosen.end.minutes)
+                const isContinuous = sEv.dayIndex % 7 !== chosen.adjustedDayIndex % 7
+                const totalHours = Math.floor((endAbs - startAbs) / 60)
+                blocks.push({ startWeekday, endWeekday, baseStartTime, baseEndTime, isContinuous, totalHours })
+                assignedEnds.add(chosen.endIndex)
               }
             }
           }
+
+          return blocks
+        }
+
+        ;(["normal", "summer"] as const).forEach((season) => {
+          const seasonSchedules = formData.schedules[season]
+
+          const blocks = buildShiftBlocks(seasonSchedules)
 
           // Find optional season period (start/end) provided by the user
           const seasonPeriod = (Array.isArray(formData.seasonPeriods) ? formData.seasonPeriods : []).find(
@@ -1393,8 +1420,38 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
 
           const seasonObj: any = { season, shifts: blocks }
           if (seasonPeriod) {
-            const s = toISODate(seasonPeriod.startDate)
-            const e = toISODate(seasonPeriod.endDate)
+            // Only keep day-month (DD-MM). Accept inputs like DD/MM, MM/DD, YYYY-MM-DD
+            const normalizeDayMonth = (val: any): string | null => {
+              if (!val) return null
+              let s = String(val).trim()
+              // If full ISO date, extract DD-MM
+              const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+              if (iso) {
+                return `${iso[3]}-${iso[2]}`
+              }
+              // If DD/MM or DD-MM or MM/DD or MM-DD attempt to detect ordering
+              const dm = s.match(/^(\d{1,2})[\/\-](\d{1,2})$/)
+              if (dm) {
+                let a = Number(dm[1])
+                let b = Number(dm[2])
+                // Heuristic: if first part > 12 then it's DD-MM
+                let day: number
+                let month: number
+                if (a > 12 && b <= 12) {
+                  day = a; month = b
+                } else if (b > 12 && a <= 12) {
+                  day = b; month = a
+                } else {
+                  // fallback assume first is day
+                  day = a; month = b
+                }
+                if (day < 1 || day > 31 || month < 1 || month > 12) return null
+                return `${String(day).padStart(2,"0")}-${String(month).padStart(2,"0")}`
+              }
+              return null
+            }
+            const s = normalizeDayMonth(seasonPeriod.startDate)
+            const e = normalizeDayMonth(seasonPeriod.endDate)
             if (s) seasonObj.startDate = s
             if (e) seasonObj.endDate = e
           }
@@ -1404,7 +1461,7 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
 
       // toISODate helper is defined above
 
-      // Prepare seasonPeriods payload: normalize dates to ISO (YYYY-MM-DD) and only include valid entries
+      // Prepare seasonPeriods payload: normalize dates to ISO (YYYY-MM-DD); season periods may be year-specific
       const seasonPeriodsPayload: any[] = []
       if (Array.isArray(formData.seasonPeriods)) {
         formData.seasonPeriods.forEach((p: any) => {
@@ -1419,15 +1476,38 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
 
       // Build signing methods
       const signingMethods: any[] = []
+      // helper to map frontend keys to backend detail values
+      const mapDetailKey = (key: string) => {
+        const k = String(key).toLowerCase()
+        if (k === 'wifi' || k === 'web') return 'web'
+        if (k === 'ip') return 'ip'
+        if (k === 'gps') return 'gps'
+        if (k === 'qrcode' || k === 'qrcode' || k === 'qrcode') return 'qrcode'
+        return k
+      }
+
       if (formData.signingMethods.mobile) {
         const mobileDetails = Object.entries(formData.signingMethods.mobile)
           .filter(([_, enabled]) => enabled)
-          .map(([key]) => (key === "qrCode" ? "qrcode" : key))
+          .map(([key]) => mapDetailKey(key))
         if (mobileDetails.length > 0) {
           signingMethods.push({
-            methodType: "mobile",
+            methodType: 'mobile',
             methodDetails: mobileDetails,
-            verifyIdentity: formData.verifyIdentity,
+            verifyIdentity: !!formData.verifyIdentity,
+          })
+        }
+      }
+
+      if (formData.signingMethods.laptop) {
+        const laptopDetails = Object.entries(formData.signingMethods.laptop)
+          .filter(([_, enabled]) => enabled)
+          .map(([key]) => mapDetailKey(key))
+        if (laptopDetails.length > 0) {
+          signingMethods.push({
+            methodType: 'pc', // backend enum uses 'pc'
+            methodDetails: laptopDetails,
+            verifyIdentity: !!formData.verifyIdentity,
           })
         }
       }

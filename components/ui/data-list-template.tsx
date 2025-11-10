@@ -65,6 +65,8 @@ export default function DataListTemplate({
   const [sortColumn, setSortColumn] = useState<string | null>(null)
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc")
   const [currentPage, setCurrentPage] = useState(1)
+  const [filtersVisible, setFiltersVisible] = useState(false)
+  const [filters, setFilters] = useState<Record<string, string>>({})
 
   const total = totalRecords || data.length
   const totalPages = Math.ceil(total / itemsPerPage)
@@ -93,6 +95,20 @@ export default function DataListTemplate({
         : bValue - aValue || 0
     })
   }, [data, sortColumn, sortDirection, localColumns])
+
+  const filteredData = useMemo(() => {
+    if (!filtersVisible) return sortedData
+    const activeFilters = Object.entries(filters).filter(([, v]) => v && v.trim() !== "")
+    if (activeFilters.length === 0) return sortedData
+
+    return sortedData.filter((row) => {
+      return activeFilters.every(([key, value]) => {
+        const cell = row?.[key]
+        const text = cell == null ? "" : String(cell)
+        return text.toLowerCase().includes(value.toLowerCase())
+      })
+    })
+  }, [sortedData, filters, filtersVisible])
 
   const handleSort = (column: string) => {
     const columnConfig = localColumns.find((col) => col.key === column)
@@ -273,7 +289,17 @@ export default function DataListTemplate({
                         <ActionIconButton
                           IconDefault={IconDefault}
                           IconHover={IconHover}
-                          onClick={button.onClick}
+                          onClick={() => {
+                            // If this is the filter button, toggle the filter row visibility
+                            if (button.type === "filter") {
+                              setFiltersVisible((v) => !v)
+                            }
+                            try {
+                              button.onClick && button.onClick()
+                            } catch (e) {
+                              // ignore
+                            }
+                          }}
                           title={button.title}
                         />
                       </div>
@@ -307,40 +333,59 @@ export default function DataListTemplate({
                 <thead>
                   <Droppable droppableId="columns" direction="horizontal">
                     {(provided) => (
-                      <tr
-                        ref={provided.innerRef}
-                        {...provided.droppableProps}
-                        className="bg-purple-50 dark:bg-purple-950/50 border-y-2 border-[#662D91]"
-                      >
-                        {localColumns.map((column, index) => (
-                          <Draggable key={column.key} draggableId={column.key} index={index}>
-                            {(provided, snapshot) => (
-                              <th
-                                ref={provided.innerRef}
-                                {...provided.draggableProps}
-                                {...provided.dragHandleProps}
-                                className={`px-5 py-2 text-sm font-semibold text-foreground transition-colors cursor-move ${
-                                  snapshot.isDragging ? "bg-purple-200 dark:bg-purple-800" : ""
-                                } text-center border border-gray-300 dark:border-gray-700 ${
-                                  column.sortable ? "hover:bg-purple-100 dark:hover:bg-purple-900/50" : ""
-                                }`}
-                                onClick={() => column.sortable && handleSort(column.key)}
-                              >
-                                <div className="flex items-center justify-center">
-                                  {column.label}
-                                  {column.sortable && getSortIcon(column.key)}
-                                </div>
+                      <>
+                        <tr
+                          ref={provided.innerRef}
+                          {...provided.droppableProps}
+                          className="bg-purple-50 dark:bg-purple-950/50 border-y-2 border-[#662D91]"
+                        >
+                          {localColumns.map((column, index) => (
+                            <Draggable key={column.key} draggableId={column.key} index={index}>
+                              {(provided, snapshot) => (
+                                <th
+                                  ref={provided.innerRef}
+                                  {...provided.draggableProps}
+                                  {...provided.dragHandleProps}
+                                  className={`px-5 py-2 text-sm font-semibold text-foreground transition-colors cursor-move ${
+                                    snapshot.isDragging ? "bg-purple-200 dark:bg-purple-800" : ""
+                                  } text-center border border-gray-300 dark:border-gray-700 ${
+                                    column.sortable ? "hover:bg-purple-100 dark:hover:bg-purple-900/50" : ""
+                                  }`}
+                                  onClick={() => column.sortable && handleSort(column.key)}
+                                >
+                                  <div className="flex items-center justify-center">
+                                    {column.label}
+                                    {column.sortable && getSortIcon(column.key)}
+                                  </div>
+                                </th>
+                              )}
+                            </Draggable>
+                          ))}
+                          {provided.placeholder}
+                        </tr>
+
+                        {/* Filter inputs row - shown when filtersVisible */}
+                        {filtersVisible && (
+                          <tr className="bg-white">
+                            {localColumns.map((column) => (
+                              <th key={`filter-${column.key}`} className="px-5 py-2 text-sm font-normal text-foreground border border-gray-300 dark:border-gray-700">
+                                <input
+                                  type="text"
+                                  value={filters[column.key] || ""}
+                                  onChange={(e) => setFilters((prev) => ({ ...prev, [column.key]: e.target.value }))}
+                                  placeholder={t("filter") + "..."}
+                                  className="w-full p-1 text-sm border rounded focus:outline-none focus:border-[#662D91] focus:ring-1 focus:ring-[#662D91]"
+                                />
                               </th>
-                            )}
-                          </Draggable>
-                        ))}
-                        {provided.placeholder}
-                      </tr>
+                            ))}
+                          </tr>
+                        )}
+                      </>
                     )}
                   </Droppable>
                 </thead>
                 <tbody>
-                  {sortedData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((row, index) => (
+                  {filteredData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((row, index) => (
                     <tr
                       key={row.id || index}
                       onClick={() => handleRowClick(row)}
@@ -367,10 +412,10 @@ export default function DataListTemplate({
         )}
 
         {/* Pagination */}
-        {showPagination && sortedData.length > 0 && (
+        {showPagination && filteredData.length > 0 && (
           <div className="px-6 py-2 flex items-center justify-between border-t border-border bg-card bg-gray-100 dark:bg-gray-800">
             <div className="text-sm text-muted-foreground">
-              {t("showingRecordsFrom")} {((currentPage - 1) * itemsPerPage + 1)} {t("to")} {Math.min(currentPage * itemsPerPage, total)} {t("outOfTotal")} {total} {t("records")}
+              {t("showingRecordsFrom")} {((currentPage - 1) * itemsPerPage + 1)} {t("to")} {Math.min(currentPage * itemsPerPage, filteredData.length)} {t("outOfTotal")} {filteredData.length} {t("records")}
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -411,3 +456,8 @@ export default function DataListTemplate({
     </div>
   )
 }
+
+// Export icon components so other modules can import them directly
+export const ExcelIcon: React.ComponentType<{ className?: string }> = (props) => <ExcelIcon1 {...props} />
+export const CsvIcon: React.ComponentType<{ className?: string }> = (props) => <CsvIcon1 {...props} />
+export const PdfIcon: React.ComponentType<{ className?: string }> = (props) => <PdfIcon1 {...props} />

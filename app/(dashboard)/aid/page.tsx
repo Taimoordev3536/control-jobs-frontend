@@ -1,6 +1,7 @@
 "use client"
 
 import DataListTemplate, { ExcelIcon, CsvIcon, PdfIcon } from "@/components/ui/data-list-template"
+import { exportToCSV, exportToXLSX, exportToPDF } from "@/lib/export"
 import { Plus, Filter } from "lucide-react"
 import { useTranslation } from "@/hooks/use-translation"
 
@@ -51,21 +52,21 @@ export default function AidPage() {
     onClick: () => console.log("Filter clicked"),
     title: "filter", // ✅ fixed to match icon logic
   },
-     {
-       icon: ExcelIcon,
-       onClick: () => console.log("Export Excel clicked"),
-       title: t("exportExcel"),
-     },
-     {
-       icon: CsvIcon,
-       onClick: () => console.log("Export CSV clicked"),
-       title: t("exportCsv"),
-     },
-     {
-       icon: PdfIcon,
-       onClick: () => console.log("Export PDF clicked"),
-       title: t("exportPdf"),
-     },
+    {
+      icon: ExcelIcon,
+      onClick: () => exportToXLSX(helpTopics, columns, "aid.xlsx"),
+      title: t("exportExcel"),
+    },
+    {
+      icon: CsvIcon,
+      onClick: () => exportToCSV(helpTopics, columns, "aid.csv"),
+      title: t("exportCsv"),
+    },
+    {
+      icon: PdfIcon,
+      onClick: () => exportToPDF(helpTopics, columns, "aid.pdf"),
+      title: t("exportPdf"),
+    },
    ]
 
   const handleRowClick = (id: number) => {

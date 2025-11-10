@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { Plus, Filter } from "lucide-react"
 import { useRouter } from "next/navigation"
 import DataListTemplate, { ExcelIcon, CsvIcon, PdfIcon } from "@/components/ui/data-list-template"
+import { exportToCSV, exportToXLSX, exportToPDF } from "@/lib/export"
 import AddPartnerModal from "@/components/add-partner-modal"
 import { useTranslation } from "@/hooks/use-translation"
 import { useAuth } from "@/hooks/use-auth"
@@ -97,19 +98,19 @@ export default function PartnersList() {
     },
     {
       icon: ExcelIcon,
-      onClick: () => console.log("Export Excel clicked"),
+      onClick: () => exportToXLSX(partners, columns, "partners.xlsx"),
       title: t("exportExcel"),
       type: "excel",
     },
     {
       icon: CsvIcon,
-      onClick: () => console.log("Export CSV clicked"),
+      onClick: () => exportToCSV(partners, columns, "partners.csv"),
       title: t("exportCsv"),
       type: "csv",
     },
     {
       icon: PdfIcon,
-      onClick: () => console.log("Export PDF clicked"),
+      onClick: () => exportToPDF(partners, columns, "partners.pdf"),
       title: t("exportPdf"),
       type: "pdf",
     },

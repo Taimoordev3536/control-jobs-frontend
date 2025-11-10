@@ -1,6 +1,7 @@
 "use client"
 
 import DataListTemplate, { ExcelIcon, CsvIcon, PdfIcon } from "@/components/ui/data-list-template"
+import { exportToCSV, exportToXLSX, exportToPDF } from "@/lib/export"
 import { Plus, Filter } from "lucide-react"
 import { useTranslation } from "@/hooks/use-translation"
 
@@ -30,17 +31,17 @@ export default function SurveysClientsPage() {
     },
     {
       icon: ExcelIcon,
-      onClick: () => console.log("Export Excel clicked"),
+      onClick: () => exportToXLSX(dummyData, columns, "surveys-clients.xlsx"),
       title: t("exportExcel"),
     },
     {
       icon: CsvIcon,
-      onClick: () => console.log("Export CSV clicked"),
+      onClick: () => exportToCSV(dummyData, columns, "surveys-clients.csv"),
       title: t("exportCsv"),
     },
     {
       icon: PdfIcon,
-      onClick: () => console.log("Export PDF clicked"),
+      onClick: () => exportToPDF(dummyData, columns, "surveys-clients.pdf"),
       title: t("exportPdf"),
     },
   ]

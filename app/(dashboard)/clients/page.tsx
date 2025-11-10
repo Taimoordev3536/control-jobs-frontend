@@ -1,6 +1,7 @@
 "use client"
 
 import DataListTemplate, { ExcelIcon, CsvIcon, PdfIcon } from "@/components/ui/data-list-template"
+import { exportToCSV, exportToXLSX, exportToPDF } from "@/lib/export"
 import { useRouter } from "next/navigation"
 import { Plus, Filter } from "lucide-react"
 import { useTranslation } from "@/hooks/use-translation"
@@ -86,19 +87,19 @@ export default function ClientsPage() {
     },
     {
       icon: ExcelIcon,
-      onClick: () => console.log("Export Excel clicked"),
+      onClick: () => exportToXLSX(clients, columns, "clients.xlsx"),
       title: t("exportExcel"),
       type: "excel",
     },
     {
       icon: CsvIcon,
-      onClick: () => console.log("Export CSV clicked"),
+      onClick: () => exportToCSV(clients, columns, "clients.csv"),
       title: t("exportCsv"),
       type: "csv",
     },
     {
       icon: PdfIcon,
-      onClick: () => console.log("Export PDF clicked"),
+      onClick: () => exportToPDF(clients, columns, "clients.pdf"),
       title: t("exportPdf"),
       type: "pdf",
     },
