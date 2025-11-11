@@ -1,5 +1,10 @@
 const dashboardTranslations: Record<string, Record<string, string>> = {
   en: {
+  // Schedule types
+  free: "Free",
+  normal: "Normal",
+  summer: "Summer",
+
     // Header
     clientDashboard: "Client Dashboard",
     manageJobsAndTrack: "Manage your jobs and track worker performance",
@@ -20,13 +25,15 @@ const dashboardTranslations: Record<string, Record<string, string>> = {
     analytics: "Analytics",
     surveys: "Surveys",
 
-    // Job Status
-    scheduled: "Scheduled",
+   // Job Status
     inProgress: "In Progress",
+    scheduled: "Scheduled",
     completed: "Completed",
+    paused: "Paused",
+    active: "Active",
+    pending: "Pending",
     cancelled: "Cancelled",
     onHold: "On Hold",
-    pending: "Pending",
 
     // Job Details
     recentJobs: "Recent Jobs",
@@ -61,6 +68,8 @@ const dashboardTranslations: Record<string, Record<string, string>> = {
     thisMonth: "This Month",
 
     // Actions
+    records: "Records",
+    details: "Details",
     refresh: "Refresh",
     filter: "Filter",
     search: "Search",
@@ -129,6 +138,12 @@ const dashboardTranslations: Record<string, Record<string, string>> = {
     workerCheckedOut: "Worker checked out",
   },
   es: {
+
+  // Schedule types
+  free: "Libre",
+  normal: "Habitual",
+  summer: "Verano",
+
     // Header
     clientDashboard: "Panel de Cliente",
     manageJobsAndTrack: "Gestiona tus trabajos y rastrea el rendimiento de los trabajadores",
@@ -190,6 +205,8 @@ const dashboardTranslations: Record<string, Record<string, string>> = {
     thisMonth: "Este Mes",
 
     // Actions
+    records: "Registros",
+    details: "Detalles",
     refresh: "Actualizar",
     filter: "Filtrar",
     search: "Buscar",

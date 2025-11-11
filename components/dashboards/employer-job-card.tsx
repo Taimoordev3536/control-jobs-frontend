@@ -1,33 +1,13 @@
 "use client"
 
-import BriefcaseIcon from "../icons/Menu/merchants.svg"
-import EmployerIcon from "../icons/Menu/employer.svg"
-import PartnerIcon from "../icons/Menu/Partners.svg"
-import BillingIcon from "../../icons/Menu/billing.svg"
-import InvoicesIcon from "../icons/Menu/invoices.svg"
-import ComisionesIcon from "../icons/new/Comisiones.svg"
-import RateIcon from "../icons/new/Tarifas.svg"
-import InformationIcon from "../icons/Menu/Informes.svg"
-import UtilitiesIcon from "../icons/Menu/utilite.svg"
-import InviteIcon from "../icons/Menu/Invite.svg"
-import AidIcon from "../icons/Menu/aid.svg"
 import JobsIcon from "../../icons/Menu/Jobs.svg"
 import ClientIcon from "../../icons/Menu/clients.svg"
 import WorkersIcon from "../../icons/Menu/workers.svg"
 import SurvayIcon from "../../icons/Menu/surveys.svg"
-import PaymentIcon from "../icons/new/pagos.svg"
-import ImportIcon from "../icons/new/importar.svg"
 import WorkCenterIcon from "../../icons/Otros/centros.svg"
 import ControlIcon from "../../icons/new/control.svg"
 import TodosIcon from "../../icons/new/todos.svg"
 import NotificationIcon from "../../icons/Header/Notification.svg"
-import SigningsInfoIcon from "../icons/new/fichajes.svg"
-import ServicesInfoIcon from "../icons/new/servicios.svg"
-import SalaryInfoIcon from "../icons/new/salaries.svg"
-import ConsultIcon from "../icons/new/consultas.svg"
-import OcupacionIcon from "../icons/new/ocupacion.svg"
-import CJobs from "../icons/new/logo_min.svg";
-import ContreolJobs from "../icons/Logos/ControlJobs.svg";
 
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -118,31 +98,31 @@ const getStatusConfig = (status: string) => {
   switch (status) {
     case "in_progress":
       return {
-        label: "Ejecutándose",
+        label: t("inProgress"),
         color: "bg-emerald-100 text-emerald-700",
         headerBg: "bg-emerald-500",
       };
     case "scheduled":
       return {
-        label: "Programado",
+        label: t("scheduled"),
         color: "bg-indigo-100 text-indigo-700",
         headerBg: "bg-indigo-500",
       };
     case "completed":
       return {
-        label: "Completado",
+        label: t("completed"),
         color: "bg-purple-100 text-purple-700",
         headerBg: "bg-purple-600",
       };
     case "paused":
       return {
-        label: "Pausado",
+        label: t("paused"),
         color: "bg-amber-100 text-amber-700",
         headerBg: "bg-amber-400",
       };
-    case "cancelled":
+    case "active":
       return {
-        label: "Cancelado",
+        label: t("active"),
         color: "bg-rose-100 text-rose-700",
         headerBg: "bg-rose-500",
       };
@@ -359,7 +339,12 @@ const getStatusConfig = (status: string) => {
           <div className="flex items-center justify-between font-semibold text-gray-500 dark:text-gray-300">
             <div className="flex items-center gap-2">
               <Clock className="w-4 h-4 " />
-              <span className="text-sm capitalize">{(job as any).scheduleType || job.scheduleType || job.shift?.scheduleType || 'Programación'}</span>
+              {(() => {
+                const raw = (((job as any).scheduleType || job.scheduleType || job.shift?.scheduleType || '') as string)
+                const st = raw.toLowerCase()
+                const label = st === 'free' ? t('free') : st === 'normal' ? t('normal') : st === 'summer' ? t('summer') : (raw || 'Programación')
+                return <span className="text-sm">{label}</span>
+              })()}
             </div>
             <div className="flex items-center gap-2">
               {/* Show hours when schedule type is fixed/summer/normal/seasonal; hide for free */}
@@ -453,7 +438,7 @@ const getStatusConfig = (status: string) => {
             onClick={() => onViewRecords(job)}
           >
             <TodosIcon className="w-3 h-3 mr-1" />
-            Detalle
+            {t("details")}
           </Button>
           <Button
             size="sm"
@@ -461,7 +446,7 @@ const getStatusConfig = (status: string) => {
             onClick={() => onViewRecords(job)}
           >
             <ControlIcon className="w-3 h-3 mr-1" />
-            Registros
+            {t("records")}
           </Button>
           <Button
             size="sm"
@@ -469,7 +454,7 @@ const getStatusConfig = (status: string) => {
             onClick={() => onEdit(job.id)}
           >
             <Edit className="w-3 h-3 mr-1" />
-            Editar
+            {t("edit")}
           </Button>
         </div>
       </CardContent>

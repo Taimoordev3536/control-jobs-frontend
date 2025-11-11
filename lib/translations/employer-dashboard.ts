@@ -37,6 +37,8 @@ const employerDashboardTranslations: Record<string, Record<string, string>> = {
     inProgress: "In Progress",
     scheduled: "Scheduled",
     completed: "Completed",
+    paused: "Paused",
+    active: "Active",
     pending: "Pending",
     cancelled: "Cancelled",
     onHold: "On Hold",
@@ -56,8 +58,14 @@ const employerDashboardTranslations: Record<string, Record<string, string>> = {
     hour: "h",
     minutes: "min",
 
+  // Schedule types
+  free: "Free",
+  normal: "Normal",
+  summer: "Summer",
+
     // Actions
-    viewDetails: "Details",
+    records: "Records",
+    details: "Details",
     view: "View",
     edit: "Edit",
     editJob: "Edit Job",
@@ -255,6 +263,8 @@ const employerDashboardTranslations: Record<string, Record<string, string>> = {
     inProgress: "En Progreso",
     scheduled: "Programado",
     completed: "Completado",
+    paused: "Pausado",
+    active: "Activo",
     pending: "Pendiente",
     cancelled: "Cancelado",
     onHold: "En Espera",
@@ -274,8 +284,14 @@ const employerDashboardTranslations: Record<string, Record<string, string>> = {
     hour: "h",
     minutes: "min",
 
+  // Schedule types
+  free: "Libre",
+  normal: "Habitual",
+  summer: "Verano",
+
     // Actions
-    viewDetails: "Detalles",
+    records: "Registros",
+    details: "Detalles",
     view: "Ver",
     edit: "Editar",
     editJob: "Editar Trabajo",

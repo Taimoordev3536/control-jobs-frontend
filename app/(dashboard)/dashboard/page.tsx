@@ -5,7 +5,7 @@ import { useAuth } from "@/hooks/use-auth"
 import { LoadingSpinner } from "@/components/loading-spinner"
 import WorkerDashboard from "@/components/dashboards/worker-dashboard/worker-dashboard-main"
 import EmployerDashboard from "@/components/dashboards/employer-dashboard"
-import ClientDashboard from "@/components/dashboards/client-dashboard"
+import ClientDashboard from "@/components/dashboards/client-dashboard/client-dashboard-main"
 import AdminDashboard from "@/components/dashboards/admin-dashboard"
 import PartnerDashboard from "@/components/dashboards/partner-dashboard"
 
