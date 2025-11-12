@@ -10,12 +10,11 @@ import {
   User,
   MapPin,
   Navigation,
-  ClipboardList,
   AlertCircle,
 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { StatsCard } from "@/components/ui/stats-card"
-import { JobCard } from "./job-card"
+import JobCard from "./job-card"
 import { CurrentJobCard } from "./current-job-card"
 import { SurveyCard } from "@/components/ui/survey-card"
 import { CheckInMethods } from "@/components/dashboards/worker-dashboard/check-in-methods"
@@ -39,47 +38,32 @@ interface TaskHistory {
 interface ApiWorkerJob {
   jobId: number;
   jobName: string;
-  clientName: string;
-  workCenter: string;
-  status: string;
-  totalShifts: number;
-  expectedDuration: number;
+  jobStatus?: string;
+  clientName?: string;
+  workCenters?: Array<{ id?: number; name?: string }>;
+  workCenterNames?: string;
+  scheduleType?: string;
+  totalShifts?: number;
+  expectedDuration?: number;
+  activeScheduleWeekHours?: number | null;
   startDate?: string;
   endDate?: string;
-  tasks: Array<{
+  tasks?: Array<{
     id: number;
     name: string;
     note?: string;
     expectedDuration?: number;
     isCompleted?: boolean;
-    taskHistories: TaskHistory[];
+    taskHistories?: TaskHistory[];
   }>;
-  shifts: Array<{
-    shiftType: string;
-    startTime: string;
-    endTime: string;
-    totalHours: number;
+  signingMethods?: Array<{
+    methodType?: string;
+    methodDetails?: string[];
+    verifyIdentity?: boolean;
   }>;
-  signingMethods: Array<{
-    methodType: string;
-    methodDetails: string[];
-    verifyIdentity: boolean;
-  }>;
-  workSession?: {
-    id: number;
-    checkInTime: string;
-    checkOutTime?: string;
-    isOnBreak: boolean;
-    currentBreakStart?: string;
-    totalWorkMinutes: number;
-    totalBreakMinutes: number;
-  } | null;
-  attendanceRecords?: Array<{
-    id: number;
-    checkInTime: string;
-    checkOutTime?: string;
-    date: string;
-  }>;
+  hasClientSurvey?: boolean;
+  hasWorkerSurvey?: boolean;
+  workers?: Array<{ id: number; code?: string; name?: string | null }>;
 }
 
 interface JobAssignment {
@@ -189,7 +173,7 @@ export default function WorkerDashboardMain() {
   });
   const [currentTime, setCurrentTime] = useState(new Date());
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("assignments");
+  // removed tab menu - show assignments directly
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
 
@@ -257,40 +241,55 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
       : "scheduled";
   }
 
-  // Get shift info
-  const firstShift = apiJob.shifts[0];
-  let shiftInfo;
-  if (firstShift) {
-    shiftInfo = {
-      type: firstShift.shiftType as "morning" | "afternoon" | "evening",
-      startTime: firstShift.startTime,
-      endTime: firstShift.endTime,
-      duration: `${firstShift.totalHours} hours`,
-      scheduleType: "fixed" as const,
-    };
-  } else {
-    shiftInfo = {
-      type: "morning" as const,
-      duration: `${apiJob.expectedDuration} hours`,
-      scheduleType: "flexible" as const,
-    };
-  }
+  // Get shift info — backend now returns scheduleType/totalShifts/activeScheduleWeekHours
+  const firstWorkCenterName = (apiJob.workCenters && apiJob.workCenters.length > 0)
+    ? apiJob.workCenters[0].name || apiJob.workCenterNames?.split(',')[0] || 'Work Center'
+    : (apiJob.workCenterNames ? apiJob.workCenterNames.split(',')[0] : 'Work Center');
 
-  // Transform signing methods
-  const signingMethods =
-    apiJob.signingMethods[0] || { methodDetails: [], verifyIdentity: false };
-  const methods = {
-    qrCode:
-      signingMethods.methodDetails.includes("qrcode") ||
-      signingMethods.methodDetails.includes("qr-code"),
-    gps: signingMethods.methodDetails.includes("gps"),
-    wifi: signingMethods.methodDetails.includes("wifi"),
-    ip: signingMethods.methodDetails.includes("ip"),
-    callerId: signingMethods.methodDetails.includes("caller"),
+  const shiftInfo = {
+    type: 'morning' as const,
+    startTime: undefined as any,
+    endTime: undefined as any,
+    duration: apiJob.activeScheduleWeekHours ? `${apiJob.activeScheduleWeekHours} h/sem` : `${apiJob.expectedDuration || 0} h`,
+    scheduleType: (apiJob.scheduleType as any) || 'flexible',
   };
 
+  // Transform signing methods
+  // signingMethods: backend returns array; pick first entry safely
+  // signingMethods: backend returns an array of methods (each with methodType and methodDetails[])
+  // Aggregate all methodDetails across mobile and pc entries so the UI can render badges for each available method.
+  const allSigning = Array.isArray(apiJob.signingMethods) ? apiJob.signingMethods : [];
+  // normalize raw detail strings to canonical keys used by JobCard: qrcode, gps, ip, web
+  const normalizeDetail = (d: any) => {
+    const s = String(d || '').toLowerCase();
+    if (s.includes('qr')) return 'qrcode';
+    if (s.includes('gps')) return 'gps';
+    if (s.includes('ip')) return 'ip';
+    if (s.includes('web') || s.includes('wifi')) return 'web';
+    return s;
+  };
+
+  const mobileDetails = allSigning
+    .filter((m: any) => String(m?.methodType || '').toLowerCase().includes('mobile'))
+    .flatMap((m: any) => (Array.isArray(m.methodDetails) ? m.methodDetails : [m.methodDetails]))
+    .map(normalizeDetail)
+    .filter(Boolean);
+
+  const pcDetails = allSigning
+    .filter((m: any) => {
+      const t = String(m?.methodType || '').toLowerCase();
+      return t.includes('pc') || t.includes('laptop') || t.includes('web');
+    })
+    .flatMap((m: any) => (Array.isArray(m.methodDetails) ? m.methodDetails : [m.methodDetails]))
+    .map(normalizeDetail)
+    .filter(Boolean);
+
+  // expose arrays that the JobCard component understands (signingMobile / signingPc)
+  const signingMobileArray = Array.from(new Set(mobileDetails));
+  const signingPcArray = Array.from(new Set(pcDetails));
+
   // ✅ Enhanced task transformation with TaskHistory support
-  const tasks = apiJob.tasks.map((task) => {
+  const tasks = (apiJob.tasks || []).map((task) => {
     // Find TaskHistory for today with better null checking
     const todayHistory = task.taskHistories?.find((history) => {
       if (!history || !history.date) return false;
@@ -330,16 +329,18 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
       name: apiJob.clientName,
     },
     workCenter: {
-      id: Math.floor(Math.random() * 10) + 1,
-      name: apiJob.workCenter,
-      address: `${apiJob.workCenter} Address`,
+      id: (apiJob.workCenters && apiJob.workCenters[0] && apiJob.workCenters[0].id) || Math.floor(Math.random() * 10) + 1,
+      name: firstWorkCenterName,
+      address: `${firstWorkCenterName} Address`,
       coordinates: { lat: 37.4419, lng: -122.143 },
     },
     shift: shiftInfo,
     status,
     startDate,
     endDate,
-    signingMethods: methods,
+  // Provide arrays the JobCard expects so badges render correctly
+  signingMobile: signingMobileArray,
+  signingPc: signingPcArray,
     tasks,
     checkInTime: apiJob.workSession?.checkInTime
       ? new Date(apiJob.workSession.checkInTime)
@@ -349,7 +350,7 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
       : undefined,
     breakTime: apiJob.workSession?.totalBreakMinutes || 0,
     workedTime: apiJob.workSession?.totalWorkMinutes || 0,
-    expectedHours: firstShift?.totalHours || apiJob.expectedDuration,
+  expectedHours: apiJob.activeScheduleWeekHours ?? apiJob.expectedDuration ?? 0,
     totalHours:
       status === "completed"
         ? firstShift?.totalHours || apiJob.expectedDuration
@@ -359,7 +360,7 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
     breakStartTime: apiJob.workSession?.currentBreakStart
       ? new Date(apiJob.workSession.currentBreakStart)
       : undefined,
-    tags: apiJob.tasks.slice(0, 2).map((task) => task.name),
+  tags: (apiJob.tasks || []).slice(0, 2).map((task) => task.name),
     hasAttendanceRecord,
     survey:
       status === "completed"
@@ -370,6 +371,8 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
             submittedAt: status === "completed" ? new Date() : undefined,
           }
         : undefined,
+    // include raw workers if provided by backend
+    workers: (apiJob.workers || []).map(w => ({ id: w.id, code: w.code, name: w.name })) || [],
   };
 };
 
@@ -1119,99 +1122,20 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
 
         <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900">
           <CardContent className="p-4">
-            <div className="flex border-b border-gray-200 dark:border-gray-700 mb-4">
-              <button
-                onClick={() => setActiveTab("assignments")}
-                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                  activeTab === "assignments"
-                    ? "border-purple-600 text-purple-600 bg-purple-50 dark:bg-purple-900/20 dark:text-purple-400"
-                    : "border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
-                }`}
-              >
-                {t("todayAssignments")}
-              </button>
-              <button
-                onClick={() => setActiveTab("history")}
-                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                  activeTab === "history"
-                    ? "border-purple-600 text-purple-600 bg-purple-50 dark:bg-purple-900/20 dark:text-purple-400"
-                    : "border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
-                }`}
-              >
-                {t("recentHistory")}
-              </button>
-              <button
-                onClick={() => setActiveTab("surveys")}
-                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                  activeTab === "surveys"
-                    ? "border-purple-600 text-purple-600 bg-purple-50 dark:bg-purple-900/20 dark:text-purple-400"
-                    : "border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
-                }`}
-              >
-                {t("surveys")}
-              </button>
-            </div>
-
-            {activeTab === "assignments" && (
-              <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-                {todayAssignments.map((job) => (
-                  <JobCard
-                    key={job.id}
-                    job={job}
-                    onCheckIn={handleCheckIn}
-                    onCheckOut={handleCheckOut}
-                    onFillSurvey={handleFillSurvey}
-                    onCompleteTask={(j, taskId) => handleTaskToggle(j.id, taskId)}
-                    onViewDetail={handleViewDetail}
-                  />
-                ))}
-              </div>
-            )}
-
-            {activeTab === "history" && (
-              <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-                {todayAssignments
-                  .filter((job) => job.status === "completed")
-                  .map((job) => (
+                {/* Show today's assignments directly (menu removed) */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {todayAssignments.map((job) => (
                     <JobCard
                       key={job.id}
                       job={job}
+                      onCheckIn={handleCheckIn}
+                      onCheckOut={handleCheckOut}
                       onFillSurvey={handleFillSurvey}
+                      onCompleteTask={(j, taskId) => handleTaskToggle(j.id, taskId)}
                       onViewDetail={handleViewDetail}
-                      showActions={true}
                     />
                   ))}
-              </div>
-            )}
-
-            {activeTab === "surveys" && (
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                  <ClipboardList className="w-5 h-5" />
-                  {t("mySurveys")}
-                </h3>
-
-                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-                  {todayAssignments
-                    .filter((job) => job.survey?.submitted)
-                    .map((job) => (
-                      <SurveyCard key={job.id} job={job} onSubmit={() => {}} onCancel={() => {}} isFullPage={false} />
-                    ))}
                 </div>
-
-                {todayAssignments.filter((job) => job.survey?.submitted).length === 0 && (
-                  <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900">
-                    <CardContent className="p-8 text-center">
-                      <ClipboardList className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                      <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-2">
-                        {t("noSurveysYet")}
-                      </h3>
-                      <p className="text-gray-600 dark:text-gray-400 text-sm">{t("noSurveysDescription")}</p>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-            )}
           </CardContent>
         </Card>
       </div>

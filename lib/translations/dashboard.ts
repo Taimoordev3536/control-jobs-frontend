@@ -68,6 +68,7 @@ const dashboardTranslations: Record<string, Record<string, string>> = {
     thisMonth: "This Month",
 
     // Actions
+    enter : "Enter",
     records: "Records",
     details: "Details",
     refresh: "Refresh",
@@ -205,6 +206,7 @@ const dashboardTranslations: Record<string, Record<string, string>> = {
     thisMonth: "Este Mes",
 
     // Actions
+    enter : "Entrar",
     records: "Registros",
     details: "Detalles",
     refresh: "Actualizar",

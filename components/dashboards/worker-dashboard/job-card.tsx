@@ -1,411 +1,386 @@
 "use client"
 
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import JobsIcon from "../../../icons/Menu/Jobs.svg"
+import ClientIcon from "../../../icons/Menu/clients.svg"
+import WorkersIcon from "../../../icons/Menu/workers.svg"
+import WorkCenterIcon from "../../../icons/Otros/centros.svg"
+import TodosIcon from "../../../icons/new/todos.svg"
+import ControlIcon from "../../../icons/new/control.svg"
+import NotificationIcon from "../../../icons/Header/Notification.svg"
+
+import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import {
-  Building,
-  MapPin,
-  Clock,
-  QrCode,
-  Navigation,
-  Wifi,
-  Globe,
-  PhoneCall,
-  Fingerprint,
-  CheckCircle,
-  Star,
-  Calendar,
-  Activity,
-  Eye,
-} from "lucide-react"
+import { Calendar, Clock, MapPin, QrCode, Globe, Lock } from "lucide-react"
 import { useTranslation } from "@/hooks/use-translation"
 
-interface JobAssignment {
+interface Job {
   id: number
   jobId: string
   title: string
-  client: {
+  client?: {
     id: number
     name: string
   }
-  workCenter: {
+  workCenter?: {
     id: number
     name: string
-    address: string
-    coordinates: { lat: number; lng: number }
+    address?: string
   }
-  shift: {
-    type: "morning" | "afternoon" | "evening"
+  workCenters?: Array<{ id?: number; name?: string }>
+  workers: Array<{
+    id: number
+    name?: string
+    code?: string
+    avatar?: string
+  }>
+  status?: "scheduled" | "in_progress" | "completed"
+  jobStatus?: string
+  startDate?: Date | string
+  endDate?: Date | string
+  duration?: string
+  expectedHours?: number
+  scheduleType?: string
+  activeScheduleWeekHours?: number | null
+  shift?: {
+    type?: "morning" | "afternoon" | "evening"
     startTime?: string
     endTime?: string
-    duration: string
-    scheduleType: "fixed" | "flexible"
+    scheduleType?: string
   }
-  status: "scheduled" | "in_progress" | "completed"
-  startDate: Date
-  endDate: Date
-  signingMethods: {
-    qrCode?: boolean
-    gps?: boolean
-    wifi?: boolean
-    ip?: boolean
-    callerId?: boolean
-  }
-  tasks: Array<{
+  tasks?: Array<{
     id: number
     name: string
-    description: string
-    completed: boolean
-    duration: string
-    timing: "during" | "after"
+    completed?: boolean
   }>
-  checkInTime?: Date
-  checkOutTime?: Date
-  breakTime: number
-  workedTime: number
-  expectedHours: number
-  totalHours?: number
-  breakStartTime?: Date
-  totalBreakTime: number
-  isOnBreak: boolean
-  tags: string[]
-  hasAttendanceRecord: boolean
-  survey?: {
-    rating: number
-    comments: string
-    submitted: boolean
-    submittedAt?: Date
+  signingMethods?: Array<{ methodType?: string; methodDetails?: any }>
+  signingMobile?: string[]
+  signingPc?: string[]
+}
+
+interface ClientJobCardProps {
+  job: Job
+  onViewDetails: (job: Job) => void
+  onViewRecords: (job: Job) => void
+  onEnter?: (job: Job) => void
+}
+
+export function ClientJobCard({ job, onViewDetails, onViewRecords }: ClientJobCardProps) {
+  const { t } = useTranslation("dashboard")
+
+  const formatDateShort = (date?: Date | string) => {
+    if (!date) return ""
+    const d = typeof date === "string" ? new Date(date) : date
+    return d.toLocaleDateString("en-US", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    })
   }
-}
-
-interface JobCardProps {
-  job: JobAssignment
-  onCheckIn?: (job: JobAssignment) => void
-  onCheckOut?: (job: JobAssignment) => void
-  onFillSurvey?: (job: JobAssignment) => void
-  onCompleteTask?: (job: JobAssignment, taskId: number) => void
-  onViewDetail?: (job: JobAssignment) => void
-  showActions?: boolean
-}
-
-export function JobCard({
-  job,
-  onCheckIn,
-  onCheckOut,
-  onFillSurvey,
-  onCompleteTask,
-  onViewDetail,
-  showActions = true,
-}: JobCardProps) {
-  const { t } = useTranslation("worker-dashboard")
 
   const getStatusConfig = (status: string) => {
     switch (status) {
       case "in_progress":
         return {
-          color: "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400",
-          icon: Activity,
-          badgeColor: "bg-green-500",
+          label: t("inProgress"),
+          color: "bg-emerald-100 text-emerald-700",
+          headerBg: "bg-emerald-500",
         }
       case "scheduled":
         return {
-          color: "bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400",
-          icon: Calendar,
-          badgeColor: "bg-blue-500",
+          label: t("scheduled"),
+          color: "bg-indigo-100 text-indigo-700",
+          headerBg: "bg-indigo-500",
         }
       case "completed":
         return {
-          color: "bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400",
-          icon: CheckCircle,
-          badgeColor: "bg-purple-500",
+          label: t("completed"),
+          color: "bg-purple-100 text-purple-700",
+          headerBg: "bg-purple-600",
         }
       default:
         return {
-          color: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300",
-          icon: Clock,
-          badgeColor: "bg-gray-500",
+          label: "Status",
+          color: "bg-gray-100 text-gray-700",
+          headerBg: "bg-gray-400",
         }
     }
   }
 
-  const statusConfig = getStatusConfig(job.status)
-  const StatusIcon = statusConfig.icon
+  const statusConfig = getStatusConfig((job.status as string) || (job.jobStatus as string) || "")
+  const rawHeaderBg = (statusConfig as any).headerBg as string | undefined
+  const isHexColor = typeof rawHeaderBg === "string" && rawHeaderBg.trim().startsWith("#")
+  const headerStyle = isHexColor ? { backgroundColor: rawHeaderBg } : undefined
+  const headerClassFromConfig = !isHexColor && rawHeaderBg ? rawHeaderBg : ""
 
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    })
+  const centersArray: string[] =
+    job.workCenters && job.workCenters.length > 0
+      ? job.workCenters
+          .map((w: unknown): string => (w && (w as any).name ? String((w as any).name) : ""))
+          .filter(Boolean)
+      : job.workCenter?.name
+        ? [job.workCenter.name]
+        : []
+  const mainCenter = centersArray[0] || "Unknown location"
+  const additionalBranches = Math.max(0, centersArray.length - 1)
+
+  // Normalize workers to avoid runtime errors when job.workers is undefined/null
+  const workers = Array.isArray(job.workers) ? job.workers : []
+  const firstWorker = workers[0]
+
+  const taskNames: string[] = (job.tasks || []).map((t: unknown): string => {
+    if (!t) return ""
+    const name = (t as any).name
+    return name ? String(name) : String(t)
+  })
+  const displayTasks = taskNames.slice(0, 2)
+  const moreTasks = Math.max(0, taskNames.length - 2)
+
+  const formatEndDisplay = (date?: Date | string) => {
+    if (!date) return "∞"
+    const d = typeof date === "string" ? new Date(date) : date
+    const yr = d.getFullYear()
+    if (isNaN(yr)) return "∞"
+    return yr > 2100 ? "∞" : formatDateShort(d)
   }
 
-  const formatDateOnly = (date: Date) => {
-    return date.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    })
+  const normalizeDetail = (v: string) => {
+    const s = String(v || "").toLowerCase()
+    if (s.includes("qr")) return "qrcode"
+    if (s.includes("gps")) return "gps"
+    if (s.includes("ip")) return "ip"
+    if (s.includes("web") || s.includes("wifi")) return "web"
+    return s
   }
 
-  const isBeforeEndDate = () => {
-    return new Date() <= job.endDate
+  const deriveMethodsFromArray = (type: "mobile" | "pc") => {
+    const arr = Array.isArray((job as any).signingMethods) ? (job as any).signingMethods : []
+    const items = arr.filter((m: any) => {
+      const t = String(m?.methodType || (m as any)?.type || "").toLowerCase()
+      return type === "mobile" ? t.includes("mobile") : t.includes("pc") || t.includes("laptop") || t.includes("web")
+    })
+    const details = items.flatMap((m: any) => {
+      const d = m.methodDetails || (m as any).details || []
+      return Array.isArray(d) ? d : [d]
+    })
+    const normalized = details.map((d: any) => normalizeDetail(String(d || "")))
+    const allowed = type === "mobile" ? ["qrcode", "gps", "ip", "web"] : ["web", "ip"]
+    return Array.from(new Set(normalized.filter((v: string) => allowed.includes(v))))
+  }
+
+  const toStringArray = (v: any): string[] => (Array.isArray(v) ? v.map((x) => String(x)) : [])
+
+  const rawMobile = (job as any).signingMobile as any
+  const mobileMethods: string[] = Array.isArray(rawMobile)
+    ? toStringArray(rawMobile).filter((v) => ["qrcode", "gps", "ip", "web"].includes(String(v).toLowerCase()))
+    : deriveMethodsFromArray("mobile")
+
+  const rawPc = (job as any).signingPc as any
+  const pcMethods: string[] = Array.isArray(rawPc)
+    ? toStringArray(rawPc).filter((v) => ["web", "ip"].includes(String(v).toLowerCase()))
+    : deriveMethodsFromArray("pc")
+
+  const MethodPill = ({ icon: Icon, label, color }: { icon: any; label: string; color?: string }) => (
+    <div className="flex items-center gap-1">
+      <Icon className={`w-4 h-4 ${color || ""}`} />
+      <span className="text-[10px]">{label}</span>
+    </div>
+  )
+
+  const renderMethod = (m: string) => {
+    const key = String(m).toLowerCase()
+    switch (key) {
+      case "qrcode":
+      case "qr":
+        return <MethodPill key={key + Math.random()} icon={QrCode} label="QR" color="text-blue-600" />
+      case "gps":
+        return <MethodPill key={key + Math.random()} icon={MapPin} label="GPS" color="text-emerald-600" />
+      case "ip":
+        return <MethodPill key={key + Math.random()} icon={Globe} label="IP" color="text-orange-500" />
+      case "web":
+      case "wifi":
+        return <MethodPill key={key + Math.random()} icon={Lock} label="Web" color="text-purple-600" />
+      default:
+        return null
+    }
   }
 
   return (
-    <Card className="group border border-gray-200 dark:border-gray-800 hover:shadow-lg transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1 bg-white dark:bg-gray-900">
-      {/* Status Indicator Line */}
-      <div
-        className={`w-full h-0.5 ${
-          job.status === "scheduled"
-            ? "bg-blue-500"
-            : job.status === "in_progress"
-              ? "bg-green-500"
-              : job.status === "completed"
-                ? "bg-purple-500"
-                : "bg-gray-500"
-        }`}
-      ></div>
-      <CardHeader className="pb-2">
-        <div className="flex items-start justify-between">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <div className={`w-2 h-2 rounded-full ${statusConfig.badgeColor}`}></div>
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white">{job.title}</h3>
-            </div>
-            <div className="flex items-center gap-2">
-              <Badge
-                variant="outline"
-                className="text-xs font-mono bg-gray-100 dark:bg-gray-800 h-5 border-gray-200 dark:border-gray-700"
-              >
-                {job.jobId}
-              </Badge>
-              <Badge className={`${statusConfig.color} flex items-center gap-1 h-6 text-xs`}>
-                <StatusIcon className="w-3 h-3" />
-                {job.status === "in_progress"
-                  ? t("inProgress")
-                  : job.status === "scheduled"
-                    ? t("scheduled")
-                    : t("completed")}
-              </Badge>
-            </div>
-          </div>
-        </div>
-      </CardHeader>
+    <Card className="w-full overflow-hidden border border-gray-200 dark:border-gray-800 hover:shadow-lg transition-all duration-300 hover:scale-[1.02] bg-white dark:bg-gray-900">
+      <div className={`${headerClassFromConfig} h-8 flex items-center justify-center`} style={headerStyle}>
+        <span className="text-white font-bold text-sm tracking-wide">{statusConfig.label}</span>
+      </div>
 
-      <CardContent className="space-y-3 pt-0">
-        {/* Client & Location Info */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1">
-            <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400">
-              <Building className="w-3 h-3" />
-              <span className="text-xs font-medium uppercase tracking-wide">{t("client")}</span>
-            </div>
-            <div className="text-xs font-semibold text-gray-900 dark:text-white truncate">{job.client.name}</div>
+      <CardContent className="p-3 space-y-3">
+        <div className="flex items-center gap-3">
+          <div className="p-1 bg-gray-100 dark:bg-gray-800 rounded">
+            <ClientIcon className="w-5 h-5 text-gray-700 dark:text-gray-300" />
           </div>
-          <div className="space-y-1">
-            <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400">
-              <MapPin className="w-3 h-3" />
-              <span className="text-xs font-medium uppercase tracking-wide">{t("location")}</span>
-            </div>
-            <div className="text-xs font-semibold text-gray-900 dark:text-white truncate">{job.workCenter.name}</div>
+          <div>
+            <h3 className="p-1 font-bold text-gray-900 dark:text-white text-sm">{(job.client && job.client.name) || (job as any).clientName || "Client"}</h3>
           </div>
         </div>
 
-        {/* Job Duration */}
-        <div className="bg-gray-100 dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+        <div className="flex items-start gap-3">
+          <div className="p-1 bg-gray-100 dark:bg-gray-800 rounded">
+            <WorkCenterIcon className="w-5 h-5 text-gray-700 dark:text-gray-300" />
+          </div>
+          <div>
+            <div className="p-1 text-sm text-gray-900 dark:text-white font-medium">
+              {mainCenter}
+              {additionalBranches > 0 && (
+                <Badge className="ml-2 bg-gray-400 hover:bg-gray-500 text-white text-xs">+{additionalBranches}</Badge>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="border-t border-gray-200 dark:border-gray-700"></div>
+
+        <div className="flex items-start gap-3">
+          <div className="p-1 bg-gray-100 dark:bg-gray-800 rounded">
+            <JobsIcon className="w-5 h-5 text-gray-700 dark:text-gray-300" />
+          </div>
+          <div>
+            <p className="p-1 text-sm text-purple-600 dark:text-purple-400 font-medium">{(job as any).jobName || job.title}</p>
+          </div>
+        </div>
+
+        <div className="border-t border-gray-200 dark:border-gray-700"></div>
+
+        <div className="flex items-start gap-3">
+          <div className="p-1 bg-gray-100 dark:bg-gray-800 rounded">
+            <WorkersIcon className="w-5 h-5 text-gray-700 dark:text-gray-300" />
+          </div>
+          <div>
+            <div className="p-1 text-sm text-gray-900 dark:text-white font-medium">
+              {workers.length > 0
+                ? firstWorker?.name || `Worker ${firstWorker?.code || firstWorker?.id}`
+                : "No workers assigned"}
+              {workers.length > 1 && (
+                <Badge className="ml-2 bg-gray-400 hover:bg-gray-500 text-white text-xs">
+                  +{workers.length - 1}
+                </Badge>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="border-t border-gray-200 dark:border-gray-700"></div>
+
+        <div className="space-y-2 bg-gray-100 dark:bg-gray-800 rounded-md p-3">
           <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-gray-900 dark:text-gray-300 font-semibold">
+              <Calendar className="w-4 h-4" />
+              <span className="text-sm">
+                {formatDateShort(job.startDate)} - {formatEndDisplay(job.endDate)}
+              </span>
+            </div>
+            <NotificationIcon className="w-4 h-4" />
+          </div>
+
+          <div className="flex items-center justify-between font-semibold text-gray-500 dark:text-gray-300">
             <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-              <div className="flex flex-col">
-                <span className="text-sm font-medium text-gray-900 dark:text-white">
-                  {formatDateOnly(job.startDate)} - {formatDateOnly(job.endDate)}
-                </span>
-                <span className="text-xs text-gray-500 dark:text-gray-400">
-                  {t("duration")}:{" "}
-                  {Math.ceil((job.endDate.getTime() - job.startDate.getTime()) / (1000 * 60 * 60 * 24))} {t("days")}
-                </span>
-              </div>
+              <Clock className="w-4 h-4" />
+              {(() => {
+                const raw = ((job as any).scheduleType || job.scheduleType || job.shift?.scheduleType || "") as string
+                const st = raw.toLowerCase()
+                const label =
+                  st === "free"
+                    ? t("free")
+                    : st === "normal"
+                      ? t("normal")
+                      : st === "summer"
+                        ? t("summer")
+                        : raw || "Schedule"
+                return <span className="text-sm">{label}</span>
+              })()}
             </div>
-            <Badge
-              variant="secondary"
-              className="text-xs bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
-            >
-              {job.shift.type}
-            </Badge>
+            <div className="flex items-center gap-2">
+              {(() => {
+                const st = (
+                  ((job as any).scheduleType || job.scheduleType || job.shift?.scheduleType || "") as string
+                ).toLowerCase()
+                if (st === "free") return null
+                const seasonalHours = (job as any).activeScheduleWeekHours ?? job.activeScheduleWeekHours
+                const hours =
+                  ["summer", "normal", "seasonal"].includes(st) && typeof seasonalHours === "number"
+                    ? seasonalHours
+                    : typeof job.expectedHours !== "undefined" && job.expectedHours !== null
+                      ? job.expectedHours
+                      : (job as any).expectedDuration || 0
+                return (
+                  <>
+                    <span className="text-sm">{hours} h/sem</span>
+                    <MapPin className="w-4 h-4" />
+                  </>
+                )
+              })()}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between mt-2 text-gray-900 dark:text-gray-300 font-semibold">
+            <div className="flex items-center gap-4 text-sm">
+              {mobileMethods && mobileMethods.length > 0 && (
+                <div className="flex items-center gap-4">{mobileMethods.map(renderMethod)}</div>
+              )}
+            </div>
+            <div className="flex items-center gap-4 text-sm">
+              {pcMethods && pcMethods.length > 0 && (
+                <div className="flex items-center gap-4">{pcMethods.map(renderMethod)}</div>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Hours Information */}
-        <div className="grid grid-cols-2 gap-2">
-          <div className="bg-gray-100 dark:bg-gray-800 p-2 rounded-md text-center">
-            <div className="text-xs text-gray-600 dark:text-gray-400 font-medium mb-0.5">{t("expectedHours")}</div>
-            <div className="text-xs font-bold text-gray-900 dark:text-white">
-              {job.expectedHours}
-              {t("hours")}
-            </div>
-          </div>
-          <div className="bg-gray-100 dark:bg-gray-800 p-2 rounded-md text-center">
-            <div className="text-xs text-gray-600 dark:text-gray-400 font-medium mb-0.5">{t("status")}</div>
-            <div className="text-xs font-bold text-gray-900 dark:text-white">
-              {job.hasAttendanceRecord ? t("hasAttendance") : t("noAttendance")}
-            </div>
-          </div>
-        </div>
+        <div className="border-t border-gray-200 dark:border-gray-700 my-2"></div>
 
-        {/* Tags */}
-        <div className="flex flex-wrap gap-1">
-          {job.tags.slice(0, 2).map((tag, index) => (
-            <Badge
-              key={index}
-              variant="secondary"
-              className="text-xs h-5 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
-            >
-              {tag}
+        <div className="flex flex-wrap gap-2">
+          {displayTasks.map((task: string, index: number) => (
+            <Badge key={index} className="bg-[#EDE9FE] hover:bg-[#C4B5FD] text-black text-xs font-semibold px-3 py-1">
+              {task || `Task ${index + 1}`}
             </Badge>
           ))}
-          {job.tags.length > 2 && (
-            <Badge
-              variant="secondary"
-              className="text-xs h-5 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
-            >
-              +{job.tags.length - 2}
-            </Badge>
+          {moreTasks > 0 && (
+            <Badge className="ml-2 bg-gray-400 hover:bg-gray-500 text-white text-xs">+{moreTasks}</Badge>
           )}
         </div>
 
-        {/* Signing Methods */}
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-600 dark:text-gray-400">{t("signinMethods")}:</span>
-          <div className="flex gap-1">
-            {job.signingMethods.qrCode && (
-              <div className="p-1 bg-purple-100 dark:bg-purple-900/20 rounded">
-                <QrCode className="w-3 h-3 text-purple-600 dark:text-purple-400" />
-              </div>
-            )}
-            {job.signingMethods.gps && (
-              <div className="p-1 bg-green-100 dark:bg-green-900/20 rounded">
-                <Navigation className="w-3 h-3 text-green-600 dark:text-green-400" />
-              </div>
-            )}
-            {job.signingMethods.wifi && (
-              <div className="p-1 bg-blue-100 dark:bg-blue-900/20 rounded">
-                <Wifi className="w-3 h-3 text-blue-600 dark:text-blue-400" />
-              </div>
-            )}
-            {job.signingMethods.ip && (
-              <div className="p-1 bg-orange-100 dark:bg-orange-900/20 rounded">
-                <Globe className="w-3 h-3 text-orange-600 dark:text-orange-400" />
-              </div>
-            )}
-            {job.signingMethods.callerId && (
-              <div className="p-1 bg-indigo-100 dark:bg-indigo-900/20 rounded">
-                <PhoneCall className="w-3 h-3 text-indigo-600 dark:text-indigo-400" />
-              </div>
-            )}
-          </div>
+        <div className="border-t border-gray-200 dark:border-gray-700 my-2"></div>
+
+        {/* Action Buttons: Details and Registros (Records) */}
+        <div className="flex gap-2 pt-2">
+          <Button
+            size="sm"
+            variant="outline"
+            className="flex-1 h-8 text-xs bg-gray-400 hover:bg-gray-500 hover:text-white text-white border-0"
+            onClick={() => onViewDetails(job)}
+          >
+            <TodosIcon className="w-3 h-3 mr-1" />
+            {t("details")}
+          </Button>
+          {/* Enter button (red) */}
+          <Button
+            size="sm"
+            // bg-[#F59E0B] hover:bg-[#D97706]
+            className="flex-1 h-8 text-xs bg-red-500 hover:bg-red-600 text-white"
+            onClick={() => (typeof (arguments) !== 'undefined' ? (onEnter && onEnter(job)) : onEnter && onEnter(job))}
+          >
+            <Clock className="w-3 h-3 mr-1" />
+            {t("enter") || "Enter"}
+          </Button>
+          <Button
+            size="sm"
+            className="flex-1 h-8 text-xs bg-purple-700 hover:bg-purple-800 text-white"
+            onClick={() => onViewRecords(job)}
+          >
+            <ControlIcon className="w-3 h-3 mr-1" />
+            {t("records")}
+          </Button>
         </div>
-
-        {/* Action Buttons */}
-        {showActions && (
-          <div className="flex gap-2 pt-1">
-            {/* Scheduled Status - Show Check In and View Details */}
-            {job.status === "scheduled" && (
-              <>
-                {onCheckIn && (
-                  <Button
-                    size="sm"
-                    className="flex-1 h-7 text-xs bg-purple-600 hover:bg-purple-700 text-white"
-                    onClick={() => onCheckIn(job)}
-                  >
-                    <Fingerprint className="w-3 h-3 mr-1" />
-                    {t("checkIn")}
-                  </Button>
-                )}
-                {onViewDetail && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="flex-1 h-7 text-xs bg-transparent border-gray-300 text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-800"
-                    onClick={() => onViewDetail(job)}
-                  >
-                    <Eye className="w-3 h-3 mr-1" />
-                    {t("viewDetails")}
-                  </Button>
-                )}
-              </>
-            )}
-
-            {/* In Progress Status - Show Check In (if before end date), View Details, Fill Survey */}
-            {job.status === "in_progress" && (
-              <>
-                {isBeforeEndDate() && onCheckIn && (
-                  <Button
-                    size="sm"
-                    className="flex-1 h-7 text-xs bg-purple-600 hover:bg-purple-700 text-white"
-                    onClick={() => onCheckIn(job)}
-                  >
-                    <Fingerprint className="w-3 h-3 mr-1" />
-                    {t("checkIn")}
-                  </Button>
-                )}
-                {onViewDetail && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="flex-1 h-7 text-xs bg-transparent border-gray-300 text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-800"
-                    onClick={() => onViewDetail(job)}
-                  >
-                    <Eye className="w-3 h-3 mr-1" />
-                    {t("viewDetails")}
-                  </Button>
-                )}
-                {onFillSurvey && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="flex-1 h-7 text-xs bg-transparent border-purple-300 text-purple-600 hover:bg-purple-50 dark:border-purple-800 dark:text-purple-400 dark:hover:bg-purple-900/20"
-                    onClick={() => onFillSurvey(job)}
-                  >
-                    <Star className="w-3 h-3 mr-1" />
-                    {t("fillSurvey")}
-                  </Button>
-                )}
-              </>
-            )}
-
-            {/* Completed Status - Show View Details and Fill Survey */}
-            {job.status === "completed" && (
-              <>
-                {onViewDetail && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="flex-1 h-7 text-xs bg-transparent border-gray-300 text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-800"
-                    onClick={() => onViewDetail(job)}
-                  >
-                    <Eye className="w-3 h-3 mr-1" />
-                    {t("viewDetails")}
-                  </Button>
-                )}
-                {onFillSurvey && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="flex-1 h-7 text-xs bg-transparent border-purple-300 text-purple-600 hover:bg-purple-50 dark:border-purple-800 dark:text-purple-400 dark:hover:bg-purple-900/20"
-                    onClick={() => onFillSurvey(job)}
-                  >
-                    <Star className="w-3 h-3 mr-1" />
-                    {t("fillSurvey")}
-                  </Button>
-                )}
-              </>
-            )}
-          </div>
-        )}
       </CardContent>
     </Card>
   )
 }
+
+export default ClientJobCard
