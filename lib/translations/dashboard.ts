@@ -5,6 +5,13 @@ const dashboardTranslations: Record<string, Record<string, string>> = {
   normal: "Normal",
   summer: "Summer",
 
+  //SigningDailog
+  chooseClockInMethod: "Choose the sign-in method",
+  hello: "Hello",
+  mobile: "Mobile",
+  pc: "PC/Laptop", 
+
+
     // Header
     clientDashboard: "Client Dashboard",
     manageJobsAndTrack: "Manage your jobs and track worker performance",
@@ -144,6 +151,12 @@ const dashboardTranslations: Record<string, Record<string, string>> = {
   free: "Libre",
   normal: "Habitual",
   summer: "Verano",
+
+  //SigningDailog
+  chooseClockInMethod: "Elige el método de fichaje",
+  hello: "Hola",
+  mobile: "Móvil",
+  pc: "PC/Portátil",
 
     // Header
     clientDashboard: "Panel de Cliente",

@@ -1,5 +1,9 @@
 "use client"
 
+import * as React from "react"
+import SignInMethodDialog from "@/components/SignInMethodDialog"
+import { useIsMobile } from "@/hooks/use-mobile"
+
 import JobsIcon from "../../../icons/Menu/Jobs.svg"
 import ClientIcon from "../../../icons/Menu/clients.svg"
 import WorkersIcon from "../../../icons/Menu/workers.svg"
@@ -65,8 +69,11 @@ interface ClientJobCardProps {
   onEnter?: (job: Job) => void
 }
 
-export function ClientJobCard({ job, onViewDetails, onViewRecords }: ClientJobCardProps) {
+export function ClientJobCard({ job, onViewDetails, onViewRecords, onEnter }: ClientJobCardProps) {
   const { t } = useTranslation("dashboard")
+
+  const [dialogOpen, setDialogOpen] = React.useState(false)
+  const isMobileDevice = useIsMobile()
 
   const formatDateShort = (date?: Date | string) => {
     if (!date) return ""
@@ -153,7 +160,7 @@ export function ClientJobCard({ job, onViewDetails, onViewRecords }: ClientJobCa
     return s
   }
 
-  const deriveMethodsFromArray = (type: "mobile" | "pc") => {
+  const deriveMethodsFromArray = (type: "mobile" | "pc"): string[] => {
     const arr = Array.isArray((job as any).signingMethods) ? (job as any).signingMethods : []
     const items = arr.filter((m: any) => {
       const t = String(m?.methodType || (m as any)?.type || "").toLowerCase()
@@ -171,14 +178,14 @@ export function ClientJobCard({ job, onViewDetails, onViewRecords }: ClientJobCa
   const toStringArray = (v: any): string[] => (Array.isArray(v) ? v.map((x) => String(x)) : [])
 
   const rawMobile = (job as any).signingMobile as any
-  const mobileMethods: string[] = Array.isArray(rawMobile)
+  const mobileMethods: string[] = (Array.isArray(rawMobile)
     ? toStringArray(rawMobile).filter((v) => ["qrcode", "gps", "ip", "web"].includes(String(v).toLowerCase()))
-    : deriveMethodsFromArray("mobile")
+    : deriveMethodsFromArray("mobile")) as string[]
 
   const rawPc = (job as any).signingPc as any
-  const pcMethods: string[] = Array.isArray(rawPc)
+  const pcMethods: string[] = (Array.isArray(rawPc)
     ? toStringArray(rawPc).filter((v) => ["web", "ip"].includes(String(v).toLowerCase()))
-    : deriveMethodsFromArray("pc")
+    : deriveMethodsFromArray("pc")) as string[]
 
   const MethodPill = ({ icon: Icon, label, color }: { icon: any; label: string; color?: string }) => (
     <div className="flex items-center gap-1">
@@ -364,7 +371,7 @@ export function ClientJobCard({ job, onViewDetails, onViewRecords }: ClientJobCa
             size="sm"
             // bg-[#F59E0B] hover:bg-[#D97706]
             className="flex-1 h-8 text-xs bg-red-500 hover:bg-red-600 text-white"
-            onClick={() => (typeof (arguments) !== 'undefined' ? (onEnter && onEnter(job)) : onEnter && onEnter(job))}
+            onClick={() => setDialogOpen(true)}
           >
             <Clock className="w-3 h-3 mr-1" />
             {t("enter") || "Enter"}
@@ -378,6 +385,35 @@ export function ClientJobCard({ job, onViewDetails, onViewRecords }: ClientJobCa
             {t("records")}
           </Button>
         </div>
+        {/* Sign-in methods dialog (opened when Enter is clicked) */}
+        <SignInMethodDialog
+          isOpen={dialogOpen}
+          workerName={firstWorker?.name || firstWorker?.code || `Worker ${firstWorker?.id}`}
+          signingMethods={(() => {
+            // choose which set to show depending on client device
+            const source = isMobileDevice ? mobileMethods || [] : pcMethods || []
+            const mapToCanonical = (v: string) => {
+              const s = String(v || "").toLowerCase()
+              if (s.includes("qr")) return "QRCODE"
+              if (s.includes("gps")) return "GPS"
+              if (s.includes("ip")) return "IP"
+              if (s.includes("web") || s.includes("wifi")) return "WEB"
+              return v.toUpperCase()
+            }
+            return Array.from(new Set(source.map(mapToCanonical)))
+          })()}
+          onClose={() => setDialogOpen(false)}
+          onSelect={(method) => {
+            // selected sign-in method; close dialog and call onEnter if provided
+            setDialogOpen(false)
+            try {
+              onEnter && onEnter(job)
+            } catch (e) {
+              // ignore
+            }
+            console.debug("Selected sign-in method:", method, "for job", job?.jobId || job?.id)
+          }}
+        />
       </CardContent>
     </Card>
   )
