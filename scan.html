@@ -1,742 +1,146 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Task Detail - Task Management</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+<meta charset="UTF-8" />
+<title>Work Summary Page</title>
+<style>
+  body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #f5f3fb;
+  }
 
-        body {
-            font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #6b7280, #1e3a8a);
-            min-height: 100vh;
-            overflow: hidden; /* Prevent scrollbars */
-        }
+  .card {
+    width: 90%;
+    max-width: 900px;
+    margin: 30px auto;
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  }
 
-        .container {
-            width: 100vw;
-            height: 100vh;
-            background: rgba(255, 255, 255, 0.97);
-            backdrop-filter: blur(12px);
-            border-radius: 0; /* No border radius for full-screen */
-            box-shadow: none; /* No shadow for edge-to-edge */
-            overflow-y: auto; /* Allow scrolling within container */
-            display: flex;
-            flex-direction: column;
-        }
+  .header {
+    background: linear-gradient(90deg, #8a2be2, #b26df3);
+    color: white;
+    padding: 20px;
+  }
 
-        .header {
-            background: linear-gradient(135deg, #3b82f6, #9333ea);
-            color: white;
-            padding: 20px;
-            text-align: center;
-            position: relative;
-            flex-shrink: 0; /* Prevent header from shrinking */
-        }
+  .header h2 {
+    margin: 0 0 10px;
+    font-size: 20px;
+  }
 
-        .header::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 20"><defs><radialGradient id="a" cx="50%" cy="40%"><stop offset="0%" stop-color="white" stop-opacity="0.15"/><stop offset="100%" stop-color="white" stop-opacity="0"/></radialGradient></defs><rect width="100" height="20" fill="url(%23a)"/></svg>');
-        }
+  .list div {
+    margin: 4px 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
 
-        .header h1 {
-            position: relative;
-            z-index: 1;
-            font-size: 2rem;
-            font-weight: 600;
-        }
+  .stats {
+    display: flex;
+    justify-content: space-around;
+    text-align: center;
+    padding: 20px;
+    border-bottom: 1px solid #ccc;
+  }
 
-        .content {
-            padding: 20px;
-            flex-grow: 1; /* Allow content to take remaining space */
-            overflow-y: auto; /* Allow scrolling for content */
-        }
+  .stats div {
+    font-size: 14px;
+  }
 
-        .back-btn {
-            background: linear-gradient(135deg, #4b5563, #1f2937);
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 500;
-            margin-bottom: 16px;
-            transition: all 0.3s ease;
-            text-decoration: none;
-            display: inline-block;
-        }
+  .stats strong {
+    display: block;
+    font-size: 18px;
+  }
 
-        .back-btn:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
-        }
+   .menu-container {
+    background: #ffffff;
+    border-bottom: 1px solid #dcdcdc;
+    padding-left: 20px;
+  }
 
-        .task-detail-card {
-            background: white;
-            border-radius: 12px;
-            padding: 16px;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-            margin-bottom: 16px;
-            border: 1px solid #e5e7eb;
-            transition: transform 0.3s ease;
-        }
+  .menu-bar {
+    display: flex;
+    gap: 40px;
+    height: 48px;
+    align-items: center;
+  }
 
-        .task-detail-card:hover {
-            transform: translateY(-2px);
-        }
+  .menu-item {
+    font-size: 16px;
+    color: #6e6e6e; /* grey text */
+    cursor: pointer;
+    padding: 12px 4px;
+    border-bottom: 3px solid transparent;
+    transition: 0.2s;
+  }
 
-        .task-title {
-            font-size: 1.6rem;
-            font-weight: 600;
-            color: #1e3a8a;
-            margin-bottom: 12px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            flex-wrap: wrap;
-        }
+  /* ACTIVE TAB */
+  .menu-item.active {
+    color: #682c8b;          /* purple text exactly like screenshot */
+    border-bottom: 3px solid #682c8b; /* purple underline */
+    font-weight: 600;
+  }
 
-        .priority-badge {
-            padding: 5px 10px;
-            border-radius: 16px;
-            font-size: 0.8rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .priority-vip {
-            background: linear-gradient(135deg, #fef3c7, #f59e0b);
-            color: #7c2d12;
-        }
-
-        .priority-gfg {
-            background: linear-gradient(135deg, #dcfce7, #22c55e);
-            color: #166534;
-        }
-
-        .priority-normal {
-            background: linear-gradient(135deg, #e0e7ff, #3b82f6);
-            color: #1e3a8a;
-        }
-
-        .task-meta {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-            padding: 12px;
-            background: #f8fafc;
-            border-radius: 8px;
-            border-left: 3px solid #3b82f6;
-        }
-
-        .meta-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 6px 0;
-        }
-
-        .meta-icon {
-            color: #3b82f6;
-            font-size: 1rem;
-        }
-
-        .meta-label {
-            font-weight: 500;
-            color: #4b5563;
-            font-size: 0.85rem;
-            text-transform: capitalize;
-        }
-
-        .meta-value {
-            font-size: 0.9rem;
-            color: #1f2937;
-            font-weight: 500;
-        }
-
-        .recurrence-btn {
-            background: linear-gradient(135deg, #8b5cf6, #d946ef);
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 500;
-            font-size: 0.9rem;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            margin: 16px auto;
-            box-shadow: 0 3px 12px rgba(139, 92, 246, 0.2);
-        }
-
-        .recurrence-btn:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 5px 16px rgba(139, 92, 246, 0.3);
-        }
-
-        .recurrence-section {
-            background: linear-gradient(135deg, #fef7ff, #f3e8ff);
-            border-radius: 12px;
-            padding: 16px;
-            margin-bottom: 16px;
-            border: 1px solid #d946ef;
-            display: none;
-            animation: slideDown 0.5s ease-out;
-        }
-
-        .recurrence-section.show {
-            display: block;
-        }
-
-        @keyframes slideDown {
-            from {
-                opacity: 0;
-                transform: translateY(-10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .recurrence-title {
-            font-size: 1.4rem;
-            font-weight: 600;
-            color: #7c2d12;
-            margin-bottom: 12px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .calendar-container {
-            background: white;
-            border-radius: 12px;
-            padding: 12px;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-        }
-
-        .calendar-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 12px;
-            padding: 0 8px;
-        }
-
-        .calendar-nav {
-            background: #3b82f6;
-            color: white;
-            border: none;
-            padding: 6px 10px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 500;
-            transition: all 0.3s ease;
-        }
-
-        .calendar-nav:hover {
-            background: #1e3a8a;
-            transform: scale(1.05);
-        }
-
-        .calendar-month {
-            font-size: 1.2rem;
-            font-weight: 600;
-            color: #1f2937;
-        }
-
-        .calendar-grid {
-            display: grid;
-            grid-template-columns: repeat(7, 1fr);
-            gap: 2px;
-            margin-top: 12px;
-        }
-
-        .calendar-day-header {
-            padding: 8px 5px;
-            text-align: center;
-            font-weight: 500;
-            color: #6b7280;
-            background: #f3f4f6;
-            font-size: 0.8rem;
-        }
-
-        .calendar-day {
-            padding: 8px 5px;
-            text-align: center;
-            border: 1px solid #e5e7eb;
-            background: white;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            position: relative;
-            min-height: 36px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .calendar-day:hover {
-            background: #f8fafc;
-        }
-
-        .calendar-day.other-month {
-            color: #d1d5db;
-            background: #f9fafb;
-        }
-
-        .calendar-day.scheduled {
-            background: linear-gradient(135deg, #ddd6fe, #8b5cf6);
-            color: #5b21b6;
-            font-weight: 600;
-            box-shadow: 0 2px 8px rgba(139, 92, 246, 0.2);
-        }
-
-        .calendar-day.scheduled::after {
-            content: '●';
-            position: absolute;
-            bottom: 2px;
-            right: 2px;
-            color: #7c3aed;
-            font-size: 0.9rem;
-        }
-
-        .calendar-day.today {
-            background: linear-gradient(135deg, #f59e0b, #d97706);
-            color: white;
-            font-weight: 600;
-        }
-
-        .schedule-summary {
-            background: rgba(255, 255, 255, 0.9);
-            border-radius: 8px;
-            padding: 12px;
-            margin-top: 12px;
-            border: 1px solid #d8b4fe;
-        }
-
-        .summary-title {
-            font-size: 1rem;
-            font-weight: 600;
-            color: #7c2d12;
-            margin-bottom: 8px;
-        }
-
-        .summary-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 5px 0;
-            border-bottom: 1px solid #e5e7eb;
-        }
-
-        .summary-item:last-child {
-            border-bottom: none;
-        }
-
-        .legend {
-            display: flex;
-            gap: 12px;
-            margin-top: 8px;
-            flex-wrap: wrap;
-            align-items: center;
-        }
-
-        .legend-item {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            font-size: 0.8rem;
-        }
-
-        .legend-color {
-            width: 12px;
-            height: 12px;
-            border-radius: 4px;
-        }
-
-        .legend-scheduled {
-            background: linear-gradient(135deg, #ddd6fe, #8b5cf6);
-        }
-
-        .legend-today {
-            background: linear-gradient(135deg, #f59e0b, #d97706);
-        }
-
-        @media (max-width: 768px) {
-            .task-meta {
-                grid-template-columns: 1fr;
-            }
-
-            .task-title {
-                font-size: 1.4rem;
-                flex-direction: column;
-                align-items: flex-start;
-            }
-
-            .calendar-day {
-                min-height: 32px;
-                padding: 6px 2px;
-                font-size: 0.75rem;
-            }
-
-            .calendar-header {
-                flex-direction: column;
-                gap: 8px;
-            }
-
-            .legend {
-                justify-content: center;
-            }
-        }
-    </style>
+  /* Hover effect (optional but subtle like UI) */
+  .menu-item:hover {
+    color: #682c8b;
+  }
+  .menu-item:hover {
+    background: #eee;
+  }
+</style>
 </head>
+
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>Task Details</h1>
-        </div>
 
-        <div class="content">
-            <a href="#" class="back-btn">← Back to Tasks</a>
-            
-            <div class="task-detail-card">
-                <div class="task-title" id="task-title">
-                    Task Name
-                    <span class="priority-badge priority-vip">VIP</span>
-                </div>
-                
-                <div class="task-meta" id="task-meta">
-                    <!-- Task meta will be populated by JavaScript -->
-                </div>
+<div class="card">
+  <!-- Top Purple Header -->
+  <div class="header">
+    <h2>Jueves, 18 septiembre, 2025</h2>
 
-                <button class="recurrence-btn" onclick="toggleRecurrence()">
-                    <i class="fas fa-calendar-alt"></i> View Recurrence Schedule
-                </button>
+    <div class="list">
+      <div>📁 Cliente 1</div>
+      <div>🏢 Work Center 1</div>
+      <div>📄 Job xxxx</div>
+      <div>👤 Worker xx</div>
+    </div>
+  </div>
 
-                <div class="recurrence-section" id="recurrence-section">
-                    <div class="recurrence-title">
-                        <i class="fas fa-calendar-check"></i> Scheduled Dates
-                    </div>
-                    
-                    <div class="calendar-container">
-                        <div class="calendar-header">
-                            <button class="calendar-nav" onclick="previousMonth()">‹</button>
-                            <div class="calendar-month" id="calendar-month"></div>
-                            <button class="calendar-nav" onclick="nextMonth()">›</button>
-                        </div>
-                        
-                        <div class="calendar-grid" id="calendar-grid">
-                            <!-- Calendar will be generated by JavaScript -->
-                        </div>
-
-                        <div class="legend">
-                            <div class="legend-item">
-                                <div class="legend-color legend-scheduled"></div>
-                                <span>Scheduled Task</span>
-                            </div>
-                            <div class="legend-item">
-                                <div class="legend-color legend-today"></div>
-                                <span>Today</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="schedule-summary">
-                        <div class="summary-title">Schedule Summary</div>
-                        <div id="schedule-summary-content">
-                            <!-- Summary will be populated by JavaScript -->
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+  <!-- Time Statistics Row -->
+  <div class="stats">
+    <div>
+      <strong style="color:#5b4bff;">02:00:00</strong>
+      TIEMPO ESTIMADO
     </div>
 
-    <script>
-        // Sample task data - this would come from your database/API
-        const currentTask = {
-            id: 12,
-            name: "all plants",
-            note: "vip",
-            expectedDuration: 1,
-            shift: "morning",
-            timing: "during",
-            periodicity: "weekly",
-            alertTask: true,
-            jobId: 7,
-            jobName: "Plant Maintenance",
-            weeklyDays: "2,5", // Tuesday and Friday
-            startDate: "2025-09-12",
-            endDate: "",
-            interval: 2
-        };
+    <div>
+      <strong style="color:#3abb66;">01:57:10</strong>
+      TIEMPO TRABAJADO
+    </div>
 
-        let currentDate = new Date();
-        let currentMonth = currentDate.getMonth();
-        let currentYear = currentDate.getFullYear();
-        let scheduledDates = [];
+    <div>
+      <strong style="color:#e68a2c;">00:15:12</strong>
+      TIEMPO DESCANSO
+    </div>
 
-        // Initialize the page
-        function initializePage() {
-            loadTaskData();
-            generateCalendar();
-        }
+    <div>
+      <strong style="color:#e63939;">-00:02:50</strong>
+      DIFERENCIA
+    </div>
+  </div>
 
-        function loadTaskData() {
-            const priorityClass = currentTask.note === 'vip' ? 'priority-vip' : 
-                                 currentTask.note === 'gfg' ? 'priority-gfg' : 'priority-normal';
-            const priority = currentTask.note || 'Normal';
-            const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-            const weeklyDayNames = currentTask.weeklyDays ? currentTask.weeklyDays.split(',').map(d => dayNames[parseInt(d.trim())]).join(', ') : 'N/A';
-            const intervalUnit = currentTask.periodicity === 'weekly' ? 'weeks' : currentTask.periodicity === 'monthly' ? 'months' : 'days';
-            
-            document.getElementById('task-title').innerHTML = `
-                <i class="fas fa-tasks"></i> ${currentTask.name}
-                <span class="priority-badge ${priorityClass}">${priority.toUpperCase()}</span>
-            `;
+  <!-- MENU BAR (Horizontal) -->
+  <div class="menu-bar">
+    <div class="menu-item active">Fichajes</div>
+    <div class="menu-item">Tareas</div>
+    <div class="menu-item">Encuestas</div>
+    <div class="menu-item">Alertas</div>
+  </div>
 
-            document.getElementById('task-meta').innerHTML = `
-                <div class="meta-item">
-                    <span class="meta-label"><i class="fas fa-clipboard-list meta-icon"></i> Task Name</span>
-                    <span class="meta-value">${currentTask.name}</span>
-                </div>
-                <div class="meta-item">
-                    <span class="meta-label"><i class="fas fa-briefcase meta-icon"></i> Job Name</span>
-                    <span class="meta-value">${currentTask.jobName}</span>
-                </div>
-                <div class="meta-item">
-                    <span class="meta-label"><i class="fas fa-clock meta-icon"></i> Expected Duration</span>
-                    <span class="meta-value">${currentTask.expectedDuration ? currentTask.expectedDuration + ' hour' + (currentTask.expectedDuration > 1 ? 's' : '') : 'Not specified'}</span>
-                </div>
-                <div class="meta-item">
-                    <span class="meta-label"><i class="fas fa-business-time meta-icon"></i> Shift</span>
-                    <span class="meta-value">${currentTask.shift || 'Not specified'}</span>
-                </div>
-                <div class="meta-item">
-                    <span class="meta-label"><i class="fas fa-hourglass-start meta-icon"></i> Timing</span>
-                    <span class="meta-value">${currentTask.timing}</span>
-                </div>
-                <div class="meta-item">
-                    <span class="meta-label"><i class="fas fa-redo-alt meta-icon"></i> Periodicity</span>
-                    <span class="meta-value">${currentTask.periodicity}</span>
-                </div>
-                <div class="meta-item">
-                    <span class="meta-label"><i class="fas fa-bell meta-icon"></i> Alert Task</span>
-                    <span class="meta-value">${currentTask.alertTask ? 'Yes' : 'No'}</span>
-                </div>
-                <div class="meta-item">
-                    <span class="meta-label"><i class="fas fa-calendar-day meta-icon"></i> Weekly Days</span>
-                    <span class="meta-value">${weeklyDayNames}</span>
-                </div>
-                <div class="meta-item">
-                    <span class="meta-label"><i class="fas fa-play-circle meta-icon"></i> Start Date</span>
-                    <span class="meta-value">${currentTask.startDate}</span>
-                </div>
-                <div class="meta-item">
-                    <span class="meta-label"><i class="fas fa-stop-circle meta-icon"></i> End Date</span>
-                    <span class="meta-value">${currentTask.endDate || 'Ongoing'}</span>
-                </div>
-                <div class="meta-item">
-                    <span class="meta-label"><i class="fas fa-sync-alt meta-icon"></i> Interval</span>
-                    <span class="meta-value">${currentTask.interval || 1} ${intervalUnit}</span>
-                </div>
-            `;
-        }
+</div>
 
-        function toggleRecurrence() {
-            const section = document.getElementById('recurrence-section');
-            const isVisible = section.classList.contains('show');
-            
-            if (isVisible) {
-                section.classList.remove('show');
-            } else {
-                calculateScheduledDates();
-                generateCalendar();
-                updateScheduleSummary();
-                section.classList.add('show');
-            }
-        }
-
-        function calculateScheduledDates() {
-            scheduledDates = [];
-            const startDate = new Date(currentTask.startDate);
-            const endDate = currentTask.endDate ? new Date(currentTask.endDate) : new Date(2026, 11, 31); // Default end date
-            const today = new Date();
-
-            if (currentTask.periodicity === 'weekly' && currentTask.weeklyDays) {
-                const weekDays = currentTask.weeklyDays.split(',').map(d => parseInt(d.trim()));
-                const intervalWeeks = currentTask.interval || 1;
-                
-                let currentWeekStart = new Date(startDate);
-                currentWeekStart.setDate(currentWeekStart.getDate() - currentWeekStart.getDay()); // Go to start of week
-                
-                while (currentWeekStart <= endDate) {
-                    weekDays.forEach(dayOfWeek => {
-                        const scheduleDate = new Date(currentWeekStart);
-                        scheduleDate.setDate(currentWeekStart.getDate() + dayOfWeek);
-                        
-                        if (scheduleDate >= startDate && scheduleDate <= endDate) {
-                            scheduledDates.push(new Date(scheduleDate));
-                        }
-                    });
-                    
-                    // Move to next interval
-                    currentWeekStart.setDate(currentWeekStart.getDate() + (7 * intervalWeeks));
-                }
-            } else if (currentTask.periodicity === 'monthly' && currentTask.monthlyDays) {
-                const monthDays = currentTask.monthlyDays.split(',').map(d => parseInt(d.trim()));
-                const intervalMonths = currentTask.interval || 1;
-                
-                let currentDate = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
-                
-                while (currentDate <= endDate) {
-                    monthDays.forEach(day => {
-                        const scheduleDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
-                        
-                        if (scheduleDate >= startDate && scheduleDate <= endDate) {
-                            scheduledDates.push(new Date(scheduleDate));
-                        }
-                    });
-                    
-                    currentDate.setMonth(currentDate.getMonth() + intervalMonths);
-                }
-            } else if (currentTask.periodicity === 'daily') {
-                const intervalDays = currentTask.interval || 1;
-                let currentDate = new Date(startDate);
-                
-                while (currentDate <= endDate) {
-                    scheduledDates.push(new Date(currentDate));
-                    currentDate.setDate(currentDate.getDate() + intervalDays);
-                }
-            } else if (currentTask.periodicity === 'once' && currentTask.onceDate) {
-                scheduledDates.push(new Date(currentTask.onceDate));
-            }
-        }
-
-        function generateCalendar() {
-            const monthNames = ["January", "February", "March", "April", "May", "June",
-                "July", "August", "September", "October", "November", "December"];
-            const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-            
-            document.getElementById('calendar-month').textContent = `${monthNames[currentMonth]} ${currentYear}`;
-            
-            const firstDay = new Date(currentYear, currentMonth, 1);
-            const lastDay = new Date(currentYear, currentMonth + 1, 0);
-            const firstDayOfWeek = firstDay.getDay();
-            const daysInMonth = lastDay.getDate();
-            
-            let calendarHTML = '';
-            
-            // Add day headers
-            dayNames.forEach(day => {
-                calendarHTML += `<div class="calendar-day-header">${day}</div>`;
-            });
-            
-            // Add empty cells for days before the first day of the month
-            for (let i = 0; i < firstDayOfWeek; i++) {
-                const prevMonthDate = new Date(currentYear, currentMonth, -(firstDayOfWeek - 1 - i));
-                calendarHTML += `<div class="calendar-day other-month">${prevMonthDate.getDate()}</div>`;
-            }
-            
-            // Add days of the month
-            const today = new Date();
-            for (let day = 1; day <= daysInMonth; day++) {
-                const currentDate = new Date(currentYear, currentMonth, day);
-                let classes = 'calendar-day';
-                
-                if (today.toDateString() === currentDate.toDateString()) {
-                    classes += ' today';
-                }
-                
-                if (isScheduledDate(currentDate)) {
-                    classes += ' scheduled';
-                }
-                
-                calendarHTML += `<div class="${classes}">${day}</div>`;
-            }
-            
-            // Add remaining cells to complete the week
-            const totalCells = calendarHTML.split('calendar-day').length - 1;
-            const remainingCells = 42 - totalCells; // 6 weeks * 7 days
-            
-            for (let i = 1; i <= remainingCells; i++) {
-                const nextMonthDate = new Date(currentYear, currentMonth + 1, i);
-                calendarHTML += `<div class="calendar-day other-month">${nextMonthDate.getDate()}</div>`;
-            }
-            
-            document.getElementById('calendar-grid').innerHTML = calendarHTML;
-        }
-
-        function isScheduledDate(date) {
-            return scheduledDates.some(scheduledDate => 
-                scheduledDate.toDateString() === date.toDateString()
-            );
-        }
-
-        function updateScheduleSummary() {
-            const nextScheduled = scheduledDates.filter(date => date >= new Date()).slice(0, 5);
-            const totalScheduled = scheduledDates.filter(date => date >= new Date()).length;
-            
-            let summaryHTML = `
-                <div class="summary-item">
-                    <span><strong>Total Upcoming Occurrences:</strong></span>
-                    <span>${totalScheduled}</span>
-                </div>
-                <div class="summary-item">
-                    <span><strong>Recurrence Pattern:</strong></span>
-                    <span>${currentTask.periodicity} (every ${currentTask.interval || 1})</span>
-                </div>
-            `;
-            
-            if (nextScheduled.length > 0) {
-                summaryHTML += `<div class="summary-item"><span><strong>Next 5 Dates:</strong></span><span></span></div>`;
-                nextScheduled.forEach(date => {
-                    summaryHTML += `
-                        <div class="summary-item">
-                            <span>${date.toLocaleDateString('en-US', { weekday: 'long' })}</span>
-                            <span>${date.toLocaleDateString()}</span>
-                        </div>
-                    `;
-                });
-            }
-            
-            document.getElementById('schedule-summary-content').innerHTML = summaryHTML;
-        }
-
-        function previousMonth() {
-            currentMonth--;
-            if (currentMonth < 0) {
-                currentMonth = 11;
-                currentYear--;
-            }
-            generateCalendar();
-        }
-
-        function nextMonth() {
-            currentMonth++;
-            if (currentMonth > 11) {
-                currentMonth = 0;
-                currentYear++;
-            }
-            generateCalendar();
-        }
-
-        // Initialize the page when it loads
-        initializePage();
-    </script>
 </body>
 </html>

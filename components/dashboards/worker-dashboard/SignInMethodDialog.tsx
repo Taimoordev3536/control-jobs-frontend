@@ -4,6 +4,7 @@ import * as React from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { MapPin, QrCode, Globe, Lock, Smartphone, Monitor } from "lucide-react"
+import { QrCodeScanner, GpsSignIn, IpSignIn, WebSignIn } from "./signin-methods/main"
 import { useTranslation } from "@/hooks/use-translation"
 import bg from "@/public/bg.jpg"
 
@@ -115,6 +116,7 @@ const MethodButton = ({ m, onClick }: { m: MethodKey; onClick: () => void }) => 
 export default function SignInMethodDialog({ isOpen, signingMethods = [], onClose, onSelect }: Props) {
   const { t } = useTranslation("dashboard")
   const [isMobile, setIsMobile] = React.useState<boolean | undefined>(undefined)
+  const [selectedMethod, setSelectedMethod] = React.useState<null | "QRCODE" | "IP" | "WEB" | "GPS">(null)
 
   // optional worker name to show greeting
   const workerName = (arguments && (arguments as any)[0] && (arguments as any)[0].workerName) || undefined
@@ -171,6 +173,43 @@ export default function SignInMethodDialog({ isOpen, signingMethods = [], onClos
           <div className="p-6">
           {isMobile === undefined ? (
             <div className="text-sm text-gray-500">Detecting device...</div>
+          ) : selectedMethod ? (
+            <div>
+              {selectedMethod === 'QRCODE' && (
+                <QrCodeScanner
+                  onBack={() => setSelectedMethod(null)}
+                  onComplete={() => {
+                    onSelect('QRCODE')
+                    setSelectedMethod(null)
+                  }}
+                />
+              )}
+              {selectedMethod === 'GPS' && (
+                <GpsSignIn
+                  onBack={() => setSelectedMethod(null)}
+                  onComplete={() => {
+                    onSelect('GPS')
+                    setSelectedMethod(null)
+                  }}
+                />
+              )}
+              {selectedMethod === 'IP' && (
+                <IpSignIn
+                  onBack={() => setSelectedMethod(null)}
+                  onComplete={() => {
+                    onSelect('IP')
+                    setSelectedMethod(null)
+                  }}
+                />
+              )}
+              {selectedMethod === 'WEB' && (
+                (() => {
+                  onSelect('WEB');
+                  setSelectedMethod(null);
+                  return null;
+                })()
+              )}
+            </div>
           ) : available.length === 0 ? (
             <div className="text-sm text-gray-500">No available sign-in methods for your device.</div>
           ) : (
@@ -186,7 +225,7 @@ export default function SignInMethodDialog({ isOpen, signingMethods = [], onClos
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {available.map((m) => (
-                  <MethodButton key={m} m={m} onClick={() => onSelect(m)} />
+                  <MethodButton key={m} m={m} onClick={() => setSelectedMethod(m as any)} />
                 ))}
               </div>
             </div>

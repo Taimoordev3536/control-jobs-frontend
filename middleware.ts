@@ -23,9 +23,10 @@ export default withAuth(
     const roleRoutes: Record<string, string[]> = {
       admin: ["/dashboard", "/partners", "/employers", "/invoices", "/commissions", "/rates", "/information", "/utilities", "/aid", "/tasks"],
       partner: ["/dashboard", "/employers", "/billing", "/information", "/utilities", "/aid", "/tasks"],
-      employer: ["/dashboard", "/jobs", "/clients", "/workers", "/surveys", "/information", "/utilities", "/aid", "/tasks"],
-      client: ["/dashboard", "/jobs", "/surveys", "/information", "/aid", "/tasks"],
-      worker: ["/dashboard", "/jobs", "/occupation", "/surveys", "/information", "/aid", "/tasks"],
+      // employer: ["/dashboard", "/jobs", "/clients", "/workers", "/surveys", "/information", "/utilities", "/aid", "/tasks"],
+      employer: ["/dashboard", "/jobs", "/clients", "/workers", "/surveys", "/information", "/utilities", "/aid", "/tasks", "/records"],
+      client: ["/dashboard", "/jobs", "/surveys", "/information", "/aid", "/tasks", "/records"],
+      worker: ["/dashboard", "/jobs", "/occupation", "/surveys", "/information", "/aid", "/tasks", "/records"],
     }
 
     // Check if user has access to the current route

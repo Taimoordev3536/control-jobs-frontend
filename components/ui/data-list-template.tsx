@@ -68,11 +68,12 @@ export default function DataListTemplate({
   const [filtersVisible, setFiltersVisible] = useState(false)
   const [filters, setFilters] = useState<Record<string, string>>({})
 
-  const total = totalRecords || data.length
+  const total = totalRecords || (data?.length ?? 0)
   const totalPages = Math.ceil(total / itemsPerPage)
 
   // Sorting logic
   const sortedData = useMemo(() => {
+    if (!data) return []
     if (!sortColumn) return data
 
     const columnConfig = localColumns.find((col) => col.key === sortColumn)
@@ -146,8 +147,8 @@ export default function DataListTemplate({
   )
 
   const handleRowClick = (row: any) => {
-    if (onRowClick && row.id) {
-      onRowClick(row.id)
+    if (onRowClick) {
+      onRowClick(row)
     }
   }
 
@@ -314,7 +315,7 @@ export default function DataListTemplate({
         </div>
 
         {/* Table */}
-        {sortedData.length === 0 ? (
+        {(sortedData?.length ?? 0) === 0 ? (
           <div className="p-12 text-center">
             <p className="text-muted-foreground text-lg">{emptyMessage}</p>
           </div>

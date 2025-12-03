@@ -1131,8 +1131,17 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
                       onCheckIn={handleCheckIn}
                       onCheckOut={handleCheckOut}
                       onFillSurvey={handleFillSurvey}
-                      onCompleteTask={(j, taskId) => handleTaskToggle(j.id, taskId)}
+                      onCompleteTask={(j: any, taskId: any) => handleTaskToggle(j.id, taskId)}
                       onViewDetail={handleViewDetail}
+                      onEnter={(job: any, method?: string) => {
+                        // If signing method is 'web', move directly to CurrentJobCard
+                        if (method && typeof method === 'string' && method.toLowerCase() === 'web') {
+                          setCurrentJob(job);
+                          setCurrentView('currentJob');
+                        } else {
+                          // fallback: do nothing or handle other methods as needed
+                        }
+                      }}
                     />
                   ))}
                 </div>

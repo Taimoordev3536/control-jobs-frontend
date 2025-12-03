@@ -1,92 +1,105 @@
-// "use client"
+"use client"
 
-// import { useState, useEffect } from "react"
-// import { useAuth } from "@/hooks/use-auth"
-// import { LoadingSpinner } from "@/components/loading-spinner"
-// import WorkerDashboard from "@/components/dashboards/worker-dashboard/worker-dashboard-main"
-// import EmployerDashboard from "@/components/dashboards/employer-dashboard"
-// import ClientDashboard from "@/components/dashboards/client-dashboard"
-// import AdminDashboard from "@/components/dashboards/admin-dashboard"
-// import PartnerDashboard from "@/components/dashboards/partner-dashboard"
+import { useState } from "react"
+import { Plus } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { useTranslation } from "@/hooks/use-translation"
+import AddJobModal from "@/components/add-job-modal/main"
 
-// export default function RoleBasedDashboard() {
-//   const { session, isLoading, getUserRole } = useAuth()
-//   const [userRole, setUserRole] = useState<string>("")
+// Add icon component
+const AddIcon1 = () => (
+  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M12 5v14M5 12h14" />
+  </svg>
+)
 
-//   useEffect(() => {
-//     if (session) {
-//       const role = getUserRole()
-//       setUserRole(role)
-//     }
-//   }, [session, getUserRole])
+const AddIcon2 = () => (
+  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="purple" stroke="purple" strokeWidth="2">
+    <path d="M12 5v14M5 12h14" />
+  </svg>
+)
 
-//   if (isLoading) {
-//     return <LoadingSpinner message="Loading dashboard..." />
-//   }
+// ActionIconButton component to handle hover state
+function ActionIconButton({
+  IconDefault,
+  IconHover,
+  onClick,
+  title,
+}: {
+  IconDefault: React.ComponentType
+  IconHover: React.ComponentType
+  onClick: () => void
+  title: string
+}) {
+  const [isHovered, setIsHovered] = useState(false)
 
-//   if (!session) {
-//     return (
-//       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-//         <div className="text-center">
-//           <h2 className="text-xl font-semibold text-gray-900 mb-2">Access Denied</h2>
-//           <p className="text-gray-600">Please log in to access your dashboard.</p>
-//         </div>
-//       </div>
-//     )
-//   }
-
-//   // Render dashboard based on user role
-//   switch (userRole.toLowerCase()) {
-//     case "worker":
-//       return <WorkerDashboard />
-//     case "employer":
-//       return <EmployerDashboard />
-//     case "client":
-//       return <ClientDashboard />
-//     case "admin":
-//       return <AdminDashboard />
-//     case "partner":
-//       return <PartnerDashboard />
-//     default:
-//       return (
-//         <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-//           <div className="text-center">
-//             <h2 className="text-xl font-semibold text-gray-900 mb-2">Unknown Role</h2>
-//             <p className="text-gray-600">Your account role is not recognized. Please contact support.</p>
-//           </div>
-//         </div>
-//       )
-//   }
-// }
-
-
-
-
-
-
-
-import FreeLiveLocationTracker from '@/components/LocationTracker';
-
-export default function DemoPage() {
   return (
-    <main>
-      {/* <FreeLiveLocationTracker /> */}
-      <h1 className="text-3xl font-bold underline">
-       All 
-      </h1>
-    </main>
-  );
+    <button
+      type="button"
+      onClick={onClick}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      className="p-2 rounded-md hover:bg-purple-100 dark:hover:bg-purple-900/20 transition-colors"
+      title={title}
+    >
+      {isHovered ? <IconHover /> : <IconDefault />}
+    </button>
+  )
 }
 
+export default function AllJobsPage() {
+  const { t } = useTranslation()
+  const [showAddJobModal, setShowAddJobModal] = useState(false)
 
+  const handleJobAdded = (newJob: any) => {
+    console.log("New job added:", newJob)
+    // You can add logic here to refresh the jobs list or show a success message
+  }
 
+  return (
+    <div className="p-2 bg-background min-h-screen relative">
+      <div className="bg-card rounded-lg shadow-sm border border-border">
+        {/* Header */}
+        <div className="flex justify-between items-center p-4 border-b border-border bg-gray-100 dark:bg-gray-800">
+          <h1 className="text-2xl font-semibold text-foreground">{t("allJobs") || "All Jobs"}</h1>
+          <div className="flex items-center gap-2">
+            {/* Desktop Add Button */}
+            <div className="hidden sm:block">
+              <ActionIconButton
+                IconDefault={AddIcon1}
+                IconHover={AddIcon2}
+                onClick={() => setShowAddJobModal(true)}
+                title={t("add") || "Add new job"}
+              />
+            </div>
+          </div>
+        </div>
 
-// import AttendanceCheckin from "@/components/AttendanceCheckin"
+        {/* Content Area */}
+        <div className="p-6">
+          <p className="text-muted-foreground">
+            {t("jobsListWillAppearHere") || "Jobs list will appear here..."}
+          </p>
+          {/* Add your jobs table/list component here */}
+        </div>
+      </div>
 
-// export default function AttendancePage() {
-//   return (
-//     <main className="min-h-screen flex items-center justify-center">
-//       <AttendanceCheckin />
-//     </main>
-//   )
-// }
+      {/* Mobile Add Button (Floating) */}
+      <div className="sm:hidden fixed bottom-4 right-4 z-50">
+        <ActionIconButton
+          IconDefault={AddIcon1}
+          IconHover={AddIcon2}
+          onClick={() => setShowAddJobModal(true)}
+          title={t("add") || "Add"}
+        />
+      </div>
+
+      {/* Add Job Modal */}
+      <AddJobModal 
+        open={showAddJobModal} 
+        onOpenChange={setShowAddJobModal} 
+        onJobAdded={handleJobAdded} 
+      />
+    </div>
+  )
+}

@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Building2, MapPin, Clock, Calendar, AlertCircle, Users, Eye, LogIn, Edit, Bell, QrCode, Lock, Globe } from "lucide-react"
 import { useTranslation } from "@/hooks/use-translation"
+import { useRouter } from "next/navigation"
 
 interface Job {
   id: number
@@ -80,6 +81,7 @@ interface EmployerJobCardProps {
 }
 
 export function EmployerJobCard({ job, onViewDetails, onEdit, onViewRecords }: EmployerJobCardProps) {
+    const router = useRouter();
   const { t } = useTranslation("employer-dashboard")
 
   // Format date to short format like "1 Sep, 2025" - accept string or Date
@@ -443,7 +445,7 @@ const getStatusConfig = (status: string) => {
           <Button
             size="sm"
             className="flex-1 h-8 text-xs bg-purple-700 hover:bg-purple-800 text-white"
-            onClick={() => onViewRecords(job)}
+            onClick={() => router.push("/records/employer")}
           >
             <ControlIcon className="w-3 h-3 mr-1" />
             {t("records")}

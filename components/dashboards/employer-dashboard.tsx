@@ -23,6 +23,7 @@ import { useTranslation } from "@/hooks/use-translation"
 import { LoadingSpinner } from "@/components/dashboard-loader"
 import { useAuth } from "@/hooks/use-auth"
 import AddJobModal from "@/components/add-job-modal"
+// import AddJobModal from "@/components/add-job-modal/main"
 import JobDetail from "@/components/job-detail/job-detail"
 import { EmployerJobCard } from "@/components/dashboards/employer-job-card"
 

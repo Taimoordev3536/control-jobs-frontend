@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import SignInMethodDialog from "@/components/SignInMethodDialog"
+import SignInMethodDialog from "./SignInMethodDialog"
 import { useIsMobile } from "@/hooks/use-mobile"
 
 import JobsIcon from "../../../icons/Menu/Jobs.svg"
@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Calendar, Clock, MapPin, QrCode, Globe, Lock } from "lucide-react"
 import { useTranslation } from "@/hooks/use-translation"
+import { useRouter } from "next/navigation"
 
 interface Job {
   id: number
@@ -66,11 +67,12 @@ interface ClientJobCardProps {
   job: Job
   onViewDetails: (job: Job) => void
   onViewRecords: (job: Job) => void
-  onEnter?: (job: Job) => void
+  onEnter?: (job: Job, method?: string) => void
 }
 
 export function ClientJobCard({ job, onViewDetails, onViewRecords, onEnter }: ClientJobCardProps) {
   const { t } = useTranslation("dashboard")
+  const router = useRouter()
 
   const [dialogOpen, setDialogOpen] = React.useState(false)
   const isMobileDevice = useIsMobile()
@@ -379,7 +381,7 @@ export function ClientJobCard({ job, onViewDetails, onViewRecords, onEnter }: Cl
           <Button
             size="sm"
             className="flex-1 h-8 text-xs bg-purple-700 hover:bg-purple-800 text-white"
-            onClick={() => onViewRecords(job)}
+            onClick={() => router.push("/records/worker")}
           >
             <ControlIcon className="w-3 h-3 mr-1" />
             {t("records")}
@@ -407,7 +409,7 @@ export function ClientJobCard({ job, onViewDetails, onViewRecords, onEnter }: Cl
             // selected sign-in method; close dialog and call onEnter if provided
             setDialogOpen(false)
             try {
-              onEnter && onEnter(job)
+              onEnter && onEnter(job, method)
             } catch (e) {
               // ignore
             }
