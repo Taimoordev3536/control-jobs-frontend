@@ -453,7 +453,7 @@ const getStatusConfig = (status: string) => {
           <Button
             size="sm"
             className="flex-1 h-8 text-xs bg-purple-50 text-purple-600 font-medium hover:bg-purple-100 transition"
-            onClick={() => onEdit(job.id)}
+            onClick={() => router.push(`/jobs/${job.id}/edit`)}
           >
             <Edit className="w-3 h-3 mr-1" />
             {t("edit")}

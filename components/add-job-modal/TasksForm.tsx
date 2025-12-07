@@ -26,6 +26,9 @@ interface TasksFormProps {
   setErrors: (errors: Record<string, string> | ((prev: Record<string, string>) => Record<string, string>)) => void
   onAddTask: () => void
   onRemoveTask: (taskId: string) => void
+  onEditTask: (taskId: string) => void
+  onCancelEdit: () => void
+  editingTaskId: string | null
   dragItemIndex: React.MutableRefObject<number | null>
   dragOverItemIndex: React.MutableRefObject<number | null>
   handleDragStart: (e: React.DragEvent, index: number) => void
@@ -45,6 +48,9 @@ export default function TasksForm({
   setErrors,
   onAddTask,
   onRemoveTask,
+  onEditTask,
+  onCancelEdit,
+  editingTaskId,
   dragItemIndex,
   dragOverItemIndex,
   handleDragStart,
@@ -639,16 +645,21 @@ export default function TasksForm({
             </div>
           </div>
 
-          {/* Add/Cancel Buttons */}
+          {/* Add/Update/Cancel Buttons */}
           <div className="flex justify-between items-center pt-4">
             <div className="flex gap-2">
               <Button onClick={onAddTask} className="text-white px-6" style={{ backgroundColor: "#662D91" }}>
-                {t("add") || "Add"}
+                {editingTaskId ? (t("update") || "Update") : (t("add") || "Add")}
               </Button>
-              <Button variant="outline" onClick={handleClearForm} className="px-6">
+              <Button variant="outline" onClick={editingTaskId ? onCancelEdit : handleClearForm} className="px-6">
                 {t("cancel") || "Cancel"}
               </Button>
             </div>
+            {editingTaskId && (
+              <span className="text-sm text-blue-600 font-medium">
+                {t("editingTask") || "Editing task..."}
+              </span>
+            )}
           </div>
 
           {/* Tasks Table */}
@@ -737,14 +748,26 @@ export default function TasksForm({
                             </div>
                           </td>
                           <td className="px-4 py-2 text-sm text-right">
-                            <button
-                              type="button"
-                              aria-label={`delete-task-${task.id}`}
-                              onClick={() => onRemoveTask(task.id)}
-                              className="text-red-500 hover:text-red-700 px-2 py-1"
-                            >
-                              ✖
-                            </button>
+                            <div className="flex items-center justify-end gap-2">
+                              <button
+                                type="button"
+                                aria-label={`edit-task-${task.id}`}
+                                onClick={() => onEditTask(task.id)}
+                                className="text-blue-500 hover:text-blue-700 px-2 py-1"
+                                title={t("editTask") || "Edit task"}
+                              >
+                                ✏️
+                              </button>
+                              <button
+                                type="button"
+                                aria-label={`delete-task-${task.id}`}
+                                onClick={() => onRemoveTask(task.id)}
+                                className="text-red-500 hover:text-red-700 px-2 py-1"
+                                title={t("deleteTask") || "Delete task"}
+                              >
+                                ✖
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       )
