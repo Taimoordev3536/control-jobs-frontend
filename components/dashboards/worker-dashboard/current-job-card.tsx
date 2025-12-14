@@ -1,14 +1,43 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { DateTime } from "luxon"
-import { Card, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Activity, MapPin, Coffee, PlayCircle, Play, Pause, Fingerprint, CheckSquare, Square } from "lucide-react"
-import { useTranslation } from "@/hooks/use-translation"
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
+import { useState, useEffect } from "react";
+import { DateTime } from "luxon";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Activity,
+  Coffee,
+  PlayCircle,
+  Play,
+  Pause,
+  Fingerprint,
+  CheckSquare,
+  Square,
+  FileText,
+} from "lucide-react";
+import { useTranslation } from "@/hooks/use-translation";
+import { useAuth } from "@/hooks/use-auth";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import ClientIcon from "@/icons/Menu/clients.svg";
+import JobsIcon from "@/icons/Menu/Jobs.svg";
 
 interface JobAssignment {
   id: number;
@@ -92,7 +121,54 @@ export function CurrentJobCard({
   actionLoading = false,
 }: CurrentJobCardProps) {
   const { t } = useTranslation("worker-dashboard");
+  const { session } = useAuth();
   const [selectedBreakType, setSelectedBreakType] = useState("");
+  const [selectedWorkCenter, setSelectedWorkCenter] = useState<string | null>(
+    null
+  );
+  const [todayTasks, setTodayTasks] = useState<any>(null);
+  const [loadingTasks, setLoadingTasks] = useState(false);
+
+  // Fetch today's tasks grouped by work center
+  const fetchTodayTasks = async () => {
+    if (!job || !session?.accessToken) return;
+
+    setLoadingTasks(true);
+    try {
+      const baseUrl =
+        process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001";
+      const response = await fetch(`${baseUrl}/jobs/${job.id}/today-tasks`, {
+        headers: {
+          Authorization: `Bearer ${session.accessToken}`,
+        },
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.isSuccess) {
+          setTodayTasks(result.data);
+          // Auto-select first work center if available
+          if (
+            result.data.workCenters &&
+            result.data.workCenters.length > 0 &&
+            !selectedWorkCenter
+          ) {
+            setSelectedWorkCenter(
+              String(result.data.workCenters[0].workCenterId)
+            );
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Failed to fetch today's tasks:", error);
+    } finally {
+      setLoadingTasks(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTodayTasks();
+  }, [job, session]);
 
   const breakTypes = [
     { value: "personal", label: t("personal") },
@@ -103,23 +179,36 @@ export function CurrentJobCard({
     { value: "other", label: t("other") },
   ];
 
-  // const handleTaskToggleConfirm = (taskId: number) => {
-  //   onTaskToggle(job.id, taskId);
-  // };
-// In CurrentJobCard.tsx
-const handleTaskToggleConfirm = (taskId: number) => {
-  onTaskToggle(job.id, taskId);
-};
+  // Handle task completion - mark as complete and reload tasks
+  const handleTaskToggleConfirm = async (taskId: number) => {
+    try {
+      setLoadingTasks(true);
+      await onTaskToggle(job.id, taskId);
 
+      // Wait a bit for the backend to process
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      // Reload tasks to show updated completion status
+      await fetchTodayTasks();
+
+      console.log("✅ Task marked and UI refreshed");
+    } catch (error) {
+      console.error("Failed to toggle task:", error);
+    } finally {
+      setLoadingTasks(false);
+    }
+  };
 
   return (
     <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900">
       <CardContent className="p-4">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-            <Activity className="w-5 h-5 text-purple-600" />
-            {t("currentJob")}
-          </h2>
+          <Badge
+            variant="outline"
+            className="font-mono bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700"
+          >
+            {job.jobId}
+          </Badge>
           <Badge
             className={
               job.isOnBreak
@@ -144,81 +233,185 @@ const handleTaskToggleConfirm = (taskId: number) => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Job Info */}
           <div className="lg:col-span-2 space-y-4">
-            <div className="flex items-start justify-between">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{job.title}</h3>
-                <p className="text-gray-600 dark:text-gray-400">{job.client.name}</p>
-                <div className="flex items-center gap-2 mt-1">
-                  <MapPin className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-                  <span className="text-sm text-gray-600 dark:text-gray-400">{job.workCenter.address}</span>
-                </div>
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                <ClientIcon className="w-6 h-6 text-gray-700 dark:text-gray-300" />
+                <span className="text-base font-semibold text-gray-900 dark:text-white">
+                  {job.client.name}
+                </span>
               </div>
-              <Badge
-                variant="outline"
-                className="font-mono bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700"
-              >
-                {job.jobId}
-              </Badge>
+              <div className="flex items-center gap-3">
+                <JobsIcon className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+                <span className="text-base font-medium text-purple-600 dark:text-purple-400">
+                  {job.title}
+                </span>
+              </div>
             </div>
 
-            {/* Tasks */}
+            {/* Today's Tasks */}
             <div>
-              <h4 className="font-medium text-gray-900 dark:text-white mb-2">{t("tasks")}</h4>
-              <div className="space-y-2">
-                {job.tasks.map((task) => (
-                  <div
-                    key={task.id}
-                    className={`flex items-center gap-3 p-3 rounded-lg border ${
-                      task.completed
-                        ? "bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800"
-                        : "bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700"
-                    }`}
-                  >
-                    {!task.completed ? (
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 w-6 p-0"
-                            disabled={job.isOnBreak || actionLoading}
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="font-medium text-gray-900 dark:text-white">
+                  {t("todayTasks")}
+                </h4>
+                {todayTasks && (
+                  <Badge variant="outline" className="text-xs">
+                    {todayTasks.totalCompleted}/{todayTasks.totalTasks}{" "}
+                    {t("completed")}
+                  </Badge>
+                )}
+              </div>
+
+              {/* Work Center Selector */}
+              {todayTasks &&
+                todayTasks.workCenters &&
+                todayTasks.workCenters.length > 0 && (
+                  <div className="mb-3">
+                    <Select
+                      value={selectedWorkCenter || undefined}
+                      onValueChange={setSelectedWorkCenter}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder={t("selectWorkCenter")} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {todayTasks.workCenters.map((wc: any) => (
+                          <SelectItem
+                            key={wc.workCenterId || "null"}
+                            value={String(wc.workCenterId)}
                           >
-                            <Square className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>{t("confirmTaskCompletion")}</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              {t("confirmTaskDescription", { taskName: task.name })}
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => handleTaskToggleConfirm(task.id)}>
-                              {t("confirm")}
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    ) : (
-                      <CheckSquare className="w-4 h-4 text-green-600 dark:text-green-400" />
-                    )}
-                    <div className="flex-1">
-                      <div
-                        className={`font-medium ${
-                          task.completed
-                            ? "text-green-700 dark:text-green-400 line-through"
-                            : "text-gray-900 dark:text-white"
-                        }`}
-                      >
-                        {task.name}
-                      </div>
-                      <div className="text-sm text-gray-600 dark:text-gray-400">{task.description}</div>
-                    </div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">{task.duration}</div>
+                            <div className="flex items-center justify-between w-full">
+                              <span>{wc.workCenterName}</span>
+                              <Badge
+                                variant="secondary"
+                                className="ml-2 text-xs"
+                              >
+                                {wc.completedTasks}/{wc.totalTasks}
+                              </Badge>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                ))}
+                )}
+
+              {/* Tasks List */}
+              <div className="space-y-2">
+                {loadingTasks ? (
+                  <div className="text-center py-4 text-gray-500">
+                    {t("loading")}...
+                  </div>
+                ) : todayTasks && selectedWorkCenter ? (
+                  (() => {
+                    const workCenter = todayTasks.workCenters.find(
+                      (wc: any) =>
+                        String(wc.workCenterId) === selectedWorkCenter
+                    );
+                    const tasks = workCenter?.tasks || [];
+
+                    return tasks.length > 0 ? (
+                      tasks.map((task: any) => (
+                        <div
+                          key={task.id}
+                          className={`p-3 rounded-lg border ${
+                            task.isCompleted
+                              ? "bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800"
+                              : "bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700"
+                          }`}
+                        >
+                          <div className="flex items-start gap-3">
+                            {!task.isCompleted ? (
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-6 w-6 p-0 mt-0.5"
+                                    disabled={
+                                      job.isOnBreak ||
+                                      actionLoading ||
+                                      loadingTasks
+                                    }
+                                  >
+                                    <Square className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>
+                                      {t("confirmTaskCompletion")}
+                                    </AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      {t("confirmTaskDescription", {
+                                        taskName: task.name,
+                                      })}
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel disabled={loadingTasks}>
+                                      {t("cancel")}
+                                    </AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={() =>
+                                        handleTaskToggleConfirm(task.id)
+                                      }
+                                      disabled={loadingTasks}
+                                    >
+                                      {loadingTasks
+                                        ? t("loading") + "..."
+                                        : t("confirm")}
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            ) : (
+                              <CheckSquare className="w-4 h-4 text-green-600 dark:text-green-400 mt-0.5" />
+                            )}
+
+                            <div className="flex-1">
+                              <div
+                                className={`font-medium ${
+                                  task.isCompleted
+                                    ? "text-green-700 dark:text-green-400 line-through"
+                                    : "text-gray-900 dark:text-white"
+                                }`}
+                              >
+                                {task.name}
+                              </div>
+
+                              {/* Task Note/Observation */}
+                              {task.note && (
+                                <div className="mt-2">
+                                  <div className="text-xs font-bold text-gray-700 dark:text-gray-300">
+                                    {t("note")}:
+                                  </div>
+                                  <div className="text-sm text-gray-600 dark:text-gray-400 mt-0.5">
+                                    {task.note}
+                                  </div>
+                                </div>
+                              )}
+
+                              {task.expectedDuration && (
+                                <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                  {t("duration")}: {task.expectedDuration}h
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-4 text-gray-500">
+                        {t("noTasksForWorkCenter")}
+                      </div>
+                    );
+                  })()
+                ) : (
+                  <div className="text-center py-4 text-gray-500">
+                    {t("noTasksScheduled")}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -231,7 +424,9 @@ const handleTaskToggleConfirm = (taskId: number) => {
                   <div className="text-2xl font-bold text-orange-700 dark:text-orange-400 mb-1">
                     {getCurrentBreakTime(job)}
                   </div>
-                  <div className="text-sm text-orange-600 dark:text-orange-400">{t("breakTime")}</div>
+                  <div className="text-sm text-orange-600 dark:text-orange-400">
+                    {t("breakTime")}
+                  </div>
                 </div>
               </div>
             ) : (
@@ -240,7 +435,9 @@ const handleTaskToggleConfirm = (taskId: number) => {
                   <div className="text-2xl font-bold text-purple-700 dark:text-purple-400 mb-1">
                     {getCurrentSessionTime(job)}
                   </div>
-                  <div className="text-sm text-purple-600 dark:text-purple-400">{t("workingTime")}</div>
+                  <div className="text-sm text-purple-600 dark:text-purple-400">
+                    {t("workingTime")}
+                  </div>
                 </div>
               </div>
             )}
@@ -250,13 +447,19 @@ const handleTaskToggleConfirm = (taskId: number) => {
                 <div className="text-sm font-bold text-gray-900 dark:text-white">
                   {job.checkInTime ? formatTimeShort(job.checkInTime) : "---"}
                 </div>
-                <div className="text-xs text-gray-600 dark:text-gray-400">{t("checkIn")}</div>
+                <div className="text-xs text-gray-600 dark:text-gray-400">
+                  {t("checkIn")}
+                </div>
               </div>
               <div className="bg-gray-100 dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700 text-center">
                 <div className="text-sm font-bold text-gray-900 dark:text-white">
-                  {job.shift.scheduleType === "fixed" && job.shift.endTime ? job.shift.endTime : "Flexible"}
+                  {job.shift.scheduleType === "fixed" && job.shift.endTime
+                    ? job.shift.endTime
+                    : "Flexible"}
                 </div>
-                <div className="text-xs text-gray-600 dark:text-gray-400">{t("expectedOut")}</div>
+                <div className="text-xs text-gray-600 dark:text-gray-400">
+                  {t("expectedOut")}
+                </div>
               </div>
             </div>
 
@@ -273,7 +476,10 @@ const handleTaskToggleConfirm = (taskId: number) => {
                 </Button>
               ) : (
                 <div className="space-y-2">
-                  <Select value={selectedBreakType} onValueChange={setSelectedBreakType}>
+                  <Select
+                    value={selectedBreakType}
+                    onValueChange={setSelectedBreakType}
+                  >
                     <SelectTrigger className="w-full border-orange-300 text-orange-600 hover:bg-orange-50 dark:border-orange-800 dark:text-orange-400 dark:hover:bg-orange-900/20">
                       <div className="flex items-center gap-2">
                         <Coffee className="w-4 h-4" />
@@ -282,7 +488,10 @@ const handleTaskToggleConfirm = (taskId: number) => {
                     </SelectTrigger>
                     <SelectContent className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
                       {breakTypes.map((breakType) => (
-                        <SelectItem key={breakType.value} value={breakType.value}>
+                        <SelectItem
+                          key={breakType.value}
+                          value={breakType.value}
+                        >
                           {breakType.label}
                         </SelectItem>
                       ))}
@@ -321,7 +530,9 @@ const handleTaskToggleConfirm = (taskId: number) => {
                 <div className="text-sm font-bold text-gray-900 dark:text-white">
                   {job.totalBreakTime} {t("minutes")}
                 </div>
-                <div className="text-xs text-gray-600 dark:text-gray-400">{t("totalBreakTime")}</div>
+                <div className="text-xs text-gray-600 dark:text-gray-400">
+                  {t("totalBreakTime")}
+                </div>
               </div>
             )}
           </div>

@@ -202,12 +202,12 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar }: Ap
             icon: () => <TodosIcon className="h-5 w-5" />,
             href: "/dashboard",
           },
-          //           {
-          //   id: "QR-Code",
-          //   title: t("QR-Code"),
-          //   icon: () => <QrCode className="h-5 w-5" />,
-          //   href: "/dashboard",
-          // },
+          {
+            id: "qr-code",
+            title: t("qrCode"),
+            icon: () => <QrCode className="h-5 w-5" />,
+            href: "/qr-code",
+          },
           {
             id: "jobs",
             title: t("jobs"),
@@ -244,6 +244,12 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar }: Ap
             title: t("dashboard"),
             icon: () => <TodosIcon className="h-5 w-5" />,
             href: "/dashboard",
+          },
+          {
+            id: "qr-code",
+            title: t("qrCode"),
+            icon: () => <QrCode className="h-5 w-5" />,
+            href: "/qr-code",
           },
           {
             id: "jobs",

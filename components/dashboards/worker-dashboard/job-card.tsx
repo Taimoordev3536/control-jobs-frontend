@@ -67,7 +67,7 @@ interface ClientJobCardProps {
   job: Job
   onViewDetails: (job: Job) => void
   onViewRecords: (job: Job) => void
-  onEnter?: (job: Job, method?: string) => void
+  onEnter?: (job: Job, method?: string, data?: any) => void
 }
 
 export function ClientJobCard({ job, onViewDetails, onViewRecords, onEnter }: ClientJobCardProps) {
@@ -390,6 +390,7 @@ export function ClientJobCard({ job, onViewDetails, onViewRecords, onEnter }: Cl
         {/* Sign-in methods dialog (opened when Enter is clicked) */}
         <SignInMethodDialog
           isOpen={dialogOpen}
+          job={job}
           workerName={firstWorker?.name || firstWorker?.code || `Worker ${firstWorker?.id}`}
           signingMethods={(() => {
             // choose which set to show depending on client device
@@ -405,15 +406,15 @@ export function ClientJobCard({ job, onViewDetails, onViewRecords, onEnter }: Cl
             return Array.from(new Set(source.map(mapToCanonical)))
           })()}
           onClose={() => setDialogOpen(false)}
-          onSelect={(method) => {
-            // selected sign-in method; close dialog and call onEnter if provided
+          onSelect={(method, data) => {
+            // selected sign-in method with collected data; close dialog and call onEnter if provided
             setDialogOpen(false)
             try {
-              onEnter && onEnter(job, method)
+              onEnter && onEnter(job, method, data)
             } catch (e) {
               // ignore
             }
-            console.debug("Selected sign-in method:", method, "for job", job?.jobId || job?.id)
+            console.debug("Selected sign-in method:", method, "with data:", data, "for job", job?.jobId || job?.id)
           }}
         />
       </CardContent>

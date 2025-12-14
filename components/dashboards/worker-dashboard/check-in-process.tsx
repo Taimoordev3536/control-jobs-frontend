@@ -269,18 +269,12 @@ export function CheckInProcess({ job, method, token, onBack, onComplete }: Check
       setScanResult(`${t("scanning")}: ${qrData}`)
       stopScanner()
 
-      const qrJobData = JSON.parse(qrData)
-      console.log("Parsed QR Job Data:", qrJobData)
+      // QR code now contains only the token string (not JSON)
+      console.log("QR Token detected:", qrData)
 
-      const currentJobId = typeof job.id === "string" ? Number.parseInt(job.id) : job.id
-      const qrJobId = typeof qrJobData.jobId === "string" ? Number.parseInt(qrJobData.jobId) : qrJobData.jobId
-
-      if (qrJobId !== currentJobId) {
-        alert(t("qrCodeMismatch", { jobId: qrJobId, currentJobId }))
-        setQrStatus("error")
-        return
-      }
-
+      // The token will be validated on the backend
+      // No need to parse JSON or verify jobId on client side
+      
       alert(t("qrCodeVerified"))
       setQrStatus("completed")
       await recordScan(qrData)

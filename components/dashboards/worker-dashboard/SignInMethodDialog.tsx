@@ -14,8 +14,9 @@ interface Props {
   isOpen: boolean
   signingMethods?: Array<string>
   onClose: () => void
-  onSelect: (method: MethodKey) => void
+  onSelect: (method: MethodKey, data?: any) => void
   workerName?: string
+  job?: any
 }
 
 function detectMobileDevice(): boolean {
@@ -113,13 +114,10 @@ const MethodButton = ({ m, onClick }: { m: MethodKey; onClick: () => void }) => 
   )
 }
 
-export default function SignInMethodDialog({ isOpen, signingMethods = [], onClose, onSelect }: Props) {
+export default function SignInMethodDialog({ isOpen, signingMethods = [], onClose, onSelect, workerName, job }: Props) {
   const { t } = useTranslation("dashboard")
   const [isMobile, setIsMobile] = React.useState<boolean | undefined>(undefined)
   const [selectedMethod, setSelectedMethod] = React.useState<null | "QRCODE" | "IP" | "WEB" | "GPS">(null)
-
-  // optional worker name to show greeting
-  const workerName = (arguments && (arguments as any)[0] && (arguments as any)[0].workerName) || undefined
 
   React.useEffect(() => {
     // detect once on client
@@ -177,35 +175,42 @@ export default function SignInMethodDialog({ isOpen, signingMethods = [], onClos
             <div>
               {selectedMethod === 'QRCODE' && (
                 <QrCodeScanner
+                  job={job}
                   onBack={() => setSelectedMethod(null)}
-                  onComplete={() => {
-                    onSelect('QRCODE')
+                  onComplete={(qrToken: string) => {
+                    onSelect('QRCODE', { qrToken })
                     setSelectedMethod(null)
+                    onClose()
                   }}
                 />
               )}
               {selectedMethod === 'GPS' && (
                 <GpsSignIn
+                  job={job}
                   onBack={() => setSelectedMethod(null)}
-                  onComplete={() => {
-                    onSelect('GPS')
+                  onComplete={(latitude: number, longitude: number) => {
+                    onSelect('GPS', { latitude, longitude })
                     setSelectedMethod(null)
+                    onClose()
                   }}
                 />
               )}
               {selectedMethod === 'IP' && (
                 <IpSignIn
+                  job={job}
                   onBack={() => setSelectedMethod(null)}
-                  onComplete={() => {
-                    onSelect('IP')
+                  onComplete={(ipAddress: string) => {
+                    onSelect('IP', { ipAddress })
                     setSelectedMethod(null)
+                    onClose()
                   }}
                 />
               )}
               {selectedMethod === 'WEB' && (
                 (() => {
-                  onSelect('WEB');
+                  onSelect('WEB', {});
                   setSelectedMethod(null);
+                  onClose();
                   return null;
                 })()
               )}

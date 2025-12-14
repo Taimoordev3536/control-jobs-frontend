@@ -18,6 +18,13 @@ const workerDashboardTranslations = {
     onBreak: "On Break",
     inProgress: "In Progress",
     tasks: "Tasks",
+    todayTasks: "Today's Tasks",
+    completed: "Completed",
+    selectWorkCenter: "Select Work Center",
+    note: "Note",
+    loading: "Loading",
+    noTasksForWorkCenter: "No tasks for this work center",
+    noTasksScheduled: "No tasks scheduled for today",
     workingTime: "Working Time",
     breakTime: "Break Time",
     checkIn: "Check In",
@@ -136,6 +143,12 @@ const workerDashboardTranslations = {
     noAuthTokenFound: "No authentication token found",
     unknownErrorOccurred: "Unknown error occurred",
 
+    // Task Completion Dialog
+    confirmTaskCompletion: "Confirm Task Completion",
+    confirmTaskDescription: "Are you sure you want to mark '{taskName}' as completed?",
+    confirm: "Confirm",
+    cancel: "Cancel",
+
     // Job Details Modal
     jobInformation: "Job Information",
     jobPeriod: "Job Period",
@@ -227,6 +240,13 @@ const workerDashboardTranslations = {
     onBreak: "En Descanso",
     inProgress: "En Progreso",
     tasks: "Tareas",
+    todayTasks: "Tareas de Hoy",
+    completed: "Completado",
+    selectWorkCenter: "Seleccionar Centro de Trabajo",
+    note: "Observaciones",
+    loading: "Cargando",
+    noTasksForWorkCenter: "No hay tareas para este centro de trabajo",
+    noTasksScheduled: "No hay tareas programadas para hoy",
     workingTime: "Tiempo de Trabajo",
     breakTime: "Tiempo de Descanso",
     checkIn: "Registrar Entrada",
@@ -390,6 +410,11 @@ const workerDashboardTranslations = {
     cancel: "Cancelar",
     surveySubmitted: "Encuesta Enviada",
     thankYouFeedback: "¡Gracias por tu retroalimentación!",
+
+    // Task Completion Dialog
+    confirmTaskCompletion: "Confirmar Completar Tarea",
+    confirmTaskDescription: "¿Estás seguro de que quieres marcar '{taskName}' como completada?",
+    confirm: "Confirmar",
 
     // Time Formats
     hours: "h",

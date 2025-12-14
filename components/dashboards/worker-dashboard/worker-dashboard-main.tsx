@@ -205,6 +205,15 @@ export default function WorkerDashboardMain() {
   const [detailJob, setDetailJob] = useState<JobAssignment | null>(null);
   
 const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => {
+  // Log the API job data to debug work session
+  if (apiJob.workSession) {
+    console.log(`📋 Job ${apiJob.jobId} has workSession:`, {
+      checkInTime: apiJob.workSession.checkInTime,
+      checkOutTime: apiJob.workSession.checkOutTime,
+      isActive: apiJob.workSession.isActive
+    });
+  }
+  
   const currentDate = new Date();
   const today = dateKeyInTz(currentDate); // YYYY-MM-DD in viewer TZ
 
@@ -233,10 +242,18 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
         ),
     ) || Boolean(apiJob.workSession?.checkInTime && apiJob.workSession?.checkOutTime);
 
+  // Check if there's an active work session (checked in but not checked out)
+  const hasActiveSession = Boolean(
+    apiJob.workSession?.checkInTime && 
+    !apiJob.workSession?.checkOutTime &&
+    apiJob.workSession?.isActive
+  );
+
   if (currentDate > endDate) {
     status = hasAttendanceRecord ? "completed" : "scheduled";
   } else {
-    status = hasAttendanceRecord || apiJob.workSession?.checkInTime
+    // If there's an active session or completed attendance, it's in progress
+    status = hasActiveSession || hasAttendanceRecord || apiJob.workSession?.checkInTime
       ? "in_progress"
       : "scheduled";
   }
@@ -409,10 +426,25 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
         const transformedJobs = data.data.map(transformApiJobToJobAssignment);
         setTodayAssignments(transformedJobs);
 
-        // Set current job
+        // Set current job - find any job with active work session
         let newCurrentJob = transformedJobs.find(
           (job) => job.status === "in_progress" && job.checkInTime && !job.checkOutTime && new Date() <= job.endDate,
         );
+
+        console.log("🔍 Looking for current job:", {
+          foundJob: newCurrentJob?.id,
+          foundJobTitle: newCurrentJob?.title,
+          allJobs: transformedJobs.map(j => ({
+            id: j.id,
+            title: j.title,
+            status: j.status,
+            checkInTime: j.checkInTime?.toISOString(),
+            checkOutTime: j.checkOutTime?.toISOString(),
+            endDate: j.endDate?.toISOString(),
+            hasCheckIn: !!j.checkInTime,
+            hasCheckOut: !!j.checkOutTime
+          }))
+        });
 
         if (!newCurrentJob && currentJob) {
           const existingCurrentJob = transformedJobs.find((job) => job.id === currentJob.id);
@@ -423,10 +455,17 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
             !existingCurrentJob.checkOutTime
           ) {
             newCurrentJob = existingCurrentJob;
+            console.log("Restored current job from previous state:", newCurrentJob.id);
           }
         }
 
         setCurrentJob(newCurrentJob || null);
+        
+        if (newCurrentJob) {
+          console.log("✅ Current job set:", newCurrentJob.id, newCurrentJob.title);
+        } else {
+          console.log("ℹ️ No active current job found");
+        }
 
         // Update stats
         const completedJobs = transformedJobs.filter((job) => job.status === "completed").length;
@@ -516,6 +555,109 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
   const handleCheckInMethodSelect = (method: string) => {
     setSelectedCheckInMethod(method);
     setCurrentView("checkInProcess");
+  };
+
+  // Handle check-in with specific signing method
+  const handleCheckInWithMethod = async (job: any, signingMethod: string, additionalData?: any) => {
+    try {
+      setActionLoading(true);
+
+      if (!session?.accessToken) {
+        throw new Error("No access token found");
+      }
+
+      const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001";
+      const response = await fetch(`${baseUrl}/jobs/scan`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${session.accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          jobId: job.id,
+          scanType: "check-in",
+          signingMethod: signingMethod,
+          ...additionalData,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to check in: ${errorText}`);
+      }
+
+      const result = await response.json();
+      console.log("✅ Check-in successful:", result);
+
+      // Update job state to in_progress
+      const updatedJob = {
+        ...job,
+        status: "in_progress" as const,
+        checkInTime: new Date(),
+        isOnBreak: false,
+      };
+
+      setTodayAssignments((prev) => prev.map((j) => (j.id === job.id ? updatedJob : j)));
+      setCurrentJob(updatedJob);
+      setCurrentView('currentJob');
+
+    } catch (error) {
+      console.error("Check-in error:", error);
+      setError(error instanceof Error ? error.message : "Failed to check in");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Handle check-in with IP method
+  const handleCheckInWithIP = async (job: any) => {
+    try {
+      setActionLoading(true);
+      
+      // Fetch IP address
+      const ipResponse = await fetch("https://api.ipify.org?format=json");
+      const ipData = await ipResponse.json();
+      
+      await handleCheckInWithMethod(job, 'ip', {
+        ipAddress: ipData.ip,
+      });
+    } catch (error) {
+      console.error("IP check-in error:", error);
+      setError("Could not fetch IP address");
+      setActionLoading(false);
+    }
+  };
+
+  // Handle check-in with GPS method
+  const handleCheckInWithGPS = async (job: any) => {
+    try {
+      setActionLoading(true);
+      
+      // Request GPS permission and get coordinates
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 30000,
+          maximumAge: 0,
+        });
+      });
+
+      await handleCheckInWithMethod(job, 'gps', {
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+      });
+    } catch (error) {
+      console.error("GPS check-in error:", error);
+      setError("Could not access location. Please enable GPS.");
+      setActionLoading(false);
+    }
+  };
+
+  // Handle check-in with QR code
+  const handleCheckInWithQR = async (job: any, qrToken: string) => {
+    await handleCheckInWithMethod(job, 'qrcode', {
+      qrToken: qrToken,
+    });
   };
 
   const handleCheckOut = async (job: JobAssignment) => {
@@ -793,21 +935,8 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
       const data = await response.json();
 
       if (response.ok) {
-        const now = new Date();
-        const breakDuration = job.breakStartTime
-          ? Math.floor((now.getTime() - job.breakStartTime.getTime()) / 1000 / 60)
-          : 0;
-
-        const updatedJob = {
-          ...job,
-          status: "in_progress" as const,
-          isOnBreak: false,
-          totalBreakTime: job.totalBreakTime + breakDuration,
-          breakStartTime: undefined,
-        };
-
-        setTodayAssignments((prev) => prev.map((j) => (j.id === job.id ? updatedJob : j)));
-        setCurrentJob(updatedJob);
+        // Fetch updated job data from backend to get correct totalBreakMinutes
+        await fetchJobs();
       } else {
         throw new Error(data.message || "Failed to end break");
       }
@@ -1037,6 +1166,8 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
     );
   }
 
+  // QR Scanner view removed - now handled by SignInMethodDialog in job-card.tsx
+
   if (currentView === "survey" && surveyJob) {
     return (
       <SurveyCard
@@ -1133,13 +1264,46 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
                       onFillSurvey={handleFillSurvey}
                       onCompleteTask={(j: any, taskId: any) => handleTaskToggle(j.id, taskId)}
                       onViewDetail={handleViewDetail}
-                      onEnter={(job: any, method?: string) => {
-                        // If signing method is 'web', move directly to CurrentJobCard
-                        if (method && typeof method === 'string' && method.toLowerCase() === 'web') {
-                          setCurrentJob(job);
-                          setCurrentView('currentJob');
-                        } else {
-                          // fallback: do nothing or handle other methods as needed
+                      onEnter={async (job: any, method?: string, data?: any) => {
+                        const signingMethod = method?.toLowerCase() || 'web';
+                        
+                        // Handle different signing methods
+                        switch (signingMethod) {
+                          case 'web':
+                            // Direct check-in with web method (free)
+                            await handleCheckInWithMethod(job, 'web');
+                            break;
+                          case 'ip':
+                            // Check-in with IP address from SignInMethodDialog
+                            if (data?.ipAddress) {
+                              await handleCheckInWithMethod(job, 'ip', { ipAddress: data.ipAddress });
+                            } else {
+                              await handleCheckInWithIP(job); // Fallback to fetching IP
+                            }
+                            break;
+                          case 'gps':
+                            // Check-in with GPS coordinates from SignInMethodDialog
+                            if (data?.latitude && data?.longitude) {
+                              await handleCheckInWithMethod(job, 'gps', { 
+                                latitude: data.latitude, 
+                                longitude: data.longitude 
+                              });
+                            } else {
+                              await handleCheckInWithGPS(job); // Fallback to requesting GPS
+                            }
+                            break;
+                          case 'qrcode':
+                            // Check-in with QR token from SignInMethodDialog
+                            if (data?.qrToken) {
+                              await handleCheckInWithMethod(job, 'qrcode', { qrToken: data.qrToken });
+                            } else {
+                              console.error("QR code method selected but no token provided");
+                              setError("QR code scan failed. Please try again.");
+                            }
+                            break;
+                          default:
+                            // Fallback to web
+                            await handleCheckInWithMethod(job, 'web');
                         }
                       }}
                     />
