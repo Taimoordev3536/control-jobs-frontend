@@ -713,7 +713,7 @@ export default function TasksForm({
                           </td>
                           <td className="px-4 py-2 text-sm">
                             {task.periodicity === "once"
-                              ? task.onceDate
+                              ? t("once") || "Once"
                               : `${t("every") || "Every"} ${task.interval} ${
                                   task.periodicity === "daily"
                                     ? task.interval === 1

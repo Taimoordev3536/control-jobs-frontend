@@ -109,7 +109,9 @@ const employerDashboardTranslations: Record<string, Record<string, string>> = {
 
     // Success Messages
     jobCreated: "Job created successfully",
+    jobCreatedSuccessfully: "Job created successfully!",
     jobUpdated: "Job updated successfully",
+    jobUpdatedSuccessfully: "Job updated successfully!",
     jobDeleted: "Job deleted successfully",
     jobAssigned: "Job assigned successfully",
     changesSaved: "Changes saved successfully",
@@ -162,7 +164,7 @@ const employerDashboardTranslations: Record<string, Record<string, string>> = {
     close: "Close",
     save: "Save",
     saveChanges: "Save Changes",
-    cancel: "Cancel",
+    update: "Update",
     confirm: "Confirm",
     apply: "Apply",
     reset: "Reset",
@@ -224,6 +226,28 @@ const employerDashboardTranslations: Record<string, Record<string, string>> = {
     yes: "Yes",
     no: "No",
     ok: "OK",
+
+    // Task Messages
+    taskAdded: "Task Added",
+    taskAddedDescription: "Task has been added to the list",
+    taskUpdated: "Task Updated",
+    taskUpdatedDescription: "Task has been updated successfully",
+
+    // Days of the week
+    monday: "Monday",
+    tuesday: "Tuesday",
+    wednesday: "Wednesday",
+    thursday: "Thursday",
+    friday: "Friday",
+    saturday: "Saturday",
+    sunday: "Sunday",
+
+    // Validation Messages
+    thisFieldIsRequired: "This field is required",
+    requiredFieldsMissing: "Required Fields Missing",
+    pleaseCompleteAllRequiredFields: "All task fields are required. Please fill in any missing fields.",
+    taskRequired: "Task Required",
+    taskRequiredDescription: "Please enter a task name",
   },
   es: {
     // Header viewAttendance 
@@ -294,7 +318,7 @@ const employerDashboardTranslations: Record<string, Record<string, string>> = {
     details: "Detalles",
     view: "Ver",
     edit: "Editar",
-    editJob: "Editar Trabajo",
+    editJob: "Editar Job",
     analytics: "Análisis",
     delete: "Eliminar",
     duplicate: "Duplicar",
@@ -336,7 +360,9 @@ const employerDashboardTranslations: Record<string, Record<string, string>> = {
 
     // Success Messages
     jobCreated: "Trabajo creado exitosamente",
+    jobCreatedSuccessfully: "Trabajo creado satisfactoriamente!",
     jobUpdated: "Trabajo actualizado exitosamente",
+    jobUpdatedSuccessfully: "Job actualizado satisfactoriamente",
     jobDeleted: "Trabajo eliminado exitosamente",
     jobAssigned: "Trabajo asignado exitosamente",
     changesSaved: "Cambios guardados exitosamente",
@@ -389,7 +415,7 @@ const employerDashboardTranslations: Record<string, Record<string, string>> = {
     close: "Cerrar",
     save: "Guardar",
     saveChanges: "Guardar Cambios",
-    cancel: "Cancelar",
+    update: "Actualizar",
     confirm: "Confirmar",
     apply: "Aplicar",
     reset: "Restablecer",
@@ -451,6 +477,28 @@ const employerDashboardTranslations: Record<string, Record<string, string>> = {
     yes: "Sí",
     no: "No",
     ok: "OK",
+
+    // Task Messages
+    taskAdded: "Tarea añadida",
+    taskAddedDescription: "La tarea ha sido añadida a la lista",
+    taskUpdated: "Tarea actualizada",
+    taskUpdatedDescription: "La tarea ha sido actualizada correctamente",
+
+    // Days of the week
+    monday: "Lunes",
+    tuesday: "Martes",
+    wednesday: "Miércoles",
+    thursday: "Jueves",
+    friday: "Viernes",
+    saturday: "Sábado",
+    sunday: "Domingo",
+
+    // Validation Messages
+    thisFieldIsRequired: "Este campo es obligatorio",
+    requiredFieldsMissing: "Faltan campos obligatorios",
+    pleaseCompleteAllRequiredFields: "Todos los campos de la tarea son obligatorios. Por favor, complete los que falten.",
+    taskRequired: "Tarea requerida",
+    taskRequiredDescription: "Por favor ingrese un nombre de tarea",
   },
 }
 

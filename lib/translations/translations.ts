@@ -511,6 +511,10 @@ surveyMonitoringValueTips: "Set a limit. If responses are under this value, an a
     add: "Add",
     eliminate: "Eliminate",
     introduceTasksNow: "Introduce tasks now?",
+    taskAdded: "Task Added",
+    taskAddedDescription: "Task has been added to the list",
+    taskUpdated: "Task Updated",
+    taskUpdatedDescription: "Task has been updated successfully",
 
     // Surveys section
     configureSurveysNow: "Configure surveys now?",
@@ -1098,6 +1102,10 @@ surveyMonitoringValueTips: "Set a limit. If responses are under this value, an a
     cancel: "Cancelar",
     eliminate: "Eliminar",
     introduceTasksNow: "¿Introducir tareas ahora?",
+    taskAdded: "Tarea añadida",
+    taskAddedDescription: "La tarea ha sido añadida a la lista",
+    taskUpdated: "Tarea actualizada",
+    taskUpdatedDescription: "La tarea ha sido actualizada correctamente",
 
     // Surveys section
     configureSurveysNow: "¿Configurar encuestas ahora?",
