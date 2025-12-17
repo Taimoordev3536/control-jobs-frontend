@@ -2008,6 +2008,52 @@ export default function JobFormCore({
     resetForm,
   ]);
 
+  const handleDelete = useCallback(async () => {
+    if (!jobId) return;
+
+    const confirmDelete = window.confirm(
+      t("confirmDeleteJob") || "Are you sure you want to delete this job? This action cannot be undone."
+    );
+
+    if (!confirmDelete) return;
+
+    setIsLoading(true);
+    try {
+      const endpoint = `${process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/${jobId}`;
+
+      const response = await fetch(endpoint, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          ...(session?.accessToken
+            ? { Authorization: `Bearer ${session.accessToken}` }
+            : {}),
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to delete job");
+      }
+
+      toast({
+        title: t("jobDeletedSuccessfully") || "Job deleted successfully!",
+        variant: "default",
+      });
+
+      // Navigate back to dashboard or jobs list
+      onComplete(null);
+    } catch (error: any) {
+      console.error("Error deleting job:", error);
+      toast({
+        title: error.message || t("errorDeletingJob") || "Error deleting job",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [jobId, session, t, onComplete]);
+
   // Effects
   useEffect(() => {
     if (!session?.accessToken) return;
@@ -2238,14 +2284,19 @@ export default function JobFormCore({
         )}
       </div>
 
-      <div
-        className={`flex items-center p-2 px-6 ${
-          currentMainStep === 1 && currentSigningStep === 1
-            ? "justify-end"
-            : "justify-between"
-        }`}
-      >
+      <div className="flex items-center p-2 px-6 justify-between">
         <div className="flex gap-2">
+          {mode === "edit" && currentMainStep === 1 && currentSigningStep === 1 && (
+            <Button 
+              variant="destructive" 
+              onClick={handleDelete}
+              disabled={isLoading}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {t("delete") || "Delete"}
+            </Button>
+          )}
+
           {onCancel && currentMainStep === 1 && currentSigningStep === 1 && (
             <Button variant="outline" onClick={onCancel}>
               {t("cancel") || "Cancel"}

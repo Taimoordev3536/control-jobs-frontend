@@ -1,3 +1,5 @@
+import { loadBindings } from "next/dist/build/swc"
+
 const translations: Record<string, Record<string, string>> = {
   en: {
     //Add modal json
@@ -22,6 +24,7 @@ const translations: Record<string, Record<string, string>> = {
 
     noWorkCentersAvailable: "No work centers available for this client",
     loadingWorkCenters: "Loading work centers...",
+    loadingWorkers: "Loading workers...",
     search: "Search...",
     mySelf: "Myself",
     taskPlaceholder: "Enter task name",
@@ -609,6 +612,7 @@ surveyMonitoringValueTips: "Set a limit. If responses are under this value, an a
 
     noWorkCentersAvailable: "No hay centros de trabajo",
     loadingWorkCenters: "Cargando centros de trabajo...",
+    loadingWorkers:"Cargando trabajadores...",
     search: "Buscar...",
     mySelf: "Yo mismo",
     taskPlaceholder: "Denominación de la tarea",

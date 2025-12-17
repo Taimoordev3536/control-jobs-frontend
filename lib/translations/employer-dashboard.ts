@@ -52,6 +52,8 @@ const employerDashboardTranslations: Record<string, Record<string, string>> = {
     workers: "Workers",
     shifts: "Shifts",
     tasks: "Tasks",
+    signings: "Signings",
+    surveys: "Surveys",
     day: "day",
     days: "days",
     hours: "hours",
@@ -62,6 +64,7 @@ const employerDashboardTranslations: Record<string, Record<string, string>> = {
   free: "Free",
   normal: "Normal",
   summer: "Summer",
+  clearSchedules: "Clear Schedules",
 
     // Actions
     records: "Records",
@@ -113,14 +116,19 @@ const employerDashboardTranslations: Record<string, Record<string, string>> = {
     jobUpdated: "Job updated successfully",
     jobUpdatedSuccessfully: "Job updated successfully!",
     jobDeleted: "Job deleted successfully",
+    jobDeletedSuccessfully: "Job deleted successfully!",
     jobAssigned: "Job assigned successfully",
     changesSaved: "Changes saved successfully",
 
     // Confirmation Messages
     confirmDelete: "Are you sure you want to delete this job?",
+    confirmDeleteJob: "Are you sure you want to delete this job? This action cannot be undone.",
     confirmCancel: "Are you sure you want to cancel this job?",
     confirmComplete: "Mark this job as completed?",
     deleteWarning: "This action cannot be undone.",
+
+    // Error Messages
+    errorDeletingJob: "Error deleting job",
 
     // Time and Date
     startDate: "Start Date",
@@ -302,6 +310,8 @@ const employerDashboardTranslations: Record<string, Record<string, string>> = {
     workers: "Trabajadores",
     shifts: "Turnos",
     tasks: "Tareas",
+    signings: "Fichajes",
+    surveys: "Encuestas",
     day: "día",
     days: "días",
     hours: "horas",
@@ -312,6 +322,7 @@ const employerDashboardTranslations: Record<string, Record<string, string>> = {
   free: "Libre",
   normal: "Habitual",
   summer: "Verano",
+  clearSchedules: "Borrar horarios",
 
     // Actions
     records: "Registros",
@@ -364,14 +375,19 @@ const employerDashboardTranslations: Record<string, Record<string, string>> = {
     jobUpdated: "Trabajo actualizado exitosamente",
     jobUpdatedSuccessfully: "Job actualizado satisfactoriamente",
     jobDeleted: "Trabajo eliminado exitosamente",
+    jobDeletedSuccessfully: "Trabajo eliminado satisfactoriamente!",
     jobAssigned: "Trabajo asignado exitosamente",
     changesSaved: "Cambios guardados exitosamente",
 
     // Confirmation Messages
     confirmDelete: "¿Está seguro de que desea eliminar este trabajo?",
+    confirmDeleteJob: "¿Está seguro de que desea eliminar este job? Esta acción no se puede deshacer.",
     confirmCancel: "¿Está seguro de que desea cancelar este trabajo?",
     confirmComplete: "¿Marcar este trabajo como completado?",
     deleteWarning: "Esta acción no se puede deshacer.",
+
+    // Error Messages
+    errorDeletingJob: "Error al eliminar el job",
 
     // Time and Date
     startDate: "Fecha de Inicio",

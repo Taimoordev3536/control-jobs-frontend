@@ -277,7 +277,7 @@ export default function DefinitionForm({
             )}
             <div className="border-t pt-2">
               {loadingWorkers ? (
-                <div className="text-sm text-muted-foreground">Loading workers...</div>
+                <div className="text-sm text-muted-foreground">{t("loadingWorkers")}</div>
               ) : (
                 <div>
                   <div className="mb-2 ml-3 mr-6">

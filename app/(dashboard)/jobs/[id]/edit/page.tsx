@@ -30,8 +30,8 @@ export default function EditJobPage({ params }: { params: { id: string } }) {
       </div> */}
 
       {/* Main Content */}
-      <div className="container mx-auto px-4 py-4">
-        <div className="bg-card rounded-lg shadow-sm border pt-2 p-6">
+      <div className="flex justify-center px-4 py-4">
+        <div className="bg-card rounded-lg shadow-sm border pt-2 p-6 w-full max-w-[50rem]">
           {/* Header */}
           <div className="flex items-center justify-between mb-6 relative">
             <div className="flex-1" />
