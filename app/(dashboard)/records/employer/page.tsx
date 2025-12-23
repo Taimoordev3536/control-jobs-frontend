@@ -24,6 +24,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { useSession } from "next-auth/react"
 
 import DataListTemplate, { ExcelIcon, CsvIcon, PdfIcon } from "@/components/ui/data-list-template"
 import { exportToCSV, exportToXLSX, exportToPDF } from "@/lib/export"
@@ -31,49 +32,75 @@ import { Plus, Filter } from "lucide-react"
 
 export default function EmployerRecordsPage() {
   const router = useRouter()
+  const { data: session } = useSession()
+  const [jobIdParam, setJobIdParam] = useState<string | null>(null)
 
-  // ---------------------------
-  // DUMMY DATA (Temporary)
-  // ---------------------------
-  const dummyRecords = [
-    {
-      id: "1",
-      fecha: "2025-01-01",
-      titular: "John Manager",
-      job: "Cleaning - Home 1",
-      trabajador: "Ali Worker",
-      entrada: "08:00",
-      salida: "12:00",
-      total: "4h",
-      alerts: "None",
-    },
-    {
-      id: "2",
-      fecha: "2025-01-03",
-      titular: "Smith Manager",
-      job: "Office Maintenance",
-      trabajador: "Bilal Worker",
-      entrada: "09:00",
-      salida: "14:00",
-      total: "5h",
-      alerts: "Late Entry",
-    },
-  ]
+  // Read search params from window.location on the client to avoid
+  // useSearchParams prerender bailout during static export.
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search)
+      setJobIdParam(params.get('jobId'))
+    } catch (e) {
+      setJobIdParam(null)
+    }
+  }, [])
 
   const [records, setRecords] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
-  // Load DUMMY data
+  // Fetch real work session records
   useEffect(() => {
-    setIsLoading(true)
-    setTimeout(() => {
-      setRecords(dummyRecords)
-      setIsLoading(false)
-    }, 500)
-  }, [])
+    const fetchRecords = async () => {
+      if (!session?.accessToken) {
+        setIsLoading(false)
+        return
+      }
+
+      setIsLoading(true)
+      try {
+        const url = new URL(`${process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/employer/work-session-records`)
+        
+        // Add jobId filter if provided
+        if (jobIdParam) {
+          url.searchParams.append('jobId', jobIdParam)
+        }
+
+        console.log('Fetching from URL:', url.toString())
+        console.log('Token:', session.accessToken ? 'Present' : 'Missing')
+
+        const response = await fetch(url.toString(), {
+          headers: {
+            'Authorization': `Bearer ${session.accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        })
+
+        console.log('Response status:', response.status)
+        const result = await response.json()
+        console.log('API Response:', result)
+        
+        if (result.isSuccess) {
+          console.log('Records fetched:', result.data.length)
+          setRecords(result.data)
+        } else {
+          console.error('Failed to fetch records:', result.message)
+          console.error('Developer error:', result.developerError)
+          setRecords([])
+        }
+      } catch (error) {
+        console.error('Error fetching work session records:', error)
+        setRecords([])
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchRecords()
+  }, [jobIdParam, session?.accessToken])
 
   const columns = [
-    { key: "fecha", label: "Fecha", sortable: true },
+    { key: "fecha", label: "Check In - Check Out", sortable: true },
     { key: "titular", label: "Titular", sortable: true },
     { key: "job", label: "Job", sortable: true },
     { key: "trabajador", label: "Trabajador", sortable: true },
@@ -117,8 +144,11 @@ export default function EmployerRecordsPage() {
   // ROW CLICK HANDLER
   // ---------------------------
   const handleRowClick = (item: any) => {
-    const recordId = item?.id
-    if (recordId) router.push(`/records/employer/${recordId}`)
+    // Navigate to the work session detail page
+    const workSessionId = item?.workSessionId
+    if (workSessionId) {
+      router.push(`/records/employer/${workSessionId}`)
+    }
   }
 
   return (

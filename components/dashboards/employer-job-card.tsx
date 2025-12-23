@@ -445,7 +445,7 @@ const getStatusConfig = (status: string) => {
           <Button
             size="sm"
             className="flex-1 h-8 text-xs bg-purple-700 hover:bg-purple-800 text-white"
-            onClick={() => router.push("/records/employer")}
+            onClick={() => router.push(`/records/employer?jobId=${job.id}`)}
           >
             <ControlIcon className="w-3 h-3 mr-1" />
             {t("records")}

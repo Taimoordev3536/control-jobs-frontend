@@ -989,7 +989,7 @@ export function JobAttendanceDetail({ job, jobId, jobData, onBack }: JobAttendan
                                 {t("workSessions")}
                               </h5>
                               <div className="space-y-2">
-                                {dayData.sessions.map((session) => {
+                                {dayData.sessions.map((session: any) => {
                                   // Calculate work time for this session
                                   let sessionWorkTime = session.totalWorkMinutes || 0
                                   if (sessionWorkTime === 0 && session.checkInTime && session.checkOutTime) {
@@ -1002,30 +1002,76 @@ export function JobAttendanceDetail({ job, jobId, jobData, onBack }: JobAttendan
                                     sessionWorkTime = Math.max(0, totalMinutes - sessionBreaks)
                                   }
 
+                                  // Check if multi-day session
+                                  const isMultiDay = session.checkInTime && session.checkOutTime && 
+                                    new Date(session.checkInTime).toDateString() !== new Date(session.checkOutTime).toDateString()
+                                  const isOngoing = session.isActive || (session.checkInTime && !session.checkOutTime)
+
                                   return (
                                     <div
                                       key={session.id}
-                                      className="bg-white dark:bg-gray-900 p-3 rounded-lg border border-gray-200 dark:border-gray-700"
+                                      className={`bg-white dark:bg-gray-900 p-3 rounded-lg border ${
+                                        isMultiDay 
+                                          ? 'border-purple-300 dark:border-purple-700 bg-purple-50/30 dark:bg-purple-900/10' 
+                                          : 'border-gray-200 dark:border-gray-700'
+                                      }`}
                                     >
-                                      <div className="flex justify-between items-center">
-                                        <div>
-                                          <div className="text-sm font-medium text-gray-900 dark:text-white">
-                                            {formatTime(session.checkInTime)} - {formatTime(session.checkOutTime)}
+                                      <div className="flex justify-between items-start">
+                                        <div className="flex-1">
+                                          <div className="text-sm font-medium text-gray-900 dark:text-white mb-1">
+                                            {session.isCheckInDay && (
+                                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 mr-2">
+                                                ✓ Check In
+                                              </span>
+                                            )}
+                                            {session.isCheckOutDay && (
+                                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 mr-2">
+                                                ✓ Check Out
+                                              </span>
+                                            )}
+                                            {!session.isCheckInDay && !session.isCheckOutDay && (
+                                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400 mr-2">
+                                                ⊚ Working
+                                              </span>
+                                            )}
+                                            <span className="text-gray-900 dark:text-white">
+                                              {formatTime(session.checkInTime)} - {isOngoing ? "Ongoing" : formatTime(session.checkOutTime)}
+                                            </span>
                                           </div>
-                                          <div className="text-xs text-gray-500 dark:text-gray-400">
+                                          
+                                          {isMultiDay && (
+                                            <div className="text-xs text-purple-700 dark:text-purple-400 mt-1 font-medium flex items-center">
+                                              <span className="mr-1">📅</span>
+                                              Multi-day session: {new Date(session.checkInTime).toLocaleDateString()} → {
+                                                isOngoing ? "Ongoing" : new Date(session.checkOutTime).toLocaleDateString()
+                                              }
+                                            </div>
+                                          )}
+                                          
+                                          <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                                             {t("work")}: {sessionWorkTime}
                                             {t("minutes")} | {t("breaks")}: {session.totalBreakMinutes || 0}
                                             {t("minutes")}
                                           </div>
                                         </div>
-                                        {session.isOnBreak && (
-                                          <Badge
-                                            variant="secondary"
-                                            className="bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400"
-                                          >
-                                            {t("onBreak")}
-                                          </Badge>
-                                        )}
+                                        <div className="flex flex-col gap-1 ml-2">
+                                          {isOngoing && (
+                                            <Badge
+                                              variant="secondary"
+                                              className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+                                            >
+                                              Active
+                                            </Badge>
+                                          )}
+                                          {session.isOnBreak && (
+                                            <Badge
+                                              variant="secondary"
+                                              className="bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400"
+                                            >
+                                              {t("onBreak")}
+                                            </Badge>
+                                          )}
+                                        </div>
                                       </div>
                                     </div>
                                   )

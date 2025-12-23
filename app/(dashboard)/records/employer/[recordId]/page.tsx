@@ -1,5 +1,8 @@
 "use client"
 
+import { useState, useEffect } from "react"
+import { useParams } from "next/navigation"
+import { useSession } from "next-auth/react"
 import {
   Calendar,
   User,
@@ -10,34 +13,92 @@ import {
   PlayCircle,
   CheckCircle2,
   ArrowLeft,
+  Building2,
+  MapPin,
+  Briefcase,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 export default function EmployerRecordDetailPage() {
-  const record = {
-    date: "2025-11-27",
-    worker: { code: "10120", name: "Ahmed Khan" },
-    totalWorkMinutes: 50,
-    totalBreakMinutes: 10,
-    totalBreaks: 2,
-    tasks: [
-      { id: 1, name: "Limpiar área de oficina", completed: true },
-      { id: 2, name: "Reponer suministros", completed: true },
-      { id: 3, name: "Desinfectar áreas comunes", completed: false },
-    ],
-    scans: [
-      { id: 1, scanType: "check-in", scanTime: "2025-11-27T09:00:00+05:00", location: JSON.stringify({ address: "Abassia Town, Rahim Yar Khan, Punjab", ip: "39.46.116.45" }) },
-      { id: 2, scanType: "break-start", scanTime: "2025-11-27T09:30:00+05:00", notes: "Descanso para té" },
-      { id: 3, scanType: "break-end", scanTime: "2025-11-27T09:35:00+05:00" },
-      { id: 4, scanType: "break-start", scanTime: "2025-11-27T10:00:00+05:00", notes: "Descanso corto" },
-      { id: 5, scanType: "break-end", scanTime: "2025-11-27T10:05:00+05:00" },
-      { id: 6, scanType: "check-out", scanTime: "2025-11-27T10:50:00+05:00", location: JSON.stringify({ address: "Abassia Town, Rahim Yar Khan, Punjab" }), notes: "Sesión de trabajo completada" },
-    ],
-  }
+  const params = useParams()
+  const { data: session } = useSession()
+  const [activeTab, setActiveTab] = useState("fichajes")
+  const [record, setRecord] = useState<any>(null)
+  const [isLoading, setIsLoading] = useState(true)
 
-  const formatDate = (d: string) => new Date(d).toLocaleDateString("es-ES", { weekday: "long", year: "numeric", month: "long", day: "numeric" })
-  const formatTime = (t: string) => new Date(t).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", hour12: true })
+  const workSessionId = params.recordId
+
+  // Fetch work session details
+  useEffect(() => {
+    const fetchWorkSessionDetail = async () => {
+      if (!session?.accessToken || !workSessionId) {
+        console.log('Missing session or workSessionId:', { hasSession: !!session?.accessToken, workSessionId })
+        setIsLoading(false)
+        return
+      }
+
+      setIsLoading(true)
+      try {
+        const url = `${process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/employer/work-session/${workSessionId}`
+        console.log('Fetching work session detail from:', url)
+        
+        const response = await fetch(url, {
+          headers: {
+            'Authorization': `Bearer ${session.accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        })
+
+        console.log('Response status:', response.status)
+        const result = await response.json()
+        console.log('API Response:', result)
+        
+        if (result.isSuccess) {
+          console.log('Work session data received:', result.data)
+          console.log('scansByDate:', result.data?.scansByDate)
+          console.log('tasksByDate:', result.data?.tasksByDate)
+          console.log('tasksByDate keys:', result.data?.tasksByDate ? Object.keys(result.data.tasksByDate) : 'none')
+          console.log('First task sample:', result.data?.tasksByDate ? Object.values(result.data.tasksByDate)[0] : 'none')
+          console.log('checkInTime:', result.data?.checkInTime)
+          console.log('client:', result.data?.client)
+          console.log('workCenter:', result.data?.workCenter)
+          setRecord(result.data)
+        } else {
+          console.error('Failed to fetch work session details:', result.message)
+          console.error('Developer error:', result.developerError)
+        }
+      } catch (error) {
+        console.error('Error fetching work session details:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchWorkSessionDetail()
+  }, [workSessionId, session?.accessToken])
+
+  const formatDate = (d: string) => {
+    const date = new Date(d)
+    const days = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"]
+    const months = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
+    return `${days[date.getDay()]}, ${date.getDate()} ${months[date.getMonth()]}, ${date.getFullYear()}`
+  }
+  
+  const formatTime = (t?: string | Date | null) => {
+    if (!t) return '—'
+    const d = t instanceof Date ? t : new Date(t)
+    if (isNaN(d.getTime())) return '—'
+    return d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', hour12: false })
+  }
+  
+  const formatDuration = (minutes: number) => {
+    const hours = Math.floor(Math.abs(minutes) / 60)
+    const mins = Math.abs(minutes) % 60
+    const sign = minutes < 0 ? "-" : ""
+    return `${sign}${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(0).padStart(2, '0')}`
+  }
 
   const getIcon = (type: string) => {
     switch (type) {
@@ -59,6 +120,32 @@ export default function EmployerRecordDetailPage() {
     }
   }
 
+  const formatDateKey = (dateKey: string) => {
+    const [year, month, day] = dateKey.split('-')
+    const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
+    const days = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"]
+    const months = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
+    return `${days[date.getDay()]}, ${date.getDate()} ${months[date.getMonth()]}, ${date.getFullYear()}`
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
+        <div className="text-gray-600 dark:text-gray-400">Cargando...</div>
+      </div>
+    )
+  }
+
+  if (!record) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
+        <div className="text-gray-600 dark:text-gray-400">No se encontró el registro</div>
+      </div>
+    )
+  }
+
+  const checkInDate = record.checkInTime ? new Date(record.checkInTime) : new Date()
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       {/* Header sin padding lateral */}
@@ -75,124 +162,182 @@ export default function EmployerRecordDetailPage() {
 
       {/* TODO EL CONTENIDO SIN MÁRGENES LATERALES */}
       <div className="w-full">
-        {/* Cabecera morada - full width */}
-        <div className="bg-gradient-to-r from-purple-600 to-purple-700 text-white p-5">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <Calendar className="w-5 h-5" />
-              <h2 className="text-lg font-semibold">{formatDate(record.date)}</h2>
-            </div>
-            <Badge variant="secondary" className="bg-white/20 text-xs px-2.5 py-0.5">
-              {record.scans.length} actividades
-            </Badge>
+        {/* Purple Header with Date and Info */}
+        <div className="bg-gradient-to-r from-purple-600 to-purple-700 text-white p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Calendar className="w-5 h-5" />
+            <h2 className="text-xl font-semibold capitalize">{formatDate(record.checkInTime)}</h2>
           </div>
-          <div className="mt-2 flex items-center gap-2.5 text-purple-100 text-sm">
-            <User className="w-4 h-4" />
-            <span>Trabajador {record.worker.code}</span>
-            <span className="opacity-80">• {record.worker.name}</span>
+          
+          {/* Info Grid */}
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <div className="flex items-center gap-2">
+              <Building2 className="w-4 h-4" />
+              <span className="text-purple-100">{record.client?.name || 'N/A'}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <MapPin className="w-4 h-4" />
+              <span className="text-purple-100">{record.workCenter?.name || 'N/A'}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Briefcase className="w-4 h-4" />
+              <span className="text-purple-100">{record.job?.name || 'N/A'}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <User className="w-4 h-4" />
+              <span className="text-purple-100">{record.worker?.name} {record.worker?.lastName}</span>
+            </div>
           </div>
         </div>
 
-        {/* Estadísticas */}
-        <div className="bg-gray-50 dark:bg-gray-800/50 px-6 py-7">
-          <div className="grid grid-cols-3 gap-6 text-center">
+        {/* Stats Grid */}
+        <div className="bg-gray-100 dark:bg-gray-800/50 px-6 py-6 border-b border-gray-200 dark:border-gray-800">
+          <div className="grid grid-cols-4 gap-4 text-center">
             <div>
-              <div className="text-2xl font-bold text-green-600">{record.totalWorkMinutes}<span className="text-lg">m</span></div>
-              <div className="text-xs uppercase tracking-wider text-gray-600 dark:text-gray-400 mt-1">Tiempo trabajado</div>
+              <div className="text-2xl font-bold text-blue-600">{formatDuration(record.estimatedMinutes || 0)}</div>
+              <div className="text-xs uppercase tracking-wider text-gray-600 dark:text-gray-400 mt-1">TIEMPO ESTIMADO</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-orange-600">{record.totalBreakMinutes}<span className="text-lg">m</span></div>
-              <div className="text-xs uppercase tracking-wider text-gray-600 dark:text-gray-400 mt-1">Tiempo de descanso</div>
+              <div className="text-2xl font-bold text-green-600">{formatDuration(record.totalWorkMinutes || 0)}</div>
+              <div className="text-xs uppercase tracking-wider text-gray-600 dark:text-gray-400 mt-1">TIEMPO TRABAJADO</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-blue-600">{record.totalBreaks}</div>
-              <div className="text-xs uppercase tracking-wider text-gray-600 dark:text-gray-400 mt-1">Descansos</div>
+              <div className="text-2xl font-bold text-orange-600">{formatDuration(record.totalBreakMinutes || 0)}</div>
+              <div className="text-xs uppercase tracking-wider text-gray-600 dark:text-gray-400 mt-1">TIEMPO DESCANSO</div>
+            </div>
+            <div>
+              <div className={`text-2xl font-bold ${(record.difference || 0) < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                {formatDuration(record.difference || 0)}
+              </div>
+              <div className="text-xs uppercase tracking-wider text-gray-600 dark:text-gray-400 mt-1">DIFERENCIA</div>
             </div>
           </div>
         </div>
 
-        {/* Tareas diarias */}
-        <div className="bg-white dark:bg-gray-900 px-6 py-5 border-t border-gray-200 dark:border-gray-800">
-          <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Tareas del día</h3>
-          <div className="flex flex-wrap gap-2">
-            {record.tasks.map((t) => (
-              <span
-                key={t.id}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium ${
-                  t.completed
-                    ? "bg-green-100 text-green-800 border border-green-300 dark:bg-green-900/20 dark:text-green-400"
-                    : "bg-red-100 text-red-800 border border-red-300 dark:bg-red-900/20 dark:text-red-400"
-                }`}
-              >
-                {t.completed ? <CheckCircle2 className="w-3.5 h-3.5" /> : <span className="w-3 h-3 rounded-full border border-red-600" />}
-                {t.name}
-              </span>
-            ))}
-          </div>
-        </div>
+        {/* Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="w-full justify-start bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 rounded-none h-12 px-6">
+            <TabsTrigger value="fichajes" className="data-[state=active]:border-b-2 data-[state=active]:border-purple-600 rounded-none">
+              Fichajes
+            </TabsTrigger>
+            <TabsTrigger value="tareas" className="data-[state=active]:border-b-2 data-[state=active]:border-purple-600 rounded-none">
+              Tareas
+            </TabsTrigger>
+            <TabsTrigger value="encuestas" className="data-[state=active]:border-b-2 data-[state=active]:border-purple-600 rounded-none">
+              Encuestas
+            </TabsTrigger>
+            <TabsTrigger value="alertas" className="data-[state=active]:border-b-2 data-[state=active]:border-purple-600 rounded-none">
+              Alertas
+            </TabsTrigger>
+          </TabsList>
 
-        {/* Resumen del día */}
-        <div className="bg-gray-50 dark:bg-gray-800/50 px-6 py-5 border-t border-gray-200 dark:border-gray-800">
-          <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Resumen del día</h3>
-          <div className="flex flex-wrap gap-3">
-            <Badge className="bg-green-100 text-green-800 border border-green-300 text-xs px-3 py-1.5">
-              <LogIn className="w-3.5 h-3.5 mr-1.5" /> Entrada 09:00 AM
-            </Badge>
-            <Badge className="bg-red-100 text-red-800 border border-red-300 text-xs px-3 py-1.5">
-              <LogOut className="w-3.5 h-3.5 mr-1.5" /> Salida 10:50 AM
-            </Badge>
-          </div>
-        </div>
-
-        {/* Línea de tiempo - full width */}
-        <div className="bg-white dark:bg-gray-900 px-6 py-6 border-t border-gray-200 dark:border-gray-800">
-          <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-            <Clock className="w-4 h-4 text-purple-600" />
-            Línea de tiempo de actividades
-          </h3>
-
-          <div className="space-y-4">
-            {record.scans
-              .sort((a, b) => new Date(a.scanTime).getTime() - new Date(b.scanTime).getTime())
-              .map((scan) => {
-                let loc: any = {}
-                try { loc = JSON.parse(scan.location || "{}") } catch {}
-
-                return (
-                  <div
-                    key={scan.id}
-                    className={`p-4 rounded-lg border ${
-                      scan.scanType === "check-in" ? "border-green-300 bg-green-50 dark:bg-green-900/10" :
-                      scan.scanType === "check-out" ? "border-red-300 bg-red-50 dark:bg-red-900/10" :
-                      scan.scanType === "break-start" ? "border-orange-300 bg-orange-50 dark:bg-orange-900/10" :
-                      "border-blue-300 bg-blue-50 dark:bg-blue-900/10"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        {getIcon(scan.scanType)}
-                        <div>
-                          <div className="text-sm font-medium text-gray-900 dark:text-white">{getLabel(scan.scanType)}</div>
-                          <div className="text-lg font-bold text-gray-800 dark:text-gray-200">{formatTime(scan.scanTime)}</div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {loc.address && (
-                      <div className="mt-3 ml-10 text-xs text-gray-600 dark:text-gray-400 space-y-0.5">
-                        {loc.address && <p><strong>Dirección:</strong> {loc.address}</p>}
-                        {loc.ip && <p><strong>IP:</strong> {loc.ip}</p>}
-                      </div>
-                    )}
-
-                    {scan.notes && (
-                      <p className="mt-2 ml-10 text-xs italic text-gray-600 dark:text-gray-400">"{scan.notes}"</p>
-                    )}
+          <TabsContent value="fichajes" className="bg-white dark:bg-gray-900 p-6">
+            {/* Timeline grouped by date */}
+            <div className="space-y-6">
+              {record.scansByDate && Object.keys(record.scansByDate).length > 0 ? (
+                Object.keys(record.scansByDate).sort().map((dateKey) => (
+                <div key={dateKey}>
+                  {/* Date Header */}
+                  <div className="mb-3 pb-2 border-b border-gray-200 dark:border-gray-700">
+                    <h3 className="text-sm font-semibold text-purple-600 dark:text-purple-400">
+                      {formatDateKey(dateKey)}
+                    </h3>
                   </div>
-                )
-              })}
-          </div>
-        </div>
+                  
+                  {/* Scans for this date */}
+                  <div className="space-y-3">
+                    {record.scansByDate[dateKey].map((scan: any) => {
+                      let loc: any = {}
+                      try { loc = JSON.parse(scan.location || "{}") } catch {}
+
+                      return (
+                        <div
+                          key={scan.id}
+                          className={`p-4 rounded-lg border ${
+                            scan.scanType === "check-in" ? "border-green-300 bg-green-50 dark:bg-green-900/10" :
+                            scan.scanType === "check-out" ? "border-red-300 bg-red-50 dark:bg-red-900/10" :
+                            scan.scanType === "break-start" ? "border-orange-300 bg-orange-50 dark:bg-orange-900/10" :
+                            "border-blue-300 bg-blue-50 dark:bg-blue-900/10"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              {getIcon(scan.scanType)}
+                              <div>
+                                <div className="text-sm font-medium text-gray-900 dark:text-white">{getLabel(scan.scanType)}</div>
+                                <div className="text-lg font-bold text-gray-800 dark:text-gray-200">{formatTime(scan.scanTime)}</div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {loc.address && (
+                            <div className="mt-3 ml-10 text-xs text-gray-600 dark:text-gray-400 space-y-0.5">
+                              {loc.address && <p><strong>Dirección:</strong> {loc.address}</p>}
+                              {loc.ip && <p><strong>IP:</strong> {loc.ip}</p>}
+                            </div>
+                          )}
+
+                          {scan.notes && (
+                            <p className="mt-2 ml-10 text-xs italic text-gray-600 dark:text-gray-400">"{scan.notes}"</p>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )))
+              : (
+                <p className="text-sm text-gray-600 dark:text-gray-400">No hay registros de fichajes</p>
+              )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="tareas" className="bg-white dark:bg-gray-900 p-6">
+            {/* Tasks grouped by date */}
+            <div className="space-y-6">
+              {!record.tasksByDate || Object.keys(record.tasksByDate).length === 0 ? (
+                <p className="text-sm text-gray-600 dark:text-gray-400">No hay tareas registradas</p>
+              ) : (
+                Object.keys(record.tasksByDate).sort().map((dateKey) => (
+                  <div key={dateKey}>
+                    {/* Date Header */}
+                    <div className="mb-3 pb-2 border-b border-gray-200 dark:border-gray-700">
+                      <h3 className="text-sm font-semibold text-purple-600 dark:text-purple-400">
+                        {formatDateKey(dateKey)}
+                      </h3>
+                    </div>
+                    
+                    {/* Tasks for this date */}
+                    <div className="space-y-2">
+                      {record.tasksByDate[dateKey].map((task: any) => (
+                        <div
+                          key={task.id}
+                          className="flex items-center gap-3 p-3 rounded-lg border bg-green-50 border-green-300 dark:bg-green-900/10"
+                        >
+                          <CheckCircle2 className="w-5 h-5 text-green-600" />
+                          <span className="text-sm font-medium text-green-800 dark:text-green-400">
+                            {task.taskName}
+                          </span>
+                          <span className="text-xs text-gray-500 ml-auto">
+                            {formatTime(task.completedAt)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="encuestas" className="bg-white dark:bg-gray-900 p-6">
+            <p className="text-sm text-gray-600 dark:text-gray-400">No hay encuestas disponibles</p>
+          </TabsContent>
+
+          <TabsContent value="alertas" className="bg-white dark:bg-gray-900 p-6">
+            <p className="text-sm text-gray-600 dark:text-gray-400">No hay alertas</p>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   )
