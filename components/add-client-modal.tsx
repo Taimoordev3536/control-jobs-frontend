@@ -1,6 +1,3 @@
-
-
-
 "use client"
 
 import { useState } from "react"
@@ -188,6 +185,7 @@ export default function AddClientModal({ open, onOpenChange, onClientAdded }: Ad
           observation: "",
           responsible: "",
           accessAccountStatus: "postpone",
+          accessEmail: "",
         })
         setValidationErrors({
           name: false,
