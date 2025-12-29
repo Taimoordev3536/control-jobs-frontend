@@ -1,16 +1,3 @@
-// import { DataTable } from "@/components/data-table"
-
-// export default function ConfigurationPage() {
-
-
-//   return (
-//     <div>
-//       <h1 className="page-title">Configuration</h1>
-//     </div>
-//   )
-// }
-
-
 "use client"
 
 import { useState, useEffect } from "react"
@@ -26,16 +13,19 @@ import WorkerConfigurationMainPage from "@/components/configuration/worker-confi
 
 export default function ConfigurationPage() {
   const { session, isLoading, getUserRole } = useAuth()
-  const [userRole, setUserRole] = useState<string>("")
+  const [userRole, setUserRole] = useState<string | null>(null)
 
   useEffect(() => {
     if (session) {
       const role = getUserRole()
       setUserRole(role)
+    } else {
+      setUserRole(null)
     }
   }, [session, getUserRole])
 
-  if (isLoading) {
+  // Show loading while session loads OR while we have session but no role yet
+  if (isLoading || (session && !userRole)) {
     return <LoadingSpinner message="Loading configuration..." />
   }
 
@@ -50,7 +40,7 @@ export default function ConfigurationPage() {
     )
   }
 
-  switch (userRole.toLowerCase()) {
+  switch (userRole?.toLowerCase()) {
     case "admin":
       return <AdminConfigurationMainPage />
     case "partner":

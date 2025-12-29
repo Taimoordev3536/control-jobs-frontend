@@ -79,8 +79,8 @@ export function AppHeader({ collapsed, toggleSidebar }: AppHeaderProps) {
               )}
             </button>
             {notifOpen && (
-              <div className="absolute right-0 mt-2 w-80 rounded-md shadow-lg bg-white dark:bg-gray-800 border border-border z-50">
-                <div className="px-3 py-2 border-b border-border font-medium">
+              <div className="absolute right-0 mt-2 w-80 rounded-md shadow-lg bg-card border border-border z-50">
+                <div className="px-3 py-2 border-b border-border font-medium text-foreground">
                   {t("notification")}
                 </div>
                 <div className="max-h-96 overflow-auto">
@@ -142,7 +142,7 @@ export function AppHeader({ collapsed, toggleSidebar }: AppHeaderProps) {
             <MoreVertical className="h-6 w-6" />
           </button>
           {mobileDropdownOpen && (
-            <div className="absolute right-0 mt-2 bg-white dark:bg-gray-800 rounded shadow-lg p-2 z-50">
+            <div className="absolute right-0 mt-2 bg-card rounded shadow-lg p-2 z-50 border border-border">
               <button className="header-icon-button block w-full text-left">
                 <NotificationIcon className="h-7 w-7 inline-block mr-2" />
                 {t("notification")}

@@ -68,16 +68,19 @@ export function useAuth() {
   }
 
   const getUserRole = () => {
-    return session?.user?.role?.name?.toLowerCase() || "worker"
+    // Return null if no session or role - don't default to worker
+    if (!session?.user?.role?.name) return null
+    return session.user.role.name.toLowerCase()
   }
 
   const hasRole = (role: string) => {
-    return getUserRole() === role.toLowerCase()
+    const userRole = getUserRole()
+    return userRole ? userRole === role.toLowerCase() : false
   }
 
   const hasAnyRole = (roles: string[]) => {
     const userRole = getUserRole()
-    return roles.some((role) => role.toLowerCase() === userRole)
+    return userRole ? roles.some((role) => role.toLowerCase() === userRole) : false
   }
 
   return {

@@ -1,13 +1,13 @@
 "use client"
 
-import JobsIcon from "../../icons/Menu/Jobs.svg"
-import ClientIcon from "../../icons/Menu/clients.svg"
-import WorkersIcon from "../../icons/Menu/workers.svg"
-import SurvayIcon from "../../icons/Menu/surveys.svg"
-import WorkCenterIcon from "../../icons/Otros/centros.svg"
-import ControlIcon from "../../icons/new/control.svg"
-import TodosIcon from "../../icons/new/todos.svg"
-import NotificationIcon from "../../icons/Header/Notification.svg"
+import JobsIcon from "../../../icons/Menu/Jobs.svg"
+import ClientIcon from "../../../icons/Menu/clients.svg"
+import WorkersIcon from "../../../icons/Menu/workers.svg"
+import SurvayIcon from "../../../icons/Menu/surveys.svg"
+import WorkCenterIcon from "../../../icons/Otros/centros.svg"
+import ControlIcon from "../../../icons/new/control.svg"
+import TodosIcon from "../../../icons/new/todos.svg"
+import NotificationIcon from "../../../icons/Header/Notification.svg"
 
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -222,27 +222,27 @@ const getStatusConfig = (status: string) => {
     </div>
   )
 
-  const renderMethod = (m: string) => {
+  const renderMethod = (m: string, index: number) => {
     const key = String(m).toLowerCase()
     switch (key) {
       case 'qrcode':
       case 'qr':
-        return <MethodPill key={key + Math.random()} icon={QrCode} label="QR" color="text-blue-600" />
+        return <MethodPill key={`qr-${index}`} icon={QrCode} label="QR" color="text-blue-600" />
       case 'gps':
-        return <MethodPill key={key + Math.random()} icon={MapPin} label="GPS" color="text-emerald-600" />
+        return <MethodPill key={`gps-${index}`} icon={MapPin} label="GPS" color="text-emerald-600" />
       case 'ip':
-        return <MethodPill key={key + Math.random()} icon={Globe} label="IP" color="text-orange-500" />
+        return <MethodPill key={`ip-${index}`} icon={Globe} label="IP" color="text-orange-500" />
       case 'web':
       case 'wifi':
         // Using Lock icon as per spec reference screenshot for Web
-        return <MethodPill key={key + Math.random()} icon={Lock} label="Web" color="text-purple-600" />
+        return <MethodPill key={`web-${index}`} icon={Lock} label="Web" color="text-purple-600" />
       default:
         return null
     }
   }
 
   return (
-    <Card className="w-full overflow-hidden border border-gray-200 dark:border-gray-800 hover:shadow-lg transition-all duration-300 hover:scale-[1.02] bg-white dark:bg-gray-900">
+    <Card className="w-full overflow-hidden border border-border hover:shadow-lg transition-all duration-300 hover:scale-[1.02] bg-card">
       <div
         className={`${headerClassFromConfig} h-8 flex items-center justify-center`}
         style={headerStyle}
@@ -253,7 +253,7 @@ const getStatusConfig = (status: string) => {
       <CardContent className="p-3 space-y-3">
         {/* Client Name */}
         <div className="flex items-center gap-3">
-          <div className="p-1 bg-gray-100 dark:bg-gray-800 rounded">
+          <div className="p-1 bg-muted rounded">
             <ClientIcon className="w-5 h-5 text-gray-700 dark:text-gray-300" />
           </div>
           <div>
@@ -275,25 +275,25 @@ const getStatusConfig = (status: string) => {
 
         {/* Work Centers / Branches */}
         <div className="flex items-start gap-3">
-          <div className="p-1 bg-gray-100 dark:bg-gray-800 rounded">
+          <div className="p-1 bg-muted rounded">
             <WorkCenterIcon className="w-5 h-5 text-gray-700 dark:text-gray-300" />
           </div>
           <div>
             <div className="p-1 text-sm text-gray-900 dark:text-white font-medium">
               {mainCenter}
               {additionalBranches > 0 && (
-                <Badge className="ml-2 bg-gray-400 hover:bg-gray-500 text-white text-xs">+{additionalBranches}</Badge>
+                <Badge className="ml-2 bg-muted hover:bg-muted/80 text-foreground text-xs">+{additionalBranches}</Badge>
               )}
             </div>
           </div>
         </div>
 
                 {/* Divider */}
-        <div className="border-t border-gray-200 dark:border-gray-700 "></div>
+        <div className="border-t border-border"></div>
 
         {/* Job Name */}
         <div className="flex items-start gap-3 my-0">
-          <div className="p-1 bg-gray-100 dark:bg-gray-800 rounded">
+          <div className="p-1 bg-muted rounded">
             <JobsIcon className="w-5 h-5 text-gray-700 dark:text-gray-300" />
           </div>
           <div>
@@ -302,18 +302,18 @@ const getStatusConfig = (status: string) => {
         </div>
 
                 {/* Divider */}
-        <div className="border-t border-gray-200 dark:border-gray-700 "></div>
+        <div className="border-t border-border"></div>
 
         {/* Team Members */}
         <div className="flex items-start gap-3">
-          <div className="p-1 bg-gray-100 dark:bg-gray-800 rounded">
+          <div className="p-1 bg-muted rounded">
             <WorkersIcon className="w-5 h-5 text-gray-700 dark:text-gray-300" />
           </div>
           <div>
             <div className="p-1 text-sm text-gray-900 dark:text-white font-medium">
               {job.workers.length > 0 ? (job.workers[0].name || `Worker ${job.workers[0].code || job.workers[0].id}`) : "No workers assigned"}
               {job.workers.length > 1 && (
-                <Badge className="ml-2 bg-gray-400 hover:bg-gray-500 text-white text-xs">
+                <Badge className="ml-2 bg-muted hover:bg-muted/80 text-foreground text-xs">
                   +{job.workers.length - 1}
                 </Badge>
               )}
@@ -322,10 +322,10 @@ const getStatusConfig = (status: string) => {
         </div>
 
         {/* Divider */}
-        <div className="border-t border-gray-200 dark:border-gray-700 "></div>
+        <div className="border-t border-border"></div>
 
   {/* Date and Schedule Section (styled block to match screenshot) */}
-  <div className="space-y-2 bg-gray-100 dark:bg-gray-800 rounded-md p-3">
+  <div className="space-y-2 bg-muted rounded-md p-3">
           {/* Date Row */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-gray-900 dark:text-gray-300 font-semibold ">
@@ -375,14 +375,14 @@ const getStatusConfig = (status: string) => {
             <div className="flex items-center gap-4 text-sm">
               {mobileMethods && mobileMethods.length > 0 && (
                 <div className="flex items-center gap-4">
-                  {mobileMethods.map(renderMethod)}
+                  {mobileMethods.map((method, index) => renderMethod(method, index))}
                 </div>
               )}
             </div>
             <div className="flex items-center gap-4 text-sm">
               {pcMethods && pcMethods.length > 0 && (
                 <div className="flex items-center gap-4">
-                  {pcMethods.map(renderMethod)}
+                  {pcMethods.map((method, index) => renderMethod(method, index))}
                 </div>
               )}
             </div>
@@ -403,14 +403,14 @@ const getStatusConfig = (status: string) => {
             </Badge>
           ))}
           {moreTasks > 0 && (
-            <Badge className="ml-2 bg-gray-400 hover:bg-gray-500 text-white text-xs">
+            <Badge className="ml-2 bg-muted hover:bg-muted/80 text-foreground text-xs">
               +{moreTasks}
             </Badge>
           )}
         </div>
 
         {/* Divider */}
-        <div className="border-t border-gray-200 dark:border-gray-700 my-2"></div>
+        <div className="border-t border-border my-2"></div>
 
         {/* Clients and Workers Status (survey flags) */}
         <div className="flex items-center justify-between text-xs">
@@ -429,14 +429,14 @@ const getStatusConfig = (status: string) => {
         </div>
 
         {/* Divider */}
-        <div className="border-t border-gray-200 dark:border-gray-700 my-2"></div>
+        <div className="border-t border-border my-2"></div>
 
         {/* Action Buttons */}
         <div className="flex gap-2 pt-2">
           <Button
             size="sm"
-            variant="outline"
-            className="flex-1 h-8 text-xs bg-gray-400 hover:bg-gray-500 hover:text-white text-white border-0"
+            variant="secondary"
+            className="flex-1 h-8 text-xs"
             onClick={() => onViewRecords(job)}
           >
             <TodosIcon className="w-3 h-3 mr-1" />

@@ -342,11 +342,11 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
     jobId: `JOB-${apiJob.jobId.toString().padStart(4, "0")}`,
     title: apiJob.jobName,
     client: {
-      id: Math.floor(Math.random() * 100) + 1,
+      id: apiJob.clientId || 0,
       name: apiJob.clientName,
     },
     workCenter: {
-      id: (apiJob.workCenters && apiJob.workCenters[0] && apiJob.workCenters[0].id) || Math.floor(Math.random() * 10) + 1,
+      id: (apiJob.workCenters && apiJob.workCenters[0] && apiJob.workCenters[0].id) || 0,
       name: firstWorkCenterName,
       address: `${firstWorkCenterName} Address`,
       coordinates: { lat: 37.4419, lng: -122.143 },
@@ -382,9 +382,9 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
     survey:
       status === "completed"
         ? {
-            rating: Math.floor(Math.random() * 2) + 4,
+            rating: 4,
             comments: "Job completed successfully",
-            submitted: Math.random() > 0.5,
+            submitted: false,
             submittedAt: status === "completed" ? new Date() : undefined,
           }
         : undefined,
@@ -1127,8 +1127,8 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
-        <Card className="border border-red-200 dark:border-red-800 shadow-sm bg-white dark:bg-gray-900 max-w-md">
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Card className="border border-red-200 dark:border-red-800 shadow-sm bg-card max-w-md">
           <CardContent className="text-center py-12">
             <div className="w-16 h-16 bg-red-100 dark:bg-red-800/20 rounded-full flex items-center justify-center mx-auto mb-4">
               <AlertCircle className="w-8 h-8 text-red-500" />
@@ -1184,9 +1184,9 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+    <div className="min-h-screen bg-background">
       <div className="max-w-[1400px] mx-auto p-4 space-y-4">
-        <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900">
+        <Card className="border-border shadow-sm bg-card">
           <CardContent className="p-4">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
               <div className="flex items-center gap-3">
@@ -1194,8 +1194,8 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
                   <User className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t("workerDashboard")}</h1>
-                  <p className="text-gray-600 dark:text-gray-400 text-sm">
+                  <h1 className="text-2xl font-bold text-foreground">{t("workerDashboard")}</h1>
+                  <p className="text-muted-foreground text-sm" suppressHydrationWarning>
                     {formatTime(currentTime)} •{" "}
                     {currentTime.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
                   </p>
@@ -1217,7 +1217,7 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
                   </div>
                 )}
                 {locationData.city && locationData.country && (
-                  <div className="flex items-center gap-2 bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center gap-2 bg-muted text-muted-foreground px-3 py-1.5 rounded-lg border border-border">
                     <MapPin className="w-4 h-4" />
                     <span className="text-sm font-medium">
                       {locationData.city}, {locationData.country}
@@ -1251,7 +1251,7 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
           />
         )}
 
-        <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900">
+        <Card className="border-border shadow-sm bg-card">
           <CardContent className="p-4">
                 {/* Show today's assignments directly (menu removed) */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">

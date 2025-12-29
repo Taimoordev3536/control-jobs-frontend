@@ -165,11 +165,11 @@ export default function QrCodeScanner({ onBack, onComplete }: Props) {
         <Button variant="ghost" size="sm" onClick={onBack} className="p-2">
           <ArrowLeft className="w-4 h-4" />
         </Button>
-        <h3 className="text-lg font-semibold">QR Code Scanner</h3>
+        <h3 className="text-lg font-semibold text-foreground">QR Code Scanner</h3>
       </div>
 
-      <div className="border rounded-md p-4 bg-gray-50 dark:bg-gray-800">
-        <div className="mb-3 text-sm text-gray-600 dark:text-gray-300">Point your camera at the job QR code</div>
+      <div className="border-border rounded-md p-4 bg-muted/50">
+        <div className="mb-3 text-sm text-muted-foreground">Point your camera at the job QR code</div>
 
         <div className="w-full h-80 bg-black rounded flex items-center justify-center mb-3 relative overflow-hidden">
           <video
@@ -189,11 +189,11 @@ export default function QrCodeScanner({ onBack, onComplete }: Props) {
           
           {!scanning && (
             <div className="text-center px-4">
-              <p className="text-sm text-gray-400 mb-2">
+              <p className="text-sm text-muted-foreground mb-2">
                 {error ? "⚠️ " + error : message}
               </p>
               {error && (
-                <Button onClick={startScanner} className="bg-purple-600 hover:bg-purple-700 mt-2">
+                <Button onClick={startScanner} variant="default" className="mt-2">
                   <Camera className="w-4 h-4 mr-2" /> Try Again
                 </Button>
               )}
@@ -207,14 +207,14 @@ export default function QrCodeScanner({ onBack, onComplete }: Props) {
               Stop Scan
             </Button>
           ) : !error ? (
-            <Button onClick={startScanner} className="bg-purple-600 hover:bg-purple-700">
+            <Button onClick={startScanner} variant="default">
               <Camera className="w-4 h-4 mr-2" /> Start Scan
             </Button>
           ) : null}
         </div>
 
         {message && !error && scanning && (
-          <div className="mt-3 text-sm font-medium text-green-600 dark:text-green-400">{message}</div>
+          <div className="mt-3 text-sm font-medium text-green-600">{message}</div>
         )}
       </div>
     </div>

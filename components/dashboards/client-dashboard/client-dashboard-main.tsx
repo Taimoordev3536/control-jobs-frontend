@@ -230,7 +230,7 @@ export default function ClientDashboard() {
       worker: {
         name: primaryWorker.name,
         avatar: "👨‍💼",
-        completedJobs: Math.floor(Math.random() * 100) + 50,
+        completedJobs: 0,
       },
       client: mockClient,
       schedule: {
@@ -647,7 +647,7 @@ export default function ClientDashboard() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <Card className="max-w-md w-full mx-4">
           <CardContent className="p-6 text-center">
             <div className="text-red-500 mb-4">
@@ -750,10 +750,10 @@ export default function ClientDashboard() {
 
   // Main Dashboard View
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+    <div className="min-h-screen bg-background">
       <div className="max-w-[1400px] mx-auto p-4 space-y-4">
         {/* Header */}
-        <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900">
+        <Card className="border border-border shadow-sm bg-card">
           <CardContent className="p-4">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
               <div className="flex items-center gap-3">
@@ -762,7 +762,7 @@ export default function ClientDashboard() {
                 </div>
                 <div>
                   <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t("clientDashboard")}</h1>
-                  <p className="text-gray-600 dark:text-gray-400 text-sm">
+                  <p className="text-gray-600 dark:text-gray-400 text-sm" suppressHydrationWarning>
                     {formatTime(currentTime)} •{" "}
                     {currentTime.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
                   </p>
@@ -815,7 +815,7 @@ export default function ClientDashboard() {
           />
         </div>
 
-        <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900">
+        <Card className="border border-border shadow-sm bg-card">
           <CardContent className="p-4">
             {/* Direct job cards view (tabs removed) */}
             <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -834,7 +834,7 @@ export default function ClientDashboard() {
                 (job) => job.status === "scheduled" || job.status === "pending" || job.status === "in_progress",
               ).length === 0 && (
                 <div className="col-span-full">
-                  <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900">
+                  <Card className="border border-border shadow-sm bg-card">
                     <CardContent className="p-8 text-center">
                       <ClipboardList className="w-12 h-12 text-gray-400 mx-auto mb-3" />
                       <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-2">{t("activeJobs")}</h3>

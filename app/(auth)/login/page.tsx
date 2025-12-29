@@ -29,16 +29,9 @@ export default function LoginPage() {
 
   // Redirect if already authenticated
   useEffect(() => {
-    if (session) {
-      const userRole = session.user?.role?.name?.toLowerCase()
-      const defaultRoutes: Record<string, string> = {
-        admin: "/dashboard",
-        partner: "/dashboard",
-        employer: "/dashboard",
-        client: "/dashboard",
-        worker: "/dashboard",
-      }
-      router.push(defaultRoutes[userRole || "worker"] || "/dashboard")
+    if (session?.user?.role?.name) {
+      // Only redirect if we have a valid role
+      router.push("/dashboard")
     }
   }, [session, router])
 

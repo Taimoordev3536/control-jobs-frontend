@@ -25,7 +25,7 @@ import { useAuth } from "@/hooks/use-auth"
 // import AddJobModal from "@/components/add-job-modal"
 import AddJobModal from "@/components/add-job-modal/main"
 import JobDetail from "@/components/job-detail/job-detail"
-import { EmployerJobCard } from "@/components/dashboards/employer-job-card"
+import { EmployerJobCard } from "./employer-job-card"
 
 interface ApiJob {
   jobId: number
@@ -281,7 +281,7 @@ export default function EmployerDashboard() {
         id: task?.id || index + 1,
         name,
         description: `Complete ${String(name).toLowerCase()} task`,
-        completed: Math.random() > 0.5,
+        completed: task?.completed ?? false,
         duration: "2 hours",
         timing: "during" as const,
       }
@@ -316,7 +316,7 @@ export default function EmployerDashboard() {
       jobId: `JOB-${apiJob.jobId.toString().padStart(4, "0")}`,
       client: {
         // keep a numeric id; fall back to a placeholder when missing
-        id: typeof clientId === 'number' ? clientId : (Math.floor(Math.random() * 100) + 1),
+        id: typeof clientId === 'number' ? clientId : 0,
         name: apiJob.clientName || apiJob.client?.name || '',
       },
       // expose linkage fields for UI decisions
@@ -324,7 +324,7 @@ export default function EmployerDashboard() {
       employerName,
       // Frontend expects a single workCenter object; derive from new `workCenters` array if present
       workCenter: {
-        id: Math.floor(Math.random() * 10) + 1,
+        id: apiJob.jobId,
         name: (apiJob.workCenters && apiJob.workCenters.length > 0)
           ? apiJob.workCenters[0].name
           : (apiJob.workCenter || apiJob.workCenterNames || ''),
@@ -555,8 +555,8 @@ export default function EmployerDashboard() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
-        <Card className="border border-red-200 dark:border-red-800 shadow-sm bg-white dark:bg-gray-900 max-w-md">
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Card className="border border-red-200 dark:border-red-800 shadow-sm bg-card max-w-md">
           <CardContent className="text-center py-12">
             <div className="w-16 h-16 bg-red-100 dark:bg-red-800/20 rounded-full flex items-center justify-center mx-auto mb-4">
               <AlertCircle className="w-8 h-8 text-red-500" />
@@ -573,10 +573,10 @@ export default function EmployerDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+    <div className="min-h-screen bg-background">
       <div className="max-width-[1800px] mx-auto p-4 space-y-4">
         {/* Compact Header */}
-        <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900">
+        <Card className="border border-border shadow-sm bg-card">
           <CardContent className="p-4">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
               <div className="flex items-center gap-3">
@@ -595,7 +595,7 @@ export default function EmployerDashboard() {
                     placeholder={t("searchJobs")}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-9 w-64 h-9 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800"
+                    className="pl-9 w-64 h-9 border-border bg-card"
                   />
                 </div>
                 <Button
@@ -642,12 +642,12 @@ export default function EmployerDashboard() {
           ].map((stat, index) => (
             <Card
               key={index}
-              className="border border-gray-200 dark:border-gray-800 hover:shadow-md transition-all duration-300 hover:scale-105 group bg-white dark:bg-gray-900"
+              className="border border-border hover:shadow-md transition-all duration-300 hover:scale-105 group bg-card"
             >
               <CardContent className="p-3">
-                <div className="w-full h-0.5 bg-gray-500 rounded-full mb-2"></div>
+                <div className="w-full h-0.5 bg-[#6B7280] rounded-full mb-2"></div>
                 <div className="flex items-center justify-between mb-2">
-                  <div className="p-1.5 rounded-lg bg-gray-500 group-hover:scale-110 transition-transform duration-300">
+                  <div className="p-1.5 rounded-lg bg-[#6B7280] group-hover:scale-110 transition-transform duration-300">
                     <stat.icon className="w-4 h-4 text-white" />
                   </div>
                   <div className="text-right">
@@ -665,7 +665,7 @@ export default function EmployerDashboard() {
         </div>
 
         {/* Compact Filters */}
-        <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900">
+        <Card className="border border-border shadow-sm bg-card">
           <CardContent className="p-4">
             <div className="flex items-center gap-3 mb-3">
               <div className="flex items-center gap-2">
@@ -682,10 +682,10 @@ export default function EmployerDashboard() {
                   {t("status")}
                 </label>
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="h-8 text-xs border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+                  <SelectTrigger className="h-8 text-xs border-border bg-card">
                     <SelectValue placeholder={t("allStatuses")} />
                   </SelectTrigger>
-                  <SelectContent className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+                  <SelectContent className="bg-card border-border">
                     <SelectItem value="all">{t("allStatuses")}</SelectItem>
                     <SelectItem value="in_progress">{t("inProgress")}</SelectItem>
                     <SelectItem value="scheduled">{t("scheduled")}</SelectItem>
@@ -699,10 +699,10 @@ export default function EmployerDashboard() {
                   {t("occupation")}
                 </label>
                 <Select value={occupationFilter} onValueChange={setOccupationFilter}>
-                  <SelectTrigger className="h-8 text-xs border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+                  <SelectTrigger className="h-8 text-xs border-border bg-card">
                     <SelectValue placeholder={t("allOccupations")} />
                   </SelectTrigger>
-                  <SelectContent className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+                  <SelectContent className="bg-card border-border">
                     <SelectItem value="all">{t("allOccupations")}</SelectItem>
                     {occupations.map((occupation) => (
                       <SelectItem key={occupation} value={occupation}>
@@ -718,10 +718,10 @@ export default function EmployerDashboard() {
                   {t("workCenter")}
                 </label>
                 <Select value={workCenterFilter} onValueChange={setWorkCenterFilter}>
-                  <SelectTrigger className="h-8 text-xs border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+                  <SelectTrigger className="h-8 text-xs border-border bg-card">
                     <SelectValue placeholder={t("allWorkCenters")} />
                   </SelectTrigger>
-                  <SelectContent className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+                  <SelectContent className="bg-card border-border">
                     <SelectItem value="all">{t("allWorkCenters")}</SelectItem>
                     {workCenters.map((center) => (
                       <SelectItem key={center} value={center}>
@@ -737,10 +737,10 @@ export default function EmployerDashboard() {
                   {t("dateRange")}
                 </label>
                 <Select value={dateFilter} onValueChange={setDateFilter}>
-                  <SelectTrigger className="h-8 text-xs border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+                  <SelectTrigger className="h-8 text-xs border-border bg-card">
                     <SelectValue placeholder={t("allDates")} />
                   </SelectTrigger>
-                  <SelectContent className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+                  <SelectContent className="bg-card border-border">
                     <SelectItem value="all">{t("allDates")}</SelectItem>
                     <SelectItem value="today">{t("today")}</SelectItem>
                     <SelectItem value="week">{t("thisWeek")}</SelectItem>
@@ -752,23 +752,27 @@ export default function EmployerDashboard() {
           </CardContent>
         </Card>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-          {filteredJobs.map((job) => (
-            <EmployerJobCard
-              key={job.id}
-              job={job as any}
-              onViewDetails={(j: any) => handleViewDetails(j as any)}
-              onEdit={handleEditJob}
-              onViewRecords={(j: any) => handleViewDetails(j as any)}
-            />
-          ))}
-        </div>
+        <Card className="border border-border shadow-sm bg-card">
+          <CardContent className="p-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+              {filteredJobs.map((job) => (
+                <EmployerJobCard
+                  key={job.id}
+                  job={job as any}
+                  onViewDetails={(j: any) => handleViewDetails(j as any)}
+                  onEdit={handleEditJob}
+                  onViewRecords={(j: any) => handleViewDetails(j as any)}
+                />
+              ))}
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Empty State */}
         {filteredJobs.length === 0 && !loading && !error && (
-          <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900">
+          <Card className="border border-border shadow-sm bg-card">
             <CardContent className="text-center py-12">
-              <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
+              <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
                 <Search className="w-8 h-8 text-gray-400" />
               </div>
               <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">{t("noJobsFound")}</h3>

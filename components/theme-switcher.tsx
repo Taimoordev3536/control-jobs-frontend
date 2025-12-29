@@ -2,13 +2,18 @@
 
 import { Moon, Sun } from "lucide-react"
 import { useTheme } from "next-themes"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useTranslation } from "@/hooks/use-translation"
 
 export function ThemeSwitcher() {
   const { t } = useTranslation()
   const { setTheme, theme } = useTheme()
   const [showDropdown, setShowDropdown] = useState(false)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const toggleDropdown = () => {
     setShowDropdown(!showDropdown)
@@ -19,10 +24,13 @@ export function ThemeSwitcher() {
     setShowDropdown(false)
   }
 
+  // Prevent hydration mismatch by rendering a default icon until mounted
+  const isDark = mounted && theme === "dark"
+
   return (
     <div className="relative">
       <button className="header-icon-button" onClick={toggleDropdown}>
-        {theme === "dark" ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
+        {isDark ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
         <span className="tooltip">{t("theme")}</span>
       </button>
 

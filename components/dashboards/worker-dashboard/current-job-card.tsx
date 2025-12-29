@@ -200,12 +200,12 @@ export function CurrentJobCard({
   };
 
   return (
-    <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900">
+    <Card className="border border-border shadow-sm bg-card">
       <CardContent className="p-4">
         <div className="flex items-center justify-between mb-4">
           <Badge
             variant="outline"
-            className="font-mono bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700"
+            className="font-mono bg-muted border-border"
           >
             {job.jobId}
           </Badge>
@@ -317,7 +317,7 @@ export function CurrentJobCard({
                           className={`p-3 rounded-lg border ${
                             task.isCompleted
                               ? "bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800"
-                              : "bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700"
+                              : "bg-muted border-border"
                           }`}
                         >
                           <div className="flex items-start gap-3">
@@ -443,7 +443,7 @@ export function CurrentJobCard({
             )}
 
             <div className="grid grid-cols-2 gap-2">
-              <div className="bg-gray-100 dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700 text-center">
+              <div className="bg-muted p-3 rounded-lg border border-border text-center">
                 <div className="text-sm font-bold text-gray-900 dark:text-white">
                   {job.checkInTime ? formatTimeShort(job.checkInTime) : "---"}
                 </div>
@@ -451,7 +451,7 @@ export function CurrentJobCard({
                   {t("checkIn")}
                 </div>
               </div>
-              <div className="bg-gray-100 dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700 text-center">
+              <div className="bg-muted p-3 rounded-lg border border-border text-center">
                 <div className="text-sm font-bold text-gray-900 dark:text-white">
                   {job.shift.scheduleType === "fixed" && job.shift.endTime
                     ? job.shift.endTime
@@ -486,7 +486,7 @@ export function CurrentJobCard({
                         <SelectValue placeholder={t("breakOut")} />
                       </div>
                     </SelectTrigger>
-                    <SelectContent className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+                    <SelectContent className="bg-card border-border">
                       {breakTypes.map((breakType) => (
                         <SelectItem
                           key={breakType.value}
@@ -526,7 +526,7 @@ export function CurrentJobCard({
 
             {/* Break Summary */}
             {job.totalBreakTime > 0 && (
-              <div className="bg-gray-100 dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700 text-center">
+              <div className="bg-muted p-3 rounded-lg border border-border text-center">
                 <div className="text-sm font-bold text-gray-900 dark:text-white">
                   {job.totalBreakTime} {t("minutes")}
                 </div>

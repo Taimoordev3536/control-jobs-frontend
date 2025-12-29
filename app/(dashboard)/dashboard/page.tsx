@@ -4,29 +4,32 @@ import { useState, useEffect } from "react"
 import { useAuth } from "@/hooks/use-auth"
 import { LoadingSpinner } from "@/components/loading-spinner"
 import WorkerDashboard from "@/components/dashboards/worker-dashboard/worker-dashboard-main"
-import EmployerDashboard from "@/components/dashboards/employer-dashboard"
+import EmployerDashboard from "@/components/dashboards/employer-dashboard/employer-dashboard"
 import ClientDashboard from "@/components/dashboards/client-dashboard/client-dashboard-main"
 import AdminDashboard from "@/components/dashboards/admin-dashboard"
 import PartnerDashboard from "@/components/dashboards/partner-dashboard"
 
 export default function RoleBasedDashboard() {
   const { session, isLoading, getUserRole } = useAuth()
-  const [userRole, setUserRole] = useState<string>("")
+  const [userRole, setUserRole] = useState<string | null>(null)
 
   useEffect(() => {
     if (session) {
       const role = getUserRole()
       setUserRole(role)
+    } else {
+      setUserRole(null)
     }
   }, [session, getUserRole])
 
-  if (isLoading) {
+  // Show loading spinner while session is loading OR while we don't have a role yet
+  if (isLoading || (session && !userRole)) {
     return <LoadingSpinner />
   }
 
   if (!session) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Access Denied</h2>
           <p className="text-gray-600">Please log in to access your dashboard.</p>
@@ -36,7 +39,7 @@ export default function RoleBasedDashboard() {
   }
 
   // Render dashboard based on user role
-  switch (userRole.toLowerCase()) {
+  switch (userRole?.toLowerCase()) {
     case "worker":
       return <WorkerDashboard />
     case "employer":
@@ -49,7 +52,7 @@ export default function RoleBasedDashboard() {
       return <PartnerDashboard />
     default:
       return (
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="min-h-screen bg-background flex items-center justify-center">
           <div className="text-center">
             <h2 className="text-xl font-semibold text-gray-900 mb-2">Unknown Role</h2>
             <p className="text-gray-600">Your account role is not recognized. Please contact support.</p>

@@ -48,15 +48,15 @@ export default function IpSignIn({ onBack, onComplete }: Props) {
         <Button variant="ghost" size="sm" onClick={onBack} className="p-2">
           <ArrowLeft className="w-4 h-4" />
         </Button>
-        <h3 className="text-lg font-semibold">IP Detection</h3>
+        <h3 className="text-lg font-semibold text-foreground">IP Detection</h3>
       </div>
 
-      <div className="border rounded-md p-4 bg-gray-50 dark:bg-gray-800">
-        <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">Detecting your public IP address...</p>
+      <div className="border-border rounded-md p-4 bg-muted/50">
+        <p className="text-sm text-muted-foreground mb-3">Detecting your public IP address...</p>
 
         <div className="mb-3">
-          <div className="text-sm text-gray-500">Detected IP:</div>
-          <div className="text-lg font-medium text-gray-900 dark:text-white">{loading ? 'Detecting...' : ip ?? '—'}</div>
+          <div className="text-sm text-muted-foreground">Detected IP:</div>
+          <div className="text-lg font-medium text-foreground">{loading ? 'Detecting...' : ip ?? '—'}</div>
           {error && <div className="text-sm text-red-500 mt-1">{error}</div>}
         </div>
 
@@ -67,7 +67,7 @@ export default function IpSignIn({ onBack, onComplete }: Props) {
           <Button 
             onClick={handleContinue} 
             disabled={!ip || loading}
-            className="bg-purple-600 hover:bg-purple-700"
+            variant="default"
           >
             Continue
           </Button>

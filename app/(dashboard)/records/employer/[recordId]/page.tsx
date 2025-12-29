@@ -130,16 +130,16 @@ export default function EmployerRecordDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
-        <div className="text-gray-600 dark:text-gray-400">Cargando...</div>
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-muted-foreground">Cargando...</div>
       </div>
     )
   }
 
   if (!record) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
-        <div className="text-gray-600 dark:text-gray-400">No se encontró el registro</div>
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-muted-foreground">No se encontró el registro</div>
       </div>
     )
   }
@@ -147,14 +147,14 @@ export default function EmployerRecordDetailPage() {
   const checkInDate = record.checkInTime ? new Date(record.checkInTime) : new Date()
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+    <div className="min-h-screen bg-background">
       {/* Header sin padding lateral */}
-      <div className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
+      <div className="bg-card border-b border-border">
         <div className="px-4 py-3 flex items-center gap-3">
           <Button variant="ghost" size="sm" onClick={() => window.history.back()} className="text-xs">
             <ArrowLeft className="w-4 h-4 mr-1" /> Volver
           </Button>
-          <h1 className="text-base font-medium text-gray-900 dark:text-white">
+          <h1 className="text-base font-medium text-foreground">
             Detalle de Registro
           </h1>
         </div>
@@ -191,32 +191,32 @@ export default function EmployerRecordDetailPage() {
         </div>
 
         {/* Stats Grid */}
-        <div className="bg-gray-100 dark:bg-gray-800/50 px-6 py-6 border-b border-gray-200 dark:border-gray-800">
+        <div className="bg-muted/50 px-6 py-6 border-b border-border">
           <div className="grid grid-cols-4 gap-4 text-center">
             <div>
               <div className="text-2xl font-bold text-blue-600">{formatDuration(record.estimatedMinutes || 0)}</div>
-              <div className="text-xs uppercase tracking-wider text-gray-600 dark:text-gray-400 mt-1">TIEMPO ESTIMADO</div>
+              <div className="text-xs uppercase tracking-wider text-muted-foreground mt-1">TIEMPO ESTIMADO</div>
             </div>
             <div>
               <div className="text-2xl font-bold text-green-600">{formatDuration(record.totalWorkMinutes || 0)}</div>
-              <div className="text-xs uppercase tracking-wider text-gray-600 dark:text-gray-400 mt-1">TIEMPO TRABAJADO</div>
+              <div className="text-xs uppercase tracking-wider text-muted-foreground mt-1">TIEMPO TRABAJADO</div>
             </div>
             <div>
               <div className="text-2xl font-bold text-orange-600">{formatDuration(record.totalBreakMinutes || 0)}</div>
-              <div className="text-xs uppercase tracking-wider text-gray-600 dark:text-gray-400 mt-1">TIEMPO DESCANSO</div>
+              <div className="text-xs uppercase tracking-wider text-muted-foreground mt-1">TIEMPO DESCANSO</div>
             </div>
             <div>
               <div className={`text-2xl font-bold ${(record.difference || 0) < 0 ? 'text-red-600' : 'text-green-600'}`}>
                 {formatDuration(record.difference || 0)}
               </div>
-              <div className="text-xs uppercase tracking-wider text-gray-600 dark:text-gray-400 mt-1">DIFERENCIA</div>
+              <div className="text-xs uppercase tracking-wider text-muted-foreground mt-1">DIFERENCIA</div>
             </div>
           </div>
         </div>
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="w-full justify-start bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 rounded-none h-12 px-6">
+          <TabsList className="w-full justify-start bg-card border-b border-border rounded-none h-12 px-6">
             <TabsTrigger value="fichajes" className="data-[state=active]:border-b-2 data-[state=active]:border-purple-600 rounded-none">
               Fichajes
             </TabsTrigger>
@@ -231,14 +231,14 @@ export default function EmployerRecordDetailPage() {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="fichajes" className="bg-white dark:bg-gray-900 p-6">
+          <TabsContent value="fichajes" className="bg-card p-6">
             {/* Timeline grouped by date */}
             <div className="space-y-6">
               {record.scansByDate && Object.keys(record.scansByDate).length > 0 ? (
                 Object.keys(record.scansByDate).sort().map((dateKey) => (
                 <div key={dateKey}>
                   {/* Date Header */}
-                  <div className="mb-3 pb-2 border-b border-gray-200 dark:border-gray-700">
+                  <div className="mb-3 pb-2 border-b border-border">
                     <h3 className="text-sm font-semibold text-purple-600 dark:text-purple-400">
                       {formatDateKey(dateKey)}
                     </h3>
@@ -264,21 +264,21 @@ export default function EmployerRecordDetailPage() {
                             <div className="flex items-center gap-3">
                               {getIcon(scan.scanType)}
                               <div>
-                                <div className="text-sm font-medium text-gray-900 dark:text-white">{getLabel(scan.scanType)}</div>
-                                <div className="text-lg font-bold text-gray-800 dark:text-gray-200">{formatTime(scan.scanTime)}</div>
+                                <div className="text-sm font-medium text-foreground">{getLabel(scan.scanType)}</div>
+                                <div className="text-lg font-bold text-foreground">{formatTime(scan.scanTime)}</div>
                               </div>
                             </div>
                           </div>
 
                           {loc.address && (
-                            <div className="mt-3 ml-10 text-xs text-gray-600 dark:text-gray-400 space-y-0.5">
+                            <div className="mt-3 ml-10 text-xs text-muted-foreground space-y-0.5">
                               {loc.address && <p><strong>Dirección:</strong> {loc.address}</p>}
                               {loc.ip && <p><strong>IP:</strong> {loc.ip}</p>}
                             </div>
                           )}
 
                           {scan.notes && (
-                            <p className="mt-2 ml-10 text-xs italic text-gray-600 dark:text-gray-400">"{scan.notes}"</p>
+                            <p className="mt-2 ml-10 text-xs italic text-muted-foreground">"{scan.notes}"</p>
                           )}
                         </div>
                       )
@@ -287,21 +287,21 @@ export default function EmployerRecordDetailPage() {
                 </div>
               )))
               : (
-                <p className="text-sm text-gray-600 dark:text-gray-400">No hay registros de fichajes</p>
+                <p className="text-sm text-muted-foreground">No hay registros de fichajes</p>
               )}
             </div>
           </TabsContent>
 
-          <TabsContent value="tareas" className="bg-white dark:bg-gray-900 p-6">
+          <TabsContent value="tareas" className="bg-card p-6">
             {/* Tasks grouped by date */}
             <div className="space-y-6">
               {!record.tasksByDate || Object.keys(record.tasksByDate).length === 0 ? (
-                <p className="text-sm text-gray-600 dark:text-gray-400">No hay tareas registradas</p>
+                <p className="text-sm text-muted-foreground">No hay tareas registradas</p>
               ) : (
                 Object.keys(record.tasksByDate).sort().map((dateKey) => (
                   <div key={dateKey}>
                     {/* Date Header */}
-                    <div className="mb-3 pb-2 border-b border-gray-200 dark:border-gray-700">
+                    <div className="mb-3 pb-2 border-b border-border">
                       <h3 className="text-sm font-semibold text-purple-600 dark:text-purple-400">
                         {formatDateKey(dateKey)}
                       </h3>
@@ -318,7 +318,7 @@ export default function EmployerRecordDetailPage() {
                           <span className="text-sm font-medium text-green-800 dark:text-green-400">
                             {task.taskName}
                           </span>
-                          <span className="text-xs text-gray-500 ml-auto">
+                          <span className="text-xs text-muted-foreground ml-auto">
                             {formatTime(task.completedAt)}
                           </span>
                         </div>
@@ -330,12 +330,12 @@ export default function EmployerRecordDetailPage() {
             </div>
           </TabsContent>
 
-          <TabsContent value="encuestas" className="bg-white dark:bg-gray-900 p-6">
-            <p className="text-sm text-gray-600 dark:text-gray-400">No hay encuestas disponibles</p>
+          <TabsContent value="encuestas" className="bg-card p-6">
+            <p className="text-sm text-muted-foreground">No hay encuestas disponibles</p>
           </TabsContent>
 
-          <TabsContent value="alertas" className="bg-white dark:bg-gray-900 p-6">
-            <p className="text-sm text-gray-600 dark:text-gray-400">No hay alertas</p>
+          <TabsContent value="alertas" className="bg-card p-6">
+            <p className="text-sm text-muted-foreground">No hay alertas</p>
           </TabsContent>
         </Tabs>
       </div>

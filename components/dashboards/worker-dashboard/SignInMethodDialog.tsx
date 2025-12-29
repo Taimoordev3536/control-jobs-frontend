@@ -108,7 +108,7 @@ const MethodButton = ({ m, onClick }: { m: MethodKey; onClick: () => void }) => 
         <MethodIcon m={m} color="#fff" />
       </div>
       <div className="text-left">
-        <div className="text-sm font-medium" style={{ color: "rgba(0,0,0,0.85)" }}>{methodLabel(m)}</div>
+        <div className="text-sm font-medium text-foreground">{methodLabel(m)}</div>
       </div>
     </button>
   )
@@ -137,40 +137,39 @@ export default function SignInMethodDialog({ isOpen, signingMethods = [], onClos
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent
-        className="max-w-md p-0"
+        className="max-w-md p-0 overflow-hidden [&>button]:z-50 [&>button]:bg-background/80 [&>button]:backdrop-blur-sm"
         style={{
           backgroundImage: `url(${(bg as any)?.src ?? bg})`,
           backgroundSize: "cover",
           backgroundPosition: "center",
         }}
       >
+        {/* Dark overlay for dark mode to tone down the background image */}
+        <div className="absolute inset-0 bg-background/60 dark:bg-background/90 z-0" />
+        
         {/* frosted glass inner panel for readability (glassy effect) */}
         <div
-          className="relative z-0 m-4 rounded-md overflow-hidden"
+          className="relative z-10 m-4 rounded-md overflow-hidden bg-card/98 border border-border shadow-2xl"
           style={{
-            // ultra-clear glass so background shows through strongly
-            background: "rgba(255,255,255,0.02)",
-            backdropFilter: "blur(2px)",
-            WebkitBackdropFilter: "blur(2px)",
-            border: "1px solid rgba(255,255,255,0.08)",
-            boxShadow: "0 4px 12px rgba(0,0,0,0.06)",
+            backdropFilter: "blur(12px)",
+            WebkitBackdropFilter: "blur(12px)",
           }}
         >
-          {/* very subtle glossy highlight (almost invisible) */}
-          <div className="absolute inset-0 pointer-events-none" style={{background: "linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0))"}} />
+          {/* very subtle glossy highlight */}
+          <div className="absolute inset-0 pointer-events-none opacity-5 dark:opacity-10" style={{background: "linear-gradient(180deg, rgba(255,255,255,0.2), rgba(255,255,255,0))"}} />
           <DialogHeader className="p-6">
             <div className="relative">
               <div className="text-center">
-                <div className="text-lg text-purple-700 font-bold">{new Date().toLocaleDateString(typeof navigator !== 'undefined' ? navigator.language : undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</div>
-                <h2 className="text-3xl font-bold text-purple-700 mt-2">{t("hello") || "Hello"} {workerName || "Worker"}</h2>
-                <p className="text-lg text-black mt-2 font-semibold">{t("chooseClockInMethod") || "Choose sign-in method"}</p>
+                <div className="text-lg text-primary font-bold">{new Date().toLocaleDateString(typeof navigator !== 'undefined' ? navigator.language : undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</div>
+                <h2 className="text-3xl font-bold text-primary mt-2">{t("hello") || "Hello"} {workerName || "Worker"}</h2>
+                <p className="text-lg text-foreground mt-2 font-semibold">{t("chooseClockInMethod") || "Choose sign-in method"}</p>
               </div>
             </div>
           </DialogHeader>
 
           <div className="p-6">
           {isMobile === undefined ? (
-            <div className="text-sm text-gray-500">Detecting device...</div>
+            <div className="text-sm text-muted-foreground">Detecting device...</div>
           ) : selectedMethod ? (
             <div>
               {selectedMethod === 'QRCODE' && (
@@ -216,14 +215,14 @@ export default function SignInMethodDialog({ isOpen, signingMethods = [], onClos
               )}
             </div>
           ) : available.length === 0 ? (
-            <div className="text-sm text-gray-500">No available sign-in methods for your device.</div>
+            <div className="text-sm text-muted-foreground">No available sign-in methods for your device.</div>
           ) : (
             <div>
               <div className="flex items-center gap-2 mb-4">
-                <div className="p-2 bg-gray-100 rounded">
-                  {isMobile ? <Smartphone className="w-5 h-5 text-gray-700 font-bold" /> : <Monitor className="w-5 h-5 text-gray-700" />}
+                <div className="p-2 bg-muted rounded">
+                  {isMobile ? <Smartphone className="w-5 h-5 text-muted-foreground font-bold" /> : <Monitor className="w-5 h-5 text-muted-foreground" />}
                 </div>
-                <div className="text-lg font-bold">
+                <div className="text-lg font-bold text-foreground">
                   {isMobile ? (t("mobile") || "Mobile") : (t("pc") || "PC")}:
                 </div>
               </div>
