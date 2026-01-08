@@ -256,6 +256,21 @@ const employerDashboardTranslations: Record<string, Record<string, string>> = {
     pleaseCompleteAllRequiredFields: "All task fields are required. Please fill in any missing fields.",
     taskRequired: "Task Required",
     taskRequiredDescription: "Please enter a task name",
+
+    // Records Page
+    recordsTitle: "Entry Records",
+    checkInCheckOut: "Check In - Check Out",
+    titular: "Titular",
+    job: "Job",
+    trabajador: "Worker",
+    entrada: "Entry",
+    salida: "Exit",
+    total: "Total",
+    alertas: "Alerts",
+    exportExcel: "Export Excel",
+    exportCSV: "Export CSV",
+    exportPDF: "Export PDF",
+    noRecordsFound: "No records found",
   },
   es: {
     // Header viewAttendance 
@@ -515,6 +530,21 @@ const employerDashboardTranslations: Record<string, Record<string, string>> = {
     pleaseCompleteAllRequiredFields: "Todos los campos de la tarea son obligatorios. Por favor, complete los que falten.",
     taskRequired: "Tarea requerida",
     taskRequiredDescription: "Por favor ingrese un nombre de tarea",
+
+    // Records Page
+    recordsTitle: "Registros de Entrada",
+    checkInCheckOut: "Check In - Check Out",
+    titular: "Titular",
+    job: "Job",
+    trabajador: "Trabajador",
+    entrada: "Entrada",
+    salida: "Salida",
+    total: "Total",
+    alertas: "Alertas",
+    exportExcel: "Exportar Excel",
+    exportCSV: "Exportar CSV",
+    exportPDF: "Exportar PDF",
+    noRecordsFound: "No se encontraron registros",
   },
 }
 

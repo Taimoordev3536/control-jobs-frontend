@@ -1,39 +1,21 @@
-// import DataListTemplate from "@/components/ui/data-list-template";
-
-// const columns = [
-//   { key: "fecha", label: "Fecha" },
-//   { key: "titular", label: "Titular" },
-//   { key: "job", label: "Job" },
-//   { key: "trabajador", label: "Trabajador" },
-//   { key: "entrada", label: "Entrada" },
-//   { key: "salida", label: "Salida" },
-//   { key: "total", label: "Total" },
-//   { key: "alerts", label: "Alertas" },
-// ];
-
-// export default function EmployerRecordsPage() {
-//   // TODO: Fetch employer records data
-//   return (
-//     <DataListTemplate columns={columns} role="employer" />
-//   );
-// }
-
-
-
 "use client"
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
+import { useTranslation } from "@/hooks/use-translation"
 
+import FilterIcon1 from "../../../../icons/Controles/filter1.svg"
 import DataListTemplate, { ExcelIcon, CsvIcon, PdfIcon } from "@/components/ui/data-list-template"
 import { exportToCSV, exportToXLSX, exportToPDF } from "@/lib/export"
-import { Plus, Filter } from "lucide-react"
 
 export default function EmployerRecordsPage() {
   const router = useRouter()
-  const { data: session } = useSession()
+  const { data: session, status } = useSession()
+  const { t } = useTranslation("employer-dashboard")
   const [jobIdParam, setJobIdParam] = useState<string | null>(null)
+  const [paramsLoaded, setParamsLoaded] = useState(false)
+  const [showFilters, setShowFilters] = useState(false)
 
   // Read search params from window.location on the client to avoid
   // useSearchParams prerender bailout during static export.
@@ -41,8 +23,10 @@ export default function EmployerRecordsPage() {
     try {
       const params = new URLSearchParams(window.location.search)
       setJobIdParam(params.get('jobId'))
+      setParamsLoaded(true)
     } catch (e) {
       setJobIdParam(null)
+      setParamsLoaded(true)
     }
   }, [])
 
@@ -52,6 +36,11 @@ export default function EmployerRecordsPage() {
   // Fetch real work session records
   useEffect(() => {
     const fetchRecords = async () => {
+      // Wait for session to be authenticated and params to be loaded
+      if (status === 'loading' || !paramsLoaded) {
+        return
+      }
+
       if (!session?.accessToken) {
         setIsLoading(false)
         return
@@ -68,6 +57,8 @@ export default function EmployerRecordsPage() {
 
         console.log('Fetching from URL:', url.toString())
         console.log('Token:', session.accessToken ? 'Present' : 'Missing')
+        console.log('Session Status:', status)
+        console.log('Params Loaded:', paramsLoaded)
 
         const response = await fetch(url.toString(), {
           headers: {
@@ -97,17 +88,17 @@ export default function EmployerRecordsPage() {
     }
 
     fetchRecords()
-  }, [jobIdParam, session?.accessToken])
+  }, [jobIdParam, session?.accessToken, status, paramsLoaded])
 
   const columns = [
-    { key: "fecha", label: "Check In - Check Out", sortable: true },
-    { key: "titular", label: "Titular", sortable: true },
-    { key: "job", label: "Job", sortable: true },
-    { key: "trabajador", label: "Trabajador", sortable: true },
-    { key: "entrada", label: "Entrada" },
-    { key: "salida", label: "Salida" },
-    { key: "total", label: "Total", sortable: true },
-    { key: "alerts", label: "Alertas" },
+    { key: "fecha", label: t("checkInCheckOut"), sortable: true },
+    { key: "titular", label: t("titular"), sortable: true },
+    { key: "job", label: t("job"), sortable: true },
+    { key: "trabajador", label: t("trabajador"), sortable: true },
+    { key: "entrada", label: t("entrada") },
+    { key: "salida", label: t("salida") },
+    { key: "total", label: t("total"), sortable: true },
+    { key: "alerts", label: t("alertas") },
   ]
 
   // ---------------------------
@@ -115,27 +106,27 @@ export default function EmployerRecordsPage() {
   // ---------------------------
   const actionButtons = [
     {
-      icon: Filter,
-      onClick: () => console.log("Filter clicked"),
-      title: "Filter",
+      icon: FilterIcon1,
+      onClick: () => setShowFilters(!showFilters),
+      title: t("filter"),
       type: "filter",
     },
     {
       icon: ExcelIcon,
       onClick: () => exportToXLSX(records, columns, "employer-records.xlsx"),
-      title: "Export Excel",
+      title: t("exportExcel"),
       type: "excel",
     },
     {
       icon: CsvIcon,
       onClick: () => exportToCSV(records, columns, "employer-records.csv"),
-      title: "Export CSV",
+      title: t("exportCSV"),
       type: "csv",
     },
     {
       icon: PdfIcon,
       onClick: () => exportToPDF(records, columns, "employer-records.pdf"),
-      title: "Export PDF",
+      title: t("exportPDF"),
       type: "pdf",
     },
   ]
@@ -153,12 +144,12 @@ export default function EmployerRecordsPage() {
 
   return (
     <DataListTemplate
-      title="Registros"
+      title={t("recordsTitle")}
       data={records}
       columns={columns}
       onRowClick={handleRowClick}
       actionButtons={actionButtons}
-      emptyMessage={isLoading ? "Loading..." : "No records found"}
+      emptyMessage={isLoading ? t("loading") : t("noRecordsFound")}
       role="employer"
     />
   )

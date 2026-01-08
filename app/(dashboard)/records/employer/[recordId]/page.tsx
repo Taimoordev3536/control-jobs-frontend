@@ -19,7 +19,6 @@ import {
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 export default function EmployerRecordDetailPage() {
   const params = useParams()
@@ -146,9 +145,16 @@ export default function EmployerRecordDetailPage() {
 
   const checkInDate = record.checkInTime ? new Date(record.checkInTime) : new Date()
 
+  const tabs = [
+    { key: "fichajes", label: "Fichajes" },
+    { key: "tareas", label: "Tareas" },
+    { key: "encuestas", label: "Encuestas" },
+    { key: "alertas", label: "Alertas" },
+  ]
+
   return (
     <div className="min-h-screen bg-background">
-      {/* Header sin padding lateral */}
+      {/* Header */}
       <div className="bg-card border-b border-border">
         <div className="px-4 py-3 flex items-center gap-3">
           <Button variant="ghost" size="sm" onClick={() => window.history.back()} className="text-xs">
@@ -214,25 +220,29 @@ export default function EmployerRecordDetailPage() {
           </div>
         </div>
 
-        {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="w-full justify-start bg-card border-b border-border rounded-none h-12 px-6">
-            <TabsTrigger value="fichajes" className="data-[state=active]:border-b-2 data-[state=active]:border-purple-600 rounded-none">
-              Fichajes
-            </TabsTrigger>
-            <TabsTrigger value="tareas" className="data-[state=active]:border-b-2 data-[state=active]:border-purple-600 rounded-none">
-              Tareas
-            </TabsTrigger>
-            <TabsTrigger value="encuestas" className="data-[state=active]:border-b-2 data-[state=active]:border-purple-600 rounded-none">
-              Encuestas
-            </TabsTrigger>
-            <TabsTrigger value="alertas" className="data-[state=active]:border-b-2 data-[state=active]:border-purple-600 rounded-none">
-              Alertas
-            </TabsTrigger>
-          </TabsList>
+        {/* Tabs with Client Detail Page Style */}
+        <div className="border-b border-border bg-card">
+          <nav className="flex overflow-x-auto scrollbar-hide">
+            {tabs.map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={`flex-shrink-0 px-6 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                  activeTab === tab.key
+                    ? "border-[#662D91] text-[#662D91] bg-purple-50 dark:bg-purple-950/50"
+                    : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </nav>
+        </div>
 
-          <TabsContent value="fichajes" className="bg-card p-6">
-            {/* Timeline grouped by date */}
+        {/* Tab Content */}
+        <div className="min-h-[400px] bg-card p-6">
+          {activeTab === "fichajes" && (
+            /* Timeline grouped by date */
             <div className="space-y-6">
               {record.scansByDate && Object.keys(record.scansByDate).length > 0 ? (
                 Object.keys(record.scansByDate).sort().map((dateKey) => (
@@ -290,10 +300,10 @@ export default function EmployerRecordDetailPage() {
                 <p className="text-sm text-muted-foreground">No hay registros de fichajes</p>
               )}
             </div>
-          </TabsContent>
+          )}
 
-          <TabsContent value="tareas" className="bg-card p-6">
-            {/* Tasks grouped by date */}
+          {activeTab === "tareas" && (
+            /* Tasks grouped by date */
             <div className="space-y-6">
               {!record.tasksByDate || Object.keys(record.tasksByDate).length === 0 ? (
                 <p className="text-sm text-muted-foreground">No hay tareas registradas</p>
@@ -312,15 +322,29 @@ export default function EmployerRecordDetailPage() {
                       {record.tasksByDate[dateKey].map((task: any) => (
                         <div
                           key={task.id}
-                          className="flex items-center gap-3 p-3 rounded-lg border bg-green-50 border-green-300 dark:bg-green-900/10"
+                          className="p-3 rounded-lg border bg-green-50 border-green-300 dark:bg-green-900/10"
                         >
-                          <CheckCircle2 className="w-5 h-5 text-green-600" />
-                          <span className="text-sm font-medium text-green-800 dark:text-green-400">
-                            {task.taskName}
-                          </span>
-                          <span className="text-xs text-muted-foreground ml-auto">
-                            {formatTime(task.completedAt)}
-                          </span>
+                          <div className="flex items-start gap-3">
+                            <CheckCircle2 className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="text-sm font-medium text-green-800 dark:text-green-400">
+                                  {task.taskName}
+                                </span>
+                                <span className="text-xs text-muted-foreground whitespace-nowrap">
+                                  {formatTime(task.completedAt)}
+                                </span>
+                              </div>
+                              {task.workCenter && task.workCenter.name && (
+                                <div className="flex items-center gap-1.5 mt-1">
+                                  <MapPin className="w-3.5 h-3.5 text-muted-foreground" />
+                                  <span className="text-xs text-muted-foreground">
+                                    {task.workCenter.name}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -328,16 +352,16 @@ export default function EmployerRecordDetailPage() {
                 ))
               )}
             </div>
-          </TabsContent>
+          )}
 
-          <TabsContent value="encuestas" className="bg-card p-6">
+          {activeTab === "encuestas" && (
             <p className="text-sm text-muted-foreground">No hay encuestas disponibles</p>
-          </TabsContent>
+          )}
 
-          <TabsContent value="alertas" className="bg-card p-6">
+          {activeTab === "alertas" && (
             <p className="text-sm text-muted-foreground">No hay alertas</p>
-          </TabsContent>
-        </Tabs>
+          )}
+        </div>
       </div>
     </div>
   )
