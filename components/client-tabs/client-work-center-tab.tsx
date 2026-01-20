@@ -56,8 +56,10 @@ export function ClientWorkCenterTab({ clientId }: ClientWorkCenterTabProps) {
     fetchWorkCenters()
   }, [session?.accessToken, clientId])
 
-  const handleRowClick = (id: number) => {
-    router.push(`/work-centers/${id}`)
+  const handleRowClick = (row: any) => {
+    console.log("Work center row clicked:", row)
+    console.log("Navigating to:", `/work-centers/${row.id}`)
+    router.push(`/work-centers/${row.id}`)
   }
 
   const columns: any[] = [

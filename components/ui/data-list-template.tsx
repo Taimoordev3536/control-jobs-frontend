@@ -146,7 +146,8 @@ export default function DataListTemplate({
     </div>
   )
 
-  const handleRowClick = (row: any) => {
+  const handleRowClick = (e: React.MouseEvent, row: any) => {
+    e.stopPropagation()
     if (onRowClick) {
       onRowClick(row)
     }
@@ -389,7 +390,7 @@ export default function DataListTemplate({
                   {filteredData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((row, index) => (
                     <tr
                       key={row.id || index}
-                      onClick={() => handleRowClick(row)}
+                      onClick={(e) => handleRowClick(e, row)}
                       className={`border-b border-border transition-colors ${
                         index % 2 === 0 ? "bg-background" : "bg-muted/20"
                       } ${onRowClick ? "cursor-pointer hover:bg-muted/50 active:bg-muted/70" : ""}`}
