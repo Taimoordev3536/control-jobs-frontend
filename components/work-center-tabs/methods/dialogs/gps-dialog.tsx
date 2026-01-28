@@ -121,6 +121,7 @@ export function GpsDialog({ open, onOpenChange, workCenterId, gpsData, onUpdate 
       position: center,
       map: googleMapRef.current,
       title: "Centro de trabajo",
+      draggable: true, // Make marker draggable
     })
 
     // Add circle
@@ -133,6 +134,35 @@ export function GpsDialog({ open, onOpenChange, workCenterId, gpsData, onUpdate 
       strokeColor: "#FF0000",
       strokeOpacity: 0.8,
       strokeWeight: 2,
+    })
+
+    // Add click listener to map to change location
+    googleMapRef.current.addListener('click', (event: any) => {
+      const newLat = event.latLng.lat()
+      const newLng = event.latLng.lng()
+      
+      // Update marker position
+      markerRef.current.setPosition(event.latLng)
+      
+      // Update circle position
+      circleRef.current.setCenter(event.latLng)
+      
+      // Update state
+      setLatitude(newLat)
+      setLongitude(newLng)
+    })
+
+    // Add drag listener to marker
+    markerRef.current.addListener('dragend', (event: any) => {
+      const newLat = event.latLng.lat()
+      const newLng = event.latLng.lng()
+      
+      // Update circle position
+      circleRef.current.setCenter(event.latLng)
+      
+      // Update state
+      setLatitude(newLat)
+      setLongitude(newLng)
     })
 
     // Trigger resize after a short delay to ensure tiles render properly

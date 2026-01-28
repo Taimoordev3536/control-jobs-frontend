@@ -1,6 +1,6 @@
 "use client"
 
-import { Menu, MoreVertical } from "lucide-react"
+import { Menu, MoreVertical, QrCode } from "lucide-react"
 import ContactIcon from "../icons/Header/Contact.svg"
 import MessageIcon from "../icons/Header/Message.svg"
 import NotificationIcon from "../icons/Header/Notification.svg"
@@ -15,6 +15,7 @@ import { useAuth } from "@/hooks/use-auth"
 import { useEffect, useRef, useState } from "react"
 import { useNotifications } from "@/components/providers/notification-provider"
 import { X } from "lucide-react"
+import { QrKioskDialog } from "./qr-kiosk-dialog"
 
 interface AppHeaderProps {
   collapsed: boolean
@@ -23,11 +24,13 @@ interface AppHeaderProps {
 
 export function AppHeader({ collapsed, toggleSidebar }: AppHeaderProps) {
   const { t } = useTranslation()
-  const { session } = useAuth()
+  const { session, getUserRole } = useAuth()
   const [mobileDropdownOpen, setMobileDropdownOpen] = useState(false)
   const { unreadCount, items, markAllRead, dismiss } = useNotifications()
   const [notifOpen, setNotifOpen] = useState(false)
+  const [qrKioskOpen, setQrKioskOpen] = useState(false)
   const notifRef = useRef<HTMLDivElement | null>(null)
+  const userRole = getUserRole()
 
   // Close notifications dropdown on outside click or Escape
   useEffect(() => {
@@ -118,6 +121,15 @@ export function AppHeader({ collapsed, toggleSidebar }: AppHeaderProps) {
               </div>
             )}
           </div>
+          {userRole === 'client' && (
+            <button 
+              className="header-icon-button"
+              onClick={() => setQrKioskOpen(true)}
+            >
+              <QrCode className="h-6 w-6" />
+              <span className="tooltip">{t("QR Kiosk") || "QR Check-In"}</span>
+            </button>
+          )}
           <button className="header-icon-button">
             <MessageIcon className="h-6 w-6" />
             <span className="tooltip">{t("messages")}</span>
@@ -173,6 +185,9 @@ export function AppHeader({ collapsed, toggleSidebar }: AppHeaderProps) {
         <div className="h-10 w-0.5 bg-muted" />
         <UserDropdown />
       </div>
+
+      {/* QR Kiosk Dialog */}
+      <QrKioskDialog open={qrKioskOpen} onOpenChange={setQrKioskOpen} />
     </header>
   )
 }
