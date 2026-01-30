@@ -64,13 +64,31 @@ export function WorkCenterDescriptionTab({ workCenter, onUpdate }: WorkCenterDes
 
     setIsSaving(true)
     try {
+      // Map frontend fields to backend fields
+      const backendData = {
+        name: formData.denomination, // denomination -> name
+        contactName: formData.responsible, // responsible -> contactName
+        address: `${formData.address} ${formData.number}`.trim(), // Combined for full address
+        street: formData.address, // street
+        streetNumber: formData.number, // number -> streetNumber
+        floor: formData.floor,
+        locality: formData.locality,
+        province: formData.province,
+        country: formData.country,
+        contactPhone: formData.mobile, // mobile -> contactPhone
+        contactEmail: formData.email,
+        landline: formData.phone, // phone -> landline
+        postalCode: formData.postalCode,
+        observations: formData.observations,
+      }
+
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/work-centers/${workCenter.id}`, {
         method: "PUT",
         headers: {
           Authorization: `Bearer ${session.accessToken}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(backendData),
       })
 
       if (response.ok) {
@@ -114,14 +132,18 @@ export function WorkCenterDescriptionTab({ workCenter, onUpdate }: WorkCenterDes
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${session.accessToken}`,
+          "Content-Type": "application/json",
         },
       })
 
+      const result = await response.json()
+      
       if (response.ok) {
         alert("Centro de trabajo eliminado correctamente")
         window.history.back()
       } else {
-        alert("Error al eliminar el centro de trabajo")
+        console.error("Delete error:", result)
+        alert(result.message || "Error al eliminar el centro de trabajo")
       }
     } catch (error) {
       console.error("Error deleting work center:", error)
@@ -141,7 +163,7 @@ export function WorkCenterDescriptionTab({ workCenter, onUpdate }: WorkCenterDes
                 id="denomination"
                 value={formData.denomination}
                 onChange={(e) => handleChange("denomination", e.target.value)}
-                placeholder="Sucursal 1"
+                placeholder="Ej. Centro Principal"
               />
             </div>
             <div className="space-y-2">
@@ -150,7 +172,7 @@ export function WorkCenterDescriptionTab({ workCenter, onUpdate }: WorkCenterDes
                 id="responsible"
                 value={formData.responsible}
                 onChange={(e) => handleChange("responsible", e.target.value)}
-                placeholder="Responsable 1"
+                placeholder="Ej. Juan Pérez"
               />
             </div>
           </div>
@@ -163,7 +185,7 @@ export function WorkCenterDescriptionTab({ workCenter, onUpdate }: WorkCenterDes
                 id="address"
                 value={formData.address}
                 onChange={(e) => handleChange("address", e.target.value)}
-                placeholder="Gran Vía"
+                placeholder="Ej. Calle Gran Vía"
               />
             </div>
             <div className="space-y-2">
@@ -172,7 +194,7 @@ export function WorkCenterDescriptionTab({ workCenter, onUpdate }: WorkCenterDes
                 id="number"
                 value={formData.number}
                 onChange={(e) => handleChange("number", e.target.value)}
-                placeholder="25"
+                placeholder="Ej. 25"
               />
             </div>
             <div className="space-y-2">
@@ -181,7 +203,7 @@ export function WorkCenterDescriptionTab({ workCenter, onUpdate }: WorkCenterDes
                 id="floor"
                 value={formData.floor}
                 onChange={(e) => handleChange("floor", e.target.value)}
-                placeholder="5º"
+                placeholder="Ej. 5º"
               />
             </div>
             <div className="space-y-2">
@@ -190,7 +212,7 @@ export function WorkCenterDescriptionTab({ workCenter, onUpdate }: WorkCenterDes
                 id="postalCode"
                 value={formData.postalCode}
                 onChange={(e) => handleChange("postalCode", e.target.value)}
-                placeholder="49123"
+                placeholder="Ej. 41001"
               />
             </div>
           </div>
@@ -203,7 +225,7 @@ export function WorkCenterDescriptionTab({ workCenter, onUpdate }: WorkCenterDes
                 id="locality"
                 value={formData.locality}
                 onChange={(e) => handleChange("locality", e.target.value)}
-                placeholder="Sevilla"
+                placeholder="Ej. Sevilla"
               />
             </div>
             <div className="space-y-2">
@@ -212,7 +234,7 @@ export function WorkCenterDescriptionTab({ workCenter, onUpdate }: WorkCenterDes
                 id="province"
                 value={formData.province}
                 onChange={(e) => handleChange("province", e.target.value)}
-                placeholder="Sevilla"
+                placeholder="Ej. Sevilla"
               />
             </div>
             <div className="space-y-2">
@@ -221,7 +243,7 @@ export function WorkCenterDescriptionTab({ workCenter, onUpdate }: WorkCenterDes
                 id="country"
                 value={formData.country}
                 onChange={(e) => handleChange("country", e.target.value)}
-                placeholder="España"
+                placeholder="Ej. España"
               />
             </div>
           </div>
@@ -234,7 +256,7 @@ export function WorkCenterDescriptionTab({ workCenter, onUpdate }: WorkCenterDes
                 id="phone"
                 value={formData.phone}
                 onChange={(e) => handleChange("phone", e.target.value)}
-                placeholder="946123555"
+                placeholder="Ej. 954 123 456"
               />
             </div>
             <div className="space-y-2">
@@ -243,7 +265,7 @@ export function WorkCenterDescriptionTab({ workCenter, onUpdate }: WorkCenterDes
                 id="mobile"
                 value={formData.mobile}
                 onChange={(e) => handleChange("mobile", e.target.value)}
-                placeholder="645888999"
+                placeholder="Ej. +34 600 123 456"
               />
             </div>
             <div className="space-y-2">
@@ -253,7 +275,7 @@ export function WorkCenterDescriptionTab({ workCenter, onUpdate }: WorkCenterDes
                 type="email"
                 value={formData.email}
                 onChange={(e) => handleChange("email", e.target.value)}
-                placeholder="sucursal@cliente1.com"
+                placeholder="Ej. contacto@empresa.com"
               />
             </div>
           </div>
@@ -265,7 +287,7 @@ export function WorkCenterDescriptionTab({ workCenter, onUpdate }: WorkCenterDes
               id="observations"
               value={formData.observations}
               onChange={(e) => handleChange("observations", e.target.value)}
-              placeholder=""
+              placeholder="Ej. Instrucciones especiales, notas adicionales..."
               rows={4}
               className="resize-none"
             />

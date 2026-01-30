@@ -14,7 +14,7 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { useTranslation } from "@/hooks/use-translation";
 import { useAuth } from "@/hooks/use-auth";
-import GoogleAddressInput from "@/components/GoogleAddressInput";
+import GoogleAddressInput, { AddressComponents } from "@/components/GoogleAddressInput";
 
 interface AddWorkCenterModalProps {
   open: boolean;
@@ -36,6 +36,12 @@ export default function AddWorkCenterModal({
   const [formData, setFormData] = useState({
     name: "",
     address: "",
+    street: "",
+    streetNumber: "",
+    floor: "",
+    locality: "",
+    province: "",
+    country: "",
     contactName: "",
     landline: "",
     contactPhone: "",
@@ -95,19 +101,24 @@ export default function AddWorkCenterModal({
       const payload = {
         name: formData.name,
         address: formData.address,
+        street: formData.street,
+        streetNumber: formData.streetNumber,
+        floor: formData.floor,
+        locality: formData.locality,
+        province: formData.province,
+        country: formData.country,
         contactName: formData.contactName,
         landline: formData.landline,
         contactPhone: formData.contactPhone,
         contactEmail: formData.contactEmail,
         postalCode: formData.postalCode,
-        // clientId is taken from the URL, not sent in the body
+        // Include clientId if we're creating for a specific client
+        clientId: clientId || undefined,
       };
 
       const token = session?.accessToken;
-      // If clientId could not be determined, assume employer context and call employer-specific endpoint
-      const url = clientId
-        ? `${process.env.NEXT_PUBLIC_API_BASE_URL}/client/${clientId}/work-centers`
-        : `${process.env.NEXT_PUBLIC_API_BASE_URL}/client/employer/work-centers`;
+      // Use new unified endpoint
+      const url = `${process.env.NEXT_PUBLIC_API_BASE_URL}/work-centers`;
 
       const response = await fetch(url, {
         method: "POST",
@@ -149,6 +160,12 @@ export default function AddWorkCenterModal({
         setFormData({
           name: "",
           address: "",
+          street: "",
+          streetNumber: "",
+          floor: "",
+          locality: "",
+          province: "",
+          country: "",
           contactName: "",
           landline: "",
           contactPhone: "",
@@ -217,6 +234,7 @@ export default function AddWorkCenterModal({
                 id="name"
                 value={formData.name}
                 onChange={(e) => updateFormData("name", e.target.value)}
+                placeholder="Ej. Centro Principal"
                 className={`mt-1 ${
                   validationErrors.name ? "border-red-500" : ""
                 }`}
@@ -250,13 +268,24 @@ export default function AddWorkCenterModal({
               </Label>
               <GoogleAddressInput
                 value={formData.address}
-                onChange={(value, placeId) => {
+                onChange={(value, placeId, components) => {
                   updateFormData("address", value);
+                  
+                  // Parse address components if available
+                  if (components) {
+                    if (components.street) updateFormData("street", components.street);
+                    if (components.streetNumber) updateFormData("streetNumber", components.streetNumber);
+                    if (components.locality) updateFormData("locality", components.locality);
+                    if (components.province) updateFormData("province", components.province);
+                    if (components.country) updateFormData("country", components.country);
+                    if (components.postalCode) updateFormData("postalCode", components.postalCode);
+                  }
+                  
                   if (placeId) {
-                    console.log("Selected Place ID:", placeId); // 👉 send this to backend for validation if needed
+                    console.log("Selected Place ID:", placeId);
                   }
                 }}
-                placeholder="Street, Number, Town..."
+                placeholder="Ej. Calle Gran Vía, 25"
                 className={`mt-1 border p-2 w-full rounded ${
                   validationErrors.address ? "border-red-500" : ""
                 }`}
@@ -279,6 +308,7 @@ export default function AddWorkCenterModal({
                 id="postalCode"
                 value={formData.postalCode}
                 onChange={(e) => updateFormData("postalCode", e.target.value)}
+                placeholder="Ej. 41001"
                 className="mt-1"
               />
             </div>
@@ -294,6 +324,7 @@ export default function AddWorkCenterModal({
                 id="contactName"
                 value={formData.contactName}
                 onChange={(e) => updateFormData("contactName", e.target.value)}
+                placeholder="Ej. Juan Pérez"
                 className="mt-1"
               />
             </div>
@@ -323,6 +354,7 @@ export default function AddWorkCenterModal({
                 id="contactPhone"
                 value={formData.contactPhone}
                 onChange={(e) => updateFormData("contactPhone", e.target.value)}
+                placeholder="Ej. +34 600 123 456"
                 className={`mt-1 ${
                   validationErrors.contactPhone ? "border-red-500" : ""
                 }`}
@@ -345,6 +377,7 @@ export default function AddWorkCenterModal({
                 id="landline"
                 value={formData.landline}
                 onChange={(e) => updateFormData("landline", e.target.value)}
+                placeholder="Ej. 954 123 456"
                 className="mt-1"
               />
             </div>
@@ -360,6 +393,7 @@ export default function AddWorkCenterModal({
                 id="contactEmail"
                 value={formData.contactEmail}
                 onChange={(e) => updateFormData("contactEmail", e.target.value)}
+                placeholder="Ej. contacto@empresa.com"
                 className={`mt-1 ${
                   validationErrors.contactEmail ? "border-red-500" : ""
                 }`}
