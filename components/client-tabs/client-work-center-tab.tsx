@@ -24,12 +24,16 @@ export function ClientWorkCenterTab({ clientId }: ClientWorkCenterTabProps) {
     const fetchWorkCenters = async () => {
       if (!session?.accessToken || !clientId) return
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/client/${clientId}/work-centers`, {
-          headers: {
-            Authorization: `Bearer ${session.accessToken}`,
-            "Content-Type": "application/json",
-          },
-        })
+        // Use new unified endpoint with clientId filter
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_BASE_URL}/work-centers?clientId=${clientId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${session.accessToken}`,
+              "Content-Type": "application/json",
+            },
+          }
+        )
 
         if (!res.ok) throw new Error("Failed to fetch work centers")
         const data = await res.json()

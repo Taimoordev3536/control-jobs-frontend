@@ -9,7 +9,7 @@ import { useTranslation } from "@/hooks/use-translation"
 import { useAuth } from "@/hooks/use-auth"
 
 interface ClientWorkCenterTabProps {
-  clientId: string
+  clientId?: string
 }
 
 export default function Workcenter({ clientId }: ClientWorkCenterTabProps) {
@@ -23,13 +23,16 @@ export default function Workcenter({ clientId }: ClientWorkCenterTabProps) {
   useEffect(() => {
     const fetchWorkCenters = async () => {
       if (!session?.accessToken) return
-      // If clientId is not provided or is the string 'employer' or empty,
-      // call the token-based employer endpoint. Otherwise call the client-specific endpoint.
-      const useEmployerEndpoint = !clientId || clientId === 'employer'
+      // Use new unified work-centers endpoint
+      // For employer config page, fetch employer-owned work centers (no clientId filter)
+      // For client page, filter by clientId
       try {
-        const url = useEmployerEndpoint
-          ? `${process.env.NEXT_PUBLIC_API_BASE_URL}/client/employer/work-centers`
-          : `${process.env.NEXT_PUBLIC_API_BASE_URL}/client/${clientId}/work-centers`
+        let url = `${process.env.NEXT_PUBLIC_API_BASE_URL}/work-centers`
+        
+        // If clientId is provided and is a valid number, filter by it
+        if (clientId && clientId !== 'employer' && !isNaN(Number(clientId))) {
+          url += `?clientId=${clientId}`
+        }
 
         const res = await fetch(url, {
           headers: {
@@ -63,8 +66,8 @@ export default function Workcenter({ clientId }: ClientWorkCenterTabProps) {
     fetchWorkCenters()
   }, [session?.accessToken, clientId])
 
-  const handleRowClick = (id: number) => {
-    router.push(`/work-centers/${id}`)
+  const handleRowClick = (row: any) => {
+    router.push(`/work-centers/${row.id}`)
   }
 
   const columns: any[] = [

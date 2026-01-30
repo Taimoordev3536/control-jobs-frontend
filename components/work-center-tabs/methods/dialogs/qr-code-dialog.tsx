@@ -37,10 +37,12 @@ export function QrCodeDialog({ open, onOpenChange, workCenterId, qrData, onUpdat
   const [isLoading, setIsLoading] = useState(false)
   const [isSendingEmail, setIsSendingEmail] = useState(false)
   const [showEmailInput, setShowEmailInput] = useState(false)
+  const [isRegenerating, setIsRegenerating] = useState(false)
   const [timeUntilExpiry, setTimeUntilExpiry] = useState<string>("") 
 
   const selectedQr = qrType === "STATIC" ? staticQr : dynamicQr
-  const isActive = selectedQr?.isSelected || false
+  // Check both isSelected and isActive for backward compatibility with old data
+  const isActive = selectedQr?.isSelected || selectedQr?.isActive || false
 
   // Fetch QR codes when dialog opens
   useEffect(() => {
@@ -251,15 +253,48 @@ export function QrCodeDialog({ open, onOpenChange, workCenterId, qrData, onUpdat
     }
   }
 
+  const handleRegenerateStaticQr = async () => {
+    if (!session?.accessToken) return
+
+    const confirmed = window.confirm(
+      "¿Estás seguro de regenerar el código QR estático?\n\nEl código anterior quedará inválido y no podrá usarse para fichajes."
+    )
+
+    if (!confirmed) return
+
+    setIsRegenerating(true)
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/work-centers/${workCenterId}/regenerate-static-qr`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${session.accessToken}`,
+            "Content-Type": "application/json",
+          },
+        }
+      )
+
+      if (response.ok) {
+        alert("Código QR estático regenerado correctamente")
+        await fetchQrCodes()
+      } else {
+        const error = await response.json()
+        alert(error.message || "Error al regenerar el código QR")
+      }
+    } catch (error) {
+      console.error("Error regenerating QR:", error)
+      alert("Error al regenerar el código QR")
+    } finally {
+      setIsRegenerating(false)
+    }
+  }
+
   const handleTypeChange = (e: React.MouseEvent, newType: "STATIC" | "DYNAMIC") => {
     e.preventDefault()
     e.stopPropagation()
     setQrType(newType)
-    // Auto-activate when switching types if current type is not active
-    const newQr = newType === "STATIC" ? staticQr : dynamicQr
-    if (!newQr?.isSelected) {
-      handleActivateQrType(newType)
-    }
+    // Don't auto-activate - employer must manually toggle Estado switch
   }
 
   return (
@@ -392,15 +427,28 @@ export function QrCodeDialog({ open, onOpenChange, workCenterId, qrData, onUpdat
                       <Printer className="h-4 w-4" />
                     </Button>
                     {qrType === "STATIC" && (
-                      <Button 
-                        variant="outline" 
-                        size="icon" 
-                        onClick={() => setShowEmailInput(!showEmailInput)}
-                        aria-label="Enviar por email"
-                        title="Enviar QR por email"
-                      >
-                        <Mail className="h-4 w-4" />
-                      </Button>
+                      <>
+                        <Button 
+                          variant="outline" 
+                          size="icon" 
+                          onClick={() => setShowEmailInput(!showEmailInput)}
+                          aria-label="Enviar por email"
+                          title="Enviar QR por email"
+                        >
+                          <Mail className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="icon" 
+                          onClick={handleRegenerateStaticQr}
+                          disabled={isRegenerating}
+                          aria-label="Regenerar"
+                          title="Regenerar QR (el anterior quedará inválido)"
+                          className="text-orange-600 hover:text-orange-700"
+                        >
+                          <RefreshCw className={`h-4 w-4 ${isRegenerating ? 'animate-spin' : ''}`} />
+                        </Button>
+                      </>
                     )}
                     {qrType === "DYNAMIC" && (
                       <Button 
@@ -449,7 +497,7 @@ export function QrCodeDialog({ open, onOpenChange, workCenterId, qrData, onUpdat
               <div className="text-sm text-gray-500 text-center p-4 bg-gray-50 rounded-lg">
                 {qrType === "STATIC" 
                   ? "Activa el QR estático para generar un código permanente"
-                  : "Activa el QR dinámico para generar un código que se actualiza cada 3 minutos"}
+                  : "Activa el QR dinámico para generar un código que se actualiza cada 30 segundos"}
               </div>
             )}
           </div>

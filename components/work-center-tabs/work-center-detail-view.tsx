@@ -76,7 +76,27 @@ export default function WorkCenterDetailView({ workCenterId, onBack }: WorkCente
       
       const result = await response.json()
       if (result.isSuccess && result.data) {
-        setWorkCenter(result.data)
+        // Map backend fields to frontend fields
+        const backendData = result.data
+        setWorkCenter({
+          id: backendData.id,
+          code: backendData.code || `WC${backendData.id.toString().padStart(3, '0')}`,
+          name: backendData.name,
+          denomination: backendData.name, // name -> denomination
+          responsible: backendData.contactName || "", // contactName -> responsible
+          address: backendData.street || backendData.address || "",
+          number: backendData.streetNumber || "",
+          floor: backendData.floor || "",
+          postalCode: backendData.postalCode || "",
+          locality: backendData.locality || "",
+          province: backendData.province || "",
+          country: backendData.country || "",
+          phone: backendData.landline || "",
+          mobile: backendData.contactPhone || "",
+          email: backendData.contactEmail || "",
+          observations: backendData.observations || "",
+          signingMethods: backendData.signingMethods
+        })
       } else {
         // Fallback to sample data if API doesn't return expected format
         loadSampleData()

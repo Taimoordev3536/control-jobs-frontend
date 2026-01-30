@@ -12,6 +12,7 @@ import { LoadingSpinner } from "@/components/dashboard-loader"
 import { useAuth } from "@/hooks/use-auth"
 import { JobAttendanceDetail } from "@/components/job-attendance-detail"
 import { ClientJobCard } from "./client-job-card"
+import { ClientMergedQrDisplay } from "./client-merged-qr-display"
 
 interface ApiJob {
   jobId: number
@@ -155,6 +156,7 @@ export default function ClientDashboard() {
   const [currentView, setCurrentView] = useState("dashboard")
   const [selectedJobDetails, setSelectedJobDetails] = useState<Job | null>(null)
   const [surveyJob, setSurveyJob] = useState<Job | null>(null)
+  const [selectedJobForQr, setSelectedJobForQr] = useState<number | null>(null)
 
   const [clientStats, setClientStats] = useState<ClientStats>({
     totalJobs: 0,
@@ -365,6 +367,20 @@ export default function ClientDashboard() {
     }, 1000)
     return () => clearInterval(timer)
   }, [])
+
+  // Auto-select first job with multiple work centers for merged QR display
+  useEffect(() => {
+    if (jobs.length > 0 && !selectedJobForQr) {
+      const jobWithMultipleWCs = jobs.find((job) => {
+        const rawJob = job as any
+        const workCenters = rawJob.workCenters || []
+        return workCenters.length > 1
+      })
+      if (jobWithMultipleWCs) {
+        setSelectedJobForQr(jobWithMultipleWCs.id)
+      }
+    }
+  }, [jobs])
 
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString("en-US", {
@@ -778,8 +794,10 @@ export default function ClientDashboard() {
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-9 w-64 h-9"
                   />
-                </div>
-                <Button
+                </div>                {/* Show merged QR for selected job if it has multiple work centers */}
+                {selectedJobForQr && (
+                  <ClientMergedQrDisplay jobId={selectedJobForQr} />
+                )}                <Button
                   onClick={handleRetry}
                   variant="outline"
                   size="sm"
