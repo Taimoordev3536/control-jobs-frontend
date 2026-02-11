@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { CheckCircle, Activity, ClipboardList, Search, User, Star, AlertCircle, RefreshCw } from "lucide-react"
+import { CheckCircle, Activity, ClipboardList, Search, User, Star, AlertCircle, RefreshCw, QrCode } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -12,7 +12,6 @@ import { LoadingSpinner } from "@/components/dashboard-loader"
 import { useAuth } from "@/hooks/use-auth"
 import { JobAttendanceDetail } from "@/components/job-attendance-detail"
 import { ClientJobCard } from "./client-job-card"
-import { ClientMergedQrDisplay } from "./client-merged-qr-display"
 
 interface ApiJob {
   jobId: number
@@ -156,7 +155,6 @@ export default function ClientDashboard() {
   const [currentView, setCurrentView] = useState("dashboard")
   const [selectedJobDetails, setSelectedJobDetails] = useState<Job | null>(null)
   const [surveyJob, setSurveyJob] = useState<Job | null>(null)
-  const [selectedJobForQr, setSelectedJobForQr] = useState<number | null>(null)
 
   const [clientStats, setClientStats] = useState<ClientStats>({
     totalJobs: 0,
@@ -367,20 +365,6 @@ export default function ClientDashboard() {
     }, 1000)
     return () => clearInterval(timer)
   }, [])
-
-  // Auto-select first job with multiple work centers for merged QR display
-  useEffect(() => {
-    if (jobs.length > 0 && !selectedJobForQr) {
-      const jobWithMultipleWCs = jobs.find((job) => {
-        const rawJob = job as any
-        const workCenters = rawJob.workCenters || []
-        return workCenters.length > 1
-      })
-      if (jobWithMultipleWCs) {
-        setSelectedJobForQr(jobWithMultipleWCs.id)
-      }
-    }
-  }, [jobs])
 
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString("en-US", {
@@ -794,10 +778,9 @@ export default function ClientDashboard() {
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-9 w-64 h-9"
                   />
-                </div>                {/* Show merged QR for selected job if it has multiple work centers */}
-                {selectedJobForQr && (
-                  <ClientMergedQrDisplay jobId={selectedJobForQr} />
-                )}                <Button
+                </div>
+
+                <Button
                   onClick={handleRetry}
                   variant="outline"
                   size="sm"
@@ -851,16 +834,8 @@ export default function ClientDashboard() {
               {filteredJobs.filter(
                 (job) => job.status === "scheduled" || job.status === "pending" || job.status === "in_progress",
               ).length === 0 && (
-                <div className="col-span-full">
-                  <Card className="border border-border shadow-sm bg-card">
-                    <CardContent className="p-8 text-center">
-                      <ClipboardList className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                      <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-2">{t("activeJobs")}</h3>
-                      <p className="text-gray-600 dark:text-gray-400 text-sm">
-                        {searchTerm ? "No jobs match your search criteria." : t("noJobsCreated")}
-                      </p>
-                    </CardContent>
-                  </Card>
+                <div className="col-span-full text-center py-8 text-gray-500">
+                  <p>{t("noActiveJobs") || "No active jobs found"}</p>
                 </div>
               )}
             </div>

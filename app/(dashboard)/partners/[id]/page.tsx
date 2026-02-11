@@ -8,22 +8,23 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { useTranslation } from "@/hooks/use-translation"
 import dynamic from "next/dynamic"
 import { useAuth } from "@/hooks/use-auth"
+import { AnimatedLoader } from "@/components/animated-loader"
 
 // Import tab components dynamically
 const PartnerDataTab = dynamic(() => import("@/components/partner-tabs/partner-data-tab"), {
-  loading: () => <div className="p-6 text-muted-foreground">Loading...</div>,
+  loading: () => <AnimatedLoader size={24} className="p-6" />,
 })
 const PartnerCommissionsTab = dynamic(() => import("@/components/partner-tabs/partner-commissions-tab"), {
-  loading: () => <div className="p-6 text-muted-foreground">Loading...</div>,
+  loading: () => <AnimatedLoader size={24} className="p-6" />,
 })
 const PartnerEmployersTab = dynamic(() => import("@/components/partner-tabs/partner-employers-tab"), {
-  loading: () => <div className="p-6 text-muted-foreground">Loading...</div>,
+  loading: () => <AnimatedLoader size={24} className="p-6" />,
 })
 const PartnerInvoicesTab = dynamic(() => import("@/components/partner-tabs/partner-invoices-tab"), {
-  loading: () => <div className="p-6 text-muted-foreground">Loading...</div>,
+  loading: () => <AnimatedLoader size={24} className="p-6" />,
 })
 const PartnerWallTab = dynamic(() => import("@/components/partner-tabs/partner-wall-tab"), {
-  loading: () => <div className="p-6 text-muted-foreground">Loading...</div>,
+  loading: () => <AnimatedLoader size={24} className="p-6" />,
 })
 
 export default function PartnerDetailPage() {

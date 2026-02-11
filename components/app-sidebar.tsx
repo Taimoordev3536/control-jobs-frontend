@@ -1,7 +1,6 @@
 "use client"
 
 import { useTranslation } from "@/hooks/use-translation"
-import { QrCode } from "lucide-react"
 
 import BriefcaseIcon from "../icons/Menu/merchants.svg"
 import EmployerIcon from "../icons/Menu/employer.svg"
@@ -203,12 +202,6 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar }: Ap
             href: "/dashboard",
           },
           {
-            id: "qr-code",
-            title: t("qrCode"),
-            icon: () => <QrCode className="h-5 w-5" />,
-            href: "/qr-code",
-          },
-          {
             id: "jobs",
             title: t("jobs"),
             icon: () => <JobsIcon className="h-5 w-5" />,
@@ -244,12 +237,6 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar }: Ap
             title: t("dashboard"),
             icon: () => <TodosIcon className="h-5 w-5" />,
             href: "/dashboard",
-          },
-          {
-            id: "qr-code",
-            title: t("qrCode"),
-            icon: () => <QrCode className="h-5 w-5" />,
-            href: "/qr-code",
           },
           {
             id: "jobs",

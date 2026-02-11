@@ -8,6 +8,7 @@ import { useTranslation } from "@/hooks/use-translation"
 import { useState, useEffect } from "react"
 import AddClientModal from "@/components/add-client-modal"
 import { useAuth } from "@/hooks/use-auth"
+import { AnimatedLoader } from "@/components/animated-loader"
 
 export default function ClientsPage() {
   const router = useRouter()
@@ -125,7 +126,7 @@ export default function ClientsPage() {
         columns={columns}
         onRowClick={handleRowClick}
         actionButtons={actionButtons}
-        emptyMessage={isLoading ? t("loading") : t("noClientsFound")}
+        emptyMessage={isLoading ? <AnimatedLoader size={32} /> : t("noClientsFound")}
       />
 
       <AddClientModal

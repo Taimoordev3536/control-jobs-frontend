@@ -24,8 +24,8 @@ export default withAuth(
       admin: ["/dashboard", "/partners", "/employers", "/invoices", "/commissions", "/rates", "/information", "/utilities", "/aid", "/tasks"],
       partner: ["/dashboard", "/employers", "/billing", "/information", "/utilities", "/aid", "/tasks"],
       // employer: ["/dashboard", "/jobs", "/clients", "/workers", "/surveys", "/information", "/utilities", "/aid", "/tasks"],
-      employer: ["/dashboard", "/jobs", "/clients", "/workers", "/work-centers", "/surveys", "/information", "/utilities", "/aid", "/tasks", "/records", "/qr-code"],
-      client: ["/dashboard", "/jobs", "/surveys", "/information", "/aid", "/tasks", "/records", "/qr-code"],
+      employer: ["/dashboard", "/jobs", "/clients", "/workers", "/work-centers", "/surveys", "/information", "/utilities", "/aid", "/tasks", "/records"],
+      client: ["/dashboard", "/jobs", "/surveys", "/information", "/aid", "/tasks", "/records"],
       worker: ["/dashboard", "/jobs", "/occupation", "/surveys", "/information", "/aid", "/tasks", "/records"],
     }
 

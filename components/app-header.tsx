@@ -15,7 +15,7 @@ import { useAuth } from "@/hooks/use-auth"
 import { useEffect, useRef, useState } from "react"
 import { useNotifications } from "@/components/providers/notification-provider"
 import { X } from "lucide-react"
-import { QrKioskDialog } from "./qr-kiosk-dialog"
+import { ClientTodayMergedQrDisplay } from "./dashboards/client-dashboard/client-today-merged-qr-display"
 
 interface AppHeaderProps {
   collapsed: boolean
@@ -28,7 +28,7 @@ export function AppHeader({ collapsed, toggleSidebar }: AppHeaderProps) {
   const [mobileDropdownOpen, setMobileDropdownOpen] = useState(false)
   const { unreadCount, items, markAllRead, dismiss } = useNotifications()
   const [notifOpen, setNotifOpen] = useState(false)
-  const [qrKioskOpen, setQrKioskOpen] = useState(false)
+  const [todayQrOpen, setTodayQrOpen] = useState(false)
   const notifRef = useRef<HTMLDivElement | null>(null)
   const userRole = getUserRole()
 
@@ -124,10 +124,10 @@ export function AppHeader({ collapsed, toggleSidebar }: AppHeaderProps) {
           {userRole === 'client' && (
             <button 
               className="header-icon-button"
-              onClick={() => setQrKioskOpen(true)}
+              onClick={() => setTodayQrOpen(true)}
             >
               <QrCode className="h-6 w-6" />
-              <span className="tooltip">{t("QR Kiosk") || "QR Check-In"}</span>
+              <span className="tooltip">{t("todayQr") || "Today's QR"}</span>
             </button>
           )}
           <button className="header-icon-button">
@@ -186,8 +186,8 @@ export function AppHeader({ collapsed, toggleSidebar }: AppHeaderProps) {
         <UserDropdown />
       </div>
 
-      {/* QR Kiosk Dialog */}
-      <QrKioskDialog open={qrKioskOpen} onOpenChange={setQrKioskOpen} />
+      {/* Today's Merged QR Dialog */}
+      <ClientTodayMergedQrDisplay open={todayQrOpen} onOpenChange={setTodayQrOpen} />
     </header>
   )
 }

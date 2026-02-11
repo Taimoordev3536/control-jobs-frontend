@@ -7,6 +7,7 @@ import DataListTemplate, { ExcelIcon, CsvIcon, PdfIcon } from "@/components/ui/d
 import AddWorkCenterModal from "@/components/add-work-center-modal"
 import { useTranslation } from "@/hooks/use-translation"
 import { useAuth } from "@/hooks/use-auth"
+import { AnimatedLoader } from "@/components/animated-loader"
 
 interface ClientWorkCenterTabProps {
   clientId: string
@@ -19,10 +20,12 @@ export function ClientWorkCenterTab({ clientId }: ClientWorkCenterTabProps) {
 
   const [workCenters, setWorkCenters] = useState<any[]>([])
   const [isAddOpen, setIsAddOpen] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     const fetchWorkCenters = async () => {
       if (!session?.accessToken || !clientId) return
+      setIsLoading(true)
       try {
         // Use new unified endpoint with clientId filter
         const res = await fetch(
@@ -54,6 +57,8 @@ export function ClientWorkCenterTab({ clientId }: ClientWorkCenterTabProps) {
         setWorkCenters(mapped)
       } catch (err) {
         setWorkCenters([])
+      } finally {
+        setIsLoading(false)
       }
     }
 
@@ -125,7 +130,7 @@ export function ClientWorkCenterTab({ clientId }: ClientWorkCenterTabProps) {
         columns={columns}
         onRowClick={handleRowClick}
         actionButtons={actionButtons}
-        emptyMessage={t("noDataAvailableInTable")}
+        emptyMessage={isLoading ? <AnimatedLoader size={32} /> : t("noDataAvailableInTable")}
       />
 
       <AddWorkCenterModal

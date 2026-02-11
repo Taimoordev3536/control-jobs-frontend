@@ -44,7 +44,7 @@ interface DataListTemplateProps {
   itemsPerPage?: number
   totalRecords?: number
   showPagination?: boolean
-  emptyMessage?: string
+  emptyMessage?: string | React.ReactNode
 }
 
 export default function DataListTemplate({
@@ -318,7 +318,11 @@ export default function DataListTemplate({
         {/* Table */}
         {(sortedData?.length ?? 0) === 0 ? (
           <div className="p-12 text-center">
-            <p className="text-muted-foreground text-lg">{emptyMessage}</p>
+            {typeof emptyMessage === 'string' ? (
+              <p className="text-muted-foreground text-lg">{emptyMessage}</p>
+            ) : (
+              emptyMessage
+            )}
           </div>
         ) : (
           <div className="overflow-x-auto">

@@ -22,6 +22,7 @@ import {
   CheckSquare,
   Square,
   FileText,
+  RefreshCw,
 } from "lucide-react";
 import { useTranslation } from "@/hooks/use-translation";
 import { useAuth } from "@/hooks/use-auth";
@@ -36,6 +37,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { AnimatedLoader } from "@/components/animated-loader";
 import ClientIcon from "@/icons/Menu/clients.svg";
 import JobsIcon from "@/icons/Menu/Jobs.svg";
 
@@ -299,9 +301,7 @@ export function CurrentJobCard({
               {/* Tasks List */}
               <div className="space-y-2">
                 {loadingTasks ? (
-                  <div className="text-center py-4 text-gray-500">
-                    {t("loading")}...
-                  </div>
+                  <AnimatedLoader size={24} className="text-center py-4" />
                 ) : todayTasks && selectedWorkCenter ? (
                   (() => {
                     const workCenter = todayTasks.workCenters.find(
@@ -357,10 +357,16 @@ export function CurrentJobCard({
                                         handleTaskToggleConfirm(task.id)
                                       }
                                       disabled={loadingTasks}
+                                      className="flex items-center gap-2"
                                     >
-                                      {loadingTasks
-                                        ? t("loading") + "..."
-                                        : t("confirm")}
+                                      {loadingTasks ? (
+                                        <>
+                                          <RefreshCw className="h-4 w-4 animate-spin" />
+                                          {t("loading")}
+                                        </>
+                                      ) : (
+                                        t("confirm")
+                                      )}
                                     </AlertDialogAction>
                                   </AlertDialogFooter>
                                 </AlertDialogContent>

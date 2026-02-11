@@ -1,12 +1,15 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef, forwardRef } from "react"
 import { Printer, Mail, RefreshCw, QrCode } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { useAuth } from "@/hooks/use-auth"
 import { Input } from "@/components/ui/input"
+import { AnimatedLoader } from "@/components/animated-loader"
+import ControlJobsLogo from "@/icons/Logos/ControlJobs.svg"
+import { useReactToPrint } from "react-to-print"
 
 interface QrCodeData {
   id: string
@@ -19,6 +22,19 @@ interface QrCodeData {
   lastRefreshedAt?: string
 }
 
+interface WorkCenterData {
+  id: number
+  name: string
+  job?: {
+    id: number
+    name: string
+    client?: {
+      id: number
+      name: string
+    }
+  }
+}
+
 interface QrCodeDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -26,6 +42,63 @@ interface QrCodeDialogProps {
   qrData?: { active: boolean; code: string }
   onUpdate: () => void
 }
+
+// Printable QR Component
+interface PrintableQrProps {
+  qrImage: string
+  workCenterName: string
+  clientName: string
+}
+
+const PrintableQr = forwardRef<HTMLDivElement, PrintableQrProps>(({ qrImage, workCenterName, clientName }, ref) => (
+  <div ref={ref} style={{ 
+    width: '210mm',
+    height: '297mm',
+    margin: 0, 
+    padding: '12px',
+    backgroundColor: 'white',
+    display: 'flex',
+    boxSizing: 'border-box' as const,
+  }}>
+    <div style={{
+      backgroundColor: '#a6a6a6',
+      width: '100%',
+      flex: 1,
+      padding: '4mm',
+      display: 'flex',
+      flexDirection: 'column' as const,
+      boxSizing: 'border-box' as const,
+    }}>
+      <div style={{ backgroundColor: 'white', margin: '0 12px 35px', padding: '40px' }}>
+        <h1 style={{ fontSize: '3rem', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'black', textAlign: 'center', margin: 0 }}>
+          {workCenterName}
+        </h1>
+      </div>
+      
+      <div style={{ backgroundColor: 'white', margin: '0 12px 35px', padding: '24px', flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        {qrImage ? (
+          <img src={qrImage} alt="QR Code" style={{ width: '500px', height: '500px', objectFit: 'contain' }} crossOrigin="anonymous" />
+        ) : (
+          <div style={{ width: '500px', height: '500px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f3f4f6', border: '2px dashed #d1d5db' }}>
+            <span style={{ color: '#6b7280' }}>QR Code</span>
+          </div>
+        )}
+      </div>
+      
+      <div style={{ backgroundColor: 'white', margin: '0 12px 35px', padding: '40px' }}>
+        <h2 style={{ fontSize: '2.25rem', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'black', textAlign: 'center', margin: 0 }}>
+          {clientName}
+        </h2>
+      </div>
+      
+      <div style={{ padding: '32px 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '24px' }}>
+        <span style={{ color: '#1f2937', fontSize: '1.5rem', fontWeight: '500' }}>Powered by</span>
+        <ControlJobsLogo style={{ height: '48px', width: '192px', opacity: 0.9 }} />
+      </div>
+    </div>
+  </div>
+))
+PrintableQr.displayName = 'PrintableQr'
 
 export function QrCodeDialog({ open, onOpenChange, workCenterId, qrData, onUpdate }: QrCodeDialogProps) {
   const { session } = useAuth()
@@ -38,16 +111,40 @@ export function QrCodeDialog({ open, onOpenChange, workCenterId, qrData, onUpdat
   const [isSendingEmail, setIsSendingEmail] = useState(false)
   const [showEmailInput, setShowEmailInput] = useState(false)
   const [isRegenerating, setIsRegenerating] = useState(false)
-  const [timeUntilExpiry, setTimeUntilExpiry] = useState<string>("") 
+  const [timeUntilExpiry, setTimeUntilExpiry] = useState<string>("")
+  const [workCenterData, setWorkCenterData] = useState<WorkCenterData | null>(null) 
+  const printRef = useRef<HTMLDivElement>(null)
 
   const selectedQr = qrType === "STATIC" ? staticQr : dynamicQr
   // Check both isSelected and isActive for backward compatibility with old data
   const isActive = selectedQr?.isSelected || selectedQr?.isActive || false
 
+const handlePrint = useReactToPrint({
+  contentRef: printRef,
+  documentTitle: '',
+  pageStyle: `
+    @page { size: A4; margin: 0 !important; }
+    html, body { margin: 0 !important; padding: 0 !important; background: white !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  `,
+})
+
+
+  const printQr = () => {
+    if (!selectedQr?.qrImage) {
+      alert("No hay código QR disponible para imprimir")
+      return
+    }
+    console.log('Print ref:', printRef.current)
+    console.log('Selected QR:', selectedQr)
+    handlePrint()
+  }
+
   // Fetch QR codes when dialog opens
   useEffect(() => {
     if (!open || !session?.accessToken) return
     fetchQrCodes()
+    fetchWorkCenterDetails()
   }, [open, session?.accessToken, workCenterId])
 
   // Update expiry countdown for dynamic QR
@@ -107,6 +204,40 @@ export function QrCodeDialog({ open, onOpenChange, workCenterId, qrData, onUpdat
       console.error("Error fetching QR codes:", error)
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const fetchWorkCenterDetails = async () => {
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/work-centers/${workCenterId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${session?.accessToken}`,
+          },
+        }
+      )
+
+      if (response.ok) {
+        const result = await response.json()
+        if (result.isSuccess && result.data) {
+          const data = result.data
+          setWorkCenterData({
+            id: data.id,
+            name: data.name,
+            job: data.job ? {
+              id: data.job.id,
+              name: data.job.name || data.job.description,
+              client: data.job.client ? {
+                id: data.job.client.id,
+                name: data.job.client.name || data.job.client.razonSocial
+              } : undefined
+            } : undefined
+          })
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching work center details:", error)
     }
   }
 
@@ -176,46 +307,6 @@ export function QrCodeDialog({ open, onOpenChange, workCenterId, qrData, onUpdat
     } finally {
       setIsSaving(false)
     }
-  }
-
-  const handlePrint = () => {
-    if (!selectedQr?.qrImage) return
-    const printWindow = window.open("", "_blank", "noopener,noreferrer")
-    if (!printWindow) return
-
-    printWindow.document.open()
-    printWindow.document.write(`
-      <!doctype html>
-      <html>
-        <head>
-          <meta charset="utf-8" />
-          <title>Código QR - ${qrType}</title>
-          <style>
-            html, body { height: 100%; margin: 0; }
-            body { display: grid; place-items: center; font-family: sans-serif; }
-            .container { text-align: center; }
-            img { width: 320px; height: 320px; margin: 20px; }
-            h2 { color: #6B21A8; margin: 10px; }
-            p { color: #666; font-size: 14px; }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <h2>Código QR ${qrType === 'STATIC' ? 'Estático' : 'Dinámico'}</h2>
-            <img src="${selectedQr.qrImage}" alt="QR Code" />
-            <p>Centro de Trabajo #${workCenterId}</p>
-          </div>
-          <script>
-            window.onload = () => {
-              window.focus();
-              window.print();
-              setTimeout(() => window.close(), 250);
-            };
-          </script>
-        </body>
-      </html>
-    `)
-    printWindow.document.close()
   }
 
   const handleSendEmail = async () => {
@@ -314,9 +405,7 @@ export function QrCodeDialog({ open, onOpenChange, workCenterId, qrData, onUpdat
         </DialogHeader>
 
         {isLoading ? (
-          <div className="flex justify-center py-8">
-            <RefreshCw className="h-8 w-8 animate-spin text-[#6B21A8]" />
-          </div>
+          <AnimatedLoader size={32} className="py-8" />
         ) : (
           <div className="space-y-6">
             {/* QR Type Toggle */}
@@ -420,7 +509,7 @@ export function QrCodeDialog({ open, onOpenChange, workCenterId, qrData, onUpdat
                     <Button 
                       variant="outline" 
                       size="icon" 
-                      onClick={handlePrint} 
+                      onClick={printQr} 
                       aria-label="Imprimir"
                       title="Imprimir QR"
                     >
@@ -503,6 +592,16 @@ export function QrCodeDialog({ open, onOpenChange, workCenterId, qrData, onUpdat
           </div>
         )}
       </DialogContent>
+      
+      {/* Hidden printable component */}
+      <div style={{ display: 'none' }}>
+        <PrintableQr 
+          ref={printRef}
+          qrImage={selectedQr?.qrImage || ''}
+          workCenterName={workCenterData?.name || "WORKCENTER 1"}
+          clientName={workCenterData?.job?.client?.name || "CLIENTE"}
+        />
+      </div>
     </Dialog>
   )
 }

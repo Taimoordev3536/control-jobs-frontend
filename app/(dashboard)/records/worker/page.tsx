@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { AnimatedLoader } from "@/components/animated-loader"
 
 import DataListTemplate, { ExcelIcon, CsvIcon, PdfIcon } from "@/components/ui/data-list-template"
 import { exportToCSV, exportToXLSX, exportToPDF } from "@/lib/export"
@@ -105,7 +106,7 @@ export default function WorkerRecordsPage() {
       columns={columns}
       onRowClick={handleRowClick}
       actionButtons={actionButtons}
-      emptyMessage={isLoading ? "Loading..." : "No records found"}
+      emptyMessage={isLoading ? <AnimatedLoader size={32} /> : "No records found"}
       role="worker"
     />
   )

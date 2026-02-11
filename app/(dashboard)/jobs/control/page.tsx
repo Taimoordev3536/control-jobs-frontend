@@ -12,19 +12,20 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
+import { AnimatedLoader } from "@/components/animated-loader"
 
 // Import tab components dynamically
 const ControlAlertTab = dynamic(() => import("@/components/control-tabs/control-alert-tab"), {
-  loading: () => <div className="p-6 text-muted-foreground">{/* Loading... */}</div>,
+  loading: () => <AnimatedLoader size={24} className="p-6" />,
 })
 const ControlSigningsTab = dynamic(() => import("@/components/control-tabs/control-signings-tab"), {
-  loading: () => <div className="p-6 text-muted-foreground">{/* Loading... */}</div>,
+  loading: () => <AnimatedLoader size={24} className="p-6" />,
 })
 const ControlTasksTab = dynamic(() => import("@/components/control-tabs/control-tasks-tab"), {
-  loading: () => <div className="p-6 text-muted-foreground">{/* Loading... */}</div>,
+  loading: () => <AnimatedLoader size={24} className="p-6" />,
 })
 const ControlSurveysTab = dynamic(() => import("@/components/control-tabs/control-surveys-tab"), {
-  loading: () => <div className="p-6 text-muted-foreground">{/* Loading... */}</div>,
+  loading: () => <AnimatedLoader size={24} className="p-6" />,
 })
 
 // Import SVG icons

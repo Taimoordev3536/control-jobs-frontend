@@ -14,6 +14,7 @@ import { useTranslation } from "@/hooks/use-translation"
 import { useAuth } from "@/hooks/use-auth"
 import { useState, useEffect } from "react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { AnimatedLoader } from "@/components/animated-loader"
 
 interface ClientDataTabProps {
   clientId: string
@@ -171,12 +172,7 @@ export function ClientDataTab({ clientId }: ClientDataTabProps) {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center p-8">
-        <div className="flex items-center gap-2">
-          <Loader2 className="h-6 w-6 animate-spin" />
-          <span className="text-lg">{t("loading") || "Loading..."}</span>
-        </div>
-      </div>
+      <AnimatedLoader size={32} className="p-8" />
     )
   }
 

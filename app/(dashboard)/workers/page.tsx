@@ -8,6 +8,7 @@ import { Plus, Filter } from "lucide-react"
 import { useTranslation } from "@/hooks/use-translation"
 import { useState, useEffect } from "react"
 import { useAuth } from "@/hooks/use-auth"
+import { AnimatedLoader } from "@/components/animated-loader"
 
 export default function WorkersPage() {
   const router = useRouter()
@@ -141,7 +142,7 @@ export default function WorkersPage() {
         columns={columns}
         onRowClick={handleRowClick}
         actionButtons={actionButtons}
-        emptyMessage={isLoading ? t("loading") : t("noWorkersFound")}
+        emptyMessage={isLoading ? <AnimatedLoader size={32} /> : t("noWorkersFound")}
         totalRecords={workers.length}
         currentPage={1}
         totalPages={1}

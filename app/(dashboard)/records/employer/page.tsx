@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
 import { useTranslation } from "@/hooks/use-translation"
+import { AnimatedLoader } from "@/components/animated-loader"
 
 import FilterIcon1 from "../../../../icons/Controles/filter1.svg"
 import DataListTemplate, { ExcelIcon, CsvIcon, PdfIcon } from "@/components/ui/data-list-template"
@@ -149,7 +150,7 @@ export default function EmployerRecordsPage() {
       columns={columns}
       onRowClick={handleRowClick}
       actionButtons={actionButtons}
-      emptyMessage={isLoading ? t("loading") : t("noRecordsFound")}
+      emptyMessage={isLoading ? <AnimatedLoader size={32} /> : t("noRecordsFound")}
       role="employer"
     />
   )

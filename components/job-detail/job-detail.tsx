@@ -5,19 +5,20 @@ import { useState } from "react"
 import { MoreVertical } from "lucide-react"
 import { useTranslation } from "@/hooks/use-translation"
 import dynamic from "next/dynamic"
+import { AnimatedLoader } from "@/components/animated-loader"
 
 // Import tab components dynamically
 const AttendanceTab = dynamic(() => import("../job-attendance-detail"), {
-  loading: () => <div className="p-6 text-muted-foreground">Loading...</div>,
+  loading: () => <AnimatedLoader size={24} className="p-6" />,
 })
 const TasksTab = dynamic(() => import("./tasks"), {
-  loading: () => <div className="p-6 text-muted-foreground">Loading...</div>,
+  loading: () => <AnimatedLoader size={24} className="p-6" />,
 })
 const JobScheduleTab = dynamic(() => import("./job-schedule"), {
-  loading: () => <div className="p-6 text-muted-foreground">Loading...</div>,
+  loading: () => <AnimatedLoader size={24} className="p-6" />,
 })
 const SurveysTab = dynamic(() => import("./surveys"), {
-  loading: () => <div className="p-6 text-muted-foreground">Loading...</div>,
+  loading: () => <AnimatedLoader size={24} className="p-6" />,
 })
 
 // Import SVG icons

@@ -6,6 +6,7 @@ import { useTranslation } from "@/hooks/use-translation"
 import { useAuth } from "@/hooks/use-auth"
 import { WorkCenterDescriptionTab } from "@/components/work-center-tabs/work-center-description-tab"
 import { WorkCenterMethodsTab } from "@/components/work-center-tabs/methods/work-center-methods-tab"
+import { AnimatedLoader } from "@/components/animated-loader"
 
 interface WorkCenterDetailViewProps {
   workCenterId: string
@@ -155,9 +156,7 @@ export default function WorkCenterDetailView({ workCenterId, onBack }: WorkCente
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-lg">{t("loading")}...</div>
-      </div>
+      <AnimatedLoader size={32} className="py-12" />
     )
   }
 

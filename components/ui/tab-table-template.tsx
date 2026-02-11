@@ -5,6 +5,7 @@ import { useState, useMemo } from "react"
 import { ChevronUp, ChevronDown } from "lucide-react"
 import { useTranslation } from "@/hooks/use-translation"
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd"
+import { AnimatedLoader } from "@/components/animated-loader"
 
 export interface TabTableColumn {
   key: string
@@ -18,7 +19,7 @@ interface TabTableTemplateProps {
   columns: TabTableColumn[]
   data?: any[]
   loading?: boolean
-  emptyMessage?: string
+  emptyMessage?: string | React.ReactNode
   onRowClick?: (row: any) => void
   className?: string
   itemsPerPage?: number
@@ -248,7 +249,13 @@ export default function TabTableTemplate({
                     colSpan={columns.length}
                     className="px-6 py-2 text-center text-muted-foreground text-lg border border-gray-300 dark:border-gray-700"
                   >
-                    {emptyMessage}
+                    {loading ? (
+                      <AnimatedLoader size={32} className="py-4" />
+                    ) : typeof emptyMessage === 'string' ? (
+                      emptyMessage
+                    ) : (
+                      emptyMessage
+                    )}
                   </td>
                 </tr>
               ) : (

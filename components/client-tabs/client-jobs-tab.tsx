@@ -1,6 +1,6 @@
 "use client"
 
-// import { TabTableTemplate, type TabTableColumn } from "@/components/ui/tab-table-template"
+import { useState, useEffect } from "react"
 import TabTableTemplate, { type TabTableColumn } from "@/components/ui/tab-table-template"
 import { useTranslation } from "@/hooks/use-translation"
 
@@ -10,6 +10,13 @@ interface ClientJobsTabProps {
 
 export function ClientJobsTab({ clientId }: ClientJobsTabProps) {
   const { t } = useTranslation()
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    // Simulate loading - replace with actual API call when ready
+    const timer = setTimeout(() => setIsLoading(false), 500)
+    return () => clearTimeout(timer)
+  }, [clientId])
 
   const columns: TabTableColumn[] = [
     { key: "denomination", label: t("denomination"), sortable: true },
@@ -20,5 +27,5 @@ export function ClientJobsTab({ clientId }: ClientJobsTabProps) {
   // Mock data - empty as shown in screenshot
   const jobs: any[] = []
 
-  return <TabTableTemplate columns={columns} data={jobs} loading={false} emptyMessage={t("noDataAvailableInTable")} />
+  return <TabTableTemplate columns={columns} data={jobs} loading={isLoading} emptyMessage={t("noDataAvailableInTable")} />
 }
