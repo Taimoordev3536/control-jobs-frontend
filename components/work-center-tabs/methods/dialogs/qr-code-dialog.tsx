@@ -504,7 +504,7 @@ const handlePrint = useReactToPrint({
 
               {/* Action Buttons */}
               <div className="flex items-center gap-2">
-                {selectedQr?.isSelected && (
+                {selectedQr?.isSelected && qrType === "STATIC" && (
                   <>
                     <Button 
                       variant="outline" 
@@ -515,41 +515,26 @@ const handlePrint = useReactToPrint({
                     >
                       <Printer className="h-4 w-4" />
                     </Button>
-                    {qrType === "STATIC" && (
-                      <>
-                        <Button 
-                          variant="outline" 
-                          size="icon" 
-                          onClick={() => setShowEmailInput(!showEmailInput)}
-                          aria-label="Enviar por email"
-                          title="Enviar QR por email"
-                        >
-                          <Mail className="h-4 w-4" />
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="icon" 
-                          onClick={handleRegenerateStaticQr}
-                          disabled={isRegenerating}
-                          aria-label="Regenerar"
-                          title="Regenerar QR (el anterior quedará inválido)"
-                          className="text-orange-600 hover:text-orange-700"
-                        >
-                          <RefreshCw className={`h-4 w-4 ${isRegenerating ? 'animate-spin' : ''}`} />
-                        </Button>
-                      </>
-                    )}
-                    {qrType === "DYNAMIC" && (
-                      <Button 
-                        variant="outline" 
-                        size="icon" 
-                        onClick={fetchQrCodes}
-                        aria-label="Refrescar"
-                        title="Refrescar QR dinámico"
-                      >
-                        <RefreshCw className="h-4 w-4" />
-                      </Button>
-                    )}
+                    <Button 
+                      variant="outline" 
+                      size="icon" 
+                      onClick={() => setShowEmailInput(!showEmailInput)}
+                      aria-label="Enviar por email"
+                      title="Enviar QR por email"
+                    >
+                      <Mail className="h-4 w-4" />
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="icon" 
+                      onClick={handleRegenerateStaticQr}
+                      disabled={isRegenerating}
+                      aria-label="Regenerar"
+                      title="Regenerar QR (el anterior quedará inválido)"
+                      className="text-orange-600 hover:text-orange-700"
+                    >
+                      <RefreshCw className={`h-4 w-4 ${isRegenerating ? 'animate-spin' : ''}`} />
+                    </Button>
                   </>
                 )}
               </div>

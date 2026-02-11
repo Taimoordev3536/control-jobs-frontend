@@ -17,15 +17,19 @@ import { AnimatedLoader } from "@/components/animated-loader"
 // Import tab components dynamically
 const ControlAlertTab = dynamic(() => import("@/components/control-tabs/control-alert-tab"), {
   loading: () => <AnimatedLoader size={24} className="p-6" />,
+  ssr: false,
 })
 const ControlSigningsTab = dynamic(() => import("@/components/control-tabs/control-signings-tab"), {
   loading: () => <AnimatedLoader size={24} className="p-6" />,
+  ssr: false,
 })
 const ControlTasksTab = dynamic(() => import("@/components/control-tabs/control-tasks-tab"), {
   loading: () => <AnimatedLoader size={24} className="p-6" />,
+  ssr: false,
 })
 const ControlSurveysTab = dynamic(() => import("@/components/control-tabs/control-surveys-tab"), {
   loading: () => <AnimatedLoader size={24} className="p-6" />,
+  ssr: false,
 })
 
 // Import SVG icons
@@ -107,7 +111,7 @@ function MobileDropdown({
   )
 }
 
-export default function JobsControlPage() {
+function JobsControlPage() {
   const { t } = useTranslation()
   const [activeTab, setActiveTab] = useState("alerts")
   const [showAddJobModal, setShowAddJobModal] = useState(false)
@@ -348,3 +352,6 @@ export default function JobsControlPage() {
     </div>
   )
 }
+
+// Export as dynamic component to avoid SSR issues with SVG imports
+export default dynamic(() => Promise.resolve(JobsControlPage), { ssr: false })

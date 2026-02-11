@@ -218,8 +218,8 @@ export default function JobFormCore({
     try {
       // Use employer endpoint if creating job for themselves
       const endpoint = isEmployerSelf
-        ? `${process.env.NEXT_PUBLIC_API_BASE_URL}/client/employer/work-centers`
-        : `${process.env.NEXT_PUBLIC_API_BASE_URL}/client/${clientIdNum}/work-centers`;
+        ? `${process.env.NEXT_PUBLIC_API_BASE_URL}/work-centers`
+        : `${process.env.NEXT_PUBLIC_API_BASE_URL}/work-centers?clientId=${clientIdNum}`;
 
       const data = await fetchWithAuth(endpoint);
       const apiCenters = Array.isArray(data) ? data : data?.data || [];
@@ -2064,6 +2064,13 @@ export default function JobFormCore({
   useEffect(() => {
     fetchWorkCenters();
   }, [fetchWorkCenters]);
+
+  // Ensure work centers are fetched when clientId changes (important for edit mode)
+  useEffect(() => {
+    if (formData.clientId && formData.clientId !== "") {
+      fetchWorkCenters();
+    }
+  }, [formData.clientId, fetchWorkCenters]);
 
   useEffect(() => {
     if (formData.scheduleType === "programming") {
