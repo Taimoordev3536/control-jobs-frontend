@@ -280,68 +280,71 @@ export function CheckInProcess({ job, method, token, onBack, onComplete }: Check
 
       console.log("QR Token detected:", qrData)
 
-      // Attempt to detect if this is a merged (dynamic multi-WC) token
       const isMerged = isMergedToken(qrData)
 
-      if (isMerged && location) {
-        // ── Dynamic QR: Hybrid GPS approach ──────────────────────────────
+      if (isMerged) {
+        // ── Merged / Dynamic QR: ALWAYS go through GPS → selector path ──
+        // Static QR already identifies work center from the token itself.
+        // Merged QR can belong to multiple work centers — we MUST use GPS
+        // to pick the right one, or ask the worker to choose manually.
         const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001"
-        const res = await fetch(`${baseUrl}/work-centers/check-in/gps-select`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-          body: JSON.stringify({
-            qrToken: qrData,
-            latitude: location.latitude,
-            longitude: location.longitude,
-          }),
-        })
 
-        if (res.ok) {
-          const { data } = await res.json()
+        let selectionData: any = null
 
-          if (data.selectionType === "auto" && data.workCenterId) {
-            // GPS found exactly one WC — auto check-in
-            toast({ title: "QR Code Verified", description: "Work center identified automatically from your location." })
-            setQrStatus("completed")
-            await recordScan(qrData, data.workCenterId)
-            return
+        if (location) {
+          // We have GPS — call backend to find the nearest work center
+          const res = await fetch(`${baseUrl}/work-centers/check-in/gps-select`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+            body: JSON.stringify({
+              qrToken: qrData,
+              latitude: location.latitude,
+              longitude: location.longitude,
+            }),
+          })
+          if (res.ok) {
+            const body = await res.json()
+            selectionData = body.data
           }
+        } else {
+          // No GPS — fetch work center list for manual pick (send 0,0 so backend returns all WCs)
+          const res = await fetch(`${baseUrl}/work-centers/check-in/gps-select`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ qrToken: qrData, latitude: 0, longitude: 0 }),
+          })
+          if (res.ok) {
+            const body = await res.json()
+            selectionData = body.data
+          }
+        }
 
-          // Manual selection required
-          setPendingQrToken(qrData)
-          setAvailableWorkCenters(data.workCenters || [])
-          setSelectorReason(data.message || "")
-          setShowWorkCenterSelector(true)
+        if (selectionData?.selectionType === "auto" && selectionData.workCenterId) {
+          // GPS found exactly one WC within range → auto check-in
+          toast({
+            title: "Work Center Found",
+            description: `Checking in at: ${selectionData.message}`,
+          })
+          setQrStatus("completed")
+          await recordScan(qrData, selectionData.workCenterId)
           return
         }
-        // GPS select API failed — fall through to manual selection with empty list
+
+        // No GPS match OR multiple matches OR API failed → ALWAYS show selector
+        // Worker MUST pick a work center manually — never auto-checkin without WC
         setPendingQrToken(qrData)
-        setAvailableWorkCenters([])
-        setSelectorReason("GPS selection unavailable. Please select your work center manually.")
+        setAvailableWorkCenters(selectionData?.workCenters || [])
+        setSelectorReason(
+          location
+            ? (selectionData?.message || "No work center found near your location. Please select manually.")
+            : "GPS is unavailable. Please select your work center."
+        )
         setShowWorkCenterSelector(true)
         return
       }
 
-      // ── Dynamic QR without GPS, or Static QR ─────────────────────────
-      if (isMerged && !location) {
-        // No GPS — go straight to manual selection via API (no coordinates)
-        const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001"
-        const res = await fetch(`${baseUrl}/work-centers/check-in/gps-select`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ qrToken: qrData, latitude: 0, longitude: 0 }),
-        })
-        if (res.ok) {
-          const { data } = await res.json()
-          setPendingQrToken(qrData)
-          setAvailableWorkCenters(data.workCenters || [])
-          setSelectorReason("GPS is unavailable. Please select your work center.")
-          setShowWorkCenterSelector(true)
-          return
-        }
-      }
-
-      // Static QR — direct validation on backend
+      // ── Static QR: work center is embedded in the token itself ──────────
+      // No GPS needed — the WC is identified on the backend from the token.
       toast({ title: "QR Code Verified", description: "Sending check-in to the server..." })
       setQrStatus("completed")
       await recordScan(qrData)
