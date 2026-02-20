@@ -399,6 +399,8 @@ export function CheckInProcess({ job, method, token, onBack, onComplete }: Check
       return { title: "Invalid QR Code", description: "The QR code has expired or is not valid. Please scan again." }
     if (msg.includes("does not belong to this job"))
       return { title: "Wrong Location", description: "The selected work center is not part of this job." }
+    if (msg.includes("away from") || msg.includes("within") && msg.includes("m of the work center"))
+      return { title: "Too Far Away", description: raw }
     if (msg.includes("worker not found") || msg.includes("user not found"))
       return { title: "Account Error", description: "Your worker account could not be found. Please log in again." }
     return { title: "Check-In Failed", description: raw }
