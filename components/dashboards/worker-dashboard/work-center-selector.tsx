@@ -55,7 +55,18 @@ export function WorkCenterSelector({
       </CardHeader>
 
       <CardContent className="space-y-2">
-        {sorted.map((wc) => {
+        {sorted.length === 0 ? (
+          <div className="py-6 text-center">
+            <MapPin className="w-8 h-8 text-orange-400 mx-auto mb-2" />
+            <p className="text-sm text-orange-800 dark:text-orange-200 font-medium">
+              No work centers available for this job.
+            </p>
+            <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">
+              The scanned QR code does not contain any work centers that belong to this job.
+            </p>
+          </div>
+        ) : (
+          sorted.map((wc) => {
           const dist = formatDistance(wc.distance)
           return (
             <Button
@@ -76,7 +87,8 @@ export function WorkCenterSelector({
               )}
             </Button>
           )
-        })}
+          })
+        )}
 
         <Button
           variant="ghost"

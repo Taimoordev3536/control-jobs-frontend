@@ -307,6 +307,7 @@ export function CheckInProcess({ job, method, token, onBack, onComplete, preScan
               qrToken: qrData,
               latitude: location.latitude,
               longitude: location.longitude,
+              jobId: job.id,
             }),
           })
           if (res.ok) {
@@ -318,7 +319,7 @@ export function CheckInProcess({ job, method, token, onBack, onComplete, preScan
           const res = await fetch(`${baseUrl}/work-centers/check-in/gps-select`, {
             method: "POST",
             headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-            body: JSON.stringify({ qrToken: qrData, latitude: 0, longitude: 0 }),
+            body: JSON.stringify({ qrToken: qrData, latitude: 0, longitude: 0, jobId: job.id }),
           })
           if (res.ok) {
             const body = await res.json()

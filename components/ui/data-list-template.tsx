@@ -256,7 +256,7 @@ export default function DataListTemplate({
       <div className="bg-card rounded-lg shadow-sm border border-border">
         {/* Header */}
         <div className="flex justify-between items-center p-3 border-b border-border bg-gray-100 dark:bg-gray-800">
-          <h1 className="text-2xl font-semibold text-foreground">{title}</h1>
+          <h1 className="text-lg sm:text-2xl font-semibold text-foreground truncate">{title}</h1>
           <div className="flex items-center gap-2">
             {actionButtons.length > 0 && (
               <>
@@ -325,7 +325,44 @@ export default function DataListTemplate({
             )}
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+            {/* ── Mobile card view (< md) ── */}
+            <div className="md:hidden divide-y divide-border">
+              {filteredData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((row, index) => (
+                <div
+                  key={row.id || index}
+                  onClick={(e) => handleRowClick(e, row)}
+                  className={`p-4 space-y-2 transition-colors ${
+                    index % 2 === 0 ? "bg-background" : "bg-muted/20"
+                  } ${onRowClick ? "cursor-pointer active:bg-muted/50" : ""}`}
+                >
+                  {/* First column as title */}
+                  {localColumns[0] && (
+                    <div className="text-sm font-semibold text-[#662D91] dark:text-purple-300">
+                      {localColumns[0].render
+                        ? localColumns[0].render(row[localColumns[0].key], row)
+                        : renderValue(row[localColumns[0].key], localColumns[0].key)}
+                    </div>
+                  )}
+                  {/* Other columns as label:value rows */}
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                    {localColumns.slice(1).map((column) => (
+                      <div key={column.key} className="contents">
+                        <span className="text-xs font-medium text-muted-foreground truncate">{column.label}</span>
+                        <span className="text-xs text-foreground truncate text-right">
+                          {column.render
+                            ? column.render(row[column.key], row)
+                            : renderValue(row[column.key], column.key) || "-"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* ── Desktop table view (≥ md) ── */}
+            <div className="overflow-x-auto hidden md:block">
             <DragDropContext
               onDragEnd={(result: DropResult) => {
                 if (!result.destination) return
@@ -415,12 +452,13 @@ export default function DataListTemplate({
               </table>
             </DragDropContext>
           </div>
+          </>
         )}
 
         {/* Pagination */}
         {showPagination && filteredData.length > 0 && (
-          <div className="px-6 py-2 flex items-center justify-between border-t border-border bg-card bg-gray-100 dark:bg-gray-800">
-            <div className="text-sm text-muted-foreground">
+          <div className="px-4 sm:px-6 py-2 flex flex-col sm:flex-row items-center justify-between gap-2 border-t border-border bg-card bg-gray-100 dark:bg-gray-800">
+            <div className="text-xs sm:text-sm text-muted-foreground text-center sm:text-left">
               {t("showingRecordsFrom")} {((currentPage - 1) * itemsPerPage + 1)} {t("to")} {Math.min(currentPage * itemsPerPage, filteredData.length)} {t("outOfTotal")} {filteredData.length} {t("records")}
             </div>
             <div className="flex items-center gap-2">
