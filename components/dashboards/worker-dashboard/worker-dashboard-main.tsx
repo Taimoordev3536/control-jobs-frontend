@@ -210,6 +210,9 @@ export default function WorkerDashboardMain() {
   const [currentView, setCurrentView] = useState("dashboard");
   const [selectedJob, setSelectedJob] = useState<JobAssignment | null>(null);
   const [selectedCheckInMethod, setSelectedCheckInMethod] = useState("");
+  // When a QR is scanned in the SignInMethodDialog, store it here and
+  // route to CheckInProcess which will collect GPS → IP → then process the token
+  const [preScannedQrToken, setPreScannedQrToken] = useState<string | undefined>(undefined);
 
   // Survey states
   const [surveyJob, setSurveyJob] = useState<JobAssignment | null>(null);
@@ -1179,8 +1182,15 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
         job={selectedJob}
         method={selectedCheckInMethod}
         token={session?.accessToken || ""}
-  onBack={() => setCurrentView("dashboard")}
-        onComplete={completeCheckIn}
+        preScannedQrToken={preScannedQrToken}
+        onBack={() => {
+          setPreScannedQrToken(undefined);
+          setCurrentView("dashboard");
+        }}
+        onComplete={() => {
+          setPreScannedQrToken(undefined);
+          completeCheckIn();
+        }}
       />
     );
   }
@@ -1312,12 +1322,20 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
                             }
                             break;
                           case 'qrcode':
-                            // Check-in with QR token from SignInMethodDialog
+                            // Route to CheckInProcess so GPS → IP → WC selection happens
+                            // before the check-in API call. The pre-scanned token is stored
+                            // and picked up automatically once GPS+IP verification completes.
                             if (data?.qrToken) {
-                              await handleCheckInWithMethod(job, 'qrcode', { qrToken: data.qrToken });
+                              setSelectedJob(job);
+                              setSelectedCheckInMethod('qrcode');
+                              setPreScannedQrToken(data.qrToken);
+                              setCurrentView('checkInProcess');
                             } else {
-                              console.error("QR code method selected but no token provided");
-                              setError("QR code scan failed. Please try again.");
+                              // No token — open CheckInProcess with its built-in QR scanner
+                              setSelectedJob(job);
+                              setSelectedCheckInMethod('qrcode');
+                              setPreScannedQrToken(undefined);
+                              setCurrentView('checkInProcess');
                             }
                             break;
                           default:

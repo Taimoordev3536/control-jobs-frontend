@@ -31,6 +31,8 @@ interface CheckInProcessProps {
   token: string
   onBack: () => void
   onComplete: () => void
+  /** When provided, skip the QR scanner and auto-process this token once GPS+IP are done */
+  preScannedQrToken?: string
 }
 
 type StepStatus = "pending" | "inProgress" | "completed" | "error"
@@ -42,7 +44,7 @@ interface LocationData {
   address?: string
 }
 
-export function CheckInProcess({ job, method, token, onBack, onComplete }: CheckInProcessProps) {
+export function CheckInProcess({ job, method, token, onBack, onComplete, preScannedQrToken }: CheckInProcessProps) {
   const { t } = useTranslation("worker-dashboard")
   const { toast } = useToast()
 
@@ -481,6 +483,22 @@ export function CheckInProcess({ job, method, token, onBack, onComplete }: Check
     }
   }
 
+  // Auto-process pre-scanned QR token once GPS + IP are done
+  const preScannedProcessed = useRef(false)
+  useEffect(() => {
+    if (
+      preScannedQrToken &&
+      gpsStatus === "completed" &&
+      ipStatus === "completed" &&
+      qrStatus === "pending" &&
+      !preScannedProcessed.current
+    ) {
+      preScannedProcessed.current = true
+      setQrStatus("inProgress")
+      handleQRCodeDetected(preScannedQrToken)
+    }
+  }, [preScannedQrToken, gpsStatus, ipStatus, qrStatus])
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -696,7 +714,30 @@ export function CheckInProcess({ job, method, token, onBack, onComplete }: Check
                 />
               )}
 
-              {!showWorkCenterSelector && (
+              {!showWorkCenterSelector && preScannedQrToken && (
+                <Card className="border-orange-500 bg-orange-50 dark:bg-orange-950/20">
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-3 mb-4">
+                      <QrCode className="w-6 h-6 text-orange-600" />
+                      <h3 className="font-semibold">{t("qrCodeScanner")}</h3>
+                    </div>
+                    <div className="flex items-center justify-center gap-3 py-8">
+                      {qrStatus === "completed" ? (
+                        <p className="text-green-600 font-medium">✅ QR code verified — completing check-in…</p>
+                      ) : qrStatus === "error" ? (
+                        <p className="text-red-600 font-medium">QR processing failed. Go back and try again.</p>
+                      ) : (
+                        <>
+                          <div className="w-5 h-5 border-2 border-orange-600 border-t-transparent rounded-full animate-spin" />
+                          <p className="text-orange-700 font-medium">Processing scanned QR code…</p>
+                        </>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {!showWorkCenterSelector && !preScannedQrToken && (
                 <Card
                   className={`${qrStatus === "inProgress" ? "border-orange-500" : qrStatus === "error" ? "border-red-500" : "border-gray-200"}`}
                 >
