@@ -88,7 +88,9 @@ export function CheckInProcess({ job, method, token, onBack, onComplete }: Check
   const startGPSVerification = () => {
     if (!navigator.geolocation) {
       setGpsError(t("geolocationNotSupported"))
-      setGpsStatus("error")
+      // GPS not supported — continue without GPS
+      setGpsStatus("completed")
+      setTimeout(() => startIPVerification(), 500)
       return
     }
 
@@ -125,7 +127,10 @@ export function CheckInProcess({ job, method, token, onBack, onComplete }: Check
       (error) => {
         console.error("GPS Error:", error)
         setGpsError(error.message)
-        setGpsStatus("error")
+        // GPS failed — continue anyway (location will be null).
+        // For merged QR this means the manual WC selector will appear.
+        setGpsStatus("completed")
+        setTimeout(() => startIPVerification(), 500)
       },
       {
         enableHighAccuracy: true,
@@ -593,19 +598,10 @@ export function CheckInProcess({ job, method, token, onBack, onComplete }: Check
                 )}
 
                 {gpsError && (
-                  <div className="p-3 bg-red-50 rounded-lg border border-red-200 mb-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-red-600 text-sm">
-                        {t("error")}: {gpsError}
-                      </span>
-                      <Button
-                        onClick={startGPSVerification}
-                        size="sm"
-                        className="bg-red-600 hover:bg-red-700 text-white"
-                      >
-                        {t("retry")}
-                      </Button>
-                    </div>
+                  <div className="p-3 bg-yellow-50 rounded-lg border border-yellow-200 mb-4">
+                    <span className="text-yellow-700 text-sm">
+                      ⚠️ GPS unavailable — you will select your work center manually after scanning the QR code.
+                    </span>
                   </div>
                 )}
 
