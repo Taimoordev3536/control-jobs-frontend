@@ -400,6 +400,8 @@ export function CheckInProcess({ job, method, token, onBack, onComplete }: Check
       return { title: "Not Assigned", description: "You are not assigned to this job." }
     if (msg.includes("invalid or expired") || msg.includes("invalid qr"))
       return { title: "Invalid QR Code", description: "The QR code has expired or is not valid. Please scan again." }
+    if (msg.includes("merged qr") || msg.includes("no work center selected"))
+      return { title: "Select Work Center", description: "Please select a work center before checking in." }
     if (msg.includes("does not belong to this job"))
       return { title: "Wrong Location", description: "The selected work center is not part of this job." }
     if (msg.includes("away from") || msg.includes("within") && msg.includes("m of the work center"))
