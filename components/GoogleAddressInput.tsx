@@ -8,6 +8,8 @@ export interface AddressComponents {
   province?: string
   country?: string
   postalCode?: string
+  latitude?: number
+  longitude?: number
 }
 
 interface GoogleAddressInputProps {
@@ -67,6 +69,12 @@ const GoogleAddressInput: React.FC<GoogleAddressInputProps> = ({
           components.postalCode = component.long_name
         }
       })
+
+      // Extract GPS coordinates from Google Place geometry
+      if (place.geometry?.location) {
+        components.latitude = place.geometry.location.lat()
+        components.longitude = place.geometry.location.lng()
+      }
 
       // ✅ Set full selected address with parsed components
       onChange(place.formatted_address, place.place_id, components)

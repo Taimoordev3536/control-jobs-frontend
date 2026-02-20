@@ -47,6 +47,9 @@ export default function AddWorkCenterModal({
     contactPhone: "",
     contactEmail: "",
     postalCode: "",
+    latitude: null as number | null,
+    longitude: null as number | null,
+    gpsRadius: 100,
   });
 
   const [validationErrors, setValidationErrors] = useState({
@@ -114,6 +117,10 @@ export default function AddWorkCenterModal({
         postalCode: formData.postalCode,
         // Include clientId if we're creating for a specific client
         clientId: clientId || undefined,
+        // GPS enforcement fields (auto-populated from Google Places)
+        latitude: formData.latitude,
+        longitude: formData.longitude,
+        gpsRadius: formData.gpsRadius,
       };
 
       const token = session?.accessToken;
@@ -171,6 +178,9 @@ export default function AddWorkCenterModal({
           contactPhone: "",
           contactEmail: "",
           postalCode: "",
+          latitude: null,
+          longitude: null,
+          gpsRadius: 100,
         });
         setValidationErrors({
           name: false,
@@ -279,6 +289,9 @@ export default function AddWorkCenterModal({
                     if (components.province) updateFormData("province", components.province);
                     if (components.country) updateFormData("country", components.country);
                     if (components.postalCode) updateFormData("postalCode", components.postalCode);
+                    // Save GPS coordinates returned by Google Places
+                    if (components.latitude != null) updateFormData("latitude", components.latitude);
+                    if (components.longitude != null) updateFormData("longitude", components.longitude);
                   }
                   
                   if (placeId) {
