@@ -24,6 +24,19 @@ import { useTranslation } from "@/hooks/use-translation"
 import { LoadingSpinner } from "@/components/dashboard-loader"
 import { useAuth } from "@/hooks/use-auth"
 import { Button } from "@/components/ui/button"
+import { useToast } from "@/hooks/use-toast"
+
+// Extract user-friendly message from a raw backend error (JSON string or Error)
+function parseBackendError(err: unknown, fallback: string): string {
+  const msg = err instanceof Error ? err.message : String(err);
+  // Try to parse embedded JSON like: {"message":"...","statusCode":500,...}
+  try {
+    const json = JSON.parse(msg.replace(/^[^{]*/, ''));
+    return json?.message || fallback;
+  } catch {
+    return msg || fallback;
+  }
+}
 
 // Updated interfaces
 interface TaskHistory {
@@ -584,7 +597,9 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`Failed to check in: ${errorText}`);
+        let friendlyMsg = "Failed to check in";
+        try { friendlyMsg = JSON.parse(errorText)?.message || friendlyMsg; } catch {}
+        throw new Error(friendlyMsg);
       }
 
       const result = await response.json();
@@ -604,7 +619,7 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
 
     } catch (error) {
       console.error("Check-in error:", error);
-      setError(error instanceof Error ? error.message : "Failed to check in");
+      toast({ variant: "destructive", title: "Check-in Failed", description: parseBackendError(error, "Failed to check in") });
     } finally {
       setActionLoading(false);
     }
@@ -750,7 +765,7 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
       }
     } catch (error) {
       console.error("Error checking out:", error);
-      setError(error instanceof Error ? error.message : "Failed to check out");
+      toast({ variant: "destructive", title: "Check-out Failed", description: parseBackendError(error, "Failed to check out") });
     } finally {
       setActionLoading(false);
     }
@@ -852,7 +867,7 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
       }
     } catch (error) {
       console.error("Error starting break:", error);
-      setError(error instanceof Error ? error.message : "Failed to start break");
+      toast({ variant: "destructive", title: "Break Start Failed", description: parseBackendError(error, "Failed to start break") });
     } finally {
       setActionLoading(false);
     }
@@ -946,7 +961,7 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
       }
     } catch (error) {
       console.error("Error ending break:", error);
-      setError(error instanceof Error ? error.message : "Failed to end break");
+      toast({ variant: "destructive", title: "Break End Failed", description: parseBackendError(error, "Failed to end break") });
     } finally {
       setActionLoading(false);
     }
