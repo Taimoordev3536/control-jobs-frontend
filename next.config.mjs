@@ -1,18 +1,3 @@
-// /** @type {import('next').NextConfig} */
-// const nextConfig = {
-//   eslint: {
-//     ignoreDuringBuilds: true,
-//   },
-//   typescript: {
-//     ignoreBuildErrors: true,
-//   },
-//   images: {
-//     unoptimized: true,
-//   },
-// }
-
-// export default nextConfig
-
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -26,7 +11,15 @@ const nextConfig = {
     unoptimized: true,
   },
   webpack: (config) => {
-    // Add SVGR loader for SVG files
+    // Remove .svg from Next.js default file-loader so SVGR can handle it
+    const fileLoaderRule = config.module.rules.find((rule) =>
+      rule.test instanceof RegExp && rule.test.test('.svg')
+    );
+    if (fileLoaderRule) {
+      fileLoaderRule.exclude = /\.svg$/i;
+    }
+
+    // Add SVGR loader so SVG files can be imported as React components
     config.module.rules.push({
       test: /\.svg$/i,
       issuer: /\.[jt]sx?$/,

@@ -109,7 +109,6 @@ export function ClientTodayMergedQrDisplay({
       if (response.ok) {
         const result = await response.json()
         setQrData(result.data)
-        console.log("✅ Today's QR loaded:", result.data)
       } else if (response.status === 404) {
         const errorData = await response.json()
         if (errorData.details?.error === 'NO_JOBS_TODAY') {

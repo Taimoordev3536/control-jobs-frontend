@@ -779,16 +779,6 @@ export default function ClientDashboard() {
                     className="pl-9 w-64 h-9"
                   />
                 </div>
-
-                <Button
-                  onClick={handleRetry}
-                  variant="outline"
-                  size="sm"
-                  className="h-9 px-3 bg-transparent"
-                  disabled={loading}
-                >
-                  <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-                </Button>
               </div>
             </div>
           </CardContent>

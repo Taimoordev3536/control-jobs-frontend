@@ -5,7 +5,9 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft, Navigation, Globe, QrCode, Camera, Scan, AlertCircle, CheckCircle } from "lucide-react"
 import { useTranslation } from "@/hooks/use-translation"
+import { useToast } from "@/hooks/use-toast"
 import jsQR from "jsqr"
+import { WorkCenterSelector, WorkCenterOption } from "./work-center-selector"
 
 interface JobAssignment {
   id: number
@@ -42,6 +44,7 @@ interface LocationData {
 
 export function CheckInProcess({ job, method, token, onBack, onComplete }: CheckInProcessProps) {
   const { t } = useTranslation("worker-dashboard")
+  const { toast } = useToast()
 
   // Sequential step states
   const [gpsStatus, setGpsStatus] = useState<StepStatus>("pending")
@@ -65,6 +68,12 @@ export function CheckInProcess({ job, method, token, onBack, onComplete }: Check
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const animationRef = useRef<number | null>(null)
+
+  // Hybrid GPS / work-center selection states
+  const [showWorkCenterSelector, setShowWorkCenterSelector] = useState(false)
+  const [availableWorkCenters, setAvailableWorkCenters] = useState<WorkCenterOption[]>([])
+  const [pendingQrToken, setPendingQrToken] = useState<string | null>(null)
+  const [selectorReason, setSelectorReason] = useState<string>("")
 
   // Allowed IP addresses for the workplace
   const allowedIPs = ["39.50.140.1", "192.168.1.45"] // Add your workplace IPs here
@@ -194,7 +203,7 @@ export function CheckInProcess({ job, method, token, onBack, onComplete }: Check
     setQrStatus("inProgress")
 
     if (!navigator.mediaDevices?.getUserMedia) {
-      alert(t("cameraAccessDenied"))
+      toast({ title: "Camera Not Available", description: "Your browser does not support camera access. Please use a different device or browser.", variant: "destructive" })
       setQrStatus("error")
       return
     }
@@ -215,7 +224,7 @@ export function CheckInProcess({ job, method, token, onBack, onComplete }: Check
       }
     } catch (err: any) {
       console.error("Camera error:", err)
-      alert(`${t("cameraAccessDenied")}: ${err.message}`)
+      toast({ title: "Camera Access Denied", description: err.message || "Please allow camera access to scan the QR code.", variant: "destructive" })
       setQrStatus("error")
     }
   }
@@ -269,23 +278,133 @@ export function CheckInProcess({ job, method, token, onBack, onComplete }: Check
       setScanResult(`${t("scanning")}: ${qrData}`)
       stopScanner()
 
-      // QR code now contains only the token string (not JSON)
       console.log("QR Token detected:", qrData)
 
-      // The token will be validated on the backend
-      // No need to parse JSON or verify jobId on client side
-      
-      alert(t("qrCodeVerified"))
+      // Attempt to detect if this is a merged (dynamic multi-WC) token
+      const isMerged = isMergedToken(qrData)
+
+      if (isMerged && location) {
+        // ── Dynamic QR: Hybrid GPS approach ──────────────────────────────
+        const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001"
+        const res = await fetch(`${baseUrl}/work-centers/check-in/gps-select`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            qrToken: qrData,
+            latitude: location.latitude,
+            longitude: location.longitude,
+          }),
+        })
+
+        if (res.ok) {
+          const { data } = await res.json()
+
+          if (data.selectionType === "auto" && data.workCenterId) {
+            // GPS found exactly one WC — auto check-in
+            toast({ title: "QR Code Verified", description: "Work center identified automatically from your location." })
+            setQrStatus("completed")
+            await recordScan(qrData, data.workCenterId)
+            return
+          }
+
+          // Manual selection required
+          setPendingQrToken(qrData)
+          setAvailableWorkCenters(data.workCenters || [])
+          setSelectorReason(data.message || "")
+          setShowWorkCenterSelector(true)
+          return
+        }
+        // GPS select API failed — fall through to manual selection with empty list
+        setPendingQrToken(qrData)
+        setAvailableWorkCenters([])
+        setSelectorReason("GPS selection unavailable. Please select your work center manually.")
+        setShowWorkCenterSelector(true)
+        return
+      }
+
+      // ── Dynamic QR without GPS, or Static QR ─────────────────────────
+      if (isMerged && !location) {
+        // No GPS — go straight to manual selection via API (no coordinates)
+        const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001"
+        const res = await fetch(`${baseUrl}/work-centers/check-in/gps-select`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ qrToken: qrData, latitude: 0, longitude: 0 }),
+        })
+        if (res.ok) {
+          const { data } = await res.json()
+          setPendingQrToken(qrData)
+          setAvailableWorkCenters(data.workCenters || [])
+          setSelectorReason("GPS is unavailable. Please select your work center.")
+          setShowWorkCenterSelector(true)
+          return
+        }
+      }
+
+      // Static QR — direct validation on backend
+      toast({ title: "QR Code Verified", description: "Sending check-in to the server..." })
       setQrStatus("completed")
       await recordScan(qrData)
     } catch (error) {
       console.error("Error processing QR code:", error)
-      alert(t("invalidQrCode"))
+      const raw = error instanceof Error ? error.message : t("invalidQrCode")
+      const { title, description } = parseBackendError(raw)
+      toast({ title, description, variant: "destructive" })
       setQrStatus("error")
     }
   }
 
-  const recordScan = async (qrData: string) => {
+  /** Returns true when the scanned string looks like a base64-encoded merged token */
+  const isMergedToken = (token: string): boolean => {
+    try {
+      const decoded = atob(token)
+      const data = JSON.parse(decoded)
+      return Array.isArray(data.wc) && typeof data.j === "number"
+    } catch {
+      return false
+    }
+  }
+
+  /** Called after the worker manually selects a work center from the selector */
+  const handleWorkCenterSelected = async (workCenterId: number) => {
+    if (!pendingQrToken) return
+    setShowWorkCenterSelector(false)
+    try {
+      toast({ title: "QR Code Verified", description: "Sending check-in to the server..." })
+      setQrStatus("completed")
+      await recordScan(pendingQrToken, workCenterId)
+    } catch (error) {
+      console.error("Error completing manual check-in:", error)
+      const raw = error instanceof Error ? error.message : t("checkInFailed")
+      const { title, description } = parseBackendError(raw)
+      toast({ title, description, variant: "destructive" })
+      setQrStatus("error")
+    } finally {
+      setPendingQrToken(null)
+    }
+  }
+
+  /** Maps a raw backend error message to a user-friendly title + description */
+  const parseBackendError = (raw: string): { title: string; description: string } => {
+    const msg = raw.toLowerCase()
+    if (msg.includes("not scheduled for today"))
+      return { title: "Not Scheduled Today", description: "This job is not scheduled for today. You cannot check in." }
+    if (msg.includes("outside the allowed check-in window") || msg.includes("shift window"))
+      return { title: "Outside Shift Hours", description: "Check-in is only allowed from 30 minutes before your shift starts until the shift ends." }
+    if (msg.includes("no active schedule") || msg.includes("no active shifts"))
+      return { title: "No Active Schedule", description: "No shifts are active for today. Contact your employer." }
+    if (msg.includes("not assigned to this job") || msg.includes("worker is not assigned"))
+      return { title: "Not Assigned", description: "You are not assigned to this job." }
+    if (msg.includes("invalid or expired") || msg.includes("invalid qr"))
+      return { title: "Invalid QR Code", description: "The QR code has expired or is not valid. Please scan again." }
+    if (msg.includes("does not belong to this job"))
+      return { title: "Wrong Location", description: "The selected work center is not part of this job." }
+    if (msg.includes("worker not found") || msg.includes("user not found"))
+      return { title: "Account Error", description: "Your worker account could not be found. Please log in again." }
+    return { title: "Check-In Failed", description: raw }
+  }
+
+  const recordScan = async (qrData: string, workCenterId?: number) => {
     try {
       if (!token) {
         throw new Error(t("noAuthTokenFound"))
@@ -302,6 +421,12 @@ export function CheckInProcess({ job, method, token, onBack, onComplete }: Check
         body: JSON.stringify({
           jobId: job.id,
           scanType: "check-in",
+          signingMethod: "qrcode",
+          qrToken: qrData,
+          ...(workCenterId ? { workCenterId } : {}),
+          latitude: location?.latitude ?? null,
+          longitude: location?.longitude ?? null,
+          ipAddress: userIP || undefined,
           location: JSON.stringify({
             address: location?.address || job.workCenter.name,
             ip: userIP,
@@ -309,24 +434,37 @@ export function CheckInProcess({ job, method, token, onBack, onComplete }: Check
             longitude: location?.longitude || null,
             qrData: qrData.substring(0, 50),
           }),
-          notes: `Sequential check-in completed: GPS -> IP -> QR Code scan`,
+          notes: `Sequential check-in: GPS → IP → QR${workCenterId ? ` (manual WC ${workCenterId})` : ""}`,
         }),
       })
 
       if (!response.ok) {
-        const errorText = await response.text()
-        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`)
+        // Parse NestJS error body: { statusCode, message, error }
+        let rawMessage = `HTTP ${response.status}`
+        try {
+          const body = await response.json()
+          rawMessage = Array.isArray(body.message)
+            ? body.message.join("; ")
+            : body.message || rawMessage
+        } catch {
+          rawMessage = await response.text().catch(() => rawMessage)
+        }
+        throw new Error(rawMessage)
       }
 
       const result = await response.json()
       console.log("✅ Scan recorded successfully:", result)
 
-      alert(t("checkInSuccessful"))
+      toast({
+        title: "✅ Check-In Successful",
+        description: `You have checked in to ${job.title}.`,
+      })
       onComplete()
     } catch (error) {
       console.error("❌ Error recording scan:", error)
-      const errorMessage = error instanceof Error ? error.message : t("unknownErrorOccurred")
-      alert(`${t("checkInFailed")}: ${errorMessage}`)
+      const raw = error instanceof Error ? error.message : t("unknownErrorOccurred")
+      const { title, description } = parseBackendError(raw)
+      toast({ title, description, variant: "destructive" })
     }
   }
 
@@ -539,10 +677,26 @@ export function CheckInProcess({ job, method, token, onBack, onComplete }: Check
 
           {/* QR Code Section */}
           {gpsStatus === "completed" && ipStatus === "completed" && (
-            <Card
-              className={`${qrStatus === "inProgress" ? "border-orange-500" : qrStatus === "error" ? "border-red-500" : "border-gray-200"}`}
-            >
-              <CardContent className="p-4">
+            <>
+              {/* Work Center Selector — shown after scanning a merged/dynamic QR */}
+              {showWorkCenterSelector && (
+                <WorkCenterSelector
+                  workCenters={availableWorkCenters}
+                  reason={selectorReason}
+                  onSelect={handleWorkCenterSelected}
+                  onCancel={() => {
+                    setShowWorkCenterSelector(false)
+                    setPendingQrToken(null)
+                    setQrStatus("pending")
+                  }}
+                />
+              )}
+
+              {!showWorkCenterSelector && (
+                <Card
+                  className={`${qrStatus === "inProgress" ? "border-orange-500" : qrStatus === "error" ? "border-red-500" : "border-gray-200"}`}
+                >
+                  <CardContent className="p-4">
                 <div className="flex items-center gap-3 mb-4">
                   <QrCode className="w-6 h-6 text-orange-600" />
                   <h3 className="font-semibold">{t("qrCodeScanner")}</h3>
@@ -601,6 +755,8 @@ export function CheckInProcess({ job, method, token, onBack, onComplete }: Check
                 )}
               </CardContent>
             </Card>
+              )}
+            </>
           )}
 
           {/* Instructions */}

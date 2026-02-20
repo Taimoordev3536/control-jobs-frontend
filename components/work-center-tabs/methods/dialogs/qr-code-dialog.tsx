@@ -448,11 +448,6 @@ const handlePrint = useReactToPrint({
                       Expira en: <span className="text-[#6B21A8]">{timeUntilExpiry}</span>
                     </div>
                   )}
-                  {qrType === "STATIC" && selectedQr.isSelected && (
-                    <div className="text-xs text-gray-500">
-                      QR permanente - válido indefinidamente
-                    </div>
-                  )}
                 </>
               ) : (
                 <div className="w-56 h-56 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center text-gray-400">
@@ -563,15 +558,6 @@ const handlePrint = useReactToPrint({
                 <p className="text-xs text-gray-500">
                   El cliente recibirá el código QR estático por email para imprimirlo
                 </p>
-              </div>
-            )}
-
-            {/* Info Message */}
-            {!selectedQr && (
-              <div className="text-sm text-gray-500 text-center p-4 bg-gray-50 rounded-lg">
-                {qrType === "STATIC" 
-                  ? "Activa el QR estático para generar un código permanente"
-                  : "Activa el QR dinámico para generar un código que se actualiza cada 30 segundos"}
               </div>
             )}
           </div>

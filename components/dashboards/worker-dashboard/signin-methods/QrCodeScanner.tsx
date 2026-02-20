@@ -128,7 +128,7 @@ export default function QrCodeScanner({ onBack, onComplete }: Props) {
 
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
         const code = jsQR(imageData.data, imageData.width, imageData.height, {
-          inversionAttempts: "dontInvert",
+          inversionAttempts: "attemptBoth",
         })
 
         if (code) {
