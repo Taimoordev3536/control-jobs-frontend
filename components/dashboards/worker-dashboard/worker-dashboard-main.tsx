@@ -577,6 +577,7 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
           jobId: job.id,
           scanType: "check-in",
           signingMethod: signingMethod,
+          userTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           ...additionalData,
         }),
       });
@@ -719,6 +720,7 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
         body: JSON.stringify({
           jobId: job.id,
           scanType: "check-out",
+          userTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           location: JSON.stringify({
             address: locationData?.address || job.workCenter.address,
             ip: userIP,
@@ -820,6 +822,7 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
         body: JSON.stringify({
           jobId: job.id,
           scanType: "break-start",
+          userTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           location: JSON.stringify({
             address: locationData?.address || job.workCenter.address,
             ip: userIP,
@@ -921,6 +924,7 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
         body: JSON.stringify({
           jobId: job.id,
           scanType: "break-end",
+          userTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           location: JSON.stringify({
             address: locationData?.address || job.workCenter.address,
             ip: userIP,

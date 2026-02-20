@@ -435,6 +435,7 @@ export function CheckInProcess({ job, method, token, onBack, onComplete }: Check
             qrData: qrData.substring(0, 50),
           }),
           notes: `Sequential check-in: GPS → IP → QR${workCenterId ? ` (manual WC ${workCenterId})` : ""}`,
+          userTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         }),
       })
 
