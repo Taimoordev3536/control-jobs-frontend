@@ -12,9 +12,23 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Info, Calendar, Loader2, Save, AlertCircle, RefreshCw } from "lucide-react"
 import { useTranslation } from "@/hooks/use-translation"
 import { useAuth } from "@/hooks/use-auth"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
+import { useRouter } from "next/navigation"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AnimatedLoader } from "@/components/animated-loader"
+import { useToast } from "@/hooks/use-toast"
+import GoogleAddressInput from "@/components/GoogleAddressInput"
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 interface ClientDataTabProps {
   clientId: string
@@ -27,6 +41,13 @@ interface ClientData {
   code: string
   taxId: string
   address: string
+  street?: string
+  streetNumber?: string
+  floorDoor?: string
+  postalCode?: string
+  city?: string
+  province?: string
+  country?: string
   landline: string
   mobile: string
   observation: string
@@ -36,21 +57,23 @@ interface ClientData {
   accessAccountStatus: string
   userId: number
   name: string
-  locality?: string
-  province?: string
-  country?: string
   email?: string
-  postalCode?: string
-  floorDoor?: string
-  number?: string
+  latitude?: number | null
+  longitude?: number | null
+  active: boolean
 }
 
 export function ClientDataTab({ clientId }: ClientDataTabProps) {
   const { t } = useTranslation()
   const { session } = useAuth()
+  const router = useRouter()
+  const { toast } = useToast()
   const [clientData, setClientData] = useState<ClientData | null>(null)
+  const [originalData, setOriginalData] = useState<ClientData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [hasChanges, setHasChanges] = useState(false)
 
@@ -80,7 +103,12 @@ export function ClientDataTab({ clientId }: ClientDataTabProps) {
         const result = await response.json()
 
         if (result.isSuccess && result.data) {
-          setClientData(result.data)
+          const mapped = {
+            ...result.data,
+            active: result.data.active !== undefined ? result.data.active : true,
+          }
+          setClientData(mapped)
+          setOriginalData(mapped)
         } else {
           throw new Error(result.message || "Failed to fetch client data")
         }
@@ -95,7 +123,7 @@ export function ClientDataTab({ clientId }: ClientDataTabProps) {
     fetchClientData()
   }, [clientId, session?.accessToken])
 
-  const handleInputChange = (field: keyof ClientData, value: string) => {
+  const handleInputChange = (field: keyof ClientData, value: string | number | boolean | null) => {
     if (!clientData) return
     setClientData((prev) => (prev ? { ...prev, [field]: value } : null))
     setHasChanges(true)
@@ -108,13 +136,15 @@ export function ClientDataTab({ clientId }: ClientDataTabProps) {
     setError(null)
 
     try {
+      // Send only updateable fields, exclude id/userId
+      const { id, userId, ...updatePayload } = clientData
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/client/${clientId}`, {
         method: "PUT",
         headers: {
           Authorization: `Bearer ${session.accessToken}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(clientData),
+        body: JSON.stringify(updatePayload),
       })
 
       if (!response.ok) {
@@ -125,6 +155,11 @@ export function ClientDataTab({ clientId }: ClientDataTabProps) {
 
       if (result.isSuccess) {
         setHasChanges(false)
+        setOriginalData(clientData)
+        toast({
+          title: t("clientUpdatedSuccessfully") || "Client updated successfully!",
+          variant: "default",
+        })
       } else {
         throw new Error(result.message || "Failed to save client data")
       }
@@ -136,12 +171,14 @@ export function ClientDataTab({ clientId }: ClientDataTabProps) {
     }
   }
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
+    setShowDeleteDialog(true)
+  }
+
+  const handleConfirmDelete = async () => {
     if (!clientData || !session?.accessToken) return
 
-    if (!confirm(t("confirmDelete") || "Are you sure you want to delete this client?")) {
-      return
-    }
+    setIsDeleting(true)
 
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/client/${clientId}`, {
@@ -156,11 +193,25 @@ export function ClientDataTab({ clientId }: ClientDataTabProps) {
         throw new Error(`Failed to delete client: ${response.status}`)
       }
 
+      toast({
+        title: t("clientDeletedSuccessfully") || "Client deleted successfully!",
+        variant: "default",
+      })
+
       // Redirect back to clients list after successful deletion
-      window.location.href = "/clients"
+      router.push("/clients")
     } catch (err) {
       console.error("Error deleting client:", err)
       setError(err instanceof Error ? err.message : "Failed to delete client")
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  const handleCancel = () => {
+    if (originalData) {
+      setClientData({ ...originalData })
+      setHasChanges(false)
     }
   }
 
@@ -205,32 +256,9 @@ export function ClientDataTab({ clientId }: ClientDataTabProps) {
   }
 
   return (
-    <div className="space-y-6 p-4">
-      {/* Row 1: Code, NIF, Name, Responsible, Type */}
+    <div className="space-y-4 pt-1 px-2">
+      {/* Row 1: Name, Responsible, Type, Code, NIF */}
       <div className="grid grid-cols-5 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="code" className="text-sm font-medium text-foreground flex items-center gap-1">
-            {t("code")}
-            <Info className="h-3 w-3 text-muted-foreground" />
-          </Label>
-          <Input
-            id="code"
-            value={clientData.code || ""}
-            onChange={(e) => handleInputChange("code", e.target.value)}
-            className="h-10 bg-muted/30 border-input text-foreground"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="nif" className="text-sm font-medium text-foreground">
-            {t("nif")}
-          </Label>
-          <Input
-            id="nif"
-            value={clientData.taxId || ""}
-            onChange={(e) => handleInputChange("taxId", e.target.value)}
-            className="h-10 bg-muted/30 border-input text-foreground"
-          />
-        </div>
         <div className="space-y-2">
           <Label htmlFor="name" className="text-sm font-medium text-foreground">
             {t("name")}
@@ -267,29 +295,80 @@ export function ClientDataTab({ clientId }: ClientDataTabProps) {
             </SelectContent>
           </Select>
         </div>
-      </div>
-
-      {/* Row 2: Address, No., Floor/Door, Postal Code */}
-      <div className="grid grid-cols-4 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="address" className="text-sm font-medium text-foreground">
-            {t("address")}
+          <Label htmlFor="code" className="text-sm font-medium text-foreground flex items-center gap-1">
+            {t("code")}
+            <Info className="h-3 w-3 text-muted-foreground" />
           </Label>
           <Input
-            id="address"
-            value={clientData.address || ""}
-            onChange={(e) => handleInputChange("address", e.target.value)}
+            id="code"
+            value={clientData.code || ""}
+            onChange={(e) => handleInputChange("code", e.target.value)}
             className="h-10 bg-muted/30 border-input text-foreground"
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="no" className="text-sm font-medium text-foreground">
+          <Label htmlFor="nif" className="text-sm font-medium text-foreground">
+            {t("nif")}
+          </Label>
+          <Input
+            id="nif"
+            value={clientData.taxId || ""}
+            onChange={(e) => handleInputChange("taxId", e.target.value)}
+            className="h-10 bg-muted/30 border-input text-foreground"
+          />
+        </div>
+      </div>
+
+      {/* Row 2: Address (full width) */}
+      <div className="grid grid-cols-1 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="address" className="text-sm font-medium text-foreground flex items-center gap-1">
+            {t("address")}
+            <TooltipProvider>
+              <Tooltip delayDuration={0}>
+                <TooltipTrigger asChild>
+                  <button type="button" className="inline-flex items-center p-0" tabIndex={-1}>
+                    <Info tabIndex={-1} className="w-3 h-3 text-muted-foreground cursor-help" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right" align="center" sideOffset={6} className="max-w-[14rem] text-xs px-2 py-1">
+                  {t("addressTip")}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </Label>
+          <GoogleAddressInput
+            value={clientData.address || ""}
+            onChange={(value, placeId, components) => {
+              handleInputChange("address", value)
+              if (components) {
+                if (components.street) handleInputChange("street", components.street)
+                if (components.streetNumber) handleInputChange("streetNumber", components.streetNumber)
+                if (components.floorDoor) handleInputChange("floorDoor", components.floorDoor)
+                if (components.city) handleInputChange("city", components.city)
+                if (components.province) handleInputChange("province", components.province)
+                if (components.country) handleInputChange("country", components.country)
+                if (components.postalCode) handleInputChange("postalCode", components.postalCode)
+                if (components.latitude) handleInputChange("latitude", components.latitude)
+                if (components.longitude) handleInputChange("longitude", components.longitude)
+              }
+            }}
+            className="flex h-10 w-full rounded-md border border-input bg-muted/30 px-3 py-2 text-sm text-foreground ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-weight-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          />
+        </div>
+      </div>
+
+      {/* Row 2b: No., Floor/Door, Postal Code */}
+      <div className="grid grid-cols-3 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="streetNumber" className="text-sm font-medium text-foreground">
             {t("number")}
           </Label>
           <Input
-            id="no"
-            value={clientData.number || ""}
-            onChange={(e) => handleInputChange("number", e.target.value)}
+            id="streetNumber"
+            value={clientData.streetNumber || ""}
+            onChange={(e) => handleInputChange("streetNumber", e.target.value)}
             className="h-10 bg-muted/30 border-input text-foreground"
           />
         </div>
@@ -317,16 +396,16 @@ export function ClientDataTab({ clientId }: ClientDataTabProps) {
         </div>
       </div>
 
-      {/* Row 3: Locality, Province, Country */}
+      {/* Row 3: City, Province, Country */}
       <div className="grid grid-cols-3 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="locality" className="text-sm font-medium text-foreground">
-            {t("locality")}
+          <Label htmlFor="city" className="text-sm font-medium text-foreground">
+            {t("city")}
           </Label>
           <Input
-            id="locality"
-            value={clientData.locality || ""}
-            onChange={(e) => handleInputChange("locality", e.target.value)}
+            id="city"
+            value={clientData.city || ""}
+            onChange={(e) => handleInputChange("city", e.target.value)}
             className="h-10 bg-muted/30 border-input text-foreground"
           />
         </div>
@@ -422,39 +501,80 @@ export function ClientDataTab({ clientId }: ClientDataTabProps) {
         </div>
       </div>
 
-      {/* Observations section with Users button */}
+      {/* Active + Observations + Users */}
       <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <Label htmlFor="observations" className="text-sm font-medium text-foreground">
-            {t("observations")}
-          </Label>
-          <Button className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2">{t("users")}</Button>
+        <div className="flex items-end gap-4">
+          <div className="space-y-2 shrink-0">
+            <Label htmlFor="active" className="text-sm font-medium text-foreground">
+              {t("active")}
+            </Label>
+            <Select
+              value={clientData.active ? "yeah" : "no"}
+              onValueChange={(value) => handleInputChange("active", value === "yeah")}
+            >
+              <SelectTrigger className="h-10 w-36 bg-muted/30 border-input text-foreground">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="yeah">{t("yeah")}</SelectItem>
+                <SelectItem value="no">{t("no")}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex-1 max-w-[70%] space-y-2">
+            <Label htmlFor="observations" className="text-sm font-medium text-foreground">
+              {t("observations")}
+            </Label>
+            <Textarea
+              id="observations"
+              value={clientData.observation || ""}
+              onChange={(e) => handleInputChange("observation", e.target.value)}
+              className="min-h-[50px] w-full bg-muted/30 border-input text-foreground resize-none text-sm py-2"
+              placeholder="Enter observations..."
+            />
+          </div>
+          <Button className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 shrink-0 self-end">{t("users")}</Button>
         </div>
-        <Textarea
-          id="observations"
-          value={clientData.observation || ""}
-          onChange={(e) => handleInputChange("observation", e.target.value)}
-          className="min-h-[80px] bg-muted/30 border-input text-foreground resize-none"
-          placeholder="Enter observations..."
-        />
       </div>
 
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("confirmDeleteClient")}</AlertDialogTitle>
+            <AlertDialogDescription>{t("confirmDeleteClientDesc")}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>{t("cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              disabled={isDeleting}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {isDeleting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              {t("delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Bottom Action Buttons */}
-      <div className="flex items-center justify-between pt-6">
+      <div className="flex items-center justify-between pt-6 mt-6 px-4 py-4 bg-gray-100 dark:bg-gray-800/50 rounded-b-lg">
         <div className="flex items-center gap-3">
           <Button
             onClick={handleSave}
-            disabled={!hasChanges || isSaving}
+            disabled={isSaving}
             className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 flex items-center gap-2"
           >
-            {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
             {isSaving ? t("saving") || "Saving..." : t("keep")}
           </Button>
-          <Button variant="outline" className="border-input text-foreground hover:bg-muted/50 px-6 py-2 bg-transparent">
+          <Button onClick={() => router.push("/clients")} className="bg-neutral-500 hover:bg-neutral-600 text-white px-6 py-2">
             {t("cancel")}
           </Button>
         </div>
-        <Button onClick={handleDelete} className="bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-2">
+        <Button onClick={handleDelete} disabled={isDeleting} className="bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-2">
+          {isDeleting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
           {t("delete")}
         </Button>
       </div>

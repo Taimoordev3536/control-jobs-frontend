@@ -435,8 +435,7 @@ const getStatusConfig = (status: string) => {
         <div className="flex gap-2 pt-2">
           <Button
             size="sm"
-            variant="secondary"
-            className="flex-1 h-8 text-xs"
+            className="flex-1 h-8 text-xs bg-neutral-500 hover:bg-neutral-600 text-white"
             onClick={() => onViewRecords(job)}
           >
             <TodosIcon className="w-3 h-3 mr-1" />

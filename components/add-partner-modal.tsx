@@ -489,7 +489,7 @@ export default function AddPartnerModal({ open, onOpenChange, onPartnerAdded }: 
               </div>
 
               <div className="flex flex-col sm:flex-row justify-between pt-4 gap-4">
-                <Button onClick={handlePrevious} variant="outline" className="px-6 w-full sm:w-auto">
+                <Button onClick={handlePrevious} className="bg-neutral-500 hover:bg-neutral-600 text-white px-6 w-full sm:w-auto">
                   {t("back")}
                 </Button>
                 <Button
@@ -560,7 +560,7 @@ export default function AddPartnerModal({ open, onOpenChange, onPartnerAdded }: 
               )}
 
               <div className="flex flex-col sm:flex-row justify-between pt-4 gap-4">
-                <Button variant="outline" onClick={handlePrevious} className="px-6 w-full sm:w-auto">
+                <Button onClick={handlePrevious} className="bg-neutral-500 hover:bg-neutral-600 text-white px-6 w-full sm:w-auto">
                   {t("back")}
                 </Button>
                 <Button

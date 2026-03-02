@@ -1,16 +1,18 @@
 "use client"
 
 import { useState } from "react"
-import { X } from "lucide-react"
+import { Info } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { toast } from "@/hooks/use-toast"
 import { useTranslation } from "@/hooks/use-translation"
 import { useAuth } from "@/hooks/use-auth"
+import GoogleAddressInput, { AddressComponents } from "@/components/GoogleAddressInput"
 
 interface AddWorkerModalProps {
   open: boolean
@@ -28,6 +30,12 @@ export default function AddWorkerModal({ open, onOpenChange, onWorkerAdded }: Ad
   const [formData, setFormData] = useState({
     name: "",
     address: "",
+    city: "",
+    province: "",
+    country: "",
+    postalCode: "",
+    latitude: null as number | null,
+    longitude: null as number | null,
     landline: "",
     mobile: "",
     email: "",
@@ -38,7 +46,7 @@ export default function AddWorkerModal({ open, onOpenChange, onWorkerAdded }: Ad
     gender: "",
     birthday: "",
     accessAccountStatus: "postpone",
-  accessEmail: "",
+    accessEmail: "",
   })
 
   const [validationErrors, setValidationErrors] = useState({
@@ -52,21 +60,28 @@ export default function AddWorkerModal({ open, onOpenChange, onWorkerAdded }: Ad
     birthday: false,
   })
 
+  const isValidEmail = (email: string) => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+  }
+
   const steps = [
-    { number: 1, label: t("Id") },
-    { number: 2, label: t("Others") },
-    { number: 3, label: t("Access") },
+    { number: 1, label: t("identification") || "Identificación" },
+    { number: 2, label: t("others") || "Otros" },
+    { number: 3, label: t("access") || "Acceso" },
   ]
 
   const handleNext = () => {
     if (currentStep === 1) {
+      const emailInvalid = !formData.email || !isValidEmail(formData.email)
       const errors = {
         name: !formData.name,
         address: !formData.address,
         mobile: !formData.mobile,
-        email: !formData.email,
+        email: emailInvalid,
         occupation: false,
         gender: false,
+        code: false,
+        birthday: false,
       }
       setValidationErrors(errors)
 
@@ -123,6 +138,12 @@ export default function AddWorkerModal({ open, onOpenChange, onWorkerAdded }: Ad
       const payload = {
         name: formData.name,
         address: formData.address,
+        city: formData.city,
+        province: formData.province,
+        country: formData.country,
+        postalCode: formData.postalCode,
+        latitude: formData.latitude,
+        longitude: formData.longitude,
         landline: formData.landline,
         mobile: formData.mobile,
         email: formData.email,
@@ -133,7 +154,7 @@ export default function AddWorkerModal({ open, onOpenChange, onWorkerAdded }: Ad
         gender: formData.gender,
         birthday: formData.birthday,
         accessAccountStatus: formData.accessAccountStatus,
-  ...(formData.accessAccountStatus === 'request' && { accessEmail: formData.accessEmail || formData.email }),
+        ...(formData.accessAccountStatus === 'request' && { accessEmail: formData.accessEmail || formData.email }),
       }
 
       const token = session?.accessToken
@@ -192,6 +213,12 @@ export default function AddWorkerModal({ open, onOpenChange, onWorkerAdded }: Ad
         setFormData({
           name: "",
           address: "",
+          city: "",
+          province: "",
+          country: "",
+          postalCode: "",
+          latitude: null,
+          longitude: null,
           landline: "",
           mobile: "",
           email: "",
@@ -235,13 +262,31 @@ export default function AddWorkerModal({ open, onOpenChange, onWorkerAdded }: Ad
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm sm:max-w-md p-0 gap-0 [&>button]:hidden h-[90vh] flex flex-col bg-background border-border mx-4">
-        <DialogHeader className="p-4 sm:p-6 pb-4">
-          <div className="flex items-center justify-between">
-            <DialogTitle className="text-lg font-medium text-foreground">{t("newWorker") || "New Worker"}</DialogTitle>
-            <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => onOpenChange(false)}>
-              <X className="h-4 w-4" />
-            </Button>
+      <DialogContent
+        className="max-w-sm sm:max-w-md p-0 gap-0 max-h-[90vh] flex flex-col bg-background border-border mx-4"
+        onPointerDownOutside={(e) => {
+          // Prevent dialog from closing when clicking Google Places autocomplete suggestions
+          const target = e.target as HTMLElement
+          if (target.closest(".pac-container")) {
+            e.preventDefault()
+          }
+        }}
+        onInteractOutside={(e) => {
+          const target = e.target as HTMLElement
+          if (target.closest(".pac-container")) {
+            e.preventDefault()
+          }
+        }}
+      >
+        <DialogHeader className="p-4 sm:p-6 pb-4 space-y-4">
+          <div className="flex items-center justify-between relative">
+            <div className="flex-1" />
+            <div className="absolute left-1/2 transform -translate-x-1/2 mb-3">
+              <DialogTitle className="text-lg font-semibold text-foreground text-center tracking-tight">
+                {t("newWorker") || "Nuevo trabajador"}
+              </DialogTitle>
+            </div>
+            <div className="flex-1 flex justify-end" />
           </div>
 
           {/* Progress Steps */}
@@ -251,22 +296,43 @@ export default function AddWorkerModal({ open, onOpenChange, onWorkerAdded }: Ad
                 <div className="flex flex-col items-center">
                   <div
                     className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                      step.number <= currentStep ? "bg-purple-600 text-white" : "bg-muted text-muted-foreground"
+                      step.number <= currentStep
+                        ? "text-white"
+                        : "bg-muted text-muted-foreground"
                     }`}
+                    style={
+                      step.number <= currentStep
+                        ? { backgroundColor: "#662D91" }
+                        : {}
+                    }
                   >
                     {step.number}
                   </div>
                   <span
                     className={`text-xs mt-1 ${
-                      step.number === currentStep ? "text-purple-600 font-medium" : "text-muted-foreground"
+                      step.number === currentStep
+                        ? "font-medium"
+                        : "text-muted-foreground"
                     }`}
+                    style={
+                      step.number === currentStep
+                        ? { color: "#662D91" }
+                        : undefined
+                    }
                   >
                     {step.label}
                   </span>
                 </div>
                 {index < steps.length - 1 && (
                   <div
-                    className={`w-12 sm:w-16 h-0.5 mx-2 ${step.number < currentStep ? "bg-purple-600" : "bg-muted"}`}
+                    className={`w-12 sm:w-16 h-0.5 mx-2 ${
+                      step.number < currentStep ? "" : "bg-muted"
+                    }`}
+                    style={
+                      step.number < currentStep
+                        ? { backgroundColor: "#662D91" }
+                        : undefined
+                    }
                   />
                 )}
               </div>
@@ -294,18 +360,39 @@ export default function AddWorkerModal({ open, onOpenChange, onWorkerAdded }: Ad
               </div>
 
               <div>
-                <Label htmlFor="address" className="text-sm font-medium text-foreground">
+                <Label htmlFor="address" className="text-sm font-medium text-foreground flex items-center gap-1">
                   {t("address")} <span className="text-red-500">*</span>
+                  <TooltipProvider>
+                    <Tooltip delayDuration={0}>
+                      <TooltipTrigger asChild>
+                        <button type="button" className="inline-flex items-center p-0" tabIndex={-1}>
+                          <Info tabIndex={-1} className="w-3 h-3 text-muted-foreground cursor-help" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="right" align="center" sideOffset={6} className="max-w-[14rem] text-xs px-2 py-1">
+                        {t("addressTip")}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </Label>
-                <Input
-                  id="address"
+                <GoogleAddressInput
                   value={formData.address}
-                  onChange={(e) => updateFormData("address", e.target.value)}
-                  placeholder="Street, Number, Town..."
-                  className={`mt-1 ${validationErrors.address ? "border-red-500" : ""}`}
+                  onChange={(value, placeId, components) => {
+                    updateFormData("address", value)
+                    if (components) {
+                      if (components.city) updateFormData("city", components.city)
+                      if (components.province) updateFormData("province", components.province)
+                      if (components.country) updateFormData("country", components.country)
+                      if (components.postalCode) updateFormData("postalCode", components.postalCode)
+                      if (components.latitude) updateFormData("latitude", components.latitude)
+                      if (components.longitude) updateFormData("longitude", components.longitude)
+                    }
+                  }}
+                  placeholder="Calle, Número, Ciudad..."
+                  className={`mt-1 border p-2 w-full rounded text-sm ${validationErrors.address ? "border-red-500" : ""}`}
                 />
                 {validationErrors.address && (
-                  <p className="mt-1 text-sm text-red-500">{t("thisFieldIsRequired") || "This field is required."}</p>
+                  <p className="mt-1 text-sm text-red-500">{t("thisFieldIsRequired") || "Este campo es obligatorio."}</p>
                 )}
               </div>
 
@@ -316,7 +403,13 @@ export default function AddWorkerModal({ open, onOpenChange, onWorkerAdded }: Ad
                 <Input
                   id="landline"
                   value={formData.landline}
-                  onChange={(e) => updateFormData("landline", e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/[^0-9]/g, "")
+                    updateFormData("landline", val)
+                  }}
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  placeholder="Ej. 912345678"
                   className="mt-1"
                 />
               </div>
@@ -328,7 +421,13 @@ export default function AddWorkerModal({ open, onOpenChange, onWorkerAdded }: Ad
                 <Input
                   id="mobile"
                   value={formData.mobile}
-                  onChange={(e) => updateFormData("mobile", e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/[^0-9]/g, "")
+                    updateFormData("mobile", val)
+                  }}
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  placeholder="Ej. 612345678"
                   className={`mt-1 ${validationErrors.mobile ? "border-red-500" : ""}`}
                 />
                 {validationErrors.mobile && (
@@ -348,16 +447,23 @@ export default function AddWorkerModal({ open, onOpenChange, onWorkerAdded }: Ad
                   className={`mt-1 ${validationErrors.email ? "border-red-500" : ""}`}
                 />
                 {validationErrors.email && (
-                  <p className="mt-1 text-sm text-red-500">{t("thisFieldIsRequired") || "This field is required."}</p>
+                  <p className="mt-1 text-sm text-red-500">
+                    {!formData.email
+                      ? (t("thisFieldIsRequired") || "Este campo es obligatorio.")
+                      : (t("invalidEmailFormat") || "Formato de email inválido (xxxx@xxx.xx)")}
+                  </p>
                 )}
               </div>
 
               <div className="flex justify-end pt-4">
                 <Button
                   onClick={handleNext}
-                  className="bg-purple-600 hover:bg-purple-700 text-white px-6 w-full sm:w-auto"
+                  className="text-white px-6 w-full sm:w-auto"
+                  style={{ backgroundColor: "#662D91" }}
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#551A80")}
+                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#662D91")}
                 >
-                  {t("next")}
+                  {t("next") || "Siguiente"}
                 </Button>
               </div>
             </div>
@@ -367,8 +473,20 @@ export default function AddWorkerModal({ open, onOpenChange, onWorkerAdded }: Ad
           {currentStep === 2 && (
             <div className="space-y-4">
               <div>
-                <Label htmlFor="code" className="text-sm font-medium text-foreground">
+                <Label htmlFor="code" className="text-sm font-medium text-foreground flex items-center gap-1">
                   {t("code")}
+                  <TooltipProvider>
+                    <Tooltip delayDuration={0}>
+                      <TooltipTrigger asChild>
+                        <button type="button" className="inline-flex items-center p-0" tabIndex={-1}>
+                          <Info tabIndex={-1} className="w-3 h-3 text-muted-foreground cursor-help" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="right" align="center" sideOffset={6} className="max-w-fit text-xs px-2 py-1">
+                        {t("erpCustomerCodeTip")}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </Label>
                 <Input
                   id="code"
@@ -456,7 +574,7 @@ export default function AddWorkerModal({ open, onOpenChange, onWorkerAdded }: Ad
               </div>
 
               <div className="flex flex-col sm:flex-row justify-between pt-4 gap-4">
-                <Button onClick={handlePrevious} variant="outline" className="px-6 w-full sm:w-auto bg-transparent">
+                <Button onClick={handlePrevious} className="bg-neutral-500 hover:bg-neutral-600 text-white px-6 w-full sm:w-auto">
                   {t("back")}
                 </Button>
                 <Button
@@ -477,30 +595,41 @@ export default function AddWorkerModal({ open, onOpenChange, onWorkerAdded }: Ad
                   {t("activationOfAccessAccount") || "Activation of access account?"}
                 </Label>
                 <RadioGroup
-                  defaultValue={formData.accessAccountStatus}
-                  onValueChange={(value: "postpone" | "request") => updateFormData("accessAccountStatus", value)}
+                  value={formData.accessAccountStatus}
+                  onValueChange={(value: string) => updateFormData("accessAccountStatus", value)}
                   className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4 mt-2"
                 >
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem
                       value="postpone"
                       id="postpone"
-                      checked={formData.accessAccountStatus === "postpone"}
                     />
                     <Label htmlFor="postpone" className="text-sm">
                       {t("postpone")}
                     </Label>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="request" id="request" checked={formData.accessAccountStatus === "request"} />
+                    <RadioGroupItem value="request" id="request" />
                     <Label htmlFor="request" className="text-sm">
-                      {t("request")}
+                      {t("requestAccess") || "Solicitar"}
                     </Label>
+                    <TooltipProvider>
+                      <Tooltip delayDuration={0}>
+                        <TooltipTrigger asChild>
+                          <button type="button" className="inline-flex items-center p-0" tabIndex={-1}>
+                            <Info tabIndex={-1} className="w-3 h-3 text-muted-foreground cursor-help" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="right" align="center" sideOffset={6} className="max-w-[14rem] text-xs px-2 py-1">
+                          {t("requestAccessTip") || "Se enviará un mail al trabajador para comunicar su cuenta de acceso a la aplicación y solicitar una contraseña."}
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   </div>
                 </RadioGroup>
               </div>
 
-              {formData.accessAccountStatus === "request" && (
+              <div className={formData.accessAccountStatus !== "request" ? "invisible" : ""}>
                 <div>
                   <Label htmlFor="accessEmailDisplay" className="text-sm font-medium text-foreground">
                     {t("email")}
@@ -512,14 +641,11 @@ export default function AddWorkerModal({ open, onOpenChange, onWorkerAdded }: Ad
                     className="mt-1"
                     placeholder={formData.email}
                   />
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {t("accessEmailHelper") || "Access credentials will be sent to this email"}
-                  </p>
                 </div>
-              )}
+              </div>
 
               <div className="flex flex-col sm:flex-row justify-between pt-4 gap-4">
-                <Button variant="outline" onClick={handlePrevious} className="px-6 w-full sm:w-auto bg-transparent">
+                <Button onClick={handlePrevious} className="bg-neutral-500 hover:bg-neutral-600 text-white px-6 w-full sm:w-auto">
                   {t("back")}
                 </Button>
                 <Button

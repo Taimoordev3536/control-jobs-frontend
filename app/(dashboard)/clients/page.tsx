@@ -23,11 +23,11 @@ export default function ClientsPage() {
   const mapClient = (c: any) => ({
     id: c.id?.toString() || c.clientId?.toString() || "",
     name: c.name || "-",
-    locality: c.address || c.locality || "-",
-    type: c.type || "-",
+    city: c.city || "-",
+    type: c.type === "company" ? t("company") : c.type === "particular" ? t("particular") : c.type || "-",
     responsible: c.responsible || "-",
     telephones: [c.landline, c.mobile, c.phone].filter(Boolean).join(" | ") || "-",
-    asset: c.asset !== undefined ? (c.asset ? "Yes" : "No") : "No",
+    asset: c.active === true || c.active === "true" ? t("yeah") : c.active === false || c.active === "false" ? t("no") : c.asset === "yeah" ? t("yeah") : t("no"),
   })
 
   useEffect(() => {
@@ -57,17 +57,17 @@ export default function ClientsPage() {
 
   const columns = [
     { key: "name", label: t("name"), sortable: true },
-    { key: "locality", label: t("locality"), sortable: true },
+    { key: "city", label: t("city"), sortable: true },
     { key: "type", label: t("type"), sortable: true, align: "center" as const },
     { key: "responsible", label: t("responsible"), sortable: true },
-    { key: "telephones", label: t("telephones"), sortable: false },
+    { key: "telephones", label: t("telephones"), sortable: false, align: "center" as const },
     {
       key: "asset",
       label: t("asset"),
       sortable: true,
       align: "center" as const,
       render: (value: string) => (
-        <span className={`font-medium ${value === "Yes" ? "text-green-600" : "text-red-600"}`}>{value}</span>
+        <span className={`font-medium ${value === t("yeah") ? "text-green-600" : "text-red-600"}`}>{value}</span>
       ),
     },
   ]
@@ -126,6 +126,8 @@ export default function ClientsPage() {
         columns={columns}
         onRowClick={handleRowClick}
         actionButtons={actionButtons}
+        defaultSortColumn="name"
+        defaultSortDirection="asc"
         emptyMessage={isLoading ? <AnimatedLoader size={32} /> : t("noClientsFound")}
       />
 

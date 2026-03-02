@@ -497,7 +497,7 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded }
               </div>
 
               <div className="flex justify-between pt-4">
-                <Button onClick={handlePrevious} variant="outline" className="px-6 bg-transparent">
+                <Button onClick={handlePrevious} className="bg-neutral-500 hover:bg-neutral-600 text-white px-6">
                   {t("back")}
                 </Button>
                 <Button onClick={handleNext} className="bg-purple-600 hover:bg-purple-700 text-white px-6">
@@ -561,7 +561,7 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded }
               )}
 
               <div className="flex justify-between pt-4">
-                <Button onClick={handlePrevious} variant="outline" className="px-6 bg-transparent">
+                <Button onClick={handlePrevious} className="bg-neutral-500 hover:bg-neutral-600 text-white px-6">
                   {t("back")}
                 </Button>
                 <Button

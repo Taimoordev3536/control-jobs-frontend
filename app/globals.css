@@ -4,6 +4,12 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Google Places Autocomplete dropdown must render above shadcn Dialog overlay */
+.pac-container {
+  z-index: 10000 !important;
+  pointer-events: auto !important;
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -12,7 +18,7 @@
     --card-foreground: 240 10% 3.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 240 10% 3.9%;
-    --primary: 270 50% 40%;
+    --primary: 274 53% 37%;
     --primary-foreground: 0 0% 98%;
     --secondary: 240 4.8% 95.9%;
     --secondary-foreground: 240 5.9% 10%;
@@ -24,7 +30,7 @@
     --destructive-foreground: 0 0% 98%;
     --border: 240 5.9% 90%;
     --input: 240 5.9% 90%;
-    --ring: 270 50% 40%;
+    --ring: 274 53% 37%;
     --radius: 0.5rem;
 
     /* Sidebar theme variables */
@@ -42,7 +48,7 @@
     --sidebar-item-active-bg: 0 0% 100%;
     --sidebar-border: 0 0% 85%;
     --header-bg: 0 0% 100%;
-    --purple: 270 50% 40%;
+    --purple: 274 53% 37%;
   }
 
   .dark {
@@ -52,7 +58,7 @@
     --card-foreground: 0 0% 98%;
     --popover: 240 10% 3.9%;
     --popover-foreground: 0 0% 98%;
-    --primary: 270 50% 60%;
+    --primary: 274 53% 50%;
     --primary-foreground: 240 5.9% 10%;
     --secondary: 240 3.7% 15.9%;
     --secondary-foreground: 0 0% 98%;
@@ -64,7 +70,7 @@
     --destructive-foreground: 0 0% 98%;
     --border: 240 3.7% 15.9%;
     --input: 240 3.7% 15.9%;
-    --ring: 270 50% 60%;
+    --ring: 274 53% 50%;
 
     /* Sidebar dark theme variables */
     --sidebar-background: 240 5.9% 10%;
@@ -81,7 +87,7 @@
     --sidebar-item-active-bg: 240 5% 15%;
     --sidebar-border: 240 5% 20%;
     --header-bg: 240 10% 3.9%;
-    --purple: 270 50% 60%;
+    --purple: 274 53% 50%;
   }
 }
 

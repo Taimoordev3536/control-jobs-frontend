@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { ChevronUp, ChevronDown, MoreVertical } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useTranslation } from "@/hooks/use-translation"
@@ -45,6 +45,8 @@ interface DataListTemplateProps {
   totalRecords?: number
   showPagination?: boolean
   emptyMessage?: string | React.ReactNode
+  defaultSortColumn?: string
+  defaultSortDirection?: "asc" | "desc"
 }
 
 export default function DataListTemplate({
@@ -58,15 +60,29 @@ export default function DataListTemplate({
   totalRecords,
   showPagination = true,
   emptyMessage = "No data available",
+  defaultSortColumn = null,
+  defaultSortDirection = "asc",
 }: DataListTemplateProps) {
   const { t } = useTranslation()
   const router = useRouter()
   const [localColumns, setLocalColumns] = useState(columns)
-  const [sortColumn, setSortColumn] = useState<string | null>(null)
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc")
+  const [sortColumn, setSortColumn] = useState<string | null>(defaultSortColumn)
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">(defaultSortDirection)
   const [currentPage, setCurrentPage] = useState(1)
   const [filtersVisible, setFiltersVisible] = useState(false)
   const [filters, setFilters] = useState<Record<string, string>>({})
+  const [searchQuery, setSearchQuery] = useState("")
+
+  // Sync column labels when translations/props change, preserving drag-and-drop order
+  useEffect(() => {
+    setLocalColumns((prev) => {
+      const labelMap = new Map(columns.map((c) => [c.key, c.label]))
+      return prev.map((col) => ({
+        ...col,
+        label: labelMap.get(col.key) ?? col.label,
+      }))
+    })
+  }, [columns])
 
   const total = totalRecords || (data?.length ?? 0)
   const totalPages = Math.ceil(total / itemsPerPage)
@@ -98,18 +114,36 @@ export default function DataListTemplate({
   }, [data, sortColumn, sortDirection, localColumns])
 
   const filteredData = useMemo(() => {
-    if (!filtersVisible) return sortedData
-    const activeFilters = Object.entries(filters).filter(([, v]) => v && v.trim() !== "")
-    if (activeFilters.length === 0) return sortedData
+    let result = sortedData
 
-    return sortedData.filter((row) => {
-      return activeFilters.every(([key, value]) => {
-        const cell = row?.[key]
-        const text = cell == null ? "" : String(cell)
-        return text.toLowerCase().includes(value.toLowerCase())
-      })
-    })
-  }, [sortedData, filters, filtersVisible])
+    // Global search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase()
+      result = result.filter((row) =>
+        localColumns.some((col) => {
+          const cell = row?.[col.key]
+          const text = cell == null ? "" : String(cell)
+          return text.toLowerCase().includes(query)
+        })
+      )
+    }
+
+    // Column filters
+    if (filtersVisible) {
+      const activeFilters = Object.entries(filters).filter(([, v]) => v && v.trim() !== "")
+      if (activeFilters.length > 0) {
+        result = result.filter((row) => {
+          return activeFilters.every(([key, value]) => {
+            const cell = row?.[key]
+            const text = cell == null ? "" : String(cell)
+            return text.toLowerCase().includes(value.toLowerCase())
+          })
+        })
+      }
+    }
+
+    return result
+  }, [sortedData, filters, filtersVisible, searchQuery, localColumns])
 
   const handleSort = (column: string) => {
     const columnConfig = localColumns.find((col) => col.key === column)
@@ -153,15 +187,18 @@ export default function DataListTemplate({
     }
   }
 
-  const getAlignmentClass = (key: string, value: any) => {
-    if (typeof value === "number" && key.toLowerCase().includes("factur")) {
+  const getAlignmentClass = (column: Column, value: any) => {
+    // Respect explicit column alignment first
+    if (column.align === "center") return "text-center";
+    if (column.align === "right") return "text-right";
+    if (column.align === "left") return "text-left";
+    // Auto-detect only if no explicit align set
+    if (typeof value === "number" && column.key.toLowerCase().includes("factur")) {
       return "text-right"; // Right align for monetary amounts
     } else if (typeof value === "number") {
-      return "text-right"; // Right align for other numbers (e.g., Empleadores)
-    } else if (value instanceof Date || !isNaN(Date.parse(value))) {
-      return "text-center"; // Center align for dates (e.g., F. Alta)
+      return "text-right"; // Right align for other numbers
     } else {
-      return "text-left"; // Left align for text
+      return "text-left"; // Left align for everything else
     }
   };
 
@@ -258,6 +295,16 @@ export default function DataListTemplate({
         <div className="flex justify-between items-center p-3 border-b border-border bg-gray-100 dark:bg-gray-800">
           <h1 className="text-lg sm:text-2xl font-semibold text-foreground truncate">{title}</h1>
           <div className="flex items-center gap-2">
+            {/* Search input */}
+            <div className="relative hidden sm:block">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1) }}
+                placeholder={t("search") || "Search..."}
+                className="w-[8.5rem] h-[2.75rem] px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:border-[#662D91] focus:ring-1 focus:ring-[#662D91] bg-background"
+              />
+            </div>
             {actionButtons.length > 0 && (
               <>
                 {/* Desktop and Tablet Buttons */}
@@ -441,9 +488,11 @@ export default function DataListTemplate({
                           key={`${row.id || index}-${column.key}`}
                           className={`px-3 py-2 text-sm ${
                             column.key === localColumns[0].key ? "text-foreground font-medium" : "text-muted-foreground"
-                          } ${getAlignmentClass(column.key, row[column.key])} border border-gray-300 dark:border-gray-700`}
+                          } ${getAlignmentClass(column, row[column.key])} border border-gray-300 dark:border-gray-700`}
                         >
-                          {renderValue(row[column.key], column.key)}
+                          {column.render
+                            ? column.render(row[column.key], row)
+                            : renderValue(row[column.key], column.key)}
                         </td>
                       ))}
                     </tr>

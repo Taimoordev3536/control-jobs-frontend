@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useParams } from "next/navigation"
 import { ClientDataTab } from "@/components/client-tabs/client-data-tab"
 import { ClientWorkCenterTab } from "@/components/client-tabs/client-work-center-tab"
@@ -8,11 +8,35 @@ import { ClientJobsTab } from "@/components/client-tabs/client-jobs-tab"
 import { ClientWorkerTab } from "@/components/client-tabs/client-worker-tab"
 import { ClientMessagesTab } from "@/components/client-tabs/client-messages-tab"
 import { useTranslation } from "@/hooks/use-translation"
+import { useAuth } from "@/hooks/use-auth"
 
 export default function ClientDetailPage() {
   const { t } = useTranslation()
   const params = useParams()
+  const { session } = useAuth()
   const [activeTab, setActiveTab] = useState("data")
+  const [clientName, setClientName] = useState("")
+
+  useEffect(() => {
+    const fetchClientName = async () => {
+      if (!session?.accessToken || !params.id) return
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/client/${params.id}`, {
+          headers: {
+            Authorization: `Bearer ${session.accessToken}`,
+            "Content-Type": "application/json",
+          },
+        })
+        if (res.ok) {
+          const result = await res.json()
+          setClientName(result.data?.name || "")
+        }
+      } catch (err) {
+        console.error("Error fetching client name:", err)
+      }
+    }
+    fetchClientName()
+  }, [session?.accessToken, params.id])
 
   const tabs = [
     { key: "data", label: t("data") },
@@ -26,9 +50,9 @@ export default function ClientDetailPage() {
     <div className="bg-background min-h-screen">
       {/* Header */}
       <div className="bg-card border-b border-border">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 sm:p-3 gap-2">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center px-4 pt-1 pb-1 sm:px-3 gap-1">
           <h1 className="text-xl sm:text-2xl font-semibold text-foreground">
-            {t("customer")}
+            {clientName || t("customer")}
           </h1>
         </div>
 
@@ -39,7 +63,7 @@ export default function ClientDetailPage() {
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
-                className={`flex-shrink-0 px-6 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                className={`flex-shrink-0 px-6 py-1.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                   activeTab === tab.key
                     ? "border-[#662D91] text-[#662D91] bg-purple-50 dark:bg-purple-950/50"
                     : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
@@ -53,7 +77,7 @@ export default function ClientDetailPage() {
       </div>
 
       {/* Tab Content */}
-      <div className="min-h-[400px] bg-card p-6">
+      <div className="min-h-[400px] bg-card p-2">
         {activeTab === "data" && <ClientDataTab clientId={params.id as string} />}
         {activeTab === "work-centers" && <ClientWorkCenterTab clientId={params.id as string} />}
         {activeTab === "jobs" && <ClientJobsTab clientId={params.id as string} />}

@@ -19,6 +19,17 @@ export default function WorkersPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [showAddModal, setShowAddModal] = useState(false)
 
+  // Map backend worker data to table row format
+  const mapWorker = (w: any) => ({
+    id: w.id?.toString() || w.workerId?.toString() || "",
+    name: w.name || w.fullName || w.workerName || "-",
+    occupation: w.occupation || "-",
+    telephones: [w.landline, w.mobile].filter(Boolean).join(" | ") || "-",
+    population: w.locality || w.city || w.address || "-",
+    postalCode: w.postalCode || "-",
+    asset: w.asset === "yeah" || w.asset === true ? t("yeah") : t("no"),
+  })
+
   useEffect(() => {
     const fetchWorkers = async () => {
       if (!session?.accessToken) return
@@ -32,24 +43,7 @@ export default function WorkersPage() {
         })
         if (!res.ok) throw new Error("Failed to fetch workers")
         const data = await res.json()
-        console.log("Raw API response:", data)
-
-        // Map backend fields to frontend expectations
-        const mapped = (data.data || []).map((w: any) => {
-          const mappedWorker = {
-            id: w.id || w.workerId || w.worker_id,
-            name: w.name || w.fullName || w.workerName || `Worker ${w.id}`,
-            occupation: w.occupation || "",
-            telephones: w.mobile || w.landline || "",
-            population: w.address || "",
-            postalCode: Math.floor(10000 + Math.random() * 90000).toString(),
-            asset: w.asset ? t("yeah") : t("no"),
-            ...w,
-          }
-          console.log("Mapped worker:", mappedWorker)
-          return mappedWorker
-        })
-        console.log("Mapped workers:", mapped)
+        const mapped = (data.data || []).map(mapWorker)
         setWorkers(mapped)
       } catch (err) {
         console.error("Error fetching workers:", err)
@@ -64,15 +58,16 @@ export default function WorkersPage() {
   const columns = [
     { key: "name", label: t("name"), sortable: true },
     { key: "occupation", label: t("occupation"), sortable: true },
-    { key: "telephones", label: t("telephones"), sortable: true },
+    { key: "telephones", label: t("telephones"), sortable: true, align: "center" as const },
     { key: "population", label: t("population"), sortable: true },
     { key: "postalCode", label: t("postalCode"), sortable: true },
     {
       key: "asset",
       label: t("asset"),
       sortable: true,
+      align: "center" as const,
       render: (value: string) => (
-        <span className={`font-medium ${value === t("yeah") ? "text-red-600" : "text-green-600"}`}>{value}</span>
+        <span className={`font-medium ${value === t("yeah") ? "text-green-600" : "text-red-600"}`}>{value}</span>
       ),
     },
   ]
@@ -112,26 +107,13 @@ export default function WorkersPage() {
   ]
 
   const handleRowClick = (worker: any) => {
-    console.log("Full worker object received:", worker)
-    console.log("Worker ID:", worker?.id)
-    console.log("Worker ID type:", typeof worker?.id)
+    const workerId = worker?.id || worker
 
-    let workerId = null
-
-    // Handle different data structures
-    if (typeof worker === "object" && worker !== null) {
-      workerId = worker.id || worker.workerId || worker.worker_id
-    } else if (typeof worker === "string" || typeof worker === "number") {
-      workerId = worker
-    }
-
-    if (!workerId) {
+    if (workerId && workerId !== "") {
+      router.push(`/workers/${workerId}`)
+    } else {
       console.error("Worker ID is missing:", worker)
-      return
     }
-
-    console.log("Navigating with worker ID:", workerId)
-    router.push(`/workers/${workerId}`)
   }
 
   return (
@@ -142,23 +124,15 @@ export default function WorkersPage() {
         columns={columns}
         onRowClick={handleRowClick}
         actionButtons={actionButtons}
+        defaultSortColumn="name"
+        defaultSortDirection="asc"
         emptyMessage={isLoading ? <AnimatedLoader size={32} /> : t("noWorkersFound")}
-        totalRecords={workers.length}
-        currentPage={1}
-        totalPages={1}
       />
       <AddWorkerModal
         open={showAddModal}
         onOpenChange={setShowAddModal}
         onWorkerAdded={(newWorker) => {
-          setWorkers((prev) => [
-            ...prev,
-            {
-              ...newWorker,
-              population: newWorker.address || "",
-              postalCode: Math.floor(10000 + Math.random() * 90000).toString(),
-            },
-          ])
+          setWorkers((prev) => [mapWorker(newWorker), ...prev])
           setShowAddModal(false)
         }}
       />

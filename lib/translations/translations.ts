@@ -8,6 +8,9 @@ const translations: Record<string, Record<string, string>> = {
     activateAccessAccount: "Activate access account",
     postpone: "Postpone",
     request: "Request",
+    requestAccess: "Request",
+    requestAccessTip: "An email will be sent to the client to communicate their access account to the application and request a password.",
+    namePlaceholder: "name",
     selectClass: "Select class",
     selectPartner: "Select partner",
     selectFeeType: "Select fee type",
@@ -16,6 +19,9 @@ const translations: Record<string, Record<string, string>> = {
     newCustomer: "New customer",
     "Street, Number, Town...": "Street, Number, Town...",
     newWorker: "New worker",
+    identification: "Identification",
+    others: "Others",
+    access: "Access",
     selectGender: "Select gender",
     activationOfAccessAccount: "Activation of access account:",
     accessEmail: "Access email:",
@@ -74,6 +80,20 @@ surveyMonitoringValueTips: "Set a limit. If responses are under this value, an a
 
   // info tooltip for start date in add-job-modal
   jobStartDateTip: "Past dates are not allowed. Please select today or a future date.",
+  // info tooltip for code field in add-client-modal
+  erpCustomerCodeTip: "Your ERP Customer Code",
+  workerCodeTip: "Code or Reference of your payroll program",
+  workerNafTip: "Social Security membership number",
+  addressTip: "Enter your address and choose a suggestion.",
+  clientCreatedSuccessfully: "Client created successfully!",
+  clientUpdatedSuccessfully: "Client updated successfully!",
+  clientDeletedSuccessfully: "Client deleted successfully!",
+  confirmDeleteClient: "Delete client?",
+  confirmDeleteClientDesc: "This action cannot be undone. The client and all related data will be permanently removed.",
+  workerUpdatedSuccessfully: "Worker updated successfully!",
+  workerDeletedSuccessfully: "Worker deleted successfully!",
+  confirmDeleteWorker: "Delete worker?",
+  confirmDeleteWorkerDesc: "This action cannot be undone. The worker and all related data will be permanently removed.",
 
     // common observation filter addressPlaceholder email
     thisFieldIsRequired: "This field is required.",
@@ -201,7 +221,7 @@ surveyMonitoringValueTips: "Set a limit. If responses are under this value, an a
     // Clients page translations
     clientList: "Client List",
     name: "Name",
-    locality: "Locality",
+    city: "City",
     type: "Type",
     responsible: "Responsible",
     telephones: "Telephones",
@@ -596,6 +616,9 @@ surveyMonitoringValueTips: "Set a limit. If responses are under this value, an a
     activateAccessAccount: "Activar cuenta de acceso",
     postpone: "Posponer",
     request: "Solicitud",
+    requestAccess: "Solicitar",
+    requestAccessTip: "Se enviará un mail al cliente para comunicar su cuenta de acceso a la aplicación y solicitar una contraseña.",
+    namePlaceholder: "nombre",
     selectClass: "Seleccionar clase",
     selectPartner: "Seleccionar socio",
     selectFeeType: "Seleccionar tipo de tarifa",
@@ -604,6 +627,9 @@ surveyMonitoringValueTips: "Set a limit. If responses are under this value, an a
     newCustomer: "Nuevo cliente",
     "Street, Number, Town...": "Calle, Número, Ciudad...",
     newWorker: "Nuevo trabajador",
+    identification: "Identificación",
+    others: "Otros",
+    access: "Acceso",
     selectGender: "Seleccionar género",
     activationOfAccessAccount: "Activación de cuenta de acceso:",
     accessEmail: "Correo de acceso:",
@@ -647,6 +673,20 @@ surveyMonitoringValueTips: "Set a limit. If responses are under this value, an a
       "Selecciona uno o varios trabajadores. La aplicación esperará fichajes de todos los trabajadores seleccionados.",
     // info tooltip for start date in add-job-modal
     jobStartDateTip: "No se permiten fechas pasadas. Por favor, selecciona hoy o una fecha futura.",
+    // info tooltip for code field in add-client-modal
+    erpCustomerCodeTip: "Tu código de cliente en el ERP",
+    workerCodeTip: "Código o Referencia de tu programa de nóminas",
+    workerNafTip: "Número de afiliación a la Seguridad Social",
+    addressTip: "Escribe tu dirección y elige una sugerencia.",
+    clientCreatedSuccessfully: "Cliente creado satisfactoriamente",
+    clientUpdatedSuccessfully: "Cliente actualizado satisfactoriamente",
+    clientDeletedSuccessfully: "Cliente eliminado satisfactoriamente",
+    confirmDeleteClient: "¿Eliminar cliente?",
+    confirmDeleteClientDesc: "Esta acción no se puede deshacer. El cliente y todos los datos relacionados serán eliminados permanentemente.",
+    workerUpdatedSuccessfully: "Trabajador actualizado satisfactoriamente",
+    workerDeletedSuccessfully: "Trabajador eliminado satisfactoriamente",
+    confirmDeleteWorker: "¿Eliminar trabajador?",
+    confirmDeleteWorkerDesc: "Esta acción no se puede deshacer. El trabajador y todos los datos relacionados serán eliminados permanentemente.",
       seasonsInfo:
       "Si no tienes horario de verano, deja en blanco el periodo.",
       delayTips: "Tiempo permitido para fichar la entrada sin generar alerta.",
@@ -788,9 +828,9 @@ surveyMonitoringValueTips: "Set a limit. If responses are under this value, an a
     noSurveysDataAvailable: "No hay datos de encuestas disponibles",
 
     // Clients page translations former
-    clientList: "Lista de Clientes",
+    clientList: "Listado de Clientes",
     name: "Nombre",
-    locality: "Localidad",
+    city: "Localidad",
     Type: "Tipo",
     responsible: "Responsable",
     telephones: "Teléfonos",
@@ -810,7 +850,7 @@ surveyMonitoringValueTips: "Set a limit. If responses are under this value, an a
     exportPdf: "Exportar PDF",
 
     // Workers page translations
-    listOfWorkers: "Lista de Trabajadores",
+    listOfWorkers: "Listado de Trabajadores",
     namePseudonym: "Nombre/Pseudónimo",
     population: "Población",
     postalCode: "Código Postal",

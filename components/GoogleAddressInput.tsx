@@ -1,10 +1,11 @@
 "use client"
-import React, { useEffect, useRef, useState } from "react"
+import React, { useEffect, useRef, useState, useCallback } from "react"
 
 export interface AddressComponents {
   street?: string
   streetNumber?: string
-  locality?: string
+  floorDoor?: string
+  city?: string
   province?: string
   country?: string
   postalCode?: string
@@ -27,7 +28,13 @@ const GoogleAddressInput: React.FC<GoogleAddressInputProps> = ({
 }) => {
   const inputRef = useRef<HTMLInputElement>(null)
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null)
+  const onChangeRef = useRef(onChange)
   const [isReady, setIsReady] = useState(false)
+
+  // Keep the ref in sync with latest onChange prop to avoid stale closures
+  useEffect(() => {
+    onChangeRef.current = onChange
+  }, [onChange])
 
   useEffect(() => {
     const checkGoogle = setInterval(() => {
@@ -59,8 +66,10 @@ const GoogleAddressInput: React.FC<GoogleAddressInputProps> = ({
           components.street = component.long_name
         } else if (types.includes("street_number")) {
           components.streetNumber = component.long_name
+        } else if (types.includes("subpremise")) {
+          components.floorDoor = component.long_name
         } else if (types.includes("locality")) {
-          components.locality = component.long_name
+          components.city = component.long_name
         } else if (types.includes("administrative_area_level_1")) {
           components.province = component.long_name
         } else if (types.includes("country")) {
@@ -76,16 +85,16 @@ const GoogleAddressInput: React.FC<GoogleAddressInputProps> = ({
         components.longitude = place.geometry.location.lng()
       }
 
-      // ✅ Set full selected address with parsed components
-      onChange(place.formatted_address, place.place_id, components)
+      // ✅ Use ref to always call latest onChange (avoids stale closure)
+      onChangeRef.current(place.formatted_address, place.place_id, components)
     })
-  }, [isReady, onChange])
+  }, [isReady]) // Remove onChange from deps — use ref instead
 
   return (
     <input
       ref={inputRef}
-      defaultValue={value} // ✅ use defaultValue instead of value (lets Google override)
-      onChange={(e) => onChange(e.target.value)} // typing still works
+      defaultValue={value}
+      onChange={(e) => onChangeRef.current(e.target.value)}
       placeholder={placeholder || "Enter address, business, school, etc."}
       className={className}
     />

@@ -1,6 +1,3 @@
-
-
-
 "use client"
 
 import { Button } from "@/components/ui/button"
@@ -8,12 +5,26 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Info, Calendar, Loader2 } from "lucide-react"
+import { Info, Calendar, Loader2, AlertCircle, RefreshCw } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { AnimatedLoader } from "@/components/animated-loader"
+import GoogleAddressInput, { AddressComponents } from "@/components/GoogleAddressInput"
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { useTranslation } from "@/hooks/use-translation"
 import { useAuth } from "@/hooks/use-auth"
-import { useParams } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 import { useState, useEffect } from "react"
+import { useToast } from "@/hooks/use-toast"
 
 interface WorkerData {
   id: number
@@ -23,12 +34,15 @@ interface WorkerData {
   name: string
   lastName: string
   address: string
-  number: string
-  floor: string
+  street: string
+  streetNumber: string
+  floorDoor: string
   postalCode: string
-  locality: string
+  city: string
   province: string
   country: string
+  latitude: string
+  longitude: string
   landline: string
   mobile: string
   email: string
@@ -43,6 +57,8 @@ export function WorkerDataTab() {
   const { t } = useTranslation()
   const { session } = useAuth()
   const params = useParams()
+  const router = useRouter()
+  const { toast } = useToast()
   const workerId = params.id as string
 
   const [workerData, setWorkerData] = useState<WorkerData>({
@@ -53,12 +69,15 @@ export function WorkerDataTab() {
     name: "",
     lastName: "",
     address: "",
-    number: "",
-    floor: "",
+    street: "",
+    streetNumber: "",
+    floorDoor: "",
     postalCode: "",
-    locality: "",
+    city: "",
     province: "",
     country: "",
+    latitude: "",
+    longitude: "",
     landline: "",
     mobile: "",
     email: "",
@@ -71,6 +90,8 @@ export function WorkerDataTab() {
 
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [hasChanges, setHasChanges] = useState(false)
   const [originalData, setOriginalData] = useState<WorkerData | null>(null)
@@ -95,7 +116,6 @@ export function WorkerDataTab() {
         }
 
         const result = await response.json()
-        console.log("Worker API Response:", result)
 
         if (result.isSuccess && result.data) {
           const apiData = result.data
@@ -107,12 +127,15 @@ export function WorkerDataTab() {
             name: apiData.name || "",
             lastName: apiData.lastName || "",
             address: apiData.address || "",
-            number: apiData.number || "",
-            floor: apiData.floor || "",
+            street: apiData.street || "",
+            streetNumber: apiData.streetNumber || "",
+            floorDoor: apiData.floorDoor || "",
             postalCode: apiData.postalCode || "",
-            locality: apiData.locality || "",
+            city: apiData.city || "",
             province: apiData.province || "",
             country: apiData.country || "",
+            latitude: apiData.latitude || "",
+            longitude: apiData.longitude || "",
             landline: apiData.landline || "",
             mobile: apiData.mobile || "",
             email: apiData.email || "",
@@ -154,13 +177,24 @@ export function WorkerDataTab() {
     setError(null)
 
     try {
+      // Send only updateable fields, exclude id
+      const { id, ...rest } = workerData
+      const updatePayload: Record<string, any> = {
+        ...rest,
+        latitude: rest.latitude ? parseFloat(rest.latitude) : null,
+        longitude: rest.longitude ? parseFloat(rest.longitude) : null,
+      }
+      // Remove empty strings for fields with strict validation
+      if (!updatePayload.email) delete updatePayload.email
+      if (!updatePayload.accessEmail) delete updatePayload.accessEmail
+      if (!updatePayload.birthday) delete updatePayload.birthday
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/worker/${workerId}`, {
         method: "PUT",
         headers: {
           Authorization: `Bearer ${session.accessToken}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(workerData),
+        body: JSON.stringify(updatePayload),
       })
 
       if (!response.ok) {
@@ -172,22 +206,28 @@ export function WorkerDataTab() {
       if (result.isSuccess) {
         setOriginalData(workerData)
         setHasChanges(false)
-        console.log("Worker data saved successfully")
+        toast({
+          title: t("workerUpdatedSuccessfully") || "Worker updated successfully!",
+          variant: "default",
+        })
       } else {
         throw new Error(result.developerError || "Failed to save worker data")
       }
     } catch (err) {
-      console.error("Error saving worker data:", err)
       setError(err instanceof Error ? err.message : "Failed to save worker data")
     } finally {
       setIsSaving(false)
     }
   }
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
+    setShowDeleteDialog(true)
+  }
+
+  const handleConfirmDelete = async () => {
     if (!session?.accessToken || !workerId) return
 
-    if (!confirm("Are you sure you want to delete this worker?")) return
+    setIsDeleting(true)
 
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/worker/${workerId}`, {
@@ -202,18 +242,23 @@ export function WorkerDataTab() {
         throw new Error(`Failed to delete worker: ${response.status}`)
       }
 
-      const result = await response.json()
+      toast({
+        title: t("workerDeletedSuccessfully") || "Worker deleted successfully!",
+        variant: "default",
+      })
 
-      if (result.isSuccess) {
-        console.log("Worker deleted successfully")
-        // Navigate back to workers list
-        window.history.back()
-      } else {
-        throw new Error(result.developerError || "Failed to delete worker")
-      }
+      router.push("/workers")
     } catch (err) {
-      console.error("Error deleting worker:", err)
       setError(err instanceof Error ? err.message : "Failed to delete worker")
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  const handleCancel = () => {
+    if (originalData) {
+      setWorkerData({ ...originalData })
+      setHasChanges(false)
     }
   }
 
@@ -226,41 +271,46 @@ export function WorkerDataTab() {
 
   if (isLoading) {
     return (
-      <Card>
-        <CardContent className="flex items-center justify-center py-8">
-          <Loader2 className="h-8 w-8 animate-spin" />
-          <span className="ml-2">Loading worker data...</span>
-        </CardContent>
-      </Card>
+      <AnimatedLoader size={32} className="p-8" />
     )
   }
 
   if (error) {
     return (
-      <Card>
-        <CardContent className="py-8">
-          <div className="text-center">
-            <p className="text-red-600 mb-4">Error: {error}</p>
-            <Button onClick={retryFetch} variant="outline">
-              Retry
+      <div className="p-6">
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription className="flex items-center justify-between">
+            <span>{error}</span>
+            <Button variant="outline" size="sm" onClick={retryFetch}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              {t("retry") || "Retry"}
             </Button>
-          </div>
-        </CardContent>
-      </Card>
+          </AlertDescription>
+        </Alert>
+      </div>
     )
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Worker Information</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
+    <div className="space-y-4 pt-1 px-2">
         {/* Row 1: Code, NIF/NIE, NAF, Name/Pseudonym, Last names */}
         <div className="grid grid-cols-5 gap-6">
           <div className="space-y-1">
             <Label htmlFor="code" className="text-sm font-medium text-foreground flex items-center gap-1">
-              {t("code")} <Info className="h-3 w-3 text-muted-foreground" />
+              {t("code")}
+              <TooltipProvider>
+                <Tooltip delayDuration={0}>
+                  <TooltipTrigger asChild>
+                    <button type="button" className="inline-flex items-center p-0" tabIndex={-1}>
+                      <Info tabIndex={-1} className="w-3 h-3 text-muted-foreground cursor-help" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" align="center" sideOffset={6} className="max-w-[14rem] text-xs px-2 py-1 whitespace-pre-line">
+                    {`${t("workerCodeTip")}`}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </Label>
             <Input
               id="code"
@@ -282,7 +332,19 @@ export function WorkerDataTab() {
           </div>
           <div className="space-y-1">
             <Label htmlFor="naf" className="text-sm font-medium text-foreground flex items-center gap-1">
-              {t("naf")} <Info className="h-3 w-3 text-muted-foreground" />
+              {t("naf")}
+              <TooltipProvider>
+                <Tooltip delayDuration={0}>
+                  <TooltipTrigger asChild>
+                    <button type="button" className="inline-flex items-center p-0" tabIndex={-1}>
+                      <Info tabIndex={-1} className="w-3 h-3 text-muted-foreground cursor-help" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" align="center" sideOffset={6} className="max-w-[14rem] text-xs px-2 py-1 whitespace-pre-line">
+                    {`${t("workerNafTip")}`}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </Label>
             <Input
               id="naf"
@@ -315,64 +377,92 @@ export function WorkerDataTab() {
           </div>
         </div>
 
-        {/* Row 2: Address, No., Floor/Door, Postal Code */}
-        <div className="grid grid-cols-4 gap-6">
+        {/* Row 2: Address (full width) */}
+        <div className="grid grid-cols-1 gap-4">
           <div className="space-y-1">
-            <Label htmlFor="address" className="text-sm font-medium text-foreground">
+            <Label htmlFor="address" className="text-sm font-medium text-foreground flex items-center gap-1">
               {t("address")}
+              <TooltipProvider>
+                <Tooltip delayDuration={0}>
+                  <TooltipTrigger asChild>
+                    <button type="button" className="inline-flex items-center p-0" tabIndex={-1}>
+                      <Info tabIndex={-1} className="w-3 h-3 text-muted-foreground cursor-help" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" align="center" sideOffset={6} className="max-w-[14rem] text-xs px-2 py-1">
+                    {t("addressTip")}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </Label>
-            <Input
-              id="address"
-              value={workerData.address}
-              onChange={(e) => handleInputChange("address", e.target.value)}
-              className="h-9 text-sm bg-muted/30 border-input focus:border-purple-500 focus:ring-purple-500"
+            <GoogleAddressInput
+              value={workerData.address || ""}
+              onChange={(value: string, placeId?: string, components?: AddressComponents) => {
+                handleInputChange("address", value)
+                if (components) {
+                  if (components.street) handleInputChange("street", components.street)
+                  if (components.streetNumber) handleInputChange("streetNumber", components.streetNumber)
+                  if (components.floorDoor) handleInputChange("floorDoor", components.floorDoor)
+                  if (components.city) handleInputChange("city", components.city)
+                  if (components.province) handleInputChange("province", components.province)
+                  if (components.country) handleInputChange("country", components.country)
+                  if (components.postalCode) handleInputChange("postalCode", components.postalCode)
+                  if (components.latitude) handleInputChange("latitude", `${components.latitude}`)
+                  if (components.longitude) handleInputChange("longitude", `${components.longitude}`)
+                }
+              }}
+              className="flex h-9 w-full rounded-md border border-input bg-muted/30 px-3 py-2 text-sm text-foreground ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-weight-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             />
           </div>
+        </div>
+
+        {/* Row 2b: No., Floor/Door, Postal Code */}
+        <div className="grid grid-cols-3 gap-6">
           <div className="space-y-1">
-            <Label htmlFor="number" className="text-sm font-medium text-foreground">
+            <Label htmlFor="streetNumber" className="text-sm font-medium text-foreground">
               {t("number")}
             </Label>
             <Input
-              id="number"
-              value={workerData.number}
-              onChange={(e) => handleInputChange("number", e.target.value)}
+              id="streetNumber"
+              value={workerData.streetNumber || ""}
+              onChange={(e) => handleInputChange("streetNumber", e.target.value)}
               className="h-9 text-sm bg-muted/30 border-input focus:border-purple-500 focus:ring-purple-500"
             />
           </div>
           <div className="space-y-1">
-            <Label htmlFor="floor" className="text-sm font-medium text-foreground">
+            <Label htmlFor="floorDoor" className="text-sm font-medium text-foreground">
               {t("floorDoor")}
             </Label>
             <Input
-              id="floor"
-              value={workerData.floor}
-              onChange={(e) => handleInputChange("floor", e.target.value)}
+              id="floorDoor"
+              value={workerData.floorDoor || ""}
+              onChange={(e) => handleInputChange("floorDoor", e.target.value)}
               className="h-9 text-sm bg-muted/30 border-input focus:border-purple-500 focus:ring-purple-500"
             />
           </div>
           <div className="space-y-1">
-            <Label htmlFor="postal" className="text-sm font-medium text-foreground">
+            <Label htmlFor="postalCode" className="text-sm font-medium text-foreground">
               {t("postalCode")}
             </Label>
             <Input
-              id="postal"
-              value={workerData.postalCode}
+              id="postalCode"
+              value={workerData.postalCode || ""}
               onChange={(e) => handleInputChange("postalCode", e.target.value)}
               className="h-9 text-sm bg-muted/30 border-input focus:border-purple-500 focus:ring-purple-500"
             />
           </div>
         </div>
 
-        {/* Row 3: Locality, Province, Country */}
+        {/* Row 3: City, Province, Country */}
         <div className="grid grid-cols-3 gap-6">
           <div className="space-y-1">
-            <Label htmlFor="locality" className="text-sm font-medium text-foreground">
-              {t("locality")}
+            <Label htmlFor="city" className="text-sm font-medium text-foreground">
+              {t("city")}
             </Label>
             <Input
-              id="locality"
-              value={workerData.locality}
-              onChange={(e) => handleInputChange("locality", e.target.value)}
+              id="city"
+              value={workerData.city || ""}
+              onChange={(e) => handleInputChange("city", e.target.value)}
               className="h-9 text-sm bg-muted/30 border-input focus:border-purple-500 focus:ring-purple-500"
             />
           </div>
@@ -382,7 +472,7 @@ export function WorkerDataTab() {
             </Label>
             <Input
               id="province"
-              value={workerData.province}
+              value={workerData.province || ""}
               onChange={(e) => handleInputChange("province", e.target.value)}
               className="h-9 text-sm bg-muted/30 border-input focus:border-purple-500 focus:ring-purple-500"
             />
@@ -393,7 +483,7 @@ export function WorkerDataTab() {
             </Label>
             <Input
               id="country"
-              value={workerData.country}
+              value={workerData.country || ""}
               onChange={(e) => handleInputChange("country", e.target.value)}
               className="h-9 text-sm bg-muted/30 border-input focus:border-purple-500 focus:ring-purple-500"
             />
@@ -508,36 +598,51 @@ export function WorkerDataTab() {
             id="observations"
             value={workerData.observation}
             onChange={(e) => handleInputChange("observation", e.target.value)}
-            className="min-h-[60px] text-sm bg-muted/30 border-input focus:border-purple-500 focus:ring-purple-500 resize-none"
+            className="min-h-[50px] max-w-[70%] text-sm bg-muted/30 border-input focus:border-purple-500 focus:ring-purple-500 resize-none"
           />
         </div>
 
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("confirmDeleteWorker")}</AlertDialogTitle>
+            <AlertDialogDescription>{t("confirmDeleteWorkerDesc")}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>{t("cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              disabled={isDeleting}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {isDeleting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              {t("delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
         {/* Action Buttons */}
-        <div className="flex justify-between pt-4">
-          <div className="flex gap-2">
+        <div className="flex items-center justify-between pt-6 mt-6 px-4 py-4 bg-gray-100 dark:bg-gray-800/50 rounded-b-lg">
+          <div className="flex items-center gap-3">
             <Button
               onClick={handleSave}
-              disabled={!hasChanges || isSaving}
-              className="bg-purple-600 hover:bg-purple-700 text-white h-9 px-6"
+              disabled={isSaving}
+              className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 flex items-center gap-2"
             >
-              {isSaving ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  Saving...
-                </>
-              ) : (
-                t("keep")
-              )}
+              {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              {isSaving ? t("saving") || "Saving..." : t("keep")}
             </Button>
-            <Button variant="secondary" className="h-9 px-6">
+            <Button onClick={() => router.push("/workers")} className="bg-neutral-500 hover:bg-neutral-600 text-white px-6 py-2">
               {t("cancel")}
             </Button>
           </div>
-          <Button onClick={handleDelete} className="bg-yellow-500 hover:bg-yellow-600 text-white h-9 px-6">
+          <Button onClick={handleDelete} disabled={isDeleting} className="bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-2">
+            {isDeleting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
             {t("delete")}
           </Button>
         </div>
-      </CardContent>
-    </Card>
+    </div>
   )
 }
