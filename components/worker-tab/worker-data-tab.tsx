@@ -552,6 +552,7 @@ export function WorkerDataTab() {
               <SelectContent>
                 <SelectItem value="man">{t("man")}</SelectItem>
                 <SelectItem value="woman">{t("woman")}</SelectItem>
+                <SelectItem value="other">{t("other")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
