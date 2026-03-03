@@ -61,6 +61,28 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
+        {/* Handle stale chunk errors after redeployment by forcing a full reload */}
+        <Script id="chunk-error-handler" strategy="beforeInteractive">
+          {`
+            if (typeof window !== 'undefined') {
+              window.addEventListener('error', function(e) {
+                if (
+                  e.message && (
+                    e.message.indexOf('Loading chunk') > -1 ||
+                    e.message.indexOf('ChunkLoadError') > -1 ||
+                    e.message.indexOf('Loading CSS chunk') > -1
+                  )
+                ) {
+                  if (!sessionStorage.getItem('chunk_reload')) {
+                    sessionStorage.setItem('chunk_reload', '1');
+                    window.location.reload();
+                  }
+                }
+              });
+            }
+          `}
+        </Script>
+
         {/* ✅ Google Maps API Script */}
         <Script
           src={`https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places`}

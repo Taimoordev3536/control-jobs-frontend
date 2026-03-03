@@ -4,6 +4,7 @@
 [build.environment]
   NODE_VERSION = "18"
   NPM_FLAGS = "--legacy-peer-deps"
+  NETLIFY_NEXT_SKEW_PROTECTION = "true"
   SECRETS_SCAN_OMIT_KEYS = "NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,NEXT_PUBLIC_API_BASE_URL,NEXTAUTH_URL"
 
 # Cache Next.js build for faster deploys
