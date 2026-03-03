@@ -1,7 +1,8 @@
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Generate a unique build ID per deploy to prevent chunk hash collisions
+  output: 'standalone',
+  // Generate a unique build ID per deploy
   generateBuildId: async () => {
     return `build-${Date.now()}`
   },
@@ -14,8 +15,10 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-  webpack: (config) => {
-    // Remove .svg from Next.js default file-loader so SVGR can handle it
+  webpack: (config, { isServer, webpack: wp }) => {
+    // Force new content hashes every deploy by salting webpack's hash function
+    config.output.hashSalt = `deploy-${Date.now()}`;
+
     const fileLoaderRule = config.module.rules.find((rule) =>
       rule.test instanceof RegExp && rule.test.test('.svg')
     );
