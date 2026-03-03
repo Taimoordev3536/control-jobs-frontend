@@ -80,7 +80,6 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
-    "@netlify/plugin-nextjs": "^5.15.8",
     "@svgr/webpack": "^8.1.0",
     "@types/node": "^22",
     "@types/qrcode": "^1.5.5",
