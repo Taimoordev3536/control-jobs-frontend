@@ -1,6 +1,10 @@
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Generate a unique build ID per deploy to prevent chunk hash collisions
+  generateBuildId: async () => {
+    return `build-${Date.now()}`
+  },
   eslint: {
     ignoreDuringBuilds: true,
   },
