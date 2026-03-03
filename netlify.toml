@@ -11,6 +11,19 @@
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
+# Rewrite /_next/static/* to /static/* since publish dir is .next
+[[redirects]]
+  from = "/_next/static/*"
+  to = "/static/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/_next/data/*"
+  to = "/data/:splat"
+  status = 200
+  force = true
+
 # Cache Next.js build for faster deploys
 [[headers]]
   for = "/_next/static/*"
