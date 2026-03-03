@@ -4,25 +4,11 @@
 
 [build.environment]
   NODE_VERSION = "18"
-  # Allow public Next.js environment variables to be in the build output
-  # NEXT_PUBLIC_* variables are intentionally embedded in the client bundle
+  NPM_FLAGS = "--legacy-peer-deps"
   SECRETS_SCAN_OMIT_KEYS = "NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,NEXT_PUBLIC_API_BASE_URL,NEXTAUTH_URL"
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
-
-# Rewrite /_next/static/* to /static/* since publish dir is .next
-[[redirects]]
-  from = "/_next/static/*"
-  to = "/static/:splat"
-  status = 200
-  force = true
-
-[[redirects]]
-  from = "/_next/data/*"
-  to = "/data/:splat"
-  status = 200
-  force = true
 
 # Cache Next.js build for faster deploys
 [[headers]]
