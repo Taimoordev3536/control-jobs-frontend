@@ -7,6 +7,9 @@
   # NEXT_PUBLIC_* variables are intentionally embedded in the client bundle
   SECRETS_SCAN_OMIT_KEYS = "NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,NEXT_PUBLIC_API_BASE_URL,NEXTAUTH_URL"
 
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
 # Cache Next.js build for faster deploys
 [[headers]]
   for = "/_next/static/*"
