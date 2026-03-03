@@ -1,11 +1,6 @@
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'standalone',
-  // Generate a unique build ID per deploy
-  generateBuildId: async () => {
-    return `build-${Date.now()}`
-  },
   eslint: {
     ignoreDuringBuilds: true,
   },
