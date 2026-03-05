@@ -8,17 +8,20 @@ import { exportToCSV, exportToXLSX, exportToPDF } from "@/lib/export"
 import AddPartnerModal from "@/components/add-partner-modal"
 import { useTranslation } from "@/hooks/use-translation"
 import { useAuth } from "@/hooks/use-auth"
+import { AnimatedLoader } from "@/components/animated-loader"
 
 export default function PartnersList() {
   const { t } = useTranslation()
   const router = useRouter()
   const { session } = useAuth()
   const [partners, setPartners] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const [isAddPartnerModalOpen, setIsAddPartnerModalOpen] = useState(false)
 
   useEffect(() => {
     const fetchPartners = async () => {
       if (!session?.accessToken) return
+      setIsLoading(true)
       try {
         const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/partners`, {
           headers: {
@@ -42,13 +45,15 @@ export default function PartnersList() {
         setPartners(mapped)
       } catch (err) {
         setPartners([])
+      } finally {
+        setIsLoading(false)
       }
     }
     fetchPartners()
   }, [session?.accessToken])
 
-  const handleRowClick = (partnerId: number) => {
-    router.push(`/partners/${partnerId}`)
+  const handleRowClick = (row: any) => {
+    router.push(`/partners/${row.id}`)
   }
 
   // Define columns for partners
@@ -130,7 +135,7 @@ export default function PartnersList() {
         columns={columns}
         onRowClick={handleRowClick}
         actionButtons={actionButtons}
-        emptyMessage={t("noPartnersFound")}
+        emptyMessage={isLoading ? <AnimatedLoader size={32} /> : t("noPartnersFound")}
       />
 
       <AddPartnerModal open={isAddPartnerModalOpen} onOpenChange={setIsAddPartnerModalOpen} onPartnerAdded={handlePartnerAdded} />

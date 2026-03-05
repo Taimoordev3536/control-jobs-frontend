@@ -160,7 +160,7 @@ interface Stats {
 export default function EmployerDashboard() {
   const router = useRouter()
   const { t } = useTranslation("employer-dashboard")
-  const { session } = useAuth()
+  const { session, logout } = useAuth()
 
   const [jobs, setJobs] = useState<Job[]>([])
   const [stats, setStats] = useState<Stats>({
@@ -440,6 +440,10 @@ export default function EmployerDashboard() {
       })
 
       if (!response.ok) {
+        if (response.status === 401) {
+          logout()
+          return
+        }
         throw new Error(`HTTP error! status: ${response.status}`)
       }
 

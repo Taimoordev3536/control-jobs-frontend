@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { X } from "lucide-react";
+import { X, MapPin } from "lucide-react";
+import { LocationPickerDialog } from "@/components/LocationPickerDialog";
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -58,6 +60,7 @@ export default function AddWorkCenterModal({
     contactPhone: false,
     contactEmail: false,
   });
+  const [showLocationPicker, setShowLocationPicker] = useState(false);
 
   useEffect(() => {
     if (scrollContainerRef.current) {
@@ -211,7 +214,22 @@ export default function AddWorkCenterModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm sm:max-w-md p-0 gap-0 [&>button]:hidden h-[90vh] flex flex-col bg-background border-border mx-4">
+      <DialogContent
+        className="max-w-sm sm:max-w-md p-0 gap-0 [&>button]:hidden h-[90vh] flex flex-col bg-background border-border mx-4"
+        onPointerDownOutside={(e) => {
+          // Prevent dialog from closing when clicking Google Places autocomplete suggestions
+          const target = e.target as HTMLElement
+          if (target.closest(".pac-container")) {
+            e.preventDefault()
+          }
+        }}
+        onInteractOutside={(e) => {
+          const target = e.target as HTMLElement
+          if (target.closest(".pac-container")) {
+            e.preventDefault()
+          }
+        }}
+      >
         <DialogHeader className="p-4 sm:p-6 pb-4">
           <div className="flex items-center justify-between">
             <DialogTitle className="text-lg font-medium text-foreground">
@@ -276,32 +294,63 @@ export default function AddWorkCenterModal({
               >
                 {t("address")} <span className="text-red-500">*</span>
               </Label>
-              <GoogleAddressInput
-                value={formData.address}
-                onChange={(value, placeId, components) => {
-                  updateFormData("address", value);
-                  
-                  // Parse address components if available
-                  if (components) {
-                    if (components.street) updateFormData("street", components.street);
-                    if (components.streetNumber) updateFormData("streetNumber", components.streetNumber);
-                    if (components.locality) updateFormData("locality", components.locality);
-                    if (components.province) updateFormData("province", components.province);
-                    if (components.country) updateFormData("country", components.country);
-                    if (components.postalCode) updateFormData("postalCode", components.postalCode);
-                    // Save GPS coordinates returned by Google Places
-                    if (components.latitude != null) updateFormData("latitude", components.latitude);
-                    if (components.longitude != null) updateFormData("longitude", components.longitude);
-                  }
-                  
-                  if (placeId) {
-                    console.log("Selected Place ID:", placeId);
-                  }
+              <div className="flex gap-2 mt-1">
+                <div className="flex-1">
+                  <GoogleAddressInput
+                    value={formData.address}
+                    onChange={(value, placeId, components) => {
+                      updateFormData("address", value);
+                      if (components) {
+                        updateFormData("street", components.street || "");
+                        updateFormData("streetNumber", components.streetNumber || "");
+                        updateFormData("locality", components.city || "");
+                        updateFormData("province", components.province || "");
+                        updateFormData("country", components.country || "");
+                        updateFormData("postalCode", components.postalCode || "");
+                        if (components.latitude != null) updateFormData("latitude", components.latitude);
+                        if (components.longitude != null) updateFormData("longitude", components.longitude);
+                      }
+                    }}
+                    placeholder="Ej. Calle Gran Vía, 25"
+                    className={`border p-2 w-full rounded ${
+                      validationErrors.address ? "border-red-500" : ""
+                    }`}
+                  />
+                </div>
+                <TooltipProvider>
+                  <Tooltip delayDuration={0}>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        onClick={() => setShowLocationPicker(true)}
+                        className="flex items-center justify-center h-10 w-10 rounded-md border border-input bg-muted/30 hover:bg-muted/60 transition shrink-0"
+                      >
+                        <MapPin className="h-4 w-4 text-[#6B21A8]" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="text-xs">
+                      {t("pickLocationFromMap") || "Seleccionar ubicación en el mapa"}
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+
+              <LocationPickerDialog
+                open={showLocationPicker}
+                onOpenChange={setShowLocationPicker}
+                initialLat={formData.latitude}
+                initialLng={formData.longitude}
+                onLocationSelect={(formattedAddress, components) => {
+                  updateFormData("address", formattedAddress);
+                  updateFormData("street", components.street || "");
+                  updateFormData("streetNumber", components.streetNumber || "");
+                  updateFormData("locality", components.city || "");
+                  updateFormData("province", components.province || "");
+                  updateFormData("country", components.country || "");
+                  updateFormData("postalCode", components.postalCode || "");
+                  updateFormData("latitude", components.latitude ?? null);
+                  updateFormData("longitude", components.longitude ?? null);
                 }}
-                placeholder="Ej. Calle Gran Vía, 25"
-                className={`mt-1 border p-2 w-full rounded ${
-                  validationErrors.address ? "border-red-500" : ""
-                }`}
               />
               {validationErrors.address && (
                 <p className="mt-1 text-sm text-red-500">

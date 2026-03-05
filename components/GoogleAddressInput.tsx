@@ -36,6 +36,16 @@ const GoogleAddressInput: React.FC<GoogleAddressInputProps> = ({
     onChangeRef.current = onChange
   }, [onChange])
 
+  // Sync the uncontrolled input when the value prop is changed externally
+  // (e.g. from LocationPickerDialog or form reset)
+  const prevValueRef = useRef(value)
+  useEffect(() => {
+    if (value !== prevValueRef.current && inputRef.current) {
+      inputRef.current.value = value || ""
+      prevValueRef.current = value
+    }
+  }, [value])
+
   useEffect(() => {
     const checkGoogle = setInterval(() => {
       if (window.google && window.google.maps) {

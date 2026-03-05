@@ -9,6 +9,7 @@ import { exportToCSV, exportToXLSX, exportToPDF } from "@/lib/export"
 import AddEmployerModal from "@/components/add-employer-modal"
 import { useTranslation } from "@/hooks/use-translation"
 import { useAuth } from "@/hooks/use-auth"
+import { AnimatedLoader } from "@/components/animated-loader"
 
 interface Employer {
   id: number
@@ -66,8 +67,8 @@ export default function EmployersPage() {
     fetchEmployers()
   }, [session?.accessToken, session?.user?.role?.name, session?.user?.partnerId])
 
-  const handleRowClick = (employerId: number) => {
-    router.push(`/employers/${employerId}`)
+  const handleRowClick = (row: any) => {
+    router.push(`/employers/${row.id}`)
   }
 
   // Callback to handle new employer addition - adds to the beginning of the list
@@ -148,7 +149,7 @@ export default function EmployersPage() {
         isLoading={isLoading}
         onRowClick={handleRowClick}
         actionButtons={actionButtons}
-        emptyMessage={t("noEmployersFound")}
+        emptyMessage={isLoading ? <AnimatedLoader size={32} /> : t("noEmployersFound")}
       />
 
       <AddEmployerModal open={showAddModal} onOpenChange={setShowAddModal} onEmployerAdded={handleEmployerAdded} />

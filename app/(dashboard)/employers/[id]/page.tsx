@@ -78,8 +78,8 @@ export default function EmployerDetailPage() {
   }, [id, session?.accessToken])
 
   const getTypeLabel = (typeId: number) => {
-    const types = { 1: t("home"), 2: t("static"), 3: t("remote") }
-    return types[typeId as keyof typeof types] || t("unknown")
+    const types: Record<number, string> = { 1: t("home"), 2: t("static"), 3: t("remote") }
+    return types[typeId] || t("unknown")
   }
 
   const getSubTypeLabel = (subTypeId: number) => {
@@ -119,32 +119,39 @@ export default function EmployerDetailPage() {
   ]
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Header and action buttons would go here */}
+    <div className="bg-background min-h-screen">
+      {/* Header */}
+      <div className="bg-card border-b border-border">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center px-4 pt-1 pb-1 sm:px-3 gap-1">
+          <h1 className="text-xl sm:text-2xl font-semibold text-foreground">
+            {employer?.name || t("employer")}
+          </h1>
+        </div>
 
-      {/* Tabs */}
-      <div className="hidden sm:block border-b border-border">
-        <nav className="flex">
-          {tabs.map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === tab.key
-                  ? "border-purple-600 text-purple-600 bg-purple-50 dark:bg-purple-950/50"
-                  : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </nav>
+        {/* Tabs */}
+        <div className="border-b border-border">
+          <nav className="flex overflow-x-auto scrollbar-hide">
+            {tabs.map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={`flex-shrink-0 px-6 py-1.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                  activeTab === tab.key
+                    ? "border-[#662D91] text-[#662D91] bg-purple-50 dark:bg-purple-950/50"
+                    : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </nav>
+        </div>
       </div>
 
       {/* Tab Content */}
-      <div className="pt-4">
-        {activeTab === "data" && employer && (
-          <EmployerDataTab employer={employer} getTypeLabel={getTypeLabel} getSubTypeLabel={getSubTypeLabel} />
+      <div className="min-h-[400px] bg-card p-2">
+        {activeTab === "data" && (
+          <EmployerDataTab employerId={id} />
         )}
         {activeTab === "invoices" && <EmployerInvoicesTab />}
       </div>

@@ -165,7 +165,7 @@ interface ApiWorkerResponse {
 
 export default function WorkerDashboardMain() {
   const { t } = useTranslation("worker-dashboard");
-  const { session } = useAuth();
+  const { session, logout } = useAuth();
 
   const [todayAssignments, setTodayAssignments] = useState<JobAssignment[]>([]);
   const [currentJob, setCurrentJob] = useState<JobAssignment | null>(null);
@@ -433,6 +433,10 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
       });
 
       if (!response.ok) {
+        if (response.status === 401) {
+          logout();
+          return;
+        }
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 

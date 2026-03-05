@@ -169,7 +169,7 @@ export default function TabTableTemplate({
     return (
       <div className={`bg-card rounded-lg shadow-sm border border-border ${className}`}>
         <div className="flex items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#662D91]"></div>
+          <AnimatedLoader size={32} />
         </div>
       </div>
     )

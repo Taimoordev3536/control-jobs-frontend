@@ -1,13 +1,9 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useParams } from "next/navigation"
-import { Plus, Filter, FileText, Download, MoreVertical } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { useTranslation } from "@/hooks/use-translation"
 import dynamic from "next/dynamic"
-import { useAuth } from "@/hooks/use-auth"
 import { AnimatedLoader } from "@/components/animated-loader"
 
 // Import tab components dynamically
@@ -31,89 +27,8 @@ export default function PartnerDetailPage() {
   const { t } = useTranslation()
   const params = useParams()
   const partnerId = params.id as string
-  const { session } = useAuth()
   const [activeTab, setActiveTab] = useState("data")
-  const [loading, setLoading] = useState(true)
-  const [partnerData, setPartnerData] = useState({
-    nif: "",
-    name: "",
-    responsible: "",
-    address: "",
-    no: "",
-    floorDoor: "",
-    postalCode: "",
-    locality: "",
-    province: "",
-    country: "",
-    vatIct: "",
-    phone: "",
-    mobile: "",
-    email: "",
-    observations: "",
-    guy: "",
-    commission: "",
-    retention: "",
-    paymentMethod: "",
-    accountIban: "",
-    bicSwift: "",
-  })
-
-  useEffect(() => {
-    const fetchPartnerData = async () => {
-      setLoading(true)
-      try {
-        if (!partnerId || !session?.accessToken) return
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/partners/${partnerId}`, {
-          headers: {
-            Authorization: `Bearer ${session.accessToken}`,
-            "Content-Type": "application/json",
-          },
-        })
-        if (!res.ok) throw new Error("Failed to fetch partner data")
-        const data = await res.json()
-        if (data.data) {
-          setPartnerData({
-            nif: data.data.taxId || "",
-            name: data.data.name || "",
-            responsible: data.data.responsible || "",
-            address: data.data.address || "",
-            no: data.data.no || "",
-            floorDoor: data.data.floorDoor || "",
-            postalCode: data.data.postalCode || "",
-            locality: data.data.locality || "",
-            province: data.data.province || "",
-            country: data.data.country || "",
-            vatIct: data.data.vatIct || "",
-            phone: data.data.landline || "",
-            mobile: data.data.mobile || "",
-            email: data.data.email || "",
-            observations: data.data.observations || "",
-            guy: data.data.typeOfPartner || "",
-            commission: data.data.commission || "",
-            retention: data.data.retention || "",
-            paymentMethod: data.data.paymentMethod || "",
-            accountIban: data.data.accountIban || "",
-            bicSwift: data.data.bicSwift || "",
-          })
-        }
-      } catch (e) {
-        // Optionally handle error
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetchPartnerData()
-  }, [partnerId, session?.accessToken])
-
-  if (loading) {
-    return (
-      <div className="bg-background min-h-screen py-6 px-3 sm:px-6">
-        <div className="text-center py-10">
-          <p className="text-muted-foreground">{t("loadingPartnerData")}</p>
-        </div>
-      </div>
-    )
-  }
+  const [partnerName, setPartnerName] = useState("")
 
   const tabs = [
     { key: "data", label: t("data") },
@@ -125,70 +40,24 @@ export default function PartnerDetailPage() {
 
   return (
     <div className="bg-background min-h-screen">
+      {/* Header */}
       <div className="bg-card border-b border-border">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 sm:p-6 gap-4">
-          <h1 className="text-xl sm:text-2xl font-semibold text-foreground">{t("partner")}</h1>
-
-          {/* Mobile Action Menu */}
-          <div className="sm:hidden">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm">
-                  <MoreVertical className="w-4 h-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem>
-                  <Plus className="w-4 h-4 mr-2" />
-                  {t("add")}
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Filter className="w-4 h-4 mr-2" />
-                  {t("filter")}
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <FileText className="w-4 h-4 mr-2" />
-                  {t("exportPdf")}
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Download className="w-4 h-4 mr-2" />
-                  {t("exportExcel")}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center px-4 pt-1 pb-1 sm:px-3 gap-1">
+          <h1 className="text-xl sm:text-2xl font-semibold text-foreground">
+            {partnerName || t("partner")}
+          </h1>
         </div>
 
-        {/* Desktop Tabs */}
-        <div className="hidden sm:block border-b border-border">
-          <nav className="flex">
-            {tabs.map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
-                className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
-                  activeTab === tab.key
-                    ? "border-purple-600 text-purple-600 bg-purple-50 dark:bg-purple-950/50"
-                    : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </nav>
-        </div>
-
-        {/* Mobile Tabs - Horizontal Scroll */}
-        <div className="sm:hidden border-b border-border">
+        {/* Tabs */}
+        <div className="border-b border-border">
           <nav className="flex overflow-x-auto scrollbar-hide">
             {tabs.map((tab) => (
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
-                className={`flex-shrink-0 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                className={`flex-shrink-0 px-6 py-1.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                   activeTab === tab.key
-                    ? "border-purple-600 text-purple-600 bg-purple-50 dark:bg-purple-950/50"
+                    ? "border-[#662D91] text-[#662D91] bg-purple-50 dark:bg-purple-950/50"
                     : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
                 }`}
               >
@@ -200,10 +69,10 @@ export default function PartnerDetailPage() {
       </div>
 
       {/* Tab Content */}
-      <div className="min-h-[400px] bg-card">
-        {activeTab === "data" && <PartnerDataTab partnerData={partnerData} />}
+      <div className="min-h-[400px] bg-card p-2">
+        {activeTab === "data" && <PartnerDataTab partnerId={partnerId} onNameChange={(n) => setPartnerName(n)} />}
         {activeTab === "commissions" && <PartnerCommissionsTab />}
-        {activeTab === "employers" && <PartnerEmployersTab />}
+        {activeTab === "employers" && <PartnerEmployersTab partnerId={partnerId} />}
         {activeTab === "invoices" && <PartnerInvoicesTab />}
         {activeTab === "wall" && <PartnerWallTab />}
       </div>

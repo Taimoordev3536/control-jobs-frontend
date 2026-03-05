@@ -145,7 +145,7 @@ interface ClientStats {
 
 export default function ClientDashboard() {
   const { t } = useTranslation("dashboard")
-  const { session } = useAuth()
+  const { session, logout } = useAuth()
   const [currentTime, setCurrentTime] = useState(new Date())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -312,7 +312,8 @@ export default function ClientDashboard() {
 
       if (!response.ok) {
         if (response.status === 401) {
-          throw new Error("Authentication failed. Please login again.")
+          logout()
+          return
         } else if (response.status === 403) {
           throw new Error("Access denied. You don't have permission to view jobs.")
         } else if (response.status >= 500) {

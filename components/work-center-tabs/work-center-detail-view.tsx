@@ -20,12 +20,15 @@ interface WorkCenter {
   denomination: string
   responsible: string
   address: string
-  number: string
-  floor: string
+  street: string
+  streetNumber: string
+  floorDoor: string
   postalCode: string
-  locality: string
+  city: string
   province: string
   country: string
+  latitude: number | null
+  longitude: number | null
   phone: string
   mobile: string
   email: string
@@ -85,13 +88,16 @@ export default function WorkCenterDetailView({ workCenterId, onBack }: WorkCente
           name: backendData.name,
           denomination: backendData.name, // name -> denomination
           responsible: backendData.contactName || "", // contactName -> responsible
-          address: backendData.street || backendData.address || "",
-          number: backendData.streetNumber || "",
-          floor: backendData.floor || "",
+          address: backendData.address || "",
+          street: backendData.street || "",
+          streetNumber: backendData.streetNumber || "",
+          floorDoor: backendData.floor || "",
           postalCode: backendData.postalCode || "",
-          locality: backendData.locality || "",
+          city: backendData.locality || "",
           province: backendData.province || "",
           country: backendData.country || "",
+          latitude: backendData.latitude ?? null,
+          longitude: backendData.longitude ?? null,
           phone: backendData.landline || "",
           mobile: backendData.contactPhone || "",
           email: backendData.contactEmail || "",
@@ -118,11 +124,14 @@ export default function WorkCenterDetailView({ workCenterId, onBack }: WorkCente
       name: "Sucursal 1",
       denomination: "Sucursal 1",
       responsible: "Responsable 1",
-      address: "Gran Vía",
-      number: "25",
-      floor: "5º",
+      address: "Gran Vía 25",
+      street: "Gran Vía",
+      streetNumber: "25",
+      floorDoor: "5º",
       postalCode: "49123",
-      locality: "Sevilla",
+      city: "Sevilla",
+      latitude: null,
+      longitude: null,
       province: "Sevilla",
       country: "España",
       phone: "946123555",
