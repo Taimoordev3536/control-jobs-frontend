@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { X, MapPin } from "lucide-react";
+import { MapPin, Info } from "lucide-react";
 import { LocationPickerDialog } from "@/components/LocationPickerDialog";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
@@ -70,13 +70,13 @@ export default function AddWorkCenterModal({
 
   const handleCreate = async () => {
     setError(null);
-    setIsLoading(true);
 
+    const emailInvalid = !formData.contactEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.contactEmail);
     const errors = {
       name: !formData.name,
       address: !formData.address,
       contactPhone: !formData.contactPhone,
-      contactEmail: !formData.contactEmail,
+      contactEmail: emailInvalid,
     };
     setValidationErrors(errors);
 
@@ -86,9 +86,10 @@ export default function AddWorkCenterModal({
       errors.contactPhone ||
       errors.contactEmail
     ) {
-      setIsLoading(false);
       return;
     }
+
+    setIsLoading(true);
 
     try {
       // No role restriction: allow any authenticated user to create a work center
@@ -215,7 +216,7 @@ export default function AddWorkCenterModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="max-w-sm sm:max-w-md p-0 gap-0 [&>button]:hidden h-[90vh] flex flex-col bg-background border-border mx-4"
+        className="max-w-sm sm:max-w-md p-0 gap-0 max-h-[90vh] flex flex-col bg-background border-border mx-4"
         onPointerDownOutside={(e) => {
           // Prevent dialog from closing when clicking Google Places autocomplete suggestions
           const target = e.target as HTMLElement
@@ -230,19 +231,15 @@ export default function AddWorkCenterModal({
           }
         }}
       >
-        <DialogHeader className="p-4 sm:p-6 pb-4">
-          <div className="flex items-center justify-between">
-            <DialogTitle className="text-lg font-medium text-foreground">
-              {t("newWorkCenter")}
-            </DialogTitle>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-6 w-6 p-0"
-              onClick={() => onOpenChange(false)}
-            >
-              <X className="h-4 w-4" />
-            </Button>
+        <DialogHeader className="p-4 sm:p-6 pb-4 space-y-4">
+          <div className="flex items-center justify-between relative">
+            <div className="flex-1" />
+            <div className="absolute left-1/2 transform -translate-x-1/2">
+              <DialogTitle className="text-lg font-semibold text-foreground text-center tracking-tight whitespace-nowrap">
+                {t("newWorkCenter")}
+              </DialogTitle>
+            </div>
+            <div className="flex-1 flex justify-end" />
           </div>
         </DialogHeader>
 
@@ -290,9 +287,21 @@ export default function AddWorkCenterModal({
             <div>
               <Label
                 htmlFor="address"
-                className="text-sm font-medium text-foreground"
+                className="text-sm font-medium text-foreground flex items-center gap-1"
               >
                 {t("address")} <span className="text-red-500">*</span>
+                <TooltipProvider>
+                  <Tooltip delayDuration={0}>
+                    <TooltipTrigger asChild>
+                      <button type="button" className="inline-flex items-center p-0" tabIndex={-1}>
+                        <Info tabIndex={-1} className="w-3 h-3 text-muted-foreground cursor-help" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="right" align="center" sideOffset={6} className="max-w-[14rem] text-xs px-2 py-1">
+                      {t("addressTip")}
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </Label>
               <div className="flex gap-2 mt-1">
                 <div className="flex-1">
@@ -415,15 +424,20 @@ export default function AddWorkCenterModal({
               <Input
                 id="contactPhone"
                 value={formData.contactPhone}
-                onChange={(e) => updateFormData("contactPhone", e.target.value)}
-                placeholder="Ej. +34 600 123 456"
+                onChange={(e) => {
+                  const val = e.target.value.replace(/[^0-9]/g, "");
+                  updateFormData("contactPhone", val);
+                }}
+                inputMode="numeric"
+                pattern="[0-9]*"
+                placeholder="Ej. 612345678"
                 className={`mt-1 ${
                   validationErrors.contactPhone ? "border-red-500" : ""
                 }`}
               />
               {validationErrors.contactPhone && (
                 <p className="mt-1 text-sm text-red-500">
-                  This field is required
+                  {t("thisFieldIsRequired") || "Este campo es obligatorio."}
                 </p>
               )}
             </div>
@@ -438,8 +452,13 @@ export default function AddWorkCenterModal({
               <Input
                 id="landline"
                 value={formData.landline}
-                onChange={(e) => updateFormData("landline", e.target.value)}
-                placeholder="Ej. 954 123 456"
+                onChange={(e) => {
+                  const val = e.target.value.replace(/[^0-9]/g, "");
+                  updateFormData("landline", val);
+                }}
+                inputMode="numeric"
+                pattern="[0-9]*"
+                placeholder="Ej. 912345678"
                 className="mt-1"
               />
             </div>
@@ -453,16 +472,19 @@ export default function AddWorkCenterModal({
               </Label>
               <Input
                 id="contactEmail"
+                type="email"
                 value={formData.contactEmail}
                 onChange={(e) => updateFormData("contactEmail", e.target.value)}
-                placeholder="Ej. contacto@empresa.com"
+                placeholder="ejemplo@correo.com"
                 className={`mt-1 ${
                   validationErrors.contactEmail ? "border-red-500" : ""
                 }`}
               />
               {validationErrors.contactEmail && (
                 <p className="mt-1 text-sm text-red-500">
-                  This field is required
+                  {!formData.contactEmail
+                    ? (t("thisFieldIsRequired") || "Este campo es obligatorio.")
+                    : (t("invalidEmailFormat") || "Formato de email inválido (xxxx@xxx.xx)")}
                 </p>
               )}
             </div>
@@ -470,10 +492,13 @@ export default function AddWorkCenterModal({
             <div className="flex justify-end pt-4">
               <Button
                 onClick={handleCreate}
-                className="bg-purple-600 hover:bg-purple-700 text-white px-6 w-full sm:w-auto"
+                className="text-white px-6 w-full sm:w-auto"
+                style={{ backgroundColor: "#662D91" }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#551A80")}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#662D91")}
                 disabled={isLoading}
               >
-                {isLoading ? "Creating" : "Create"}
+                {isLoading ? (t("creating") || "Creando...") : (t("create") || "Crear")}
               </Button>
             </div>
             {error && (
