@@ -100,6 +100,19 @@
   }
 }
 
+/* Prevent Radix Select scroll-lock from shifting page layout.
+   Uses higher specificity (html body) to beat react-remove-scroll-bar's
+   injected body[data-scroll-locked] rule. */
+html body[data-scroll-locked] {
+  overflow: auto !important;
+  padding-right: 0px !important;
+  padding-left: 0px !important;
+  padding-top: 0px !important;
+  margin-right: 0px !important;
+  margin-left: 0px !important;
+  margin-top: 0px !important;
+}
+
 @layer components {
   /* Mobile overlay for sidebar */
   .sidebar-overlay {

@@ -379,7 +379,7 @@ export function ClientDataTab({ clientId }: ClientDataTabProps) {
             <SelectTrigger className="h-9 text-xs bg-muted/30 border-input text-foreground">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
+             <SelectContent className="min-w-0 w-[90px]">
               <SelectItem value="yeah">{t("yeah")}</SelectItem>
               <SelectItem value="no">{t("no")}</SelectItem>
             </SelectContent>
