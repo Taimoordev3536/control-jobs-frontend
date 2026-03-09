@@ -79,9 +79,14 @@ export function ClientDataTab({ clientId }: ClientDataTabProps) {
 
   useEffect(() => {
     const fetchClientData = async () => {
-      if (!session?.accessToken || !clientId || clientId === "undefined") {
-        setError("Invalid client ID or no authentication")
+      if (!clientId || clientId === "undefined") {
+        setError("Invalid client ID")
         setIsLoading(false)
+        return
+      }
+
+      // Wait for session to be available (don't show error while auth is loading)
+      if (!session?.accessToken) {
         return
       }
 
