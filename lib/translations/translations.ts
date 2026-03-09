@@ -82,6 +82,7 @@ surveyMonitoringValueTips: "Set a limit. If responses are under this value, an a
   clientCodeTip: "Code or Reference of the client in your billing program.",
   clientAddressTip: "Enter your address and choose a suggestion.",
   clientSummerScheduleTip: "If the client has a special summer schedule, enter the start and end dates. If the whole year has the same schedule, leave it blank.",
+  requiredFieldsMissing: "Required fields missing",
   summerSchedulePeriod: "Summer Schedule Period",
 
   // info tooltip for start date in add-job-modal
@@ -708,6 +709,7 @@ surveyMonitoringValueTips: "Set a limit. If responses are under this value, an a
     clientCodeTip: "Código o Referencia del cliente en tu programa de facturación",
     clientAddressTip: "Introduce tu dirección y elige una sugerencia.",
     clientSummerScheduleTip: "Si el cliente hace un horario especial en verano, indicar la fecha de inicio y fin. Si todo el año tiene los mismos horarios, dejarlo en blanco.",
+    requiredFieldsMissing: "Campos obligatorios",
     summerSchedulePeriod: "Periodo Horario de Verano",
 
     // info tooltip for code field in add-client-modal

@@ -129,8 +129,28 @@ export function ClientDataTab({ clientId }: ClientDataTabProps) {
     setHasChanges(true)
   }
 
+  const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+
   const handleSave = async () => {
     if (!clientData || !session?.accessToken) return
+
+    // Validate required fields
+    const missing: string[] = []
+    if (!clientData.name?.trim()) missing.push(t("name"))
+    if (!clientData.address?.trim()) missing.push(t("address"))
+    if (!clientData.mobile?.trim()) missing.push(t("mobile"))
+    if (!clientData.email?.trim() || !isValidEmail(clientData.email)) missing.push(t("email"))
+    if (!clientData.type?.trim()) missing.push(t("type"))
+    if (!clientData.responsible?.trim()) missing.push(t("responsible"))
+
+    if (missing.length > 0) {
+      toast({
+        title: t("requiredFieldsMissing") || "Campos obligatorios",
+        description: missing.join(", "),
+        variant: "destructive",
+      })
+      return
+    }
 
     setIsSaving(true)
     setError(null)
@@ -334,7 +354,7 @@ export function ClientDataTab({ clientId }: ClientDataTabProps) {
         </div>
         <div className="space-y-1 min-w-0" style={{ flex: "0 1 48%" }}>
           <Label htmlFor="name" className="text-xs font-medium text-foreground">
-            {t("name")}
+            {t("name")} <span className="text-red-500">*</span>
           </Label>
           <Input
             id="name"
@@ -345,7 +365,7 @@ export function ClientDataTab({ clientId }: ClientDataTabProps) {
         </div>
         <div className="space-y-1 min-w-0" style={{ flex: "0 1 15%" }}>
           <Label htmlFor="type" className="text-xs font-medium text-foreground">
-            {t("type")}
+            {t("type")} <span className="text-red-500">*</span>
           </Label>
           <Select value={clientData.type || ""} onValueChange={(value) => handleInputChange("type", value)}>
             <SelectTrigger className="h-9 text-xs bg-muted/30 border-input text-foreground">
@@ -391,7 +411,7 @@ export function ClientDataTab({ clientId }: ClientDataTabProps) {
       <div className="flex gap-3 items-end">
         <div className="space-y-1 min-w-0" style={{ flex: "0 1 60%" }}>
           <Label htmlFor="address" className="text-xs font-medium text-foreground flex items-center gap-1">
-            {t("address")} {tip(t("clientAddressTip"))}
+            {t("address")} <span className="text-red-500">*</span> {tip(t("clientAddressTip"))}
           </Label>
           <GoogleAddressInput
             value={clientData.address || ""}
@@ -481,7 +501,7 @@ export function ClientDataTab({ clientId }: ClientDataTabProps) {
       <div className="flex gap-3 items-end">
         <div className="space-y-1 min-w-0" style={{ flex: "0 1 30%" }}>
           <Label htmlFor="responsible" className="text-xs font-medium text-foreground">
-            {t("responsible")}
+            {t("responsible")} <span className="text-red-500">*</span>
           </Label>
           <Input
             id="responsible"
@@ -507,7 +527,7 @@ export function ClientDataTab({ clientId }: ClientDataTabProps) {
         </div>
         <div className="space-y-1 min-w-0" style={{ flex: "0 1 15%" }}>
           <Label htmlFor="mobile" className="text-xs font-medium text-foreground flex items-center gap-1">
-            {t("mobile")}
+            {t("mobile")} <span className="text-red-500">*</span>
           </Label>
           <Input
             id="mobile"
@@ -522,7 +542,7 @@ export function ClientDataTab({ clientId }: ClientDataTabProps) {
         </div>
         <div className="space-y-1 min-w-0" style={{ flex: "0 1 24%" }}>
           <Label htmlFor="email" className="text-xs font-medium text-foreground flex items-center gap-1">
-            {t("email")}
+            {t("email")} <span className="text-red-500">*</span>
           </Label>
           <Input
             id="email"
