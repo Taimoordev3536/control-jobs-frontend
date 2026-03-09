@@ -21,7 +21,7 @@ export default function WorkersPage() {
 
   // Map backend worker data to table row format
   const mapWorker = (w: any) => ({
-    id: w.id?.toString() || w.workerId?.toString() || "",
+    id: w.publicId || w.id?.toString() || w.workerId?.toString() || "",
     name: w.name || w.fullName || w.workerName || "-",
     occupation: w.occupation || "-",
     telephones: [w.landline, w.mobile].filter(Boolean).join(" | ") || "-",
@@ -110,7 +110,8 @@ export default function WorkersPage() {
     const workerId = worker?.id || worker
 
     if (workerId && workerId !== "") {
-      router.push(`/workers/${workerId}`)
+      const name = worker?.name || ""
+      router.push(`/workers/${workerId}${name ? `?name=${encodeURIComponent(name)}` : ""}`)
     } else {
       console.error("Worker ID is missing:", worker)
     }

@@ -41,7 +41,7 @@ export function ClientWorkCenterTab({ clientId }: ClientWorkCenterTabProps) {
         if (!res.ok) throw new Error("Failed to fetch work centers")
         const data = await res.json()
         const mapped = (data.data || []).map((w: any) => ({
-          id: w.id,
+          id: w.publicId || w.id,
           code: w.code || "",
           denomination: w.name || w.denomination || "-",
           address: w.address || "-",

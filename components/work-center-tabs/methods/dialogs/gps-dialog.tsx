@@ -19,7 +19,7 @@ declare global {
 interface GpsDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  workCenterId: number
+  workCenterId: string
   gpsData?: { active: boolean; latitude: number; longitude: number; radius: number }
   onUpdate: () => void
 }

@@ -27,6 +27,7 @@ import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/comp
 
 interface WorkCenter {
   id: number
+  publicId?: string
   code: string
   name: string
   denomination: string
@@ -133,7 +134,7 @@ export function WorkCenterDescriptionTab({ workCenter, onUpdate }: WorkCenterDes
       if (lat != null && !isNaN(lat)) backendData.latitude = lat
       if (lng != null && !isNaN(lng)) backendData.longitude = lng
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/work-centers/${workCenter.id}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/work-centers/${workCenter.publicId || workCenter.id}`, {
         method: "PUT",
         headers: {
           Authorization: `Bearer ${session.accessToken}`,
@@ -175,7 +176,7 @@ export function WorkCenterDescriptionTab({ workCenter, onUpdate }: WorkCenterDes
 
     setIsDeleting(true)
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/work-centers/${workCenter.id}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/work-centers/${workCenter.publicId || workCenter.id}`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${session.accessToken}`,

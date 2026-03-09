@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Info, Calendar, Loader2, Save, AlertCircle, RefreshCw } from "lucide-react"
+import { Info, Loader2, AlertCircle, RefreshCw } from "lucide-react"
 import { useTranslation } from "@/hooks/use-translation"
 import { useAuth } from "@/hooks/use-auth"
 import { useState, useEffect, useRef } from "react"
@@ -136,8 +136,8 @@ export function ClientDataTab({ clientId }: ClientDataTabProps) {
     setError(null)
 
     try {
-      // Send only updateable fields, exclude id/userId
-      const { id, userId, ...updatePayload } = clientData
+      // Send only updateable fields, exclude id/userId/publicId/email (non-DTO / read-only fields)
+      const { id, userId, publicId, email, ...updatePayload } = clientData as any
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/client/${clientId}`, {
         method: "PUT",
         headers: {
@@ -255,38 +255,100 @@ export function ClientDataTab({ clientId }: ClientDataTabProps) {
     )
   }
 
+  // dd/mm date input handler with strict validation as user types
+  const handleDateInput = (field: keyof ClientData, value: string) => {
+    const digits = value.replace(/[^\d]/g, "")
+
+    // Max 4 digits (ddmm)
+    if (digits.length > 4) return
+
+    // Validate day digits as they're typed
+    if (digits.length >= 1) {
+      const d1 = parseInt(digits[0], 10)
+      if (d1 > 3) return // first digit of day can only be 0-3
+    }
+    if (digits.length >= 2) {
+      const day = parseInt(digits.substring(0, 2), 10)
+      if (day < 1 || day > 31) return
+    }
+
+    // Validate month digits as they're typed
+    if (digits.length >= 3) {
+      const m1 = parseInt(digits[2], 10)
+      if (m1 > 1) return // first digit of month can only be 0-1
+    }
+    if (digits.length >= 4) {
+      const month = parseInt(digits.substring(2, 4), 10)
+      if (month < 1 || month > 12) return
+      // Validate days per month
+      const day = parseInt(digits.substring(0, 2), 10)
+      const maxDays: Record<number, number> = { 2: 29, 4: 30, 6: 30, 9: 30, 11: 30 }
+      if (day > (maxDays[month] || 31)) return
+    }
+
+    // Format with slash: auto-insert after day
+    let formatted = ""
+    if (digits.length <= 2) {
+      formatted = digits
+    } else {
+      formatted = digits.substring(0, 2) + "/" + digits.substring(2)
+    }
+
+    handleInputChange(field, formatted || null)
+  }
+
+  // Helper to render a tooltip icon
+  const tip = (text: string) => (
+    <TooltipProvider>
+      <Tooltip delayDuration={0}>
+        <TooltipTrigger asChild>
+          <button type="button" className="inline-flex items-center p-0" tabIndex={-1}>
+            <Info tabIndex={-1} className="w-3 h-3 text-muted-foreground cursor-help" />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="right" align="center" sideOffset={6} className="max-w-[18rem] text-xs px-2 py-1">
+          {text}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  )
+
+  // Dynamic NIF/CIF label based on type
+  const nifLabel = clientData.type === "company" ? "CIF" : "NIF"
+
   return (
-    <div className="space-y-4 pt-1 px-2">
-      {/* Row 1: Name, Responsible, Type, Code, NIF */}
-      <div className="grid grid-cols-5 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="name" className="text-sm font-medium text-foreground">
+    <div className="overflow-x-auto">
+    <div className="space-y-3 pt-1 px-2" style={{ minWidth: "900px" }}>
+      {/* Row 1: Código 10%, Nombre 50%, Tipo 15%, NIF/CIF 15%, Activo 5% */}
+      <div className="flex gap-3 items-end">
+        <div className="space-y-1 min-w-0" style={{ flex: "0 1 10%" }}>
+          <Label htmlFor="code" className="text-xs font-medium text-foreground flex items-center gap-1">
+            {t("code")} {tip(t("clientCodeTip"))}
+          </Label>
+          <Input
+            id="code"
+            value={clientData.code || ""}
+            onChange={(e) => handleInputChange("code", e.target.value)}
+            className="h-9 text-xs bg-muted/30 border-input text-foreground"
+          />
+        </div>
+        <div className="space-y-1 min-w-0" style={{ flex: "0 1 48%" }}>
+          <Label htmlFor="name" className="text-xs font-medium text-foreground">
             {t("name")}
           </Label>
           <Input
             id="name"
             value={clientData.name || ""}
             onChange={(e) => handleInputChange("name", e.target.value)}
-            className="h-10 bg-muted/30 border-input text-foreground"
+            className="h-9 text-xs bg-muted/30 border-input text-foreground"
           />
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="responsible" className="text-sm font-medium text-foreground">
-            {t("responsible")}
-          </Label>
-          <Input
-            id="responsible"
-            value={clientData.responsible || ""}
-            onChange={(e) => handleInputChange("responsible", e.target.value)}
-            className="h-10 bg-muted/30 border-input text-foreground"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="type" className="text-sm font-medium text-foreground">
+        <div className="space-y-1 min-w-0" style={{ flex: "0 1 15%" }}>
+          <Label htmlFor="type" className="text-xs font-medium text-foreground">
             {t("type")}
           </Label>
           <Select value={clientData.type || ""} onValueChange={(value) => handleInputChange("type", value)}>
-            <SelectTrigger className="h-10 bg-muted/30 border-input text-foreground">
+            <SelectTrigger className="h-9 text-xs bg-muted/30 border-input text-foreground">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -295,48 +357,41 @@ export function ClientDataTab({ clientId }: ClientDataTabProps) {
             </SelectContent>
           </Select>
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="code" className="text-sm font-medium text-foreground flex items-center gap-1">
-            {t("code")}
-            <Info className="h-3 w-3 text-muted-foreground" />
-          </Label>
-          <Input
-            id="code"
-            value={clientData.code || ""}
-            onChange={(e) => handleInputChange("code", e.target.value)}
-            className="h-10 bg-muted/30 border-input text-foreground"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="nif" className="text-sm font-medium text-foreground">
-            {t("nif")}
+        <div className="space-y-1 min-w-0" style={{ flex: "0 1 15%" }}>
+          <Label htmlFor="nif" className="text-xs font-medium text-foreground">
+            {nifLabel}
           </Label>
           <Input
             id="nif"
             value={clientData.taxId || ""}
             onChange={(e) => handleInputChange("taxId", e.target.value)}
-            className="h-10 bg-muted/30 border-input text-foreground"
+            className="h-9 text-xs bg-muted/30 border-input text-foreground"
           />
+        </div>
+        <div className="space-y-1 min-w-0" style={{ flex: "0 1 7%" }}>
+          <Label htmlFor="active" className="text-xs font-medium text-foreground">
+            {t("active")}
+          </Label>
+          <Select
+            value={clientData.active ? "yeah" : "no"}
+            onValueChange={(value) => handleInputChange("active", value === "yeah")}
+          >
+            <SelectTrigger className="h-9 text-xs bg-muted/30 border-input text-foreground">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="yeah">{t("yeah")}</SelectItem>
+              <SelectItem value="no">{t("no")}</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
-      {/* Row 2: Address (full width) */}
-      <div className="grid grid-cols-1 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="address" className="text-sm font-medium text-foreground flex items-center gap-1">
-            {t("address")}
-            <TooltipProvider>
-              <Tooltip delayDuration={0}>
-                <TooltipTrigger asChild>
-                  <button type="button" className="inline-flex items-center p-0" tabIndex={-1}>
-                    <Info tabIndex={-1} className="w-3 h-3 text-muted-foreground cursor-help" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="right" align="center" sideOffset={6} className="max-w-[14rem] text-xs px-2 py-1">
-                  {t("addressTip")}
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+      {/* Row 2: Dirección 60%, Piso/Puerta 12%, Código Postal 12%, Localidad 16% */}
+      <div className="flex gap-3 items-end">
+        <div className="space-y-1 min-w-0" style={{ flex: "0 1 60%" }}>
+          <Label htmlFor="address" className="text-xs font-medium text-foreground flex items-center gap-1">
+            {t("address")} {tip(t("clientAddressTip"))}
           </Label>
           <GoogleAddressInput
             value={clientData.address || ""}
@@ -354,111 +409,119 @@ export function ClientDataTab({ clientId }: ClientDataTabProps) {
                 if (components.longitude) handleInputChange("longitude", components.longitude)
               }
             }}
-            className="flex h-10 w-full rounded-md border border-input bg-muted/30 px-3 py-2 text-sm text-foreground ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-weight-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="flex h-9 w-full rounded-md border border-input bg-muted/30 px-3 py-1 text-xs text-foreground ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           />
         </div>
-      </div>
-
-      {/* Row 2b: No., Floor/Door, Postal Code */}
-      <div className="grid grid-cols-3 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="streetNumber" className="text-sm font-medium text-foreground">
-            {t("number")}
-          </Label>
-          <Input
-            id="streetNumber"
-            value={clientData.streetNumber || ""}
-            onChange={(e) => handleInputChange("streetNumber", e.target.value)}
-            className="h-10 bg-muted/30 border-input text-foreground"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="floorDoor" className="text-sm font-medium text-foreground">
+        <div className="space-y-1 min-w-0" style={{ flex: "0 1 12%" }}>
+          <Label htmlFor="floorDoor" className="text-xs font-medium text-foreground flex items-center gap-1">
             {t("floorDoor")}
           </Label>
           <Input
             id="floorDoor"
             value={clientData.floorDoor || ""}
             onChange={(e) => handleInputChange("floorDoor", e.target.value)}
-            className="h-10 bg-muted/30 border-input text-foreground"
+            className="h-9 text-xs bg-muted/30 border-input text-foreground"
           />
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="postalCode" className="text-sm font-medium text-foreground">
+        <div className="space-y-1 min-w-0" style={{ flex: "0 1 12%" }}>
+          <Label htmlFor="postalCode" className="text-xs font-medium text-foreground flex items-center gap-1">
             {t("postalCode")}
           </Label>
           <Input
             id="postalCode"
             value={clientData.postalCode || ""}
-            onChange={(e) => handleInputChange("postalCode", e.target.value)}
-            className="h-10 bg-muted/30 border-input text-foreground"
+            onChange={(e) => {
+              const val = e.target.value.replace(/[^0-9]/g, "")
+              handleInputChange("postalCode", val)
+            }}
+            inputMode="numeric"
+            className="h-9 text-xs bg-muted/30 border-input text-foreground"
           />
         </div>
-      </div>
-
-      {/* Row 3: City, Province, Country */}
-      <div className="grid grid-cols-3 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="city" className="text-sm font-medium text-foreground">
+        <div className="space-y-1 min-w-0" style={{ flex: "0 1 16%" }}>
+          <Label htmlFor="city" className="text-xs font-medium text-foreground">
             {t("city")}
           </Label>
           <Input
             id="city"
             value={clientData.city || ""}
             onChange={(e) => handleInputChange("city", e.target.value)}
-            className="h-10 bg-muted/30 border-input text-foreground"
+            className="h-9 text-xs bg-muted/30 border-input text-foreground"
           />
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="province" className="text-sm font-medium text-foreground">
+      </div>
+
+      {/* Row 3: Provincia 30%, País 30% */}
+      <div className="flex gap-3 items-end">
+        <div className="space-y-1 min-w-0" style={{ flex: "0 1 30%" }}>
+          <Label htmlFor="province" className="text-xs font-medium text-foreground">
             {t("province")}
           </Label>
           <Input
             id="province"
             value={clientData.province || ""}
             onChange={(e) => handleInputChange("province", e.target.value)}
-            className="h-10 bg-muted/30 border-input text-foreground"
+            className="h-9 text-xs bg-muted/30 border-input text-foreground"
           />
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="country" className="text-sm font-medium text-foreground">
+        <div className="space-y-1 min-w-0" style={{ flex: "0 1 30%" }}>
+          <Label htmlFor="country" className="text-xs font-medium text-foreground">
             {t("country")}
           </Label>
           <Input
             id="country"
             value={clientData.country || ""}
             onChange={(e) => handleInputChange("country", e.target.value)}
-            className="h-10 bg-muted/30 border-input text-foreground"
+            className="h-9 text-xs bg-muted/30 border-input text-foreground"
           />
         </div>
       </div>
 
-      {/* Row 4: Phone, Mobile, E-mail, Winter schedule, Summer time */}
-      <div className="grid grid-cols-5 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="phone" className="text-sm font-medium text-foreground">
+      {/* Row 4: Responsible 30%, Teléfono 15%, Móvil 15%, Email 24%, Usuarios button */}
+      <div className="flex gap-3 items-end">
+        <div className="space-y-1 min-w-0" style={{ flex: "0 1 30%" }}>
+          <Label htmlFor="responsible" className="text-xs font-medium text-foreground">
+            {t("responsible")}
+          </Label>
+          <Input
+            id="responsible"
+            value={clientData.responsible || ""}
+            onChange={(e) => handleInputChange("responsible", e.target.value)}
+            className="h-9 text-xs bg-muted/30 border-input text-foreground"
+          />
+        </div>
+        <div className="space-y-1 min-w-0" style={{ flex: "0 1 15%" }}>
+          <Label htmlFor="phone" className="text-xs font-medium text-foreground flex items-center gap-1">
             {t("phone")}
           </Label>
           <Input
             id="phone"
             value={clientData.landline || ""}
-            onChange={(e) => handleInputChange("landline", e.target.value)}
-            className="h-10 bg-muted/30 border-input text-foreground"
+            onChange={(e) => {
+              const val = e.target.value.replace(/[^0-9]/g, "")
+              handleInputChange("landline", val)
+            }}
+            inputMode="numeric"
+            className="h-9 text-xs bg-muted/30 border-input text-foreground"
           />
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="mobile" className="text-sm font-medium text-foreground">
+        <div className="space-y-1 min-w-0" style={{ flex: "0 1 15%" }}>
+          <Label htmlFor="mobile" className="text-xs font-medium text-foreground flex items-center gap-1">
             {t("mobile")}
           </Label>
           <Input
             id="mobile"
             value={clientData.mobile || ""}
-            onChange={(e) => handleInputChange("mobile", e.target.value)}
-            className="h-10 bg-muted/30 border-input text-foreground"
+            onChange={(e) => {
+              const val = e.target.value.replace(/[^0-9]/g, "")
+              handleInputChange("mobile", val)
+            }}
+            inputMode="numeric"
+            className="h-9 text-xs bg-muted/30 border-input text-foreground"
           />
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="email" className="text-sm font-medium text-foreground">
+        <div className="space-y-1 min-w-0" style={{ flex: "0 1 24%" }}>
+          <Label htmlFor="email" className="text-xs font-medium text-foreground flex items-center gap-1">
             {t("email")}
           </Label>
           <Input
@@ -466,74 +529,47 @@ export function ClientDataTab({ clientId }: ClientDataTabProps) {
             type="email"
             value={clientData.email || ""}
             onChange={(e) => handleInputChange("email", e.target.value)}
-            className="h-10 bg-muted/30 border-input text-foreground"
+            className="h-9 text-xs bg-muted/30 border-input text-foreground"
           />
         </div>
-        <div className="space-y-2">
-          <Label className="text-sm font-medium text-foreground flex items-center gap-1">
-            {t("winterSchedule")}
-            <Info className="h-3 w-3 text-muted-foreground" />
-          </Label>
-          <div className="relative">
-            <Input
-              type="date"
-              value={clientData.winterSchedule || ""}
-              onChange={(e) => handleInputChange("winterSchedule", e.target.value)}
-              className="h-10 bg-muted/30 border-input text-foreground pr-10"
-            />
-            <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          </div>
-        </div>
-        <div className="space-y-2">
-          <Label className="text-sm font-medium text-foreground flex items-center gap-1">
-            {t("summerTime")}
-            <Info className="h-3 w-3 text-muted-foreground" />
-          </Label>
-          <div className="relative">
-            <Input
-              type="date"
-              value={clientData.summerSchedule || ""}
-              onChange={(e) => handleInputChange("summerSchedule", e.target.value)}
-              className="h-10 bg-muted/30 border-input text-foreground pr-10"
-            />
-            <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          </div>
+        <div className="shrink-0">
+          <Button className="h-9 bg-purple-600 hover:bg-purple-700 text-white px-4 text-xs">{t("users")}</Button>
         </div>
       </div>
 
-      {/* Active + Observations + Users */}
-      <div className="space-y-2">
-        <div className="flex items-end gap-4">
-          <div className="space-y-2 shrink-0">
-            <Label htmlFor="active" className="text-sm font-medium text-foreground">
-              {t("active")}
-            </Label>
-            <Select
-              value={clientData.active ? "yeah" : "no"}
-              onValueChange={(value) => handleInputChange("active", value === "yeah")}
-            >
-              <SelectTrigger className="h-10 w-36 bg-muted/30 border-input text-foreground">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="yeah">{t("yeah")}</SelectItem>
-                <SelectItem value="no">{t("no")}</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex-1 max-w-[70%] space-y-2">
-            <Label htmlFor="observations" className="text-sm font-medium text-foreground">
-              {t("observations")}
-            </Label>
-            <Textarea
-              id="observations"
-              value={clientData.observation || ""}
-              onChange={(e) => handleInputChange("observation", e.target.value)}
-              className="min-h-[50px] w-full bg-muted/30 border-input text-foreground resize-none text-sm py-2"
-              placeholder="Enter observations..."
+      {/* Row 5: Observations 60%, Periodo Horario de Verano 8%+8% */}
+      <div className="flex gap-3 items-end">
+        <div className="space-y-1 min-w-0" style={{ flex: "0 1 60%" }}>
+          <Label htmlFor="observations" className="text-xs font-medium text-foreground">
+            {t("observations")}
+          </Label>
+          <Textarea
+            id="observations"
+            value={clientData.observation || ""}
+            onChange={(e) => handleInputChange("observation", e.target.value)}
+            className="min-h-[40px] w-full bg-muted/30 border-input text-foreground resize-none text-xs py-1.5"
+          />
+        </div>
+        <div className="space-y-1 shrink-0">
+          <Label className="text-xs font-medium text-foreground flex items-center gap-1">
+            {t("summerSchedulePeriod") || "Periodo Horario de Verano"} {tip(t("clientSummerScheduleTip"))}
+          </Label>
+          <div className="flex items-center gap-2">
+            <Input
+              placeholder="dd/mm"
+              value={clientData.winterSchedule || ""}
+              onChange={(e) => handleDateInput("winterSchedule", e.target.value)}
+              className="h-9 w-20 text-xs bg-muted/30 border-input text-foreground text-center"
+              maxLength={5}
+            />
+            <Input
+              placeholder="dd/mm"
+              value={clientData.summerSchedule || ""}
+              onChange={(e) => handleDateInput("summerSchedule", e.target.value)}
+              className="h-9 w-20 text-xs bg-muted/30 border-input text-foreground text-center"
+              maxLength={5}
             />
           </div>
-          <Button className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 shrink-0 self-end">{t("users")}</Button>
         </div>
       </div>
 
@@ -558,26 +594,28 @@ export function ClientDataTab({ clientId }: ClientDataTabProps) {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Bottom Action Buttons */}
-      <div className="flex items-center justify-between pt-6 mt-6 px-4 py-4 bg-gray-100 dark:bg-gray-800/50 rounded-b-lg">
+      {/* Bottom Action Buttons - separated by line */}
+      <div className="border-t-2 border-border mt-4" />
+      <div className="flex items-center justify-between px-2 py-3">
         <div className="flex items-center gap-3">
           <Button
             onClick={handleSave}
             disabled={isSaving}
-            className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 flex items-center gap-2"
+            className="h-9 bg-purple-600 hover:bg-purple-700 text-white px-5 text-xs flex items-center gap-2"
           >
-            {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            {isSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
             {isSaving ? t("saving") || "Saving..." : t("keep")}
           </Button>
-          <Button onClick={() => router.push("/clients")} className="bg-neutral-500 hover:bg-neutral-600 text-white px-6 py-2">
+          <Button onClick={handleCancel} className="h-9 bg-neutral-500 hover:bg-neutral-600 text-white px-5 text-xs">
             {t("cancel")}
           </Button>
         </div>
-        <Button onClick={handleDelete} disabled={isDeleting} className="bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-2">
-          {isDeleting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+        <Button onClick={handleDelete} disabled={isDeleting} className="h-9 bg-yellow-500 hover:bg-yellow-600 text-white px-5 text-xs">
+          {isDeleting ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
           {t("delete")}
         </Button>
       </div>
+    </div>
     </div>
   )
 }

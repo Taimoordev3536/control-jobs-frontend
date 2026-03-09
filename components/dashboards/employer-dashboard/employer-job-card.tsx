@@ -18,6 +18,7 @@ import { useRouter } from "next/navigation"
 
 interface Job {
   id: number
+  publicId?: string
   title: string
   jobId: string
   client?: {
@@ -76,7 +77,7 @@ interface Job {
 interface EmployerJobCardProps {
   job: any
   onViewDetails: (job: any) => void
-  onEdit: (jobId: number) => void
+  onEdit: (jobId: string | number) => void
   onViewRecords: (job: any) => void
 }
 
@@ -444,7 +445,7 @@ const getStatusConfig = (status: string) => {
           <Button
             size="sm"
             className="flex-1 h-8 text-xs bg-purple-700 hover:bg-purple-800 text-white"
-            onClick={() => router.push(`/records/employer?jobId=${job.id}`)}
+            onClick={() => router.push(`/records/employer?jobId=${job.publicId || job.id}`)}
           >
             <ControlIcon className="w-3 h-3 mr-1" />
             {t("records")}
@@ -452,7 +453,7 @@ const getStatusConfig = (status: string) => {
           <Button
             size="sm"
             className="flex-1 h-8 text-xs bg-purple-50 text-purple-600 font-medium hover:bg-purple-100 transition"
-            onClick={() => router.push(`/jobs/${job.id}/edit`)}
+            onClick={() => router.push(`/jobs/${job.publicId || job.id}/edit`)}
           >
             <Edit className="w-3 h-3 mr-1" />
             {t("edit")}

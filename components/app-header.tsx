@@ -96,7 +96,7 @@ export function AppHeader({ collapsed, toggleSidebar }: AppHeaderProps) {
                             if (a.id) {
                               try {
                                 const token = session?.accessToken
-                                await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/alerts/${a.id}`, {
+                                await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/alerts/${a.publicId || a.id}`, {
                                   method: 'DELETE',
                                   headers: token ? { Authorization: `Bearer ${token}` } : undefined,
                                 })

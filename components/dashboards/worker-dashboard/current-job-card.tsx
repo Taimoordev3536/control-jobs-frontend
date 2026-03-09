@@ -43,6 +43,7 @@ import JobsIcon from "@/icons/Menu/Jobs.svg";
 
 interface JobAssignment {
   id: number;
+  publicId?: string;
   jobId: string;
   title: string;
   client: {
@@ -139,7 +140,7 @@ export function CurrentJobCard({
     try {
       const baseUrl =
         process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001";
-      const response = await fetch(`${baseUrl}/jobs/${job.id}/today-tasks`, {
+      const response = await fetch(`${baseUrl}/jobs/${job.publicId || job.id}/today-tasks`, {
         headers: {
           Authorization: `Bearer ${session.accessToken}`,
         },

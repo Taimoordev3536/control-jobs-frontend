@@ -21,7 +21,7 @@ export default function ClientsPage() {
 
   // Map backend client data to table row format
   const mapClient = (c: any) => ({
-    id: c.id?.toString() || c.clientId?.toString() || "",
+    id: c.publicId || c.id?.toString() || c.clientId?.toString() || "",
     name: c.name || "-",
     city: c.city || "-",
     type: c.type === "company" ? t("company") : c.type === "particular" ? t("particular") : c.type || "-",
@@ -112,7 +112,8 @@ export default function ClientsPage() {
     console.log("Navigating to client ID:", clientId)
 
     if (clientId && clientId !== "") {
-      router.push(`/clients/${clientId}`)
+      const name = client?.name || ""
+      router.push(`/clients/${clientId}${name ? `?name=${encodeURIComponent(name)}` : ""}`)
     } else {
       console.error("Client ID is missing:", client)
     }

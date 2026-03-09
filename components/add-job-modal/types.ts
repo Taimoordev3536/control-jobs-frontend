@@ -24,7 +24,8 @@ export interface ScheduleData {
 }
 
 export interface Client {
-  id: number
+  id: string | number
+  publicId?: string
   name: string
   locality: string
   type: string
@@ -32,6 +33,7 @@ export interface Client {
   telephones: string
   asset: string
   isSelf?: boolean
+  isEmployer?: boolean
 }
 
 export interface WorkCenter {

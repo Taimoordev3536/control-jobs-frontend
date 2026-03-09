@@ -134,7 +134,7 @@ export default function DefinitionForm({
         <Select
           value={formData.clientId ? formData.clientId.toString() : ""}
           onValueChange={(value) => {
-            updateFormData("clientId", value ? Number(value) : null)
+            updateFormData("clientId", value || null)
             updateFormData("workCenterIds", [])
           }}
           disabled={loadingClients}
@@ -188,7 +188,10 @@ export default function DefinitionForm({
             {formData.workCenterIds.length > 0 && (
               <div className="mb-2">
                 {formData.workCenterIds.map((wcId) => {
-                  const wc = workCenters.find((w) => String(w.id) === wcId)
+                  const wc = workCenters.find((w) =>
+                    String(w.id) === String(wcId) ||
+                    String((w as any).publicId) === String(wcId)
+                  )
                   return wc ? (
                     <div key={wcId} className="text-sm text-foreground">
                       {wc.name}
@@ -266,7 +269,10 @@ export default function DefinitionForm({
             {formData.workerIds.length > 0 && (
               <div className="mb-2">
                 {formData.workerIds.map((workerId) => {
-                  const worker = workers.find((w) => w.id.toString() === workerId)
+                  const worker = workers.find((w) =>
+                    String(w.id) === String(workerId) ||
+                    String((w as any).publicId) === String(workerId)
+                  )
                   return worker ? (
                     <div key={workerId} className="text-sm text-foreground">
                       {worker.name}

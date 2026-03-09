@@ -73,7 +73,7 @@ export default function AddPartnerModal({ open, onOpenChange, onPartnerAdded }: 
     bicSwift: "",
     responsible: "",
     accessAccountStatus: "postpone",
-    accessEmail: "",
+    accessEmail: null as string | null,
   })
 
   const [validationErrors, setValidationErrors] = useState({
@@ -188,7 +188,7 @@ export default function AddPartnerModal({ open, onOpenChange, onPartnerAdded }: 
         accessAccountStatus: formData.accessAccountStatus,
       }
       if (formData.accessAccountStatus === "request") {
-        payload.accessEmail = formData.accessEmail || formData.email
+        payload.accessEmail = formData.accessEmail !== null ? formData.accessEmail : formData.email
       }
       const token = session?.accessToken
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/partners`, {
@@ -667,7 +667,7 @@ export default function AddPartnerModal({ open, onOpenChange, onPartnerAdded }: 
                   </Label>
                   <Input
                     id="accessEmailDisplay"
-                    value={formData.accessEmail || formData.email}
+                    value={formData.accessEmail !== null ? formData.accessEmail : formData.email}
                     onChange={(e) => updateFormData("accessEmail", e.target.value)}
                     className="mt-1"
                     placeholder={formData.email}

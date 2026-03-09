@@ -179,7 +179,7 @@ export default function TasksTab({ jobId, jobData }: TasksTabProps) {
         const mappedRows = (tasks || []).map((task: any) => {
           console.debug("TasksTab: Mapping task", { task, jobName, clientName, workCenter, workerName })
           return {
-            id: task.id,
+            id: task.publicId || task.id,
             jobName: jobName || "-",
             clientName: clientName || "-",
             workCenter: workCenter || "-",

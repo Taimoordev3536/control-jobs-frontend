@@ -70,6 +70,7 @@ interface ApiResponse {
 
 interface Job {
   id: number
+  publicId?: string
   title: string
   jobId: string
   client: {
@@ -312,6 +313,7 @@ export default function EmployerDashboard() {
 
     return {
       id: apiJob.jobId,
+      publicId: apiJob.publicId,
       title: apiJob.jobName,
       jobId: `JOB-${apiJob.jobId.toString().padStart(4, "0")}`,
       client: {
@@ -332,7 +334,7 @@ export default function EmployerDashboard() {
         coordinates: { lat: 40.7128, lng: -74.006 },
       },
       workers: (apiJob.workers || []).map((worker: any) => ({
-        id: worker.id,
+        id: worker.publicId || worker.id,
         name: worker.name || `${t("worker")} ${worker.code}`, // Fallback to code if name is null
       })),
       status,
@@ -490,10 +492,10 @@ export default function EmployerDashboard() {
   }, [session?.accessToken])
 
   const handleViewDetails = (job: Job) => {
-    setSelectedJobForDetail(job.id.toString())
+    setSelectedJobForDetail(job.publicId || job.id.toString())
   }
 
-  const handleEditJob = (jobId: number) => {
+  const handleEditJob = (jobId: string | number) => {
     setSelectedJobForDetail(jobId.toString())
   }
 

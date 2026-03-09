@@ -94,13 +94,15 @@ export default function AddWorkCenterModal({
     try {
       // No role restriction: allow any authenticated user to create a work center
 
-      // derive client id from current URL, e.g. /clients/1
+      // derive client UUID from current URL, e.g. /clients/<uuid>
       const getClientIdFromPath = () => {
         if (typeof window === "undefined") return null;
         const parts = window.location.pathname.split("/").filter(Boolean);
-        const last = parts[parts.length - 1];
-        const id = parseInt(last, 10);
-        return Number.isNaN(id) ? null : id;
+        // URL pattern: /clients/<uuid>
+        if (parts.length >= 2 && parts[parts.length - 2] === "clients") {
+          return parts[parts.length - 1] || null;
+        }
+        return null;
       };
 
       const clientId = getClientIdFromPath();
@@ -153,7 +155,7 @@ export default function AddWorkCenterModal({
 
       if (typeof onWorkCenterAdded === "function" && result.data) {
         const newWorkCenter = {
-          id: result.data.id,
+          id: result.data.publicId || result.data.id,
           name: result.data.name,
           address: result.data.address,
           postalCode: result.data.postalCode || "-",

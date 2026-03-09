@@ -95,7 +95,7 @@ export default function WorkerRecordsPage() {
   // ROW CLICK HANDLER
   // ---------------------------
   const handleRowClick = (item: any) => {
-    const recordId = item?.id
+    const recordId = item?.publicId || item?.id
     if (recordId) router.push(`/records/worker/${recordId}`)
   }
 

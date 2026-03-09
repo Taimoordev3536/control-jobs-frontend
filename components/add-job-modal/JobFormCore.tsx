@@ -136,43 +136,45 @@ export default function JobFormCore({
         `${process.env.NEXT_PUBLIC_API_BASE_URL}/client/for-add-job`
       );
       let apiClients = data?.data || [];
-      const userId = session?.user?.id ? Number(session.user.id) : null;
       const userName =
         session?.user?.name ||
         `${session?.user?.firstName || ""} ${
           session?.user?.lastName || ""
         }`.trim();
 
-      apiClients = apiClients.map((c: any) => ({
+      // Separate employer pseudo-client from real clients
+      const employerEntry = apiClients.find((c: any) => c.isEmployer);
+      const realClients = apiClients.filter((c: any) => !c.isEmployer);
+
+      // Normalize IDs to use publicId (UUID)
+      const normalizedClients = realClients.map((c: any) => ({
         ...c,
-        id: c.id !== null ? Number(c.id) : c.id,
-        isSelf: userId && Number(c.id) === userId,
+        id: c.publicId || c.id,
+        isSelf: false, // real clients are never "myself"
+        isEmployer: false,
       }));
 
-      if (
-        userId &&
-        !apiClients.some((c: any) => Number(c.id) === userId)
-      ) {
-        apiClients = [
-          {
-            id: userId,
+      // Build the employer "myself" entry — always first
+      const selfEntry = employerEntry
+        ? {
+            ...employerEntry,
+            id: employerEntry.publicId || employerEntry.id,
+            isSelf: true,
+            isEmployer: true,
+          }
+        : {
+            id: (session as any)?.user?.publicId || (session as any)?.user?.id,
             name: userName || "Yourself",
             locality: "",
-            type: "",
+            type: "employer",
             responsible: "",
             telephones: "",
             asset: "yeah",
             isSelf: true,
             isEmployer: true,
-          },
-          ...apiClients,
-        ];
-      } else {
-        apiClients.sort((a: any, b: any) => {
-          if (a.isSelf === b.isSelf) return 0;
-          return a.isSelf ? -1 : 1;
-        });
-      }
+          };
+
+      apiClients = [selfEntry, ...normalizedClients];
 
       setClients(apiClients);
     } catch (error) {
@@ -183,13 +185,28 @@ export default function JobFormCore({
     }
   }, [fetchWithAuth, session]);
 
+  // Resolve "employer-self" marker to actual employer entry once clients are loaded
+  useEffect(() => {
+    if (formData.clientId === "employer-self" && clients.length > 0) {
+      const employerEntry = clients.find((c: any) => c.isEmployer);
+      if (employerEntry) {
+        setFormData((prev) => ({ ...prev, clientId: String(employerEntry.id) }));
+      }
+    }
+  }, [clients, formData.clientId]);
+
   const fetchWorkers = useCallback(async () => {
     setLoadingWorkers(true);
     try {
       const data = await fetchWithAuth(
         `${process.env.NEXT_PUBLIC_API_BASE_URL}/worker`
       );
-      setWorkers(data?.data || []);
+      const apiWorkers = data?.data || [];
+      const normalized = apiWorkers.map((w: any) => ({
+        ...w,
+        id: w.publicId || w.id,
+      }));
+      setWorkers(normalized);
     } catch (error) {
       console.error("Error fetching workers:", error);
       setWorkers([]);
@@ -199,37 +216,28 @@ export default function JobFormCore({
   }, [fetchWithAuth]);
 
   const fetchWorkCenters = useCallback(async () => {
-    if (formData.clientId == null || formData.clientId === "") {
-      setWorkCenters([]);
-      return;
-    }
-
-    const clientIdNum = Number(formData.clientId);
-    if (isNaN(clientIdNum)) {
+    if (formData.clientId == null || formData.clientId === "" || formData.clientId === "employer-self") {
       setWorkCenters([]);
       return;
     }
 
     // Check if this client is the employer themselves
-    const userId = session?.user?.id ? Number(session.user.id) : null;
-    const isEmployerSelf = userId && clientIdNum === userId;
+    const selectedClient = clients.find((c: any) => String(c.id) === String(formData.clientId));
+    const isEmployerSelf = selectedClient?.isEmployer || selectedClient?.isSelf;
 
     setLoadingWorkCenters(true);
     try {
       // Use employer endpoint if creating job for themselves
       const endpoint = isEmployerSelf
         ? `${process.env.NEXT_PUBLIC_API_BASE_URL}/work-centers`
-        : `${process.env.NEXT_PUBLIC_API_BASE_URL}/work-centers?clientId=${clientIdNum}`;
+        : `${process.env.NEXT_PUBLIC_API_BASE_URL}/work-centers?clientId=${formData.clientId}`;
 
       const data = await fetchWithAuth(endpoint);
       const apiCenters = Array.isArray(data) ? data : data?.data || [];
       const normalized = (apiCenters || []).map((wc: any) => ({
         ...wc,
-        id: Number(wc.id),
-        clientId:
-          wc.clientId !== null && wc.clientId !== undefined
-            ? Number(wc.clientId)
-            : null,
+        id: wc.publicId || wc.id,
+        clientId: wc.clientId ?? null,
       }));
       setWorkCenters(normalized);
     } catch (error) {
@@ -238,11 +246,11 @@ export default function JobFormCore({
     } finally {
       setLoadingWorkCenters(false);
     }
-  }, [formData.clientId, fetchWithAuth, session]);
+  }, [formData.clientId, fetchWithAuth, session, clients]);
 
   // Fetch job data for edit mode
   useEffect(() => {
-    if (mode === "edit" && jobId) {
+    if (mode === "edit" && jobId && session?.accessToken) {
       const fetchJobData = async () => {
         setIsLoading(true);
         try {
@@ -263,16 +271,15 @@ export default function JobFormCore({
           const jobData = await response.json();
           const job = jobData.data || jobData;
 
-          // Determine clientId: if null from backend and job has work centers,
-          // it means employer created it for themselves, so use their user ID
-          const userId = session?.user?.id ? Number(session.user.id) : null;
+          // Determine clientId: if null from backend, it means employer created for themselves
           let resolvedClientId = "";
-          
+
           if (job.clientId !== null && job.clientId !== undefined) {
             resolvedClientId = String(job.clientId);
-          } else if (userId && job.workCenterIds && job.workCenterIds.length > 0) {
-            // Job has work centers but no clientId = employer created for themselves
-            resolvedClientId = String(userId);
+          } else {
+            // Job has no client = employer created for themselves
+            // Use special marker; will be resolved to actual employer entry after clients load
+            resolvedClientId = "employer-self";
           }
 
           // Populate formData with existing job data
@@ -364,61 +371,53 @@ export default function JobFormCore({
                         return preferredPeriod;
                       };
 
-                      let shiftPeriod: ShiftKey = "morning";
-                      if (startTime && startDay) {
-                        const hour = parseInt(startTime.split(":")[0]);
-                        shiftPeriod = determineShiftPeriod(startDay, hour);
-                      }
+                      // Determine column for start and end times independently based on their hour
+                      const startShiftPeriod: ShiftKey = startTime && startDay
+                        ? determineShiftPeriod(startDay, parseInt(startTime.split(":")[0]))
+                        : "morning";
+                      const endShiftPeriod: ShiftKey = endTime && endDay
+                        ? determineShiftPeriod(endDay, parseInt(endTime.split(":")[0]))
+                        : "morning";
 
-                      // Check if it's a single day shift or multi-day shift
                       if (startDay === endDay) {
-                        // Single day shift: put both start and end time on the same day
-                        if (
-                          schedules[season][
-                            startDay as keyof typeof schedules.normal
-                          ]
-                        ) {
-                          schedules[season][
-                            startDay as keyof typeof schedules.normal
-                          ][shiftPeriod] = {
-                            start: startTime,
-                            end: endTime,
-                          };
+                        // Single day shift: start and end may go in different columns
+                        const daySchedule = schedules[season][startDay as keyof typeof schedules.normal];
+                        if (daySchedule) {
+                          if (startShiftPeriod === endShiftPeriod) {
+                            // Same column: both start and end in one cell
+                            daySchedule[startShiftPeriod] = {
+                              start: startTime,
+                              end: endTime,
+                            };
+                          } else {
+                            // Different columns: start in its column, end in its column
+                            daySchedule[startShiftPeriod] = {
+                              start: startTime,
+                              end: "",
+                            };
+                            daySchedule[endShiftPeriod] = {
+                              start: "",
+                              end: endTime,
+                            };
+                          }
 
-                          // Calculate and accumulate total hours for this shift
+                          // Calculate total hours
                           if (startTime && endTime) {
                             const startMinutes = timeToMinutes(startTime);
                             const endMinutes = timeToMinutes(endTime);
                             let shiftMinutes = endMinutes - startMinutes;
+                            if (shiftMinutes < 0) shiftMinutes += 24 * 60;
 
-                            // Handle overnight shifts (end time is next day)
-                            if (shiftMinutes < 0) {
-                              shiftMinutes += 24 * 60;
-                            }
-
-                            // Get existing total and add this shift's hours
-                            const existingTotal = schedules[season][
-                              startDay as keyof typeof schedules.normal
-                            ].total || "00:00";
+                            const existingTotal = daySchedule.total || "00:00";
                             const existingMinutes = timeToMinutes(existingTotal);
-                            const newTotalMinutes = existingMinutes + shiftMinutes;
-
-                            schedules[season][
-                              startDay as keyof typeof schedules.normal
-                            ].total = minutesToTime(newTotalMinutes);
+                            daySchedule.total = minutesToTime(existingMinutes + shiftMinutes);
                           }
                         }
                       } else {
-                        // Multi-day shift: put start time on start day, end time on end day
-                        // Also calculate hours for each day in between
+                        // Multi-day shift: start on start day, end on end day
                         const daysOrder = [
-                          "monday",
-                          "tuesday",
-                          "wednesday",
-                          "thursday",
-                          "friday",
-                          "saturday",
-                          "sunday",
+                          "monday", "tuesday", "wednesday", "thursday",
+                          "friday", "saturday", "sunday",
                         ];
                         const startIdx = daysOrder.indexOf(startDay);
                         const endIdx = daysOrder.indexOf(endDay);
@@ -427,61 +426,35 @@ export default function JobFormCore({
                           const startMinutes = timeToMinutes(startTime);
                           const endMinutes = timeToMinutes(endTime);
 
-                          // Start day: from start time to midnight (24:00)
-                          if (
-                            schedules[season][
-                              startDay as keyof typeof schedules.normal
-                            ]
-                          ) {
-                            const hoursOnStartDay =
-                              (24 * 60 - startMinutes) / 60;
-                            schedules[season][
-                              startDay as keyof typeof schedules.normal
-                            ][shiftPeriod] = {
+                          // Start day: start time in its correct column
+                          const startDaySchedule = schedules[season][startDay as keyof typeof schedules.normal];
+                          if (startDaySchedule) {
+                            startDaySchedule[startShiftPeriod] = {
                               start: startTime,
                               end: "",
                             };
-                            schedules[season][
-                              startDay as keyof typeof schedules.normal
-                            ].total = minutesToTime(
-                              Math.floor(hoursOnStartDay * 60)
-                            );
+                            startDaySchedule.total = minutesToTime(24 * 60 - startMinutes);
                           }
 
                           // Middle days: full 24 hours each
                           let currentIdx = startIdx + 1;
                           while (currentIdx < endIdx) {
                             const dayKey = daysOrder[currentIdx % 7];
-                            if (
-                              schedules[season][
-                                dayKey as keyof typeof schedules.normal
-                              ]
-                            ) {
-                              schedules[season][
-                                dayKey as keyof typeof schedules.normal
-                              ].total = "24:00";
+                            const midDaySchedule = schedules[season][dayKey as keyof typeof schedules.normal];
+                            if (midDaySchedule) {
+                              midDaySchedule.total = "24:00";
                             }
                             currentIdx++;
                           }
 
-                          // End day: from midnight to end time
-                          if (
-                            schedules[season][
-                              endDay as keyof typeof schedules.normal
-                            ]
-                          ) {
-                            const hoursOnEndDay = endMinutes / 60;
-                            schedules[season][
-                              endDay as keyof typeof schedules.normal
-                            ][shiftPeriod] = {
+                          // End day: end time in its correct column
+                          const endDaySchedule = schedules[season][endDay as keyof typeof schedules.normal];
+                          if (endDaySchedule) {
+                            endDaySchedule[endShiftPeriod] = {
                               start: "",
                               end: endTime,
                             };
-                            schedules[season][
-                              endDay as keyof typeof schedules.normal
-                            ].total = minutesToTime(
-                              Math.floor(hoursOnEndDay * 60)
-                            );
+                            endDaySchedule.total = minutesToTime(endMinutes);
                           }
                         }
                       }
@@ -1198,9 +1171,7 @@ export default function JobFormCore({
 
     const taskData = {
       task: formData.task,
-      workCenterId: formData.taskWorkCenterId
-        ? Number(formData.taskWorkCenterId) || null
-        : null,
+      workCenterId: formData.taskWorkCenterId || null,
       observations: formData.taskObservations,
       duration: formData.duration,
       shifts: { ...formData.shifts },
@@ -1817,22 +1788,22 @@ export default function JobFormCore({
         }
       }
 
-      // Build alerts array
+      // Build alerts array - save if any checkbox in the section is checked
       const alerts: any[] = [];
-      if (formData.entrance.whenSigningIn) {
+      if (formData.entrance.whenSigningIn || formData.entrance.delay) {
         alerts.push({
           alertType: "sign_in",
-          triggerTime: formData.entrance.delay 
+          triggerTime: formData.entrance.delay
             ? String(Number.parseInt(formData.entrance.delayValue) || 10)
             : null,
           minDuration: null,
         });
       }
-      if (formData.exit.whenSigningIn) {
+      if (formData.exit.whenSigningIn || formData.exit.duration) {
         alerts.push({
           alertType: "sign_out",
           triggerTime: null,
-          minDuration: formData.exit.duration 
+          minDuration: formData.exit.duration
             ? Number.parseInt(formData.exit.durationValue) || 30
             : null,
         });
@@ -1929,11 +1900,9 @@ export default function JobFormCore({
         jobName: formData.denomination,
         startDate: formData.startDate,
         endDate,
-        clientId: Number.parseInt(formData.clientId),
-        workCenterIds: formData.workCenterIds
-          ? formData.workCenterIds.map((id) => Number.parseInt(id))
-          : [],
-        workerIds: formData.workerIds.map((id) => Number.parseInt(id)),
+        clientId: formData.clientId,
+        workCenterIds: formData.workCenterIds || [],
+        workerIds: formData.workerIds,
         note: formData.observations,
         scheduleType:
           formData.scheduleType === "programming" ? "seasonal" : "free",

@@ -27,6 +27,7 @@ import { useTranslation } from "@/hooks/use-translation"
 
 interface JobAssignment {
   id: number
+  publicId?: string
   jobId: string
   title: string
   client: {
@@ -195,7 +196,7 @@ export function JobAttendanceDetail({ job, jobId, jobData, onBack }: JobAttendan
         setError(null)
 
         // Use the same pattern as employer dashboard - direct API call with session token
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/${job.id}/scan-history`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/${job.publicId || job.id}/scan-history`, {
           method: "GET",
           headers: {
             Authorization: `Bearer ${session.accessToken}`,
@@ -328,7 +329,7 @@ export function JobAttendanceDetail({ job, jobId, jobData, onBack }: JobAttendan
       }
     }
 
-    if (job?.id && session?.accessToken) {
+    if ((job?.publicId || job?.id) && session?.accessToken) {
       fetchJobScanHistory()
     } else if (jobId && session?.accessToken) {
       // Use jobId from props if job object is not available
@@ -627,7 +628,7 @@ export function JobAttendanceDetail({ job, jobId, jobData, onBack }: JobAttendan
 
   // Retry function
   const handleRetry = () => {
-    if (job.id && session?.accessToken) {
+    if ((job?.publicId || job?.id) && session?.accessToken) {
       setError(null)
       setLoading(true)
       // Re-trigger the useEffect by updating a dependency
@@ -697,7 +698,7 @@ export function JobAttendanceDetail({ job, jobId, jobData, onBack }: JobAttendan
                   Try Again
                 </Button>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Job ID: {job.id} | API URL: {process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/{job.id}/scan-history
+                  Job ID: {job?.publicId || job?.id} | API URL: {process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/{job?.publicId || job?.id}/scan-history
                 </p>
               </div>
             </CardContent>

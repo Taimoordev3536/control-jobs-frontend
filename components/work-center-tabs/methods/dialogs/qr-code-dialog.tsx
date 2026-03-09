@@ -38,7 +38,7 @@ interface WorkCenterData {
 interface QrCodeDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  workCenterId: number
+  workCenterId: string
   qrData?: { active: boolean; code: string }
   onUpdate: () => void
 }

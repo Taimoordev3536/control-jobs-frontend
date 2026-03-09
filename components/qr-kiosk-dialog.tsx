@@ -25,7 +25,7 @@ interface QrKioskDialogProps {
 
 export function QrKioskDialog({ open, onOpenChange }: QrKioskDialogProps) {
   const { session } = useAuth()
-  const [workCenters, setWorkCenters] = useState<Array<{ id: number; name: string; qrImage?: string; expiresAt?: string }>>([])
+  const [workCenters, setWorkCenters] = useState<Array<{ id: number; publicId?: string; name: string; qrImage?: string; expiresAt?: string }>>([])
   const [isLoading, setIsLoading] = useState(false)
   const [timeUntilExpiry, setTimeUntilExpiry] = useState<string>("")
   const [isFullscreen, setIsFullscreen] = useState(false)
@@ -57,12 +57,12 @@ export function QrKioskDialog({ open, onOpenChange }: QrKioskDialogProps) {
         const jobs = jobsData.data || []
 
         // Extract unique work centers from all jobs
-        const workCenterMap = new Map<number, { id: number; name: string }>()
+        const workCenterMap = new Map<number, { id: number; publicId?: string; name: string }>()
         jobs.forEach((job: any) => {
           if (job.workCenters && Array.isArray(job.workCenters)) {
             job.workCenters.forEach((wc: any) => {
               if (!workCenterMap.has(wc.id)) {
-                workCenterMap.set(wc.id, { id: wc.id, name: wc.name })
+                workCenterMap.set(wc.id, { id: wc.id, publicId: wc.publicId, name: wc.name })
               }
             })
           }
@@ -81,7 +81,7 @@ export function QrKioskDialog({ open, onOpenChange }: QrKioskDialogProps) {
           centers.map(async (wc: any) => {
             try {
               const qrResponse = await fetch(
-                `${process.env.NEXT_PUBLIC_API_BASE_URL}/work-centers/${wc.id}/qr-codes`,
+                `${process.env.NEXT_PUBLIC_API_BASE_URL}/work-centers/${wc.publicId || wc.id}/qr-codes`,
                 {
                   headers: {
                     Authorization: `Bearer ${session.accessToken}`,

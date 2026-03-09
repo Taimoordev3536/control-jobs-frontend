@@ -48,7 +48,7 @@ export default function EmployersPage() {
         if (!res.ok) throw new Error("Failed to fetch employers")
         const data = await res.json()
         const mapped = (data.data || []).map((e: any) => ({
-          id: e.id,
+          id: e.publicId || e.id,
           name: e.name,
           class: e.class,
           type: e.type,
@@ -68,7 +68,8 @@ export default function EmployersPage() {
   }, [session?.accessToken, session?.user?.role?.name, session?.user?.partnerId])
 
   const handleRowClick = (row: any) => {
-    router.push(`/employers/${row.id}`)
+    const name = row?.name || ""
+    router.push(`/employers/${row.id}${name ? `?name=${encodeURIComponent(name)}` : ""}`)
   }
 
   // Callback to handle new employer addition - adds to the beginning of the list

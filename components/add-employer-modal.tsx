@@ -38,7 +38,7 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded, 
     paymentMethod: "5", // Default to Transfer
     responsible: "",
     activateAccount: "postpone",
-    accessEmail: "",
+    accessEmail: null as string | null,
     class: "placeholder",
     address: "",
     street: "",
@@ -83,7 +83,7 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded, 
     { number: 3, label: t("Access") },
   ]
 
-  const [partners, setPartners] = useState<{ name: string; id: number }[]>([])
+  const [partners, setPartners] = useState<{ name: string; id: string | number }[]>([])
 
   // Pre-select partner when defaultPartnerId is provided
   useEffect(() => {
@@ -104,7 +104,7 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded, 
         })
         if (res.ok) {
           const data = await res.json()
-          setPartners((data.data || []).map((p: any) => ({ name: p.name, id: p.id })))
+          setPartners((data.data || []).map((p: any) => ({ name: p.name, id: p.publicId || p.id })))
         }
       } catch (e) {
         setPartners([])
@@ -184,7 +184,7 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded, 
         postalCode: formData.postalCode,
         latitude: formData.latitude,
         longitude: formData.longitude,
-        partnerId: Number.parseInt(formData.partner),
+        partnerId: formData.partner,
         phone: formData.mobile,
         landline: formData.landline,
         typeId: Number.parseInt(formData.fee),
@@ -197,7 +197,7 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded, 
         probationPeriod: formData.probationPeriod || "",
         responsible: formData.responsible,
         accessAccountStatus: formData.activateAccount,
-        accessEmail: formData.accessEmail || undefined,
+        accessEmail: formData.accessEmail !== null ? formData.accessEmail : formData.email,
         user: {
           email: formData.email,
         },
@@ -228,13 +228,13 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded, 
       // Map backend employer to frontend fields and add to list
       if (typeof onEmployerAdded === "function" && result.data) {
         // Get the selected partner name from the partners array
-        const selectedPartner = partners.find((p) => p.id === Number.parseInt(formData.partner))
+        const selectedPartner = partners.find((p) => String(p.id) === formData.partner)
 
         // Get the selected fee type name from the fees array
         const selectedFeeType = fees.find((f) => f.id === Number.parseInt(formData.fee))
 
         const newEmployer = {
-          id: result.data.id,
+          id: result.data.publicId || result.data.id,
           name: result.data.name || formData.name,
           class:
             formData.class === "company"
@@ -279,7 +279,7 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded, 
       paymentMethod: "5",
       responsible: "",
       activateAccount: "postpone",
-      accessEmail: "",
+      accessEmail: null,
       class: "placeholder",
       address: "",
       street: "",
@@ -691,7 +691,7 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded, 
                   </Label>
                   <Input
                     id="accessEmailDisplay"
-                    value={formData.accessEmail || formData.email}
+                    value={formData.accessEmail !== null ? formData.accessEmail : formData.email}
                     onChange={(e) => updateFormData("accessEmail", e.target.value)}
                     className="mt-1"
                     placeholder={formData.email}

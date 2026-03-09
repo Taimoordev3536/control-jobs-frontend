@@ -48,7 +48,7 @@ export default function AddClientModal({ open, onOpenChange, onClientAdded }: Ad
     observation: "",
     responsible: "",
     accessAccountStatus: "postpone",
-    accessEmail: "",
+    accessEmail: null as string | null,
   })
 
   const [validationErrors, setValidationErrors] = useState({
@@ -58,6 +58,7 @@ export default function AddClientModal({ open, onOpenChange, onClientAdded }: Ad
     email: false,
     type: false,
     responsible: false,
+    accessEmail: false,
   })
 
   const isValidEmail = (email: string) => {
@@ -122,6 +123,16 @@ export default function AddClientModal({ open, onOpenChange, onClientAdded }: Ad
       return
     }
     setValidationErrors((prev) => ({ ...prev, responsible: false }))
+
+    // Validate accessEmail format when access is requested
+    if (formData.accessAccountStatus === "request") {
+      const emailToCheck = formData.accessEmail !== null ? formData.accessEmail : formData.email
+      if (!emailToCheck || !isValidEmail(emailToCheck)) {
+        setValidationErrors((prev) => ({ ...prev, accessEmail: true }))
+        return
+      }
+    }
+    setValidationErrors((prev) => ({ ...prev, accessEmail: false }))
     setError(null)
     setIsLoading(true)
     try {
@@ -157,7 +168,7 @@ export default function AddClientModal({ open, onOpenChange, onClientAdded }: Ad
         observation: formData.observation,
         responsible: formData.responsible,
         accessAccountStatus: formData.accessAccountStatus,
-        ...(formData.accessAccountStatus === "request" && { accessEmail: formData.accessEmail || formData.email }),
+        ...(formData.accessAccountStatus === "request" && { accessEmail: formData.accessEmail !== null ? formData.accessEmail : formData.email }),
       }
 
       const token = session?.accessToken
@@ -185,7 +196,7 @@ export default function AddClientModal({ open, onOpenChange, onClientAdded }: Ad
       // Map backend client to frontend fields with proper data
       if (typeof onClientAdded === "function" && result.data) {
         const newClient = {
-          id: result.data.id,
+          id: result.data.publicId || result.data.id,
           name: result.data.name || formData.name,
           city: result.data.city || formData.city || "-",
           type: formData.type === "company" ? t("company") : t("particular"),
@@ -225,7 +236,7 @@ export default function AddClientModal({ open, onOpenChange, onClientAdded }: Ad
           observation: "",
           responsible: "",
           accessAccountStatus: "postpone",
-          accessEmail: "",
+          accessEmail: null,
         })
         setValidationErrors({
           name: false,
@@ -619,11 +630,16 @@ export default function AddClientModal({ open, onOpenChange, onClientAdded }: Ad
                   </Label>
                   <Input
                     id="accessEmailDisplay"
-                    value={formData.accessEmail || formData.email}
+                    value={formData.accessEmail !== null ? formData.accessEmail : formData.email}
                     onChange={(e) => updateFormData('accessEmail', e.target.value)}
-                    className="mt-1"
+                    className={`mt-1 ${validationErrors.accessEmail ? "border-red-500" : ""}`}
                     placeholder={formData.email}
                   />
+                  {validationErrors.accessEmail && (
+                    <p className="mt-1 text-sm text-red-500">
+                      {t("invalidEmailFormat") || "Formato incorrecto"}
+                    </p>
+                  )}
                 </div>
               </div>
 

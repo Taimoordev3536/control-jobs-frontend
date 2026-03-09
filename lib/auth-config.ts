@@ -36,6 +36,7 @@ export const authOptions: NextAuthOptions = {
           if (data.isSuccess && data.data.user) {
             return {
               id: data.data.user.id.toString(),
+              publicId: data.data.user.publicId,
               email: data.data.user.email,
               name: data.data.user.name,
               firstName: data.data.user.firstName,
@@ -59,6 +60,7 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.accessToken = user.accessToken
+        token.publicId = (user as any).publicId
         token.roleId = user.roleId
         token.partnerId = user.partnerId
         token.role = user.role
@@ -70,6 +72,7 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       if (token) {
         session.user.id = token.sub!
+        session.user.publicId = token.publicId as string
         session.accessToken = token.accessToken as string
         session.user.roleId = token.roleId as number
         session.user.partnerId = token.partnerId as number | null

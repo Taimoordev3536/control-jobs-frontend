@@ -133,9 +133,13 @@ export default function TasksForm({
                       {t("itinereEntrada") || "In itinere - In"}
                     </SelectItem>
                     {formData.workCenterIds.map((wcId) => {
-                      const wc = workCenters.find((w) => String(w.id) === String(wcId))
+                      const wc = workCenters.find((w) =>
+                        String(w.id) === String(wcId) ||
+                        String((w as any).publicId) === String(wcId) ||
+                        String((w as any).numericId ?? w.id) === String(wcId)
+                      )
                       return wc ? (
-                        <SelectItem key={wc.id} value={String(wc.id)}>
+                        <SelectItem key={String(wc.id)} value={String(wc.id)}>
                           {wc.name} {wc.address ? ` - ${wc.address}` : ""}
                         </SelectItem>
                       ) : null

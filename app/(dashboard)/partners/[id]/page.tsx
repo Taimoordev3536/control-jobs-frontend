@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { useParams } from "next/navigation"
+import { useParams, useSearchParams } from "next/navigation"
 import { useTranslation } from "@/hooks/use-translation"
 import dynamic from "next/dynamic"
 import { AnimatedLoader } from "@/components/animated-loader"
@@ -26,9 +26,10 @@ const PartnerWallTab = dynamic(() => import("@/components/partner-tabs/partner-w
 export default function PartnerDetailPage() {
   const { t } = useTranslation()
   const params = useParams()
+  const searchParams = useSearchParams()
   const partnerId = params.id as string
   const [activeTab, setActiveTab] = useState("data")
-  const [partnerName, setPartnerName] = useState("")
+  const [partnerName, setPartnerName] = useState(searchParams.get("name") || "")
 
   const tabs = [
     { key: "data", label: t("data") },
@@ -43,8 +44,8 @@ export default function PartnerDetailPage() {
       {/* Header */}
       <div className="bg-card border-b border-border">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center px-4 pt-1 pb-1 sm:px-3 gap-1">
-          <h1 className="text-xl sm:text-2xl font-semibold text-foreground">
-            {partnerName || t("partner")}
+          <h1 className="text-base sm:text-lg font-semibold text-foreground">
+            {partnerName}
           </h1>
         </div>
 
@@ -58,7 +59,7 @@ export default function PartnerDetailPage() {
                 className={`flex-shrink-0 px-6 py-1.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                   activeTab === tab.key
                     ? "border-[#662D91] text-[#662D91] bg-purple-50 dark:bg-purple-950/50"
-                    : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                    : "border-transparent text-muted-foreground hover:text-[#662D91] hover:border-[#662D91]"
                 }`}
               >
                 {tab.label}

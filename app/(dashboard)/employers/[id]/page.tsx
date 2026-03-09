@@ -4,7 +4,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useParams, useRouter } from "next/navigation"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useTranslation } from "@/hooks/use-translation"
@@ -39,7 +39,9 @@ export default function EmployerDetailPage() {
   const { t } = useTranslation()
   const { id } = useParams() as { id: string }
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [employer, setEmployer] = useState<Employer | null>(null)
+  const initialName = searchParams.get("name") || ""
   const [isLoading, setIsLoading] = useState(true)
   const [activeTab, setActiveTab] = useState("data")
   const { session } = useAuth()
@@ -123,8 +125,8 @@ export default function EmployerDetailPage() {
       {/* Header */}
       <div className="bg-card border-b border-border">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center px-4 pt-1 pb-1 sm:px-3 gap-1">
-          <h1 className="text-xl sm:text-2xl font-semibold text-foreground">
-            {employer?.name || t("employer")}
+          <h1 className="text-base sm:text-lg font-semibold text-foreground">
+            {employer?.name || initialName}
           </h1>
         </div>
 
@@ -138,7 +140,7 @@ export default function EmployerDetailPage() {
                 className={`flex-shrink-0 px-6 py-1.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                   activeTab === tab.key
                     ? "border-[#662D91] text-[#662D91] bg-purple-50 dark:bg-purple-950/50"
-                    : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                    : "border-transparent text-muted-foreground hover:text-[#662D91] hover:border-[#662D91]"
                 }`}
               >
                 {tab.label}

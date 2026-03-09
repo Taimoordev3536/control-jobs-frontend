@@ -10,6 +10,7 @@ import { IpDialog } from "@/components/work-center-tabs/methods/dialogs/ip-dialo
 
 interface WorkCenter {
   id: number
+  publicId?: string
   signingMethods?: {
     mobile?: {
       qrCode?: { active: boolean; code: string }
@@ -98,21 +99,21 @@ export function WorkCenterMethodsTab({ workCenter, onUpdate }: WorkCenterMethods
       <QrCodeDialog
         open={qrDialogOpen}
         onOpenChange={setQrDialogOpen}
-        workCenterId={workCenter.id}
+        workCenterId={workCenter.publicId || String(workCenter.id)}
         qrData={methods.mobile?.qrCode}
         onUpdate={onUpdate}
       />
       <GpsDialog
         open={gpsDialogOpen}
         onOpenChange={setGpsDialogOpen}
-        workCenterId={workCenter.id}
+        workCenterId={workCenter.publicId || String(workCenter.id)}
         gpsData={methods.mobile?.gps}
         onUpdate={onUpdate}
       />
       <IpDialog
         open={ipDialogOpen}
         onOpenChange={setIpDialogOpen}
-        workCenterId={workCenter.id}
+        workCenterId={workCenter.publicId || String(workCenter.id)}
         ipData={methods.computer?.ip}
         onUpdate={onUpdate}
       />

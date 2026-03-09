@@ -46,7 +46,7 @@ export default function AddWorkerModal({ open, onOpenChange, onWorkerAdded }: Ad
     gender: "",
     birthday: "",
     accessAccountStatus: "postpone",
-    accessEmail: "",
+    accessEmail: null as string | null,
   })
 
   const [validationErrors, setValidationErrors] = useState({
@@ -154,7 +154,7 @@ export default function AddWorkerModal({ open, onOpenChange, onWorkerAdded }: Ad
         gender: formData.gender,
         birthday: formData.birthday,
         accessAccountStatus: formData.accessAccountStatus,
-        ...(formData.accessAccountStatus === 'request' && { accessEmail: formData.accessEmail || formData.email }),
+        ...(formData.accessAccountStatus === 'request' && { accessEmail: formData.accessEmail !== null ? formData.accessEmail : formData.email }),
       }
 
       const token = session?.accessToken
@@ -188,7 +188,7 @@ export default function AddWorkerModal({ open, onOpenChange, onWorkerAdded }: Ad
         }
 
         const newWorker = {
-          id: result.data.id,
+          id: result.data.publicId || result.data.id,
           name: result.data.name || formData.name,
           occupation: result.data.occupation || formData.occupation || "-",
           telephones:
@@ -229,7 +229,7 @@ export default function AddWorkerModal({ open, onOpenChange, onWorkerAdded }: Ad
           gender: "",
           birthday: "",
           accessAccountStatus: "postpone",
-          accessEmail: "",
+          accessEmail: null,
         })
         setValidationErrors({
           name: false,
@@ -636,7 +636,7 @@ export default function AddWorkerModal({ open, onOpenChange, onWorkerAdded }: Ad
                   </Label>
                   <Input
                     id="accessEmailDisplay"
-                    value={formData.accessEmail || formData.email}
+                    value={formData.accessEmail !== null ? formData.accessEmail : formData.email}
                     onChange={(e) => updateFormData('accessEmail', e.target.value)}
                     className="mt-1"
                     placeholder={formData.email}

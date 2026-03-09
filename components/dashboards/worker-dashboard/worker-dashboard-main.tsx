@@ -50,10 +50,11 @@ interface TaskHistory {
 
 interface ApiWorkerJob {
   jobId: number;
+  publicId?: string;
   jobName: string;
   jobStatus?: string;
   clientName?: string;
-  workCenters?: Array<{ id?: number; name?: string }>;
+  workCenters?: Array<{ id?: number; publicId?: string; name?: string }>;
   workCenterNames?: string;
   scheduleType?: string;
   totalShifts?: number;
@@ -81,6 +82,7 @@ interface ApiWorkerJob {
 
 interface JobAssignment {
   id: number;
+  publicId?: string;
   jobId: string;
   title: string;
   client: {
@@ -355,6 +357,7 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
 
   return {
     id: apiJob.jobId,
+    publicId: apiJob.publicId,
     jobId: `JOB-${apiJob.jobId.toString().padStart(4, "0")}`,
     title: apiJob.jobName,
     client: {
@@ -594,7 +597,7 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          jobId: job.id,
+          jobId: job.publicId || job.id,
           scanType: "check-in",
           signingMethod: signingMethod,
           userTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -740,7 +743,7 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          jobId: job.id,
+          jobId: job.publicId || job.id,
           scanType: "check-out",
           userTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           location: JSON.stringify({
@@ -842,7 +845,7 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          jobId: job.id,
+          jobId: job.publicId || job.id,
           scanType: "break-start",
           userTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           location: JSON.stringify({
@@ -944,7 +947,7 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          jobId: job.id,
+          jobId: job.publicId || job.id,
           scanType: "break-end",
           userTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           location: JSON.stringify({
@@ -974,7 +977,7 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
     }
   };
 
-  const handleTaskToggle = async (jobId: number, taskId: number) => {
+  const handleTaskToggle = async (jobId: string | number, taskId: string | number) => {
   try {
     setActionLoading(true);
 
@@ -1295,7 +1298,7 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
                       onCheckIn={handleCheckIn}
                       onCheckOut={handleCheckOut}
                       onFillSurvey={handleFillSurvey}
-                      onCompleteTask={(j: any, taskId: any) => handleTaskToggle(j.id, taskId)}
+                      onCompleteTask={(j: any, taskId: any) => handleTaskToggle(j.publicId || j.id, taskId)}
                       onViewDetail={handleViewDetail}
                       onEnter={async (job: any, method?: string, data?: any) => {
                         const signingMethod = method?.toLowerCase() || 'web';

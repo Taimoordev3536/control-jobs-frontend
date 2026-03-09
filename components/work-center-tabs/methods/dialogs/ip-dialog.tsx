@@ -11,7 +11,7 @@ import { useAuth } from "@/hooks/use-auth"
 interface IpDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  workCenterId: number
+  workCenterId: string
   ipData?: { active: boolean; ipAddress: string }
   onUpdate: () => void
 }

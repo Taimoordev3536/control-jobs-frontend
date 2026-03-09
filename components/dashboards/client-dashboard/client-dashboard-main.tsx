@@ -15,11 +15,12 @@ import { ClientJobCard } from "./client-job-card"
 
 interface ApiJob {
   jobId: number
+  publicId?: string
   jobNo: string
   jobName: string
   clientName: string
   workCenter?: string
-  workCenters?: Array<{ id?: number; name?: string }>
+  workCenters?: Array<{ id?: number; publicId?: string; name?: string }>
   workCenterNames?: string
   status: string
   startDate: string
@@ -62,6 +63,7 @@ interface ApiJob {
 
 interface Job {
   id: number
+  publicId?: string
   jobId: string
   title: string
   description: string
@@ -222,6 +224,7 @@ export default function ClientDashboard() {
 
     return {
       id: apiJob.jobId,
+      publicId: apiJob.publicId,
       jobId: apiJob.jobNo || `JOB-${String(apiJob.jobId).padStart(3, "0")}`,
       title: apiJob.jobName,
       // keep original jobName for components expecting it
@@ -518,11 +521,11 @@ export default function ClientDashboard() {
     console.log("🎯 IMMEDIATE QR generation for job:", job.id)
 
     const immediateQRData = {
-      jobId: job.id,
+      jobId: job.publicId || job.id,
       jobName: job.title,
       clientName: job.client.name,
       timestamp: new Date().toISOString(),
-      token: `IMMEDIATE-${job.id}-${Date.now()}`,
+      token: `IMMEDIATE-${job.publicId || job.id}-${Date.now()}`,
     }
 
     console.log("🎯 Immediate QR data:", immediateQRData)
@@ -671,6 +674,7 @@ export default function ClientDashboard() {
   const transformJobToJobAssignment = (job: Job) => {
     return {
       id: job.id,
+      publicId: job.publicId,
       jobId: job.jobId,
       title: job.title,
       client: {

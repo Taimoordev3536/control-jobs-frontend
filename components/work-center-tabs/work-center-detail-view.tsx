@@ -15,6 +15,7 @@ interface WorkCenterDetailViewProps {
 
 interface WorkCenter {
   id: number
+  publicId?: string
   code: string
   name: string
   denomination: string
@@ -76,14 +77,19 @@ export default function WorkCenterDetailView({ workCenterId, onBack }: WorkCente
         },
       })
 
-      if (!response.ok) throw new Error("Failed to fetch work center")
+      if (!response.ok) {
+        const errBody = await response.json().catch(() => ({}))
+        console.error("GET work-center error body:", errBody)
+        throw new Error("Failed to fetch work center")
+      }
       
       const result = await response.json()
-      if (result.isSuccess && result.data) {
+      if (result.data) {
         // Map backend fields to frontend fields
         const backendData = result.data
         setWorkCenter({
           id: backendData.id,
+          publicId: backendData.publicId,
           code: backendData.code || `WC${backendData.id.toString().padStart(3, '0')}`,
           name: backendData.name,
           denomination: backendData.name, // name -> denomination
@@ -105,13 +111,11 @@ export default function WorkCenterDetailView({ workCenterId, onBack }: WorkCente
           signingMethods: backendData.signingMethods
         })
       } else {
-        // Fallback to sample data if API doesn't return expected format
-        loadSampleData()
+        console.warn("Unexpected response format:", result)
       }
     } catch (error) {
       console.error("Error fetching work center:", error)
-      // Sample data for demo
-      loadSampleData()
+      // Leave workCenter as null to show error state
     } finally {
       setIsLoading(false)
     }

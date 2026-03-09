@@ -53,7 +53,7 @@ export default function PartnerEmployersTab({ partnerId }: PartnerEmployersTabPr
         if (!res.ok) throw new Error("Failed to fetch employers")
         const data = await res.json()
         const mapped = (data.data || []).map((e: any) => ({
-          id: e.id,
+          id: e.publicId || e.id,
           name: e.name || "-",
           class: e.class || "-",
           type: e.type || "-",

@@ -136,8 +136,8 @@ export default function EmployerRecordsPage() {
   // ROW CLICK HANDLER
   // ---------------------------
   const handleRowClick = (item: any) => {
-    // Navigate to the work session detail page
-    const workSessionId = item?.workSessionId
+    // Navigate to the work session detail page using publicId
+    const workSessionId = item?.workSessionPublicId || item?.workSessionId
     if (workSessionId) {
       router.push(`/records/employer/${workSessionId}`)
     }

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useParams } from "next/navigation"
+import { useParams, useSearchParams } from "next/navigation"
 import { ClientDataTab } from "@/components/client-tabs/client-data-tab"
 import { ClientWorkCenterTab } from "@/components/client-tabs/client-work-center-tab"
 import { ClientJobsTab } from "@/components/client-tabs/client-jobs-tab"
@@ -13,9 +13,10 @@ import { useAuth } from "@/hooks/use-auth"
 export default function ClientDetailPage() {
   const { t } = useTranslation()
   const params = useParams()
+  const searchParams = useSearchParams()
   const { session } = useAuth()
   const [activeTab, setActiveTab] = useState("data")
-  const [clientName, setClientName] = useState("")
+  const [clientName, setClientName] = useState(searchParams.get("name") || "")
 
   useEffect(() => {
     const fetchClientName = async () => {
@@ -51,8 +52,8 @@ export default function ClientDetailPage() {
       {/* Header */}
       <div className="bg-card border-b border-border">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center px-4 pt-1 pb-1 sm:px-3 gap-1">
-          <h1 className="text-xl sm:text-2xl font-semibold text-foreground">
-            {clientName || t("customer")}
+          <h1 className="text-base sm:text-lg font-semibold text-foreground">
+            {clientName}
           </h1>
         </div>
 
@@ -66,7 +67,7 @@ export default function ClientDetailPage() {
                 className={`flex-shrink-0 px-6 py-1.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                   activeTab === tab.key
                     ? "border-[#662D91] text-[#662D91] bg-purple-50 dark:bg-purple-950/50"
-                    : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                    : "border-transparent text-muted-foreground hover:text-[#662D91] hover:border-[#662D91]"
                 }`}
               >
                 {tab.label}

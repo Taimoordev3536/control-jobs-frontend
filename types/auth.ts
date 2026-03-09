@@ -1,5 +1,6 @@
 export interface User {
   id: number
+  publicId: string
   name: string
   email: string
   firstName: string | null

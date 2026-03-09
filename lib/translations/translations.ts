@@ -78,6 +78,12 @@ surveyPriodicityTips:"The daily frequency will send a survey every day that work
 surveyMonitoringValueTips: "Set a limit. If responses are under this value, an alert is triggered.",
 
 
+  // Client data tab tooltips
+  clientCodeTip: "Code or Reference of the client in your billing program.",
+  clientAddressTip: "Enter your address and choose a suggestion.",
+  clientSummerScheduleTip: "If the client has a special summer schedule, enter the start and end dates. If the whole year has the same schedule, leave it blank.",
+  summerSchedulePeriod: "Summer Schedule Period",
+
   // info tooltip for start date in add-job-modal
   jobStartDateTip: "Past dates are not allowed. Please select today or a future date.",
   // info tooltip for code field in add-client-modal
@@ -340,6 +346,7 @@ surveyMonitoringValueTips: "Set a limit. If responses are under this value, an a
     cancel: "Cancel",
     delete: "Delete",
     login: "Login",
+    invalidEmailFormat: "Incorrect format",
 
     // Employer tabs translations
     landline: "Landline",
@@ -697,6 +704,12 @@ surveyMonitoringValueTips: "Set a limit. If responses are under this value, an a
       "Selecciona uno o varios trabajadores. La aplicación esperará fichajes de todos los trabajadores seleccionados.",
     // info tooltip for start date in add-job-modal
     jobStartDateTip: "No se permiten fechas pasadas. Por favor, selecciona hoy o una fecha futura.",
+    // Client data tab tooltips
+    clientCodeTip: "Código o Referencia del cliente en tu programa de facturación",
+    clientAddressTip: "Introduce tu dirección y elige una sugerencia.",
+    clientSummerScheduleTip: "Si el cliente hace un horario especial en verano, indicar la fecha de inicio y fin. Si todo el año tiene los mismos horarios, dejarlo en blanco.",
+    summerSchedulePeriod: "Periodo Horario de Verano",
+
     // info tooltip for code field in add-client-modal
     erpCustomerCodeTip: "Tu código de cliente en el ERP",
     workerCodeTip: "Código o Referencia de tu programa de nóminas",
@@ -973,6 +986,7 @@ surveyMonitoringValueTips: "Set a limit. If responses are under this value, an a
     cancel: "Cancelar",
     delete: "Eliminar",
     login: "Iniciar sesión",
+    invalidEmailFormat: "Formato incorrecto",
 
     // Employer tabs translations
     landline: "Teléfono fijo",

@@ -95,7 +95,7 @@ export default function ClientRecordsPage() {
   // ROW CLICK HANDLER
   // ---------------------------
   const handleRowClick = (item: any) => {
-    const recordId = item?.id
+    const recordId = item?.publicId || item?.id
     if (recordId) router.push(`/records/client/${recordId}`)
   }
 

@@ -33,7 +33,7 @@ import {
 
 interface EmployerData {
   id: number
-  partnerId: number
+  partnerId: string | number
   name: string
   taxId: string
   address: string
@@ -85,7 +85,7 @@ export default function EmployerDataTab({ employerId }: EmployerDataTabProps) {
   const [resetKey, setResetKey] = useState(0)
 
   // Dropdown data
-  const [partners, setPartners] = useState<{ id: number; name: string }[]>([])
+  const [partners, setPartners] = useState<{ id: string | number; name: string }[]>([])
   const [employerTypes, setEmployerTypes] = useState<{ id: number; name: string }[]>([])
 
   const subTypeOptions = [
@@ -157,7 +157,7 @@ export default function EmployerDataTab({ employerId }: EmployerDataTabProps) {
         })
         if (res.ok) {
           const data = await res.json()
-          setPartners((data.data || []).map((p: any) => ({ id: p.id, name: p.name })))
+          setPartners((data.data || []).map((p: any) => ({ id: p.publicId || p.id, name: p.name })))
         }
       } catch {
         setPartners([])
@@ -582,7 +582,7 @@ export default function EmployerDataTab({ employerId }: EmployerDataTabProps) {
             <Label className="text-sm font-medium text-foreground">Partner</Label>
             <Select
               value={employerData.partnerId?.toString() || ""}
-              onValueChange={(value) => handleInputChange("partnerId", Number(value))}
+              onValueChange={(value) => handleInputChange("partnerId", value)}
             >
               <SelectTrigger className="h-10 bg-muted/30 border-input text-foreground">
                 <SelectValue placeholder={t("selectPartner")} />

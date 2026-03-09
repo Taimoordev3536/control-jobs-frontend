@@ -32,7 +32,7 @@ export default function PartnersList() {
         if (!res.ok) throw new Error("Failed to fetch partners")
         const data = await res.json()
         const mapped = (data.data || []).map((p: any) => ({
-          id: p.id,
+          id: p.publicId || p.id,
           name: p.name,
           tier: p.partnerTier?.name || p.typeOfPartner || "-",
           createdAt: p.createdAt ? new Date(p.createdAt).toLocaleDateString() : "-",
@@ -53,7 +53,8 @@ export default function PartnersList() {
   }, [session?.accessToken])
 
   const handleRowClick = (row: any) => {
-    router.push(`/partners/${row.id}`)
+    const name = row?.name || ""
+    router.push(`/partners/${row.id}${name ? `?name=${encodeURIComponent(name)}` : ""}`)
   }
 
   // Define columns for partners
