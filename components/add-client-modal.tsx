@@ -525,7 +525,7 @@ export default function AddClientModal({ open, onOpenChange, onClientAdded }: Ad
 
               <div>
                 <Label htmlFor="nif" className="text-sm font-medium text-foreground">
-                  {t("nif") || "NIF"}
+                  {formData.type === "company" ? "CIF" : "NIF"}
                 </Label>
                 <Input
                   id="taxId"
