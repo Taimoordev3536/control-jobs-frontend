@@ -57,6 +57,7 @@ export default function AddWorkCenterModal({
   const [validationErrors, setValidationErrors] = useState({
     name: false,
     address: false,
+    contactName: false,
     contactPhone: false,
     contactEmail: false,
   });
@@ -75,6 +76,7 @@ export default function AddWorkCenterModal({
     const errors = {
       name: !formData.name,
       address: !formData.address,
+      contactName: !formData.contactName,
       contactPhone: !formData.contactPhone,
       contactEmail: emailInvalid,
     };
@@ -83,6 +85,7 @@ export default function AddWorkCenterModal({
     if (
       errors.name ||
       errors.address ||
+      errors.contactName ||
       errors.contactPhone ||
       errors.contactEmail
     ) {
@@ -391,15 +394,18 @@ export default function AddWorkCenterModal({
                 htmlFor="contactName"
                 className="text-sm font-medium text-foreground"
               >
-                {t("responsible")}
+                {t("responsible")} <span className="text-red-500">*</span>
               </Label>
               <Input
                 id="contactName"
                 value={formData.contactName}
                 onChange={(e) => updateFormData("contactName", e.target.value)}
                 placeholder="Ej. Juan Pérez"
-                className="mt-1"
+                className={`mt-1 ${validationErrors.contactName ? "border-red-500" : ""}`}
               />
+              {validationErrors.contactName && (
+                <p className="mt-1 text-sm text-red-500">{t("thisFieldIsRequired") || "Este campo es obligatorio."}</p>
+              )}
             </div>
 
             {/*

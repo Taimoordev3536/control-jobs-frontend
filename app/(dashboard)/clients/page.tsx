@@ -26,7 +26,7 @@ export default function ClientsPage() {
     city: c.city || "-",
     type: c.type === "company" ? t("company") : c.type === "particular" ? t("particular") : c.type || "-",
     responsible: c.responsible || "-",
-    telephones: [c.landline, c.mobile, c.phone].filter(Boolean).join(" | ") || "-",
+    mobile: c.mobile || "-",
     asset: c.active === true || c.active === "true" ? t("yeah") : c.active === false || c.active === "false" ? t("no") : c.asset === "yeah" ? t("yeah") : t("no"),
   })
 
@@ -58,9 +58,9 @@ export default function ClientsPage() {
   const columns = [
     { key: "name", label: t("name"), sortable: true },
     { key: "city", label: t("city"), sortable: true },
-    { key: "type", label: t("type"), sortable: true, align: "center" as const },
+    { key: "type", label: t("type"), sortable: true, align: "left" as const },
     { key: "responsible", label: t("responsible"), sortable: true },
-    { key: "telephones", label: t("telephones"), sortable: false, align: "center" as const },
+    { key: "mobile", label: t("mobile"), sortable: false, align: "center" as const },
     {
       key: "asset",
       label: t("asset"),

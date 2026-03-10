@@ -13,6 +13,7 @@ import { toast } from "@/hooks/use-toast"
 import { useTranslation } from "@/hooks/use-translation"
 import { useAuth } from "@/hooks/use-auth"
 import GoogleAddressInput, { AddressComponents } from "@/components/GoogleAddressInput"
+import DateInput from "@/components/ui/date-input"
 
 interface AddWorkerModalProps {
   open: boolean
@@ -181,25 +182,15 @@ export default function AddWorkerModal({ open, onOpenChange, onWorkerAdded }: Ad
 
       // Map backend worker to frontend fields with proper data
       if (typeof onWorkerAdded === "function" && result.data) {
-        const genderMap = {
-          "1": t("man") || "Man",
-          "2": t("woman") || "Woman",
-          "3": t("other") || "Other",
-        }
-
+        const workerData = result.data.worker || result.data
         const newWorker = {
-          id: result.data.publicId || result.data.id,
-          name: result.data.name || formData.name,
-          occupation: result.data.occupation || formData.occupation || "-",
-          telephones:
-            [result.data.landline || formData.landline, result.data.mobile || formData.mobile]
-              .filter(Boolean)
-              .join(" | ") || "-",
-          population: (result.data.address || formData.address)?.split(",").pop()?.trim() || "-",
-          postalCode: Math.floor(10000 + Math.random() * 90000).toString(),
-          asset: result.data.accessAccountStatus === "active" ? t("yeah") : t("no"),
-          gender: genderMap[formData.gender as keyof typeof genderMap] || "-",
-          birthday: formData.birthday || "-",
+          publicId: workerData.publicId || workerData.id,
+          name: workerData.name || formData.name,
+          occupation: workerData.occupation || formData.occupation || "",
+          mobile: workerData.mobile || formData.mobile || "",
+          city: workerData.city || formData.city || "",
+          postalCode: workerData.postalCode || formData.postalCode || "",
+          asset: workerData.active ? "yeah" : "no",
         }
 
         console.log("Adding new worker to list:", newWorker)
@@ -559,15 +550,17 @@ export default function AddWorkerModal({ open, onOpenChange, onWorkerAdded }: Ad
 
               <div>
                 <Label htmlFor="birthday" className="text-sm font-medium text-foreground">
-                  {t("birthdate")}
+                  {t("birthDate")}
                 </Label>
-                <Input
-                  id="birthday"
-                  type="date"
-                  value={formData.birthday}
-                  onChange={(e) => updateFormData("birthday", e.target.value)}
-                  className="mt-1"
-                />
+                <div className="mt-1 w-full">
+                  <DateInput
+                    id="birthday"
+                    value={formData.birthday}
+                    onChange={(e) => updateFormData("birthday", e.target.value)}
+                    className="w-full"
+                    allowPastDates
+                  />
+                </div>
                 {validationErrors.birthday && (
                   <p className="mt-1 text-sm text-red-500">{t("thisFieldIsRequired") || "This field is required."}</p>
                 )}

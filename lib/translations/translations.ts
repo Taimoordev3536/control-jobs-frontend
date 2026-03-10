@@ -244,6 +244,7 @@ surveyMonitoringValueTips: "Set a limit. If responses are under this value, an a
     type: "Type",
     responsible: "Responsible",
     telephones: "Telephones",
+    mobile: "Mobile",
     asset: "Asset",
     addClient: "Add Client",
     addPartner: "Add Partner",
@@ -306,10 +307,17 @@ surveyMonitoringValueTips: "Set a limit. If responses are under this value, an a
     listOfPartnerEmployers: "Employers",
     deleteEmployer: "Delete Employer",
     employerUpdatedSuccessfully: "Employer updated successfully!",
+    emailAlreadyInUse: "Email already in use",
     employerNotFound: "Employer not found",
     employerNotFoundDescription: "The employer you are looking for does not exist or has been deleted.",
     backToEmployers: "Back to Employers",
     confirmDeleteEmployerDesc: "This action cannot be undone. The employer and all associated data will be permanently deleted.",
+
+    partnerUpdatedSuccessfully: "Partner updated successfully!",
+    partnerDeletedSuccessfully: "Partner deleted successfully!",
+    partnerNotFound: "Partner not found",
+    deletePartner: "Delete Partner",
+    confirmDeletePartnerDesc: "This action cannot be undone. The partner and all associated data will be permanently deleted.",
 
     noInvoiceDataAvailable: "No invoice data available",
 
@@ -885,6 +893,7 @@ surveyMonitoringValueTips: "Set a limit. If responses are under this value, an a
     Type: "Tipo",
     responsible: "Responsable",
     telephones: "Teléfonos",
+    mobile: "Móvil",
     asset: "Activo",
     addClient: "Añadir Cliente",
     addPartner: "Añadir Partner",
@@ -947,10 +956,17 @@ surveyMonitoringValueTips: "Set a limit. If responses are under this value, an a
     listOfPartnerEmployers: "Empresas",
     deleteEmployer: "Eliminar Empresa",
     employerUpdatedSuccessfully: "¡Empresa actualizada correctamente!",
+    emailAlreadyInUse: "El correo electrónico ya está en uso",
     employerNotFound: "Empresa no encontrada",
     employerNotFoundDescription: "La empresa que busca no existe o ha sido eliminada.",
     backToEmployers: "Volver a Empresas",
     confirmDeleteEmployerDesc: "Esta acción no se puede deshacer. La empresa y todos los datos asociados se eliminarán permanentemente.",
+
+    partnerUpdatedSuccessfully: "¡Socio actualizado correctamente!",
+    partnerDeletedSuccessfully: "¡Socio eliminado correctamente!",
+    partnerNotFound: "Socio no encontrado",
+    deletePartner: "Eliminar Socio",
+    confirmDeletePartnerDesc: "Esta acción no se puede deshacer. El socio y todos los datos asociados se eliminarán permanentemente.",
 
     noInvoiceDataAvailable: "No hay datos de facturas disponibles",
 

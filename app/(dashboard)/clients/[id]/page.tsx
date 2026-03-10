@@ -51,8 +51,8 @@ export default function ClientDetailPage() {
     <div className="bg-background min-h-screen">
       {/* Header */}
       <div className="bg-card border-b border-border">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center px-4 pt-1 pb-1 sm:px-3 gap-1">
-          <h1 className="text-base sm:text-lg font-semibold text-foreground">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center px-4 pt-2 pb-3 sm:px-3 gap-1">
+          <h1 className="text-sm sm:text-base font-semibold text-foreground">
             {clientName}
           </h1>
         </div>

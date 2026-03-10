@@ -5,7 +5,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Info, Calendar, Loader2, AlertCircle, RefreshCw } from "lucide-react"
+import { Info, Loader2, AlertCircle, RefreshCw } from "lucide-react"
+import DateInput from "@/components/ui/date-input"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AnimatedLoader } from "@/components/animated-loader"
 import GoogleAddressInput, { AddressComponents } from "@/components/GoogleAddressInput"
@@ -173,6 +174,22 @@ export function WorkerDataTab() {
   const handleSave = async () => {
     if (!session?.accessToken || !workerId) return
 
+    // Validate required fields
+    const missing: string[] = []
+    if (!workerData.name?.trim()) missing.push(t("name"))
+    if (!workerData.address?.trim()) missing.push(t("address"))
+    if (!workerData.mobile?.trim()) missing.push(t("mobile"))
+    if (!workerData.email?.trim()) missing.push(t("email"))
+
+    if (missing.length > 0) {
+      toast({
+        title: t("requiredFieldsMissing") || "Campos obligatorios",
+        description: missing.join(", "),
+        variant: "destructive",
+      })
+      return
+    }
+
     setIsSaving(true)
     setError(null)
 
@@ -292,316 +309,283 @@ export function WorkerDataTab() {
     )
   }
 
+  const tip = (text: string) => (
+    <TooltipProvider>
+      <Tooltip delayDuration={0}>
+        <TooltipTrigger asChild>
+          <button type="button" className="inline-flex items-center p-0" tabIndex={-1}>
+            <Info tabIndex={-1} className="w-3 h-3 text-muted-foreground cursor-help" />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="right" align="center" sideOffset={6} className="max-w-[18rem] text-xs px-2 py-1">
+          {text}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  )
+
   return (
-    <div className="space-y-4 pt-1 px-2">
-        {/* Row 1: Code, NIF/NIE, NAF, Name/Pseudonym, Last names */}
-        <div className="grid grid-cols-5 gap-6">
-          <div className="space-y-1">
-            <Label htmlFor="code" className="text-sm font-medium text-foreground flex items-center gap-1">
-              {t("code")}
-              <TooltipProvider>
-                <Tooltip delayDuration={0}>
-                  <TooltipTrigger asChild>
-                    <button type="button" className="inline-flex items-center p-0" tabIndex={-1}>
-                      <Info tabIndex={-1} className="w-3 h-3 text-muted-foreground cursor-help" />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="right" align="center" sideOffset={6} className="max-w-[14rem] text-xs px-2 py-1 whitespace-pre-line">
-                    {`${t("workerCodeTip")}`}
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+    <div className="overflow-x-auto">
+    <div className="space-y-3 pt-1 px-2" style={{ minWidth: "900px" }}>
+      {/* Row 1: Código(10%) + Nombre(40%) = 50%; NAF 12%, NIF/NIE 15%, Occupation 14%, Activo 8% */}
+      <div className="flex gap-3 items-end">
+        <div className="flex gap-3 items-end min-w-0" style={{ flex: "0 0 50%" }}>
+          <div className="space-y-1 min-w-0" style={{ flex: "0 0 20%" }}>
+            <Label htmlFor="code" className="text-xs font-medium text-foreground flex items-center gap-1">
+              {t("code")} {tip(t("workerCodeTip"))}
             </Label>
             <Input
               id="code"
               value={workerData.code}
               onChange={(e) => handleInputChange("code", e.target.value)}
-              className="h-9 text-sm bg-muted/30 border-input focus:border-purple-500 focus:ring-purple-500"
+              className="h-9 text-xs bg-muted/30 border-input text-foreground"
             />
           </div>
-          <div className="space-y-1">
-            <Label htmlFor="nif" className="text-sm font-medium text-foreground">
-              {t("nifNie")}
-            </Label>
-            <Input
-              id="nif"
-              value={workerData.nif}
-              onChange={(e) => handleInputChange("nif", e.target.value)}
-              className="h-9 text-sm bg-muted/30 border-input focus:border-purple-500 focus:ring-purple-500"
-            />
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="naf" className="text-sm font-medium text-foreground flex items-center gap-1">
-              {t("naf")}
-              <TooltipProvider>
-                <Tooltip delayDuration={0}>
-                  <TooltipTrigger asChild>
-                    <button type="button" className="inline-flex items-center p-0" tabIndex={-1}>
-                      <Info tabIndex={-1} className="w-3 h-3 text-muted-foreground cursor-help" />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="right" align="center" sideOffset={6} className="max-w-[14rem] text-xs px-2 py-1 whitespace-pre-line">
-                    {`${t("workerNafTip")}`}
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </Label>
-            <Input
-              id="naf"
-              value={workerData.naf}
-              onChange={(e) => handleInputChange("naf", e.target.value)}
-              className="h-9 text-sm bg-muted/30 border-input focus:border-purple-500 focus:ring-purple-500"
-            />
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="name" className="text-sm font-medium text-foreground">
-              {t("name")}
+          <div className="space-y-1 min-w-0" style={{ flex: "1 1 0%" }}>
+            <Label htmlFor="name" className="text-xs font-medium text-foreground">
+              {t("name")} <span className="text-red-500">*</span>
             </Label>
             <Input
               id="name"
               value={workerData.name}
               onChange={(e) => handleInputChange("name", e.target.value)}
-              className="h-9 text-sm bg-muted/30 border-input focus:border-purple-500 focus:ring-purple-500"
-            />
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="lastname" className="text-sm font-medium text-foreground">
-              {t("lastNames")}
-            </Label>
-            <Input
-              id="lastname"
-              value={workerData.lastName}
-              onChange={(e) => handleInputChange("lastName", e.target.value)}
-              className="h-9 text-sm bg-muted/30 border-input focus:border-purple-500 focus:ring-purple-500"
+              className="h-9 text-xs bg-muted/30 border-input text-foreground"
             />
           </div>
         </div>
-
-        {/* Row 2: Address (full width) */}
-        <div className="grid grid-cols-1 gap-4">
-          <div className="space-y-1">
-            <Label htmlFor="address" className="text-sm font-medium text-foreground flex items-center gap-1">
-              {t("address")}
-              <TooltipProvider>
-                <Tooltip delayDuration={0}>
-                  <TooltipTrigger asChild>
-                    <button type="button" className="inline-flex items-center p-0" tabIndex={-1}>
-                      <Info tabIndex={-1} className="w-3 h-3 text-muted-foreground cursor-help" />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="right" align="center" sideOffset={6} className="max-w-[14rem] text-xs px-2 py-1">
-                    {t("addressTip")}
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </Label>
-            <GoogleAddressInput
-              value={workerData.address || ""}
-              onChange={(value: string, placeId?: string, components?: AddressComponents) => {
-                handleInputChange("address", value)
-                if (components) {
-                  if (components.street) handleInputChange("street", components.street)
-                  if (components.streetNumber) handleInputChange("streetNumber", components.streetNumber)
-                  if (components.floorDoor) handleInputChange("floorDoor", components.floorDoor)
-                  if (components.city) handleInputChange("city", components.city)
-                  if (components.province) handleInputChange("province", components.province)
-                  if (components.country) handleInputChange("country", components.country)
-                  if (components.postalCode) handleInputChange("postalCode", components.postalCode)
-                  if (components.latitude) handleInputChange("latitude", `${components.latitude}`)
-                  if (components.longitude) handleInputChange("longitude", `${components.longitude}`)
-                }
-              }}
-              className="flex h-9 w-full rounded-md border border-input bg-muted/30 px-3 py-2 text-sm text-foreground ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-weight-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            />
-          </div>
+        <div className="space-y-1 min-w-0" style={{ flex: "0 0 12%" }}>
+          <Label htmlFor="naf" className="text-xs font-medium text-foreground flex items-center gap-1">
+            {t("naf")} {tip(t("workerNafTip"))}
+          </Label>
+          <Input
+            id="naf"
+            value={workerData.naf}
+            onChange={(e) => handleInputChange("naf", e.target.value)}
+            className="h-9 text-xs bg-muted/30 border-input text-foreground"
+          />
         </div>
-
-        {/* Row 2b: No., Floor/Door, Postal Code */}
-        <div className="grid grid-cols-3 gap-6">
-          <div className="space-y-1">
-            <Label htmlFor="streetNumber" className="text-sm font-medium text-foreground">
-              {t("number")}
-            </Label>
-            <Input
-              id="streetNumber"
-              value={workerData.streetNumber || ""}
-              onChange={(e) => handleInputChange("streetNumber", e.target.value)}
-              className="h-9 text-sm bg-muted/30 border-input focus:border-purple-500 focus:ring-purple-500"
-            />
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="floorDoor" className="text-sm font-medium text-foreground">
-              {t("floorDoor")}
-            </Label>
-            <Input
-              id="floorDoor"
-              value={workerData.floorDoor || ""}
-              onChange={(e) => handleInputChange("floorDoor", e.target.value)}
-              className="h-9 text-sm bg-muted/30 border-input focus:border-purple-500 focus:ring-purple-500"
-            />
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="postalCode" className="text-sm font-medium text-foreground">
-              {t("postalCode")}
-            </Label>
-            <Input
-              id="postalCode"
-              value={workerData.postalCode || ""}
-              onChange={(e) => handleInputChange("postalCode", e.target.value)}
-              className="h-9 text-sm bg-muted/30 border-input focus:border-purple-500 focus:ring-purple-500"
-            />
-          </div>
+        <div className="space-y-1 min-w-0" style={{ flex: "0 0 12%" }}>
+          <Label htmlFor="nif" className="text-xs font-medium text-foreground">
+            {t("nifNie")}
+          </Label>
+          <Input
+            id="nif"
+            value={workerData.nif}
+            onChange={(e) => handleInputChange("nif", e.target.value)}
+            className="h-9 text-xs bg-muted/30 border-input text-foreground"
+          />
         </div>
+        <div className="space-y-1 min-w-0" style={{ flex: "0 0 14%" }}>
+          <Label htmlFor="occupation" className="text-xs font-medium text-foreground">
+            {t("occupation")}
+          </Label>
+          <Input
+            id="occupation"
+            value={workerData.occupation}
+            onChange={(e) => handleInputChange("occupation", e.target.value)}
+            className="h-9 text-xs bg-muted/30 border-input text-foreground"
+          />
+        </div>
+        <div className="space-y-1 min-w-0" style={{ flex: "0 0 8%" }}>
+          <Label htmlFor="active" className="text-xs font-medium text-foreground">
+            {t("active")}
+          </Label>
+          <Select
+            value={workerData.active ? "yeah" : "no"}
+            onValueChange={(value) => handleInputChange("active", value === "yeah")}
+          >
+            <SelectTrigger className="h-9 text-xs bg-muted/30 border-input text-foreground">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="min-w-0 w-[90px]">
+              <SelectItem value="yeah">{t("yeah")}</SelectItem>
+              <SelectItem value="no">{t("no")}</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
 
-        {/* Row 3: City, Province, Country */}
-        <div className="grid grid-cols-3 gap-6">
-          <div className="space-y-1">
-            <Label htmlFor="city" className="text-sm font-medium text-foreground">
-              {t("city")}
-            </Label>
-            <Input
-              id="city"
-              value={workerData.city || ""}
-              onChange={(e) => handleInputChange("city", e.target.value)}
-              className="h-9 text-sm bg-muted/30 border-input focus:border-purple-500 focus:ring-purple-500"
-            />
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="province" className="text-sm font-medium text-foreground">
+      {/* Row 2: Dirección 50%, Piso/Puerta 12%, Código Postal 12%, Localidad 16% */}
+      <div className="flex gap-3 items-end">
+        <div className="space-y-1 min-w-0" style={{ flex: "0 0 50%" }}>
+          <Label htmlFor="address" className="text-xs font-medium text-foreground flex items-center gap-1">
+            {t("address")} <span className="text-red-500">*</span> {tip(t("addressTip"))}
+          </Label>
+          <GoogleAddressInput
+            value={workerData.address || ""}
+            onChange={(value: string, placeId?: string, components?: AddressComponents) => {
+              handleInputChange("address", value)
+              if (components) {
+                if (components.street) handleInputChange("street", components.street)
+                if (components.streetNumber) handleInputChange("streetNumber", components.streetNumber)
+                if (components.floorDoor) handleInputChange("floorDoor", components.floorDoor)
+                if (components.city) handleInputChange("city", components.city)
+                if (components.province) handleInputChange("province", components.province)
+                if (components.country) handleInputChange("country", components.country)
+                if (components.postalCode) handleInputChange("postalCode", components.postalCode)
+                if (components.latitude) handleInputChange("latitude", `${components.latitude}`)
+                if (components.longitude) handleInputChange("longitude", `${components.longitude}`)
+              }
+            }}
+            className="flex h-9 w-full rounded-md border border-input bg-muted/30 px-3 py-1 text-xs text-foreground ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          />
+        </div>
+        <div className="space-y-1 min-w-0" style={{ flex: "0 0 12%" }}>
+          <Label htmlFor="floorDoor" className="text-xs font-medium text-foreground">
+            {t("floorDoor")}
+          </Label>
+          <Input
+            id="floorDoor"
+            value={workerData.floorDoor || ""}
+            onChange={(e) => handleInputChange("floorDoor", e.target.value)}
+            className="h-9 text-xs bg-muted/30 border-input text-foreground"
+          />
+        </div>
+        <div className="space-y-1 min-w-0" style={{ flex: "0 0 12%" }}>
+          <Label htmlFor="postalCode" className="text-xs font-medium text-foreground">
+            {t("postalCode")}
+          </Label>
+          <Input
+            id="postalCode"
+            value={workerData.postalCode || ""}
+            onChange={(e) => {
+              const val = e.target.value.replace(/[^0-9]/g, "")
+              handleInputChange("postalCode", val)
+            }}
+            inputMode="numeric"
+            className="h-9 text-xs bg-muted/30 border-input text-foreground"
+          />
+        </div>
+        <div className="space-y-1 min-w-0" style={{ flex: "0 0 16%" }}>
+          <Label htmlFor="city" className="text-xs font-medium text-foreground">
+            {t("city")}
+          </Label>
+          <Input
+            id="city"
+            value={workerData.city || ""}
+            onChange={(e) => handleInputChange("city", e.target.value)}
+            className="h-9 text-xs bg-muted/30 border-input text-foreground"
+          />
+        </div>
+      </div>
+
+      {/* Row 3: Provincia(25%) + País(25%) = 50% */}
+      <div className="flex gap-3 items-end">
+        <div className="flex gap-3 items-end min-w-0" style={{ flex: "0 0 50%" }}>
+          <div className="space-y-1 min-w-0" style={{ flex: "0 0 calc(50% - 0.375rem)" }}>
+            <Label htmlFor="province" className="text-xs font-medium text-foreground">
               {t("province")}
             </Label>
             <Input
               id="province"
               value={workerData.province || ""}
               onChange={(e) => handleInputChange("province", e.target.value)}
-              className="h-9 text-sm bg-muted/30 border-input focus:border-purple-500 focus:ring-purple-500"
+              className="h-9 text-xs bg-muted/30 border-input text-foreground"
             />
           </div>
-          <div className="space-y-1">
-            <Label htmlFor="country" className="text-sm font-medium text-foreground">
+          <div className="space-y-1 min-w-0" style={{ flex: "0 0 calc(50% - 0.375rem)" }}>
+            <Label htmlFor="country" className="text-xs font-medium text-foreground">
               {t("country")}
             </Label>
             <Input
               id="country"
               value={workerData.country || ""}
               onChange={(e) => handleInputChange("country", e.target.value)}
-              className="h-9 text-sm bg-muted/30 border-input focus:border-purple-500 focus:ring-purple-500"
+              className="h-9 text-xs bg-muted/30 border-input text-foreground"
             />
           </div>
         </div>
+      </div>
 
-        {/* Row 4: Phone, Mobile, E-mail, Occupation */}
-        <div className="grid grid-cols-4 gap-6">
-          <div className="space-y-1">
-            <Label htmlFor="phone" className="text-sm font-medium text-foreground">
+      {/* Row 4: Teléfono(13%)+Móvil(13%)+Email(24%) = 50%; Sex 13%, F.Birth 13% */}
+      <div className="flex gap-3 items-end">
+        <div className="flex gap-3 items-end min-w-0" style={{ flex: "0 0 50%" }}>
+          <div className="space-y-1 min-w-0" style={{ flex: "0 0 calc(26% - 0.5rem)" }}>
+            <Label htmlFor="phone" className="text-xs font-medium text-foreground">
               {t("phone")}
             </Label>
             <Input
               id="phone"
               value={workerData.landline}
-              onChange={(e) => handleInputChange("landline", e.target.value)}
-              className="h-9 text-sm bg-muted/30 border-input focus:border-purple-500 focus:ring-purple-500"
+              onChange={(e) => {
+                const val = e.target.value.replace(/[^0-9]/g, "")
+                handleInputChange("landline", val)
+              }}
+              inputMode="numeric"
+              className="h-9 text-xs bg-muted/30 border-input text-foreground"
             />
           </div>
-          <div className="space-y-1">
-            <Label htmlFor="mobile" className="text-sm font-medium text-foreground">
-              {t("mobile")}
+          <div className="space-y-1 min-w-0" style={{ flex: "0 0 calc(26% - 0.5rem)" }}>
+            <Label htmlFor="mobile" className="text-xs font-medium text-foreground">
+              {t("mobile")} <span className="text-red-500">*</span>
             </Label>
             <Input
               id="mobile"
               value={workerData.mobile}
-              onChange={(e) => handleInputChange("mobile", e.target.value)}
-              className="h-9 text-sm bg-muted/30 border-input focus:border-purple-500 focus:ring-purple-500"
+              onChange={(e) => {
+                const val = e.target.value.replace(/[^0-9]/g, "")
+                handleInputChange("mobile", val)
+              }}
+              inputMode="numeric"
+              className="h-9 text-xs bg-muted/30 border-input text-foreground"
             />
           </div>
-          <div className="space-y-1">
-            <Label htmlFor="email" className="text-sm font-medium text-foreground">
-              {t("email")}
+          <div className="space-y-1 min-w-0" style={{ flex: "1 1 0%" }}>
+            <Label htmlFor="email" className="text-xs font-medium text-foreground">
+              {t("email")} <span className="text-red-500">*</span>
             </Label>
             <Input
               id="email"
               type="email"
               value={workerData.email}
               onChange={(e) => handleInputChange("email", e.target.value)}
-              className="h-9 text-sm bg-muted/30 border-input focus:border-purple-500 focus:ring-purple-500"
-            />
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="occupation" className="text-sm font-medium text-foreground">
-              {t("occupation")}
-            </Label>
-            <Input
-              id="occupation"
-              value={workerData.occupation}
-              onChange={(e) => handleInputChange("occupation", e.target.value)}
-              className="h-9 text-sm bg-muted/30 border-input focus:border-purple-500 focus:ring-purple-500"
+              className="h-9 text-xs bg-muted/30 border-input text-foreground"
             />
           </div>
         </div>
-
-        {/* Row 5: Sex, F. Birth, Active */}
-        <div className="grid grid-cols-3 gap-6">
-          <div className="space-y-1">
-            <Label htmlFor="sex" className="text-sm font-medium text-foreground">
-              {t("sex")}
-            </Label>
-            <Select value={workerData.sex} onValueChange={(value) => handleInputChange("sex", value)}>
-              <SelectTrigger className="h-9 text-sm bg-muted/30 border-input focus:border-purple-500 focus:ring-purple-500">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="man">{t("man")}</SelectItem>
-                <SelectItem value="woman">{t("woman")}</SelectItem>
-                <SelectItem value="other">{t("other")}</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="birth" className="text-sm font-medium text-foreground">
-              {t("birthDate")}
-            </Label>
-            <div className="relative">
-              <Input
-                id="birth"
-                type="date"
-                value={workerData.birthday}
-                onChange={(e) => handleInputChange("birthday", e.target.value)}
-                className="h-9 text-sm bg-muted/30 border-input focus:border-purple-500 focus:ring-purple-500 pr-8"
-              />
-              <Calendar className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-            </div>
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="active" className="text-sm font-medium text-foreground">
-              {t("active")}
-            </Label>
-            <Select
-              value={workerData.active ? "yeah" : "no"}
-              onValueChange={(value) => handleInputChange("active", value === "yeah")}
-            >
-              <SelectTrigger className="h-9 text-sm bg-muted/30 border-input focus:border-purple-500 focus:ring-purple-500">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="yeah">{t("yeah")}</SelectItem>
-                <SelectItem value="no">{t("no")}</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+        <div className="space-y-1 min-w-0" style={{ flex: "0 0 13%" }}>
+          <Label htmlFor="sex" className="text-xs font-medium text-foreground">
+            {t("sex")}
+          </Label>
+          <Select value={workerData.sex} onValueChange={(value) => handleInputChange("sex", value)}>
+            <SelectTrigger className="h-9 text-xs bg-muted/30 border-input text-foreground">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="min-w-0 w-[150px]">
+              <SelectItem value="man">{t("man")}</SelectItem>
+              <SelectItem value="woman">{t("woman")}</SelectItem>
+              <SelectItem value="other">{t("other")}</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
+        <div className="space-y-1 min-w-0" style={{ flex: "0 0 13%" }}>
+          <Label htmlFor="birth" className="text-xs font-medium text-foreground">
+            {t("birthDate")}
+          </Label>
+          <DateInput
+            id="birth"
+            value={workerData.birthday}
+            onChange={(e) => handleInputChange("birthday", e.target.value)}
+            className="h-9 text-xs bg-muted/30 border-input text-foreground"
+            allowPastDates
+          />
+        </div>
+      </div>
 
-        {/* Observations */}
-        <div className="space-y-1">
-          <Label htmlFor="observations" className="text-sm font-medium text-foreground">
+      {/* Row 5: Observaciones 60% */}
+      <div className="flex gap-3 items-end">
+        <div className="space-y-1 min-w-0" style={{ flex: "0 0 60%" }}>
+          <Label htmlFor="observations" className="text-xs font-medium text-foreground">
             {t("observations")}
           </Label>
           <Textarea
             id="observations"
             value={workerData.observation}
             onChange={(e) => handleInputChange("observation", e.target.value)}
-            className="min-h-[50px] max-w-[70%] text-sm bg-muted/30 border-input focus:border-purple-500 focus:ring-purple-500 resize-none"
+            className="min-h-[40px] w-full bg-muted/30 border-input text-foreground resize-none text-xs py-1.5"
           />
         </div>
+      </div>
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
@@ -624,26 +608,28 @@ export function WorkerDataTab() {
         </AlertDialogContent>
       </AlertDialog>
 
-        {/* Action Buttons */}
-        <div className="flex items-center justify-between pt-6 mt-6 px-4 py-4 bg-gray-100 dark:bg-gray-800/50 rounded-b-lg">
-          <div className="flex items-center gap-3">
-            <Button
-              onClick={handleSave}
-              disabled={isSaving}
-              className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 flex items-center gap-2"
-            >
-              {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              {isSaving ? t("saving") || "Saving..." : t("keep")}
-            </Button>
-            <Button onClick={() => router.push("/workers")} className="bg-neutral-500 hover:bg-neutral-600 text-white px-6 py-2">
-              {t("cancel")}
-            </Button>
-          </div>
-          <Button onClick={handleDelete} disabled={isDeleting} className="bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-2">
-            {isDeleting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-            {t("delete")}
+      {/* Bottom Action Buttons - separated by line */}
+      <div className="border-t-2 border-border mt-4" />
+      <div className="flex items-center justify-between px-2 py-3">
+        <div className="flex items-center gap-3">
+          <Button
+            onClick={handleSave}
+            disabled={isSaving}
+            className="h-9 bg-purple-600 hover:bg-purple-700 text-white px-5 text-xs flex items-center gap-2"
+          >
+            {isSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+            {isSaving ? t("saving") || "Saving..." : t("keep")}
+          </Button>
+          <Button onClick={handleCancel} className="h-9 bg-neutral-500 hover:bg-neutral-600 text-white px-5 text-xs">
+            {t("cancel")}
           </Button>
         </div>
+        <Button onClick={handleDelete} disabled={isDeleting} className="h-9 bg-yellow-500 hover:bg-yellow-600 text-white px-5 text-xs">
+          {isDeleting ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+          {t("delete")}
+        </Button>
+      </div>
+    </div>
     </div>
   )
 }

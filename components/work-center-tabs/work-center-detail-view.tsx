@@ -185,8 +185,8 @@ export default function WorkCenterDetailView({ workCenterId, onBack }: WorkCente
     <div className="bg-background min-h-screen">
       {/* Header */}
       <div className="bg-card border-b border-border">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 sm:p-3 gap-2">
-          <h1 className="text-xl sm:text-2xl font-semibold text-foreground">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center px-4 pt-2 pb-3 sm:px-3 gap-1">
+          <h1 className="text-sm sm:text-base font-semibold text-foreground">
             Centro de trabajo
           </h1>
         </div>
@@ -196,20 +196,20 @@ export default function WorkCenterDetailView({ workCenterId, onBack }: WorkCente
           <nav className="flex overflow-x-auto scrollbar-hide">
             <button
               onClick={() => setActiveTab("description")}
-              className={`flex-shrink-0 px-6 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+              className={`flex-shrink-0 px-6 py-1.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                 activeTab === "description"
                   ? "border-[#662D91] text-[#662D91] bg-purple-50 dark:bg-purple-950/50"
-                  : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                  : "border-transparent text-muted-foreground hover:text-[#662D91] hover:border-[#662D91]"
               }`}
             >
               Descripción
             </button>
             <button
               onClick={() => setActiveTab("methods")}
-              className={`flex-shrink-0 px-6 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+              className={`flex-shrink-0 px-6 py-1.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                 activeTab === "methods"
                   ? "border-[#662D91] text-[#662D91] bg-purple-50 dark:bg-purple-950/50"
-                  : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                  : "border-transparent text-muted-foreground hover:text-[#662D91] hover:border-[#662D91]"
               }`}
             >
               Métodos de fichaje
@@ -219,7 +219,7 @@ export default function WorkCenterDetailView({ workCenterId, onBack }: WorkCente
       </div>
 
       {/* Tab Content */}
-      <div className="p-6">
+      <div className="min-h-[400px] bg-card p-2">
         {activeTab === "description" && (
           <WorkCenterDescriptionTab 
             workCenter={workCenter} 

@@ -344,31 +344,33 @@ export function ClientDataTab({ clientId }: ClientDataTabProps) {
   return (
     <div className="overflow-x-auto">
     <div className="space-y-3 pt-1 px-2" style={{ minWidth: "900px" }}>
-      {/* Row 1: Código 10%, Nombre 50%, Tipo 15%, NIF/CIF 15%, Activo 5% */}
+      {/* Row 1: Código(10%) + Nombre(50%) = 60% total incl. gap; Tipo 12%, NIF 15%, Activo 8% */}
       <div className="flex gap-3 items-end">
-        <div className="space-y-1 min-w-0" style={{ flex: "0 1 10%" }}>
-          <Label htmlFor="code" className="text-xs font-medium text-foreground flex items-center gap-1">
-            {t("code")} {tip(t("clientCodeTip"))}
-          </Label>
-          <Input
-            id="code"
-            value={clientData.code || ""}
-            onChange={(e) => handleInputChange("code", e.target.value)}
-            className="h-9 text-xs bg-muted/30 border-input text-foreground"
-          />
+        <div className="flex gap-3 items-end min-w-0" style={{ flex: "0 0 60%" }}>
+          <div className="space-y-1 min-w-0" style={{ flex: "0 0 16.67%" }}>
+            <Label htmlFor="code" className="text-xs font-medium text-foreground flex items-center gap-1">
+              {t("code")} {tip(t("clientCodeTip"))}
+            </Label>
+            <Input
+              id="code"
+              value={clientData.code || ""}
+              onChange={(e) => handleInputChange("code", e.target.value)}
+              className="h-9 text-xs bg-muted/30 border-input text-foreground"
+            />
+          </div>
+          <div className="space-y-1 min-w-0" style={{ flex: "1 1 0%" }}>
+            <Label htmlFor="name" className="text-xs font-medium text-foreground">
+              {t("name")} <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              id="name"
+              value={clientData.name || ""}
+              onChange={(e) => handleInputChange("name", e.target.value)}
+              className="h-9 text-xs bg-muted/30 border-input text-foreground"
+            />
+          </div>
         </div>
-        <div className="space-y-1 min-w-0" style={{ flex: "0 1 48%" }}>
-          <Label htmlFor="name" className="text-xs font-medium text-foreground">
-            {t("name")} <span className="text-red-500">*</span>
-          </Label>
-          <Input
-            id="name"
-            value={clientData.name || ""}
-            onChange={(e) => handleInputChange("name", e.target.value)}
-            className="h-9 text-xs bg-muted/30 border-input text-foreground"
-          />
-        </div>
-        <div className="space-y-1 min-w-0" style={{ flex: "0 1 15%" }}>
+        <div className="space-y-1 min-w-0" style={{ flex: "0 0 10%" }}>
           <Label htmlFor="type" className="text-xs font-medium text-foreground">
             {t("type")} <span className="text-red-500">*</span>
           </Label>
@@ -382,7 +384,7 @@ export function ClientDataTab({ clientId }: ClientDataTabProps) {
             </SelectContent>
           </Select>
         </div>
-        <div className="space-y-1 min-w-0" style={{ flex: "0 1 15%" }}>
+        <div className="space-y-1 min-w-0" style={{ flex: "0 0 10%" }}>
           <Label htmlFor="nif" className="text-xs font-medium text-foreground">
             {nifLabel}
           </Label>
@@ -393,7 +395,7 @@ export function ClientDataTab({ clientId }: ClientDataTabProps) {
             className="h-9 text-xs bg-muted/30 border-input text-foreground"
           />
         </div>
-        <div className="space-y-1 min-w-0" style={{ flex: "0 1 7%" }}>
+        <div className="space-y-1 min-w-0" style={{ flex: "0 0 8%" }}>
           <Label htmlFor="active" className="text-xs font-medium text-foreground">
             {t("active")}
           </Label>
@@ -414,7 +416,7 @@ export function ClientDataTab({ clientId }: ClientDataTabProps) {
 
       {/* Row 2: Dirección 60%, Piso/Puerta 12%, Código Postal 12%, Localidad 16% */}
       <div className="flex gap-3 items-end">
-        <div className="space-y-1 min-w-0" style={{ flex: "0 1 60%" }}>
+        <div className="space-y-1 min-w-0" style={{ flex: "0 0 60%" }}>
           <Label htmlFor="address" className="text-xs font-medium text-foreground flex items-center gap-1">
             {t("address")} <span className="text-red-500">*</span> {tip(t("clientAddressTip"))}
           </Label>
@@ -437,7 +439,7 @@ export function ClientDataTab({ clientId }: ClientDataTabProps) {
             className="flex h-9 w-full rounded-md border border-input bg-muted/30 px-3 py-1 text-xs text-foreground ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           />
         </div>
-        <div className="space-y-1 min-w-0" style={{ flex: "0 1 12%" }}>
+        <div className="space-y-1 min-w-0" style={{ flex: "0 0 10%" }}>
           <Label htmlFor="floorDoor" className="text-xs font-medium text-foreground flex items-center gap-1">
             {t("floorDoor")}
           </Label>
@@ -448,7 +450,7 @@ export function ClientDataTab({ clientId }: ClientDataTabProps) {
             className="h-9 text-xs bg-muted/30 border-input text-foreground"
           />
         </div>
-        <div className="space-y-1 min-w-0" style={{ flex: "0 1 12%" }}>
+        <div className="space-y-1 min-w-0" style={{ flex: "0 0 10%" }}>
           <Label htmlFor="postalCode" className="text-xs font-medium text-foreground flex items-center gap-1">
             {t("postalCode")}
           </Label>
@@ -463,7 +465,7 @@ export function ClientDataTab({ clientId }: ClientDataTabProps) {
             className="h-9 text-xs bg-muted/30 border-input text-foreground"
           />
         </div>
-        <div className="space-y-1 min-w-0" style={{ flex: "0 1 16%" }}>
+        <div className="space-y-1 min-w-0" style={{ flex: "0 0 16%" }}>
           <Label htmlFor="city" className="text-xs font-medium text-foreground">
             {t("city")}
           </Label>
@@ -476,76 +478,80 @@ export function ClientDataTab({ clientId }: ClientDataTabProps) {
         </div>
       </div>
 
-      {/* Row 3: Provincia 30%, País 30% */}
+      {/* Row 3: Provincia(30%) + País(30%) = 60% total incl. gap */}
       <div className="flex gap-3 items-end">
-        <div className="space-y-1 min-w-0" style={{ flex: "0 1 30%" }}>
-          <Label htmlFor="province" className="text-xs font-medium text-foreground">
-            {t("province")}
-          </Label>
-          <Input
-            id="province"
-            value={clientData.province || ""}
-            onChange={(e) => handleInputChange("province", e.target.value)}
-            className="h-9 text-xs bg-muted/30 border-input text-foreground"
-          />
-        </div>
-        <div className="space-y-1 min-w-0" style={{ flex: "0 1 30%" }}>
-          <Label htmlFor="country" className="text-xs font-medium text-foreground">
-            {t("country")}
-          </Label>
-          <Input
-            id="country"
-            value={clientData.country || ""}
-            onChange={(e) => handleInputChange("country", e.target.value)}
-            className="h-9 text-xs bg-muted/30 border-input text-foreground"
-          />
+        <div className="flex gap-3 items-end min-w-0" style={{ flex: "0 0 60%" }}>
+          <div className="space-y-1 min-w-0" style={{ flex: "0 0 calc(50% - 0.375rem)" }}>
+            <Label htmlFor="province" className="text-xs font-medium text-foreground">
+              {t("province")}
+            </Label>
+            <Input
+              id="province"
+              value={clientData.province || ""}
+              onChange={(e) => handleInputChange("province", e.target.value)}
+              className="h-9 text-xs bg-muted/30 border-input text-foreground"
+            />
+          </div>
+          <div className="space-y-1 min-w-0" style={{ flex: "0 0 calc(50% - 0.375rem)" }}>
+            <Label htmlFor="country" className="text-xs font-medium text-foreground">
+              {t("country")}
+            </Label>
+            <Input
+              id="country"
+              value={clientData.country || ""}
+              onChange={(e) => handleInputChange("country", e.target.value)}
+              className="h-9 text-xs bg-muted/30 border-input text-foreground"
+            />
+          </div>
         </div>
       </div>
 
-      {/* Row 4: Responsible 30%, Teléfono 15%, Móvil 15%, Email 24%, Usuarios button */}
+      {/* Row 4: Responsible(30%) + Teléfono(15%) + Móvil(15%) = 60% total incl. gaps; Email 24%, Usuarios button */}
       <div className="flex gap-3 items-end">
-        <div className="space-y-1 min-w-0" style={{ flex: "0 1 30%" }}>
-          <Label htmlFor="responsible" className="text-xs font-medium text-foreground">
-            {t("responsible")} <span className="text-red-500">*</span>
-          </Label>
-          <Input
-            id="responsible"
-            value={clientData.responsible || ""}
-            onChange={(e) => handleInputChange("responsible", e.target.value)}
-            className="h-9 text-xs bg-muted/30 border-input text-foreground"
-          />
+        <div className="flex gap-3 items-end min-w-0" style={{ flex: "0 0 60%" }}>
+          <div className="space-y-1 min-w-0" style={{ flex: "0 0 calc(50% - 0.375rem)" }}>
+            <Label htmlFor="responsible" className="text-xs font-medium text-foreground">
+              {t("responsible")} <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              id="responsible"
+              value={clientData.responsible || ""}
+              onChange={(e) => handleInputChange("responsible", e.target.value)}
+              className="h-9 text-xs bg-muted/30 border-input text-foreground"
+            />
+          </div>
+          <div className="space-y-1 min-w-0" style={{ flex: "0 0 calc(25% - 0.5625rem)" }}>
+            <Label htmlFor="phone" className="text-xs font-medium text-foreground flex items-center gap-1">
+              {t("phone")}
+            </Label>
+            <Input
+              id="phone"
+              value={clientData.landline || ""}
+              onChange={(e) => {
+                const val = e.target.value.replace(/[^0-9]/g, "")
+                handleInputChange("landline", val)
+              }}
+              inputMode="numeric"
+              className="h-9 text-xs bg-muted/30 border-input text-foreground"
+            />
+          </div>
+          <div className="space-y-1 min-w-0" style={{ flex: "0 0 calc(25% - 0.5625rem)" }}>
+            <Label htmlFor="mobile" className="text-xs font-medium text-foreground flex items-center gap-1">
+              {t("mobile")} <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              id="mobile"
+              value={clientData.mobile || ""}
+              onChange={(e) => {
+                const val = e.target.value.replace(/[^0-9]/g, "")
+                handleInputChange("mobile", val)
+              }}
+              inputMode="numeric"
+              className="h-9 text-xs bg-muted/30 border-input text-foreground"
+            />
+          </div>
         </div>
-        <div className="space-y-1 min-w-0" style={{ flex: "0 1 15%" }}>
-          <Label htmlFor="phone" className="text-xs font-medium text-foreground flex items-center gap-1">
-            {t("phone")}
-          </Label>
-          <Input
-            id="phone"
-            value={clientData.landline || ""}
-            onChange={(e) => {
-              const val = e.target.value.replace(/[^0-9]/g, "")
-              handleInputChange("landline", val)
-            }}
-            inputMode="numeric"
-            className="h-9 text-xs bg-muted/30 border-input text-foreground"
-          />
-        </div>
-        <div className="space-y-1 min-w-0" style={{ flex: "0 1 15%" }}>
-          <Label htmlFor="mobile" className="text-xs font-medium text-foreground flex items-center gap-1">
-            {t("mobile")} <span className="text-red-500">*</span>
-          </Label>
-          <Input
-            id="mobile"
-            value={clientData.mobile || ""}
-            onChange={(e) => {
-              const val = e.target.value.replace(/[^0-9]/g, "")
-              handleInputChange("mobile", val)
-            }}
-            inputMode="numeric"
-            className="h-9 text-xs bg-muted/30 border-input text-foreground"
-          />
-        </div>
-        <div className="space-y-1 min-w-0" style={{ flex: "0 1 24%" }}>
+        <div className="space-y-1 min-w-0" style={{ flex: "0 0 24%" }}>
           <Label htmlFor="email" className="text-xs font-medium text-foreground flex items-center gap-1">
             {t("email")} <span className="text-red-500">*</span>
           </Label>
@@ -562,9 +568,9 @@ export function ClientDataTab({ clientId }: ClientDataTabProps) {
         </div>
       </div>
 
-      {/* Row 5: Observations 60%, Periodo Horario de Verano 8%+8% */}
+      {/* Row 5: Observations 60%, Periodo Horario de Verano default */}
       <div className="flex gap-3 items-end">
-        <div className="space-y-1 min-w-0" style={{ flex: "0 1 60%" }}>
+        <div className="space-y-1 min-w-0" style={{ flex: "0 0 60%" }}>
           <Label htmlFor="observations" className="text-xs font-medium text-foreground">
             {t("observations")}
           </Label>

@@ -195,17 +195,16 @@ export default function AddClientModal({ open, onOpenChange, onClientAdded }: Ad
 
       // Map backend client to frontend fields with proper data
       if (typeof onClientAdded === "function" && result.data) {
+        const clientData = result.data.client || result.data
         const newClient = {
-          id: result.data.publicId || result.data.id,
-          name: result.data.name || formData.name,
-          city: result.data.city || formData.city || "-",
-          type: formData.type === "company" ? t("company") : t("particular"),
-          responsible: result.data.responsible || formData.responsible || "-",
-          telephones:
-            [result.data.landline || formData.landline, result.data.mobile || formData.mobile]
-              .filter(Boolean)
-              .join(" | ") || "-",
-          asset: result.data.accessAccountStatus === "active" ? t("yeah") : t("no"),
+          publicId: clientData.publicId || clientData.id,
+          name: clientData.name || formData.name,
+          city: clientData.city || formData.city || "",
+          type: formData.type,
+          responsible: clientData.responsible || formData.responsible || "",
+          landline: clientData.landline || formData.landline || "",
+          mobile: clientData.mobile || formData.mobile || "",
+          active: clientData.active !== undefined ? clientData.active : true,
         }
 
         console.log("Adding new client to list:", newClient)

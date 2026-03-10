@@ -8,6 +8,7 @@ export interface DateInputProps
   extends React.InputHTMLAttributes<HTMLInputElement> {
   value?: string; // ISO yyyy-mm-dd
   onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  allowPastDates?: boolean;
 }
 
 function formatISO(date: Date) {
@@ -31,6 +32,7 @@ export const DateInput: React.FC<DateInputProps> = ({
   onChange,
   className,
   placeholder,
+  allowPastDates = false,
   ...rest
 }) => {
   const { t, language } = useTranslation();
@@ -100,12 +102,14 @@ export const DateInput: React.FC<DateInputProps> = ({
 
   const pickDate = (day: number) => {
     const newDate = new Date(viewDate.getFullYear(), viewDate.getMonth(), day);
-    // do not allow picking past dates
-    const today = new Date();
-    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    if (newDate < todayStart) {
-      setError(t?.("invalidDate") || "invalidDate");
-      return;
+    // do not allow picking past dates (unless allowPastDates is set)
+    if (!allowPastDates) {
+      const today = new Date();
+      const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      if (newDate < todayStart) {
+        setError(t?.("invalidDate") || "invalidDate");
+        return;
+      }
     }
     const iso = formatISO(newDate);
     if (onChange) {
@@ -236,10 +240,12 @@ export const DateInput: React.FC<DateInputProps> = ({
     ) {
       return t?.("invalidDate") || "Invalid date for given month/year";
     }
-    // disallow past dates (must be today or in the future)
-    const today = new Date();
-    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    if (dateObj < todayStart) return t?.("invalidDate") || "invalidDate";
+    // disallow past dates (must be today or in the future) unless allowPastDates
+    if (!allowPastDates) {
+      const today = new Date();
+      const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      if (dateObj < todayStart) return t?.("invalidDate") || "invalidDate";
+    }
     return null;
   }
 
@@ -259,7 +265,7 @@ export const DateInput: React.FC<DateInputProps> = ({
   };
 
   return (
-    <div className="relative inline-block" ref={ref}>
+    <div className="relative w-full" ref={ref}>
       {/* input + icon wrapper: keep fixed min-h so error text below won't push the icon */}
       <div className="relative w-full">
         <div className="relative w-full" style={{ minHeight: 40 }}>
@@ -355,12 +361,14 @@ export const DateInput: React.FC<DateInputProps> = ({
                     setError(t?.("invalidDate") || "Invalid date for given month/year");
                     return;
                   }
-                  // disallow past dates
-                  const today = new Date();
-                  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-                  if (dateObj < todayStart) {
-                    setError(t?.("invalidDate") || "invalidDate");
-                    return;
+                  // disallow past dates unless allowPastDates
+                  if (!allowPastDates) {
+                    const today = new Date();
+                    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                    if (dateObj < todayStart) {
+                      setError(t?.("invalidDate") || "invalidDate");
+                      return;
+                    }
                   }
                 }
               }

@@ -24,7 +24,7 @@ export default function WorkersPage() {
     id: w.publicId || w.id?.toString() || w.workerId?.toString() || "",
     name: w.name || w.fullName || w.workerName || "-",
     occupation: w.occupation || "-",
-    telephones: [w.landline, w.mobile].filter(Boolean).join(" | ") || "-",
+    telephones: w.mobile || "-",
     population: w.locality || w.city || w.address || "-",
     postalCode: w.postalCode || "-",
     asset: w.asset === "yeah" || w.asset === true ? t("yeah") : t("no"),
@@ -58,7 +58,7 @@ export default function WorkersPage() {
   const columns = [
     { key: "name", label: t("name"), sortable: true },
     { key: "occupation", label: t("occupation"), sortable: true },
-    { key: "telephones", label: t("telephones"), sortable: true, align: "center" as const },
+    { key: "telephones", label: t("mobile"), sortable: true, align: "center" as const },
     { key: "population", label: t("population"), sortable: true },
     { key: "postalCode", label: t("postalCode"), sortable: true },
     {
