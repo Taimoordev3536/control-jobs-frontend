@@ -27,7 +27,7 @@ export default function WorkersPage() {
     telephones: w.mobile || "-",
     population: w.locality || w.city || w.address || "-",
     postalCode: w.postalCode || "-",
-    asset: w.asset === "yeah" || w.asset === true ? t("yeah") : t("no"),
+    asset: w.asset !== undefined ? (w.asset === "yeah" || w.asset === true) : (w.active === true || w.active === "true"),
   })
 
   useEffect(() => {
@@ -66,9 +66,14 @@ export default function WorkersPage() {
       label: t("asset"),
       sortable: true,
       align: "center" as const,
-      render: (value: string) => (
-        <span className={`font-medium ${value === t("yeah") ? "text-green-600" : "text-red-600"}`}>{value}</span>
-      ),
+      render: (value: any) => {
+        const isActive = value === true
+        return (
+          <span className={`font-medium ${isActive ? "text-green-600" : "text-red-600"}`}>
+            {isActive ? t("yeah") : t("no")}
+          </span>
+        )
+      },
     },
   ]
 

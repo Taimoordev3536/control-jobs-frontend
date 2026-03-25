@@ -1,7 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { useParams, useSearchParams } from "next/navigation"
+import { useParams, useSearchParams, useRouter } from "next/navigation"
+import { ArrowLeft } from "lucide-react"
 import { useTranslation } from "@/hooks/use-translation"
 import dynamic from "next/dynamic"
 import { AnimatedLoader } from "@/components/animated-loader"
@@ -28,6 +29,7 @@ export default function PartnerDetailPage() {
   const params = useParams()
   const searchParams = useSearchParams()
   const partnerId = params.id as string
+  const router = useRouter()
   const [activeTab, setActiveTab] = useState("data")
   const [partnerName, setPartnerName] = useState(searchParams.get("name") || "")
 
@@ -43,11 +45,27 @@ export default function PartnerDetailPage() {
     <div className="bg-background min-h-screen">
       {/* Header */}
       <div className="bg-card border-b border-border">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center px-4 pt-1 pb-1 sm:px-3 gap-1">
-          <h1 className="text-base sm:text-lg font-semibold text-foreground">
-            {partnerName}
-          </h1>
-        </div>
+        {activeTab === "data" ? (
+          <div className="grid grid-cols-3 items-center px-4 pt-1 pb-1 sm:px-3">
+            <h1 className="text-sm sm:text-base font-semibold text-foreground truncate">
+              {partnerName}
+            </h1>
+            <span className="text-sm sm:text-base font-medium text-foreground text-center">
+              {t("partners")}
+            </span>
+            <div className="flex justify-end">
+              <button onClick={() => router.back()} className="p-1 text-muted-foreground hover:text-foreground transition-colors">
+                <ArrowLeft className="h-5 w-5" />
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center px-4 pt-1 pb-1 sm:px-3">
+            <h1 className="text-sm sm:text-base font-semibold text-foreground truncate">
+              {partnerName}
+            </h1>
+          </div>
+        )}
 
         {/* Tabs */}
         <div className="border-b border-border">

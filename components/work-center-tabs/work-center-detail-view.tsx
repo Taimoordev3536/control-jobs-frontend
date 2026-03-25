@@ -1,7 +1,8 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
+import { ArrowLeft } from "lucide-react"
 import { useTranslation } from "@/hooks/use-translation"
 import { useAuth } from "@/hooks/use-auth"
 import { WorkCenterDescriptionTab } from "@/components/work-center-tabs/work-center-description-tab"
@@ -108,7 +109,25 @@ export default function WorkCenterDetailView({ workCenterId, onBack }: WorkCente
           mobile: backendData.contactPhone || "",
           email: backendData.contactEmail || "",
           observations: backendData.observations || "",
-          signingMethods: backendData.signingMethods
+          signingMethods: {
+            mobile: {
+              qrCode: { active: backendData.isQrcodeActive ?? false, code: "" },
+              wifi: { active: false, ssid: "" },
+              gps: {
+                active: backendData.isGpsActive ?? false,
+                latitude: Number(backendData.latitude) || 0,
+                longitude: Number(backendData.longitude) || 0,
+                radius: Number(backendData.gpsRadius) || 100,
+              },
+            },
+            computer: {
+              ip: { active: backendData.isIpActive ?? false, ipAddress: backendData.allowedIp || "" },
+              wifi: { active: false, ssid: "" },
+            },
+            phone: {
+              callerId: { active: false },
+            },
+          },
         })
       } else {
         console.warn("Unexpected response format:", result)
@@ -185,11 +204,27 @@ export default function WorkCenterDetailView({ workCenterId, onBack }: WorkCente
     <div className="bg-background min-h-screen">
       {/* Header */}
       <div className="bg-card border-b border-border">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center px-4 pt-2 pb-3 sm:px-3 gap-1">
-          <h1 className="text-sm sm:text-base font-semibold text-foreground">
-            Centro de trabajo
-          </h1>
-        </div>
+        {activeTab === "description" ? (
+          <div className="grid grid-cols-3 items-center px-4 pt-1 pb-1 sm:px-3">
+            <h1 className="text-sm sm:text-base font-semibold text-foreground truncate">
+              {workCenter?.name || "Centro de trabajo"}
+            </h1>
+            <span className="text-sm sm:text-base font-medium text-foreground text-center">
+              {t("workCenters")}
+            </span>
+            <div className="flex justify-end">
+              <button onClick={handleBack} className="p-1 text-muted-foreground hover:text-foreground transition-colors">
+                <ArrowLeft className="h-5 w-5" />
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center px-4 pt-1 pb-1 sm:px-3">
+            <h1 className="text-sm sm:text-base font-semibold text-foreground truncate">
+              {workCenter?.name || "Centro de trabajo"}
+            </h1>
+          </div>
+        )}
 
         {/* Tabs */}
         <div className="border-b border-border">

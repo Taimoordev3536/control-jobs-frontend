@@ -27,7 +27,7 @@ export default function ClientsPage() {
     type: c.type === "company" ? t("company") : c.type === "particular" ? t("particular") : c.type || "-",
     responsible: c.responsible || "-",
     mobile: c.mobile || "-",
-    asset: c.active === true || c.active === "true" ? t("yeah") : c.active === false || c.active === "false" ? t("no") : c.asset === "yeah" ? t("yeah") : t("no"),
+    asset: c.active === true || c.active === "true",
   })
 
   useEffect(() => {
@@ -66,9 +66,14 @@ export default function ClientsPage() {
       label: t("asset"),
       sortable: true,
       align: "center" as const,
-      render: (value: string) => (
-        <span className={`font-medium ${value === t("yeah") ? "text-green-600" : "text-red-600"}`}>{value}</span>
-      ),
+      render: (value: any) => {
+        const isActive = value === true
+        return (
+          <span className={`font-medium ${isActive ? "text-green-600" : "text-red-600"}`}>
+            {isActive ? t("yeah") : t("no")}
+          </span>
+        )
+      },
     },
   ]
 

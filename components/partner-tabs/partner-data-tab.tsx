@@ -364,8 +364,19 @@ export default function PartnerDataTab({ partnerId, onNameChange }: PartnerDataT
             key={resetKey}
             value={partnerData.address || ""}
             onChange={(value, _placeId, components) => {
-              handleInputChange("address", value)
               if (components) {
+                const parts = [components.street, components.streetNumber].filter(Boolean)
+                let addressOnly: string
+                if (parts.length > 0) {
+                  addressOnly = parts.join(" ")
+                } else {
+                  let cleaned = value
+                  for (const part of [components.postalCode, components.city, components.province, components.country].filter(Boolean)) {
+                    cleaned = cleaned.replace(part, "")
+                  }
+                  addressOnly = cleaned.replace(/,\s*,/g, ",").replace(/^[\s,]+|[\s,]+$/g, "").trim()
+                }
+                handleInputChange("address", addressOnly || value)
                 handleInputChange("street", components.street || "")
                 handleInputChange("streetNumber", components.streetNumber || "")
                 handleInputChange("floorDoor", components.floorDoor || "")
@@ -375,6 +386,8 @@ export default function PartnerDataTab({ partnerId, onNameChange }: PartnerDataT
                 handleInputChange("postalCode", components.postalCode || "")
                 handleInputChange("latitude", components.latitude ?? null)
                 handleInputChange("longitude", components.longitude ?? null)
+              } else {
+                handleInputChange("address", value)
               }
             }}
             className="flex h-9 w-full rounded-md border border-input bg-muted/30 px-3 py-1 text-xs text-foreground ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"

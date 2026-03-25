@@ -1,12 +1,13 @@
 "use client"
 
-import { useState } from "react"
-import { X } from "lucide-react"
+import { useState, useEffect } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useAuth } from "@/hooks/use-auth"
+import { useTranslation } from "@/hooks/use-translation"
+import { toast } from "@/hooks/use-toast"
 
 interface IpDialogProps {
   open: boolean
@@ -18,9 +19,23 @@ interface IpDialogProps {
 
 export function IpDialog({ open, onOpenChange, workCenterId, ipData, onUpdate }: IpDialogProps) {
   const { session } = useAuth()
+  const { t } = useTranslation()
   const [ipAddress, setIpAddress] = useState(ipData?.ipAddress || "")
   const [active, setActive] = useState(ipData?.active || false)
   const [isSaving, setIsSaving] = useState(false)
+  const [detectedIp, setDetectedIp] = useState("")
+
+  // Detect public IP to show as placeholder suggestion
+  useEffect(() => {
+    if (open) {
+      fetch("/api/detect-ip")
+        .then(res => res.json())
+        .then(data => {
+          if (data.ip) setDetectedIp(data.ip)
+        })
+        .catch(() => {})
+    }
+  }, [open])
 
   const handleSave = async () => {
     if (!session?.accessToken) return
@@ -46,11 +61,12 @@ export function IpDialog({ open, onOpenChange, workCenterId, ipData, onUpdate }:
         onUpdate()
         onOpenChange(false)
       } else {
-        alert("Error al guardar la dirección IP")
+        const err = await response.json().catch(() => ({}))
+        toast({ title: err.message || t("ipSaveError"), variant: "destructive" })
       }
     } catch (error) {
-      console.error("Error saving IP address:", error)
-      alert("Error al guardar la dirección IP")
+      console.error("Error saving IP config:", error)
+      toast({ title: t("ipSaveError"), variant: "destructive" })
     } finally {
       setIsSaving(false)
     }
@@ -60,43 +76,44 @@ export function IpDialog({ open, onOpenChange, workCenterId, ipData, onUpdate }:
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-center">IP</DialogTitle>
+          <DialogTitle className="text-center">{t("publicIp")}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-6">
           {/* IP Address Input */}
           <div className="space-y-2">
-            <Label htmlFor="ipAddress">Dirección IP:</Label>
+            <Label htmlFor="ipAddress">{t("ipAddress")}</Label>
             <Input
               id="ipAddress"
               value={ipAddress}
               onChange={(e) => setIpAddress(e.target.value)}
-              placeholder="192.168.1.1"
+              placeholder={detectedIp || "203.0.113.1"}
             />
+            <p className="text-xs text-muted-foreground">{t("publicIpHint")}</p>
           </div>
 
           {/* Active Toggle */}
-          <div className="flex items-center gap-3">
-            <Label className="text-base font-medium">Activar:</Label>
+          <div className="flex items-center gap-2">
+            <Label className="text-sm font-medium">{t("activate")}</Label>
             <button
               type="button"
               onClick={() => setActive(!active)}
-              className={`relative inline-flex h-8 w-16 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#6B21A8] focus:ring-offset-2 ${
+              className={`relative inline-flex h-6 w-12 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#6B21A8] focus:ring-offset-2 ${
                 active ? "bg-[#6B21A8]" : "bg-gray-300"
               }`}
             >
               <span
-                className={`inline-block h-6 w-6 transform rounded-full bg-white shadow-lg transition-transform ${
-                  active ? "translate-x-9" : "translate-x-1"
+                className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-lg transition-transform ${
+                  active ? "translate-x-7" : "translate-x-0.5"
                 }`}
               />
-              <span className={`absolute text-xs font-medium transition-opacity ${
-                active ? "left-2 text-white opacity-100" : "left-2 opacity-0"
+              <span className={`absolute text-[10px] font-medium transition-opacity ${
+                active ? "left-1.5 text-white opacity-100" : "left-1.5 opacity-0"
               }`}>
-                Sí
+                {t("yes")}
               </span>
-              <span className={`absolute text-xs font-medium transition-opacity ${
-                !active ? "right-2 text-gray-600 opacity-100" : "right-2 opacity-0"
+              <span className={`absolute text-[10px] font-medium transition-opacity ${
+                !active ? "right-1.5 text-gray-600 opacity-100" : "right-1.5 opacity-0"
               }`}>
                 No
               </span>
@@ -110,7 +127,7 @@ export function IpDialog({ open, onOpenChange, workCenterId, ipData, onUpdate }:
               disabled={isSaving}
               className="bg-[#6B21A8] hover:bg-[#581C87] text-white"
             >
-              Guardar
+              {t("keep")}
             </Button>
           </div>
         </div>

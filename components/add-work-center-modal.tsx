@@ -57,9 +57,6 @@ export default function AddWorkCenterModal({
   const [validationErrors, setValidationErrors] = useState({
     name: false,
     address: false,
-    contactName: false,
-    contactPhone: false,
-    contactEmail: false,
   });
   const [showLocationPicker, setShowLocationPicker] = useState(false);
 
@@ -72,22 +69,15 @@ export default function AddWorkCenterModal({
   const handleCreate = async () => {
     setError(null);
 
-    const emailInvalid = !formData.contactEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.contactEmail);
     const errors = {
       name: !formData.name,
       address: !formData.address,
-      contactName: !formData.contactName,
-      contactPhone: !formData.contactPhone,
-      contactEmail: emailInvalid,
     };
     setValidationErrors(errors);
 
     if (
       errors.name ||
-      errors.address ||
-      errors.contactName ||
-      errors.contactPhone ||
-      errors.contactEmail
+      errors.address
     ) {
       return;
     }
@@ -194,8 +184,6 @@ export default function AddWorkCenterModal({
         setValidationErrors({
           name: false,
           address: false,
-          contactPhone: false,
-          contactEmail: false,
         });
       }, 1000);
     } catch (err: any) {
@@ -375,37 +363,18 @@ export default function AddWorkCenterModal({
 
             <div>
               <Label
-                htmlFor="postalCode"
-                className="text-sm font-medium text-foreground"
-              >
-                {t("postalCode")}
-              </Label>
-              <Input
-                id="postalCode"
-                value={formData.postalCode}
-                onChange={(e) => updateFormData("postalCode", e.target.value)}
-                placeholder="Ej. 41001"
-                className="mt-1"
-              />
-            </div>
-
-            <div>
-              <Label
                 htmlFor="contactName"
                 className="text-sm font-medium text-foreground"
               >
-                {t("responsible")} <span className="text-red-500">*</span>
+                {t("responsible")}
               </Label>
               <Input
                 id="contactName"
                 value={formData.contactName}
                 onChange={(e) => updateFormData("contactName", e.target.value)}
                 placeholder="Ej. Juan Pérez"
-                className={`mt-1 ${validationErrors.contactName ? "border-red-500" : ""}`}
+                className="mt-1"
               />
-              {validationErrors.contactName && (
-                <p className="mt-1 text-sm text-red-500">{t("thisFieldIsRequired") || "Este campo es obligatorio."}</p>
-              )}
             </div>
 
             {/*
@@ -427,7 +396,7 @@ export default function AddWorkCenterModal({
                 htmlFor="contactPhone"
                 className="text-sm font-medium text-foreground"
               >
-                {t("mobile")} <span className="text-red-500">*</span>
+                {t("mobile")}
               </Label>
               <Input
                 id="contactPhone"
@@ -439,15 +408,8 @@ export default function AddWorkCenterModal({
                 inputMode="numeric"
                 pattern="[0-9]*"
                 placeholder="Ej. 612345678"
-                className={`mt-1 ${
-                  validationErrors.contactPhone ? "border-red-500" : ""
-                }`}
+                className="mt-1"
               />
-              {validationErrors.contactPhone && (
-                <p className="mt-1 text-sm text-red-500">
-                  {t("thisFieldIsRequired") || "Este campo es obligatorio."}
-                </p>
-              )}
             </div>
 
             <div>
@@ -476,7 +438,7 @@ export default function AddWorkCenterModal({
                 htmlFor="contactEmail"
                 className="text-sm font-medium text-foreground"
               >
-                {t("email")} <span className="text-red-500">*</span>
+                {t("email")}
               </Label>
               <Input
                 id="contactEmail"
@@ -484,17 +446,8 @@ export default function AddWorkCenterModal({
                 value={formData.contactEmail}
                 onChange={(e) => updateFormData("contactEmail", e.target.value)}
                 placeholder="ejemplo@correo.com"
-                className={`mt-1 ${
-                  validationErrors.contactEmail ? "border-red-500" : ""
-                }`}
+                className="mt-1"
               />
-              {validationErrors.contactEmail && (
-                <p className="mt-1 text-sm text-red-500">
-                  {!formData.contactEmail
-                    ? (t("thisFieldIsRequired") || "Este campo es obligatorio.")
-                    : (t("invalidEmailFormat") || "Formato de email inválido (xxxx@xxx.xx)")}
-                </p>
-              )}
             </div>
 
             <div className="flex justify-end pt-4">

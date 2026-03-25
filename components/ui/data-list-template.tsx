@@ -1,8 +1,8 @@
 "use client"
 
 import type React from "react"
-import { useState, useMemo, useEffect } from "react"
-import { ChevronUp, ChevronDown, MoreVertical } from "lucide-react"
+import { useState, useMemo, useEffect, useCallback } from "react"
+import { ChevronUp, ChevronDown, MoreVertical, ChevronsLeft, ChevronsRight } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useTranslation } from "@/hooks/use-translation"
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd"
@@ -72,6 +72,7 @@ export default function DataListTemplate({
   const [filtersVisible, setFiltersVisible] = useState(false)
   const [filters, setFilters] = useState<Record<string, string>>({})
   const [searchQuery, setSearchQuery] = useState("")
+  const [goToPageInput, setGoToPageInput] = useState("")
 
   // Sync column labels when translations/props change, preserving drag-and-drop order
   useEffect(() => {
@@ -505,34 +506,118 @@ export default function DataListTemplate({
         )}
 
         {/* Pagination */}
-        {showPagination && filteredData.length > 0 && (
-          <div className="px-4 sm:px-6 py-2 flex flex-col sm:flex-row items-center justify-between gap-2 border-t border-border bg-card bg-gray-100 dark:bg-gray-800">
-            <div className="text-xs sm:text-sm text-muted-foreground text-center sm:text-left">
-              {t("showingRecordsFrom")} {((currentPage - 1) * itemsPerPage + 1)} {t("to")} {Math.min(currentPage * itemsPerPage, filteredData.length)} {t("outOfTotal")} {filteredData.length} {t("records")}
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                className="px-3 py-1 text-sm text-muted-foreground hover:text-foreground disabled:opacity-50 transition-colors"
-                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                disabled={currentPage === 1}
-              >
-                {t("back")}
-              </button>
+        {showPagination && filteredData.length > 0 && (() => {
+          const filteredTotalPages = Math.ceil(filteredData.length / itemsPerPage)
 
-              <button className="px-3 py-1 text-sm bg-[#662D91] text-white rounded-md hover:bg-[#532073] transition-colors">
-                {currentPage}
-              </button>
+          // Generate page numbers with ellipsis
+          const getPageNumbers = () => {
+            const pages: (number | string)[] = []
+            if (filteredTotalPages <= 7) {
+              for (let i = 1; i <= filteredTotalPages; i++) pages.push(i)
+            } else {
+              pages.push(1)
+              if (currentPage > 3) pages.push("...")
+              const start = Math.max(2, currentPage - 1)
+              const end = Math.min(filteredTotalPages - 1, currentPage + 1)
+              for (let i = start; i <= end; i++) pages.push(i)
+              if (currentPage < filteredTotalPages - 2) pages.push("...")
+              pages.push(filteredTotalPages)
+            }
+            return pages
+          }
 
-              <button
-                className="px-3 py-1 text-sm text-muted-foreground hover:text-foreground disabled:opacity-50 transition-colors"
-                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                disabled={currentPage === totalPages}
-              >
-                {t("next")}
-              </button>
+          const handleGoToPage = () => {
+            const page = parseInt(goToPageInput, 10)
+            if (!isNaN(page) && page >= 1 && page <= filteredTotalPages) {
+              setCurrentPage(page)
+              setGoToPageInput("")
+            }
+          }
+
+          return (
+            <div className="px-4 sm:px-6 py-2 flex flex-col items-center gap-2 border-t border-border bg-card bg-gray-100 dark:bg-gray-800">
+              {/* Page buttons */}
+              <div className="flex items-center gap-1 flex-wrap justify-center">
+                {/* First */}
+                <button
+                  className="px-1.5 sm:px-2 py-1 text-xs sm:text-sm border border-gray-300 dark:border-gray-600 rounded hover:bg-muted disabled:opacity-40 transition-colors"
+                  onClick={() => setCurrentPage(1)}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronsLeft size={14} className="sm:w-4 sm:h-4" />
+                </button>
+                {/* Previous */}
+                <button
+                  className="px-1.5 sm:px-2 py-1 text-xs sm:text-sm border border-gray-300 dark:border-gray-600 rounded hover:bg-muted disabled:opacity-40 transition-colors"
+                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                  disabled={currentPage === 1}
+                >
+                  <span className="sm:hidden">←</span>
+                  <span className="hidden sm:inline">← {t("previous")}</span>
+                </button>
+
+                {/* Page numbers */}
+                {getPageNumbers().map((page, idx) =>
+                  typeof page === "string" ? (
+                    <span key={`ellipsis-${idx}`} className="px-1 sm:px-2 py-1 text-xs sm:text-sm text-muted-foreground select-none">…</span>
+                  ) : (
+                    <button
+                      key={page}
+                      className={`px-2 sm:px-3 py-1 text-xs sm:text-sm rounded transition-colors ${
+                        page === currentPage
+                          ? "bg-[#662D91] text-white font-semibold"
+                          : "border border-gray-300 dark:border-gray-600 hover:bg-muted text-muted-foreground hover:text-foreground"
+                      }`}
+                      onClick={() => setCurrentPage(page as number)}
+                    >
+                      {page}
+                    </button>
+                  )
+                )}
+
+                {/* Next */}
+                <button
+                  className="px-1.5 sm:px-2 py-1 text-xs sm:text-sm border border-gray-300 dark:border-gray-600 rounded hover:bg-muted disabled:opacity-40 transition-colors"
+                  onClick={() => setCurrentPage(Math.min(filteredTotalPages, currentPage + 1))}
+                  disabled={currentPage === filteredTotalPages}
+                >
+                  <span className="sm:hidden">→</span>
+                  <span className="hidden sm:inline">{t("next")} →</span>
+                </button>
+                {/* Last */}
+                <button
+                  className="px-1.5 sm:px-2 py-1 text-xs sm:text-sm border border-gray-300 dark:border-gray-600 rounded hover:bg-muted disabled:opacity-40 transition-colors"
+                  onClick={() => setCurrentPage(filteredTotalPages)}
+                  disabled={currentPage === filteredTotalPages}
+                >
+                  <ChevronsRight size={14} className="sm:w-4 sm:h-4" />
+                </button>
+              </div>
+
+              {/* Go to page */}
+              {filteredTotalPages > 7 && (
+                <div className="flex items-center gap-2 text-xs sm:text-sm">
+                  <span className="text-muted-foreground">{t("goToPage")}:</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={filteredTotalPages}
+                    value={goToPageInput}
+                    onChange={(e) => setGoToPageInput(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleGoToPage()}
+                    className="w-16 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:border-[#662D91] focus:ring-1 focus:ring-[#662D91] bg-background"
+                  />
+                  <button
+                    onClick={handleGoToPage}
+                    className="px-3 py-1 text-sm bg-[#662D91] text-white rounded hover:bg-[#532073] transition-colors"
+                  >
+                    {t("go")}
+                  </button>
+                </div>
+              )}
             </div>
-          </div>
-        )}
+          )
+        })()}
       </div>
 
       {/* Mobile Add Icon (Positioned at bottom right of screen) */}

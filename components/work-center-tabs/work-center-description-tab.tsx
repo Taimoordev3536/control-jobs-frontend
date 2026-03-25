@@ -111,10 +111,7 @@ export function WorkCenterDescriptionTab({ workCenter, onUpdate }: WorkCenterDes
     // Validate required fields
     const missing: string[] = []
     if (!formData.denomination?.trim()) missing.push(t("denomination") || "Denominación")
-    if (!formData.responsible?.trim()) missing.push(t("responsible") || "Responsable")
     if (!formData.address?.trim()) missing.push(t("address") || "Dirección")
-    if (!formData.mobile?.trim()) missing.push(t("mobile") || "Móvil")
-    if (!formData.email?.trim() || !isValidEmail(formData.email)) missing.push(t("email") || "Email")
 
     if (missing.length > 0) {
       toast({
@@ -245,10 +242,10 @@ export function WorkCenterDescriptionTab({ workCenter, onUpdate }: WorkCenterDes
       <div className="overflow-x-auto">
       <div className="space-y-3 pt-1 px-2" style={{ minWidth: "900px" }}>
 
-        {/* Row 1: Denomination(35%) + Responsible(13%) = 48%; Teléfono 13%, Móvil 13%, Email 20% */}
+        {/* Row 1: Denominación(50%) + Responsable(10%) = 60% | Móvil 15% | Email 20% */}
         <div className="flex gap-3 items-end">
-          <div className="flex gap-3 items-end min-w-0" style={{ flex: "0 0 48%" }}>
-            <div className="space-y-1 min-w-0" style={{ flex: "35 1 0%" }}>
+          <div className="flex gap-3 items-end min-w-0" style={{ flex: "0 0 60%" }}>
+            <div className="space-y-1 min-w-0" style={{ flex: "40 1 0%" }}>
               <Label htmlFor="denomination" className="text-xs font-medium text-foreground">
                 {t("denomination") || "Denominación"} <span className="text-red-500">*</span>
               </Label>
@@ -259,9 +256,9 @@ export function WorkCenterDescriptionTab({ workCenter, onUpdate }: WorkCenterDes
                 className="h-9 text-xs bg-muted/30 border-input text-foreground"
               />
             </div>
-            <div className="space-y-1 min-w-0" style={{ flex: "13 1 0%" }}>
+            <div className="space-y-1 min-w-0" style={{ flex: "20 1 0%" }}>
               <Label htmlFor="responsible" className="text-xs font-medium text-foreground">
-                {t("responsible") || "Responsable"} <span className="text-red-500">*</span>
+                {t("responsible") || "Responsable"}
               </Label>
               <Input
                 id="responsible"
@@ -271,24 +268,9 @@ export function WorkCenterDescriptionTab({ workCenter, onUpdate }: WorkCenterDes
               />
             </div>
           </div>
-          <div className="space-y-1 min-w-0" style={{ flex: "0 0 13%" }}>
-            <Label htmlFor="phone" className="text-xs font-medium text-foreground">
-              {t("phone") || "Teléfono"}
-            </Label>
-            <Input
-              id="phone"
-              value={formData.phone}
-              onChange={(e) => {
-                const val = e.target.value.replace(/[^0-9]/g, "")
-                handleChange("phone", val)
-              }}
-              inputMode="numeric"
-              className="h-9 text-xs bg-muted/30 border-input text-foreground"
-            />
-          </div>
-          <div className="space-y-1 min-w-0" style={{ flex: "0 0 13%" }}>
+          <div className="space-y-1 min-w-0" style={{ flex: "0 0 15%" }}>
             <Label htmlFor="mobile" className="text-xs font-medium text-foreground">
-              {t("mobile") || "Móvil"} <span className="text-red-500">*</span>
+              {t("mobile") || "Móvil"}
             </Label>
             <Input
               id="mobile"
@@ -303,7 +285,7 @@ export function WorkCenterDescriptionTab({ workCenter, onUpdate }: WorkCenterDes
           </div>
           <div className="space-y-1 min-w-0" style={{ flex: "0 0 22%" }}>
             <Label htmlFor="email" className="text-xs font-medium text-foreground">
-              {t("email") || "Email"} <span className="text-red-500">*</span>
+              {t("email") || "Email"}
             </Label>
             <Input
               id="email"
@@ -315,9 +297,9 @@ export function WorkCenterDescriptionTab({ workCenter, onUpdate }: WorkCenterDes
           </div>
         </div>
 
-        {/* Row 2: Dirección 48%, Piso/Puerta 12%, Código Postal 12%, Localidad 16% */}
+        {/* Row 2: Dirección 60% | Teléfono 15% */}
         <div className="flex gap-3 items-end">
-          <div className="space-y-1 min-w-0" style={{ flex: "0 0 48%" }}>
+          <div className="space-y-1 min-w-0" style={{ flex: "0 0 60%" }}>
             <Label htmlFor="address" className="text-xs font-medium text-foreground flex items-center gap-1">
               {t("address") || "Dirección"} <span className="text-red-500">*</span> {tip(t("addressTip") || "Empieza a escribir para buscar una dirección")}
             </Label>
@@ -374,92 +356,48 @@ export function WorkCenterDescriptionTab({ workCenter, onUpdate }: WorkCenterDes
               }}
             />
           </div>
-          <div className="space-y-1 min-w-0" style={{ flex: "0 0 13%" }}>
-            <Label htmlFor="floorDoor" className="text-xs font-medium text-foreground">
-              {t("floorDoor") || "Piso/Puerta"}
+          <div className="space-y-1 min-w-0" style={{ flex: "0 0 15%" }}>
+            <Label htmlFor="phone" className="text-xs font-medium text-foreground">
+              {t("phone") || "Teléfono"}
             </Label>
             <Input
-              id="floorDoor"
-              value={formData.floorDoor}
-              onChange={(e) => handleChange("floorDoor", e.target.value)}
-              className="h-9 text-xs bg-muted/30 border-input text-foreground"
-            />
-          </div>
-          <div className="space-y-1 min-w-0" style={{ flex: "0 0 12%" }}>
-            <Label htmlFor="postalCode" className="text-xs font-medium text-foreground">
-              {t("postalCode") || "Código Postal"}
-            </Label>
-            <Input
-              id="postalCode"
-              value={formData.postalCode}
+              id="phone"
+              value={formData.phone}
               onChange={(e) => {
                 const val = e.target.value.replace(/[^0-9]/g, "")
-                handleChange("postalCode", val)
+                handleChange("phone", val)
               }}
               inputMode="numeric"
               className="h-9 text-xs bg-muted/30 border-input text-foreground"
             />
           </div>
-          <div className="space-y-1 min-w-0" style={{ flex: "0 0 16%" }}>
-            <Label htmlFor="city" className="text-xs font-medium text-foreground">
-              {t("city") || "Localidad"}
-            </Label>
-            <Input
-              id="city"
-              value={formData.city}
-              onChange={(e) => handleChange("city", e.target.value)}
-              className="h-9 text-xs bg-muted/30 border-input text-foreground"
-            />
-          </div>
         </div>
 
-        {/* Row 3: Provincia(24%) + País(24%) = 48%; Latitude 15%, Longitude 15% */}
+        {/* Row 3: Latitud(30%) + Longitud(30%) = 60% */}
         <div className="flex gap-3 items-end">
-          <div className="flex gap-3 items-end min-w-0" style={{ flex: "0 0 48%" }}>
-            <div className="space-y-1 min-w-0" style={{ flex: "0 0 calc(50% - 0.375rem)" }}>
-              <Label htmlFor="province" className="text-xs font-medium text-foreground">
-                {t("province") || "Provincia"}
+          <div className="flex gap-3 items-end min-w-0" style={{ flex: "0 0 30%" }}>
+            <div className="space-y-1 min-w-0" style={{ flex: "1 1 0%" }}>
+              <Label htmlFor="latitude" className="text-xs font-medium text-foreground">
+                {t("latitude") || "Latitud"}
               </Label>
               <Input
-                id="province"
-                value={formData.province}
-                onChange={(e) => handleChange("province", e.target.value)}
-                className="h-9 text-xs bg-muted/30 border-input text-foreground"
+                id="latitude"
+                value={formData.latitude ?? ""}
+                readOnly
+                className="h-9 text-xs bg-muted/50 border-input text-muted-foreground cursor-default"
               />
             </div>
-            <div className="space-y-1 min-w-0" style={{ flex: "0 0 calc(50% - 0.375rem)" }}>
-              <Label htmlFor="country" className="text-xs font-medium text-foreground">
-                {t("country") || "País"}
+            <div className="space-y-1 min-w-0" style={{ flex: "1 1 0%" }}>
+              <Label htmlFor="longitude" className="text-xs font-medium text-foreground">
+                {t("longitude") || "Longitud"}
               </Label>
               <Input
-                id="country"
-                value={formData.country}
-                onChange={(e) => handleChange("country", e.target.value)}
-                className="h-9 text-xs bg-muted/30 border-input text-foreground"
+                id="longitude"
+                value={formData.longitude ?? ""}
+                readOnly
+                className="h-9 text-xs bg-muted/50 border-input text-muted-foreground cursor-default"
               />
             </div>
-          </div>
-          <div className="space-y-1 min-w-0" style={{ flex: "0 0 13%" }}>
-            <Label htmlFor="latitude" className="text-xs font-medium text-foreground flex items-center gap-1">
-              {t("latitude") || "Latitud"} {tip(t("latLngTip") || "Se rellena automáticamente al seleccionar una dirección de Google")}
-            </Label>
-            <Input
-              id="latitude"
-              value={formData.latitude ?? ""}
-              readOnly
-              className="h-9 text-xs bg-muted/50 border-input text-muted-foreground cursor-default"
-            />
-          </div>
-          <div className="space-y-1 min-w-0" style={{ flex: "0 0 13%" }}>
-            <Label htmlFor="longitude" className="text-xs font-medium text-foreground">
-              {t("longitude") || "Longitud"}
-            </Label>
-            <Input
-              id="longitude"
-              value={formData.longitude ?? ""}
-              readOnly
-              className="h-9 text-xs bg-muted/50 border-input text-muted-foreground cursor-default"
-            />
           </div>
         </div>
 

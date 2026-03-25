@@ -433,8 +433,19 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded, 
                 <GoogleAddressInput
                   value={formData.address}
                   onChange={(value, placeId, components) => {
-                    updateFormData("address", value)
                     if (components) {
+                      const parts = [components.street, components.streetNumber].filter(Boolean)
+                      let addressOnly: string
+                      if (parts.length > 0) {
+                        addressOnly = parts.join(" ")
+                      } else {
+                        let cleaned = value
+                        for (const part of [components.postalCode, components.city, components.province, components.country].filter(Boolean)) {
+                          cleaned = cleaned.replace(part, "")
+                        }
+                        addressOnly = cleaned.replace(/,\s*,/g, ",").replace(/^[\s,]+|[\s,]+$/g, "").trim()
+                      }
+                      updateFormData("address", addressOnly || value)
                       updateFormData("street", components.street || "")
                       updateFormData("streetNumber", components.streetNumber || "")
                       updateFormData("floorDoor", components.floorDoor || "")
@@ -444,6 +455,8 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded, 
                       updateFormData("postalCode", components.postalCode || "")
                       updateFormData("latitude", components.latitude || null)
                       updateFormData("longitude", components.longitude || null)
+                    } else {
+                      updateFormData("address", value)
                     }
                   }}
                   placeholder="Calle, Número, Ciudad..."

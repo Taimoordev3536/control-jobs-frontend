@@ -6,6 +6,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { useAuth } from "@/hooks/use-auth"
+import { useTranslation } from "@/hooks/use-translation"
+import { toast } from "@/hooks/use-toast"
 import { Input } from "@/components/ui/input"
 import { AnimatedLoader } from "@/components/animated-loader"
 import ControlJobsLogo from "@/icons/Logos/ControlJobs.svg"
@@ -25,13 +27,14 @@ interface QrCodeData {
 interface WorkCenterData {
   id: number
   name: string
-  job?: {
-    id: number
+  locality?: string
+  clientName?: string
+  employer?: {
     name: string
-    client?: {
-      id: number
-      name: string
-    }
+    address?: string
+    postalCode?: string
+    city?: string
+    province?: string
   }
 }
 
@@ -43,57 +46,167 @@ interface QrCodeDialogProps {
   onUpdate: () => void
 }
 
+// Auto-size dual lines: both lines share the SAME font size (determined by the longer text)
+function AutoSizeDualLine({ line1, line2, maxFontSize, minFontSize = 8, style }: {
+  line1: string; line2?: string; maxFontSize: number; minFontSize?: number; style?: React.CSSProperties
+}) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const text1Ref = useRef<HTMLSpanElement>(null)
+  const text2Ref = useRef<HTMLSpanElement>(null)
+  const [fontSize, setFontSize] = useState(maxFontSize)
+
+  useEffect(() => {
+    if (!containerRef.current || !text1Ref.current) return
+    const containerWidth = containerRef.current.clientWidth
+    if (containerWidth === 0) return
+    let size = maxFontSize
+    const applySize = (s: number) => {
+      text1Ref.current!.style.fontSize = `${s}px`
+      if (text2Ref.current) text2Ref.current.style.fontSize = `${s}px`
+    }
+    applySize(size)
+    while (size > minFontSize) {
+      const over1 = text1Ref.current.scrollWidth > containerWidth
+      const over2 = text2Ref.current ? text2Ref.current.scrollWidth > containerWidth : false
+      if (!over1 && !over2) break
+      size -= 1
+      applySize(size)
+    }
+    setFontSize(size)
+  }, [line1, line2, maxFontSize, minFontSize])
+
+  return (
+    <div ref={containerRef} style={{ width: '100%', overflow: 'hidden', textAlign: 'center' }}>
+      <span ref={text1Ref} style={{ fontSize: `${fontSize}px`, whiteSpace: 'nowrap', display: 'block', ...style }}>
+        {line1}
+      </span>
+      {line2 && (
+        <span ref={text2Ref} style={{ fontSize: `${fontSize}px`, whiteSpace: 'nowrap', display: 'block', marginTop: '1mm', ...style }}>
+          {line2}
+        </span>
+      )}
+    </div>
+  )
+}
+
+// Auto-sizing single line text
+function AutoSizeText({ text, maxFontSize, minFontSize = 8, style }: { text: string; maxFontSize: number; minFontSize?: number; style?: React.CSSProperties }) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const textRef = useRef<HTMLSpanElement>(null)
+  const [fontSize, setFontSize] = useState(maxFontSize)
+
+  useEffect(() => {
+    if (!containerRef.current || !textRef.current) return
+    const containerWidth = containerRef.current.clientWidth
+    if (containerWidth === 0) return
+    let size = maxFontSize
+    textRef.current.style.fontSize = `${size}px`
+    while (textRef.current.scrollWidth > containerWidth && size > minFontSize) {
+      size -= 1
+      textRef.current.style.fontSize = `${size}px`
+    }
+    setFontSize(size)
+  }, [text, maxFontSize, minFontSize])
+
+  return (
+    <div ref={containerRef} style={{ width: '100%', overflow: 'hidden' }}>
+      <span ref={textRef} style={{ fontSize: `${fontSize}px`, whiteSpace: 'nowrap', display: 'block', ...style }}>
+        {text}
+      </span>
+    </div>
+  )
+}
+
 // Printable QR Component
 interface PrintableQrProps {
   qrImage: string
   workCenterName: string
+  workCenterCity: string
   clientName: string
+  employer?: {
+    name: string
+    address?: string
+    postalCode?: string
+    city?: string
+    province?: string
+  }
 }
 
-const PrintableQr = forwardRef<HTMLDivElement, PrintableQrProps>(({ qrImage, workCenterName, clientName }, ref) => (
-  <div ref={ref} style={{ 
-    width: '210mm',
-    height: '297mm',
+const PrintableQr = forwardRef<HTMLDivElement, PrintableQrProps>(({ qrImage, workCenterName, workCenterCity, clientName, employer }, ref) => (
+  <div ref={ref} id="printable-qr-root" style={{ 
+    width: '100%',
+    height: '100%',
     margin: 0, 
-    padding: '12px',
-    backgroundColor: 'white',
-    display: 'flex',
+    padding: 0,
+    backgroundColor: '#a6a6a6',
     boxSizing: 'border-box' as const,
+    overflow: 'hidden',
   }}>
+    {/* Gray frame with generous padding acting as the visible border */}
     <div style={{
-      backgroundColor: '#a6a6a6',
       width: '100%',
-      flex: 1,
-      padding: '4mm',
+      height: '100%',
+      padding: '3%',
       display: 'flex',
       flexDirection: 'column' as const,
+      gap: '3%',
       boxSizing: 'border-box' as const,
     }}>
-      <div style={{ backgroundColor: 'white', margin: '0 12px 35px', padding: '40px' }}>
-        <h1 style={{ fontSize: '3rem', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'black', textAlign: 'center', margin: 0 }}>
-          {workCenterName}
-        </h1>
+      {/* Work Center Name + City block */}
+      <div style={{ flex: '0 0 10%', backgroundColor: 'white', padding: '2% 3%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxSizing: 'border-box' as const }}>
+        <AutoSizeDualLine
+          line1={workCenterName.toUpperCase()}
+          line2={workCenterCity ? workCenterCity.toUpperCase() : undefined}
+          maxFontSize={36}
+          style={{ fontWeight: 'bold', letterSpacing: '0.05em', color: 'black', textAlign: 'center' }}
+        />
       </div>
-      
-      <div style={{ backgroundColor: 'white', margin: '0 12px 35px', padding: '24px', flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+
+      {/* QR Code block — large, minimal inner padding so QR fills the box */}
+      <div style={{ flex: '1 1 auto', backgroundColor: 'white', padding: '1%', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', boxSizing: 'border-box' as const }}>
         {qrImage ? (
-          <img src={qrImage} alt="QR Code" style={{ width: '500px', height: '500px', objectFit: 'contain' }} crossOrigin="anonymous" />
+          <img src={qrImage} alt="QR Code" style={{ width: '100%', height: '100%', objectFit: 'contain' }} crossOrigin="anonymous" />
         ) : (
-          <div style={{ width: '500px', height: '500px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f3f4f6', border: '2px dashed #d1d5db' }}>
+          <div style={{ width: '200px', height: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f3f4f6', border: '2px dashed #d1d5db' }}>
             <span style={{ color: '#6b7280' }}>QR Code</span>
           </div>
         )}
       </div>
-      
-      <div style={{ backgroundColor: 'white', margin: '0 12px 35px', padding: '40px' }}>
-        <h2 style={{ fontSize: '2.25rem', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'black', textAlign: 'center', margin: 0 }}>
-          {clientName}
-        </h2>
+
+      {/* Client Name block */}
+      <div style={{ flex: '0 0 6%', backgroundColor: 'white', padding: '1% 3%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxSizing: 'border-box' as const }}>
+        <AutoSizeText
+          text={clientName.toUpperCase()}
+          maxFontSize={26}
+          style={{ fontWeight: 'bold', letterSpacing: '0.05em', color: 'black', textAlign: 'center' }}
+        />
       </div>
-      
-      <div style={{ padding: '32px 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '24px' }}>
-        <span style={{ color: '#1f2937', fontSize: '1.5rem', fontWeight: '500' }}>Powered by</span>
-        <ControlJobsLogo style={{ height: '48px', width: '192px', opacity: 0.9 }} />
+
+      {/* Bottom area: Employer info (left) + ControlJobs (right) */}
+      <div style={{ flex: '0 0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', padding: '0 0.5%' }}>
+        {/* Employer info — white italic text on gray */}
+        <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '2px' }}>
+          {employer?.name && (
+            <span style={{ color: 'white', fontSize: '14px', fontWeight: 'bold', fontStyle: 'italic', lineHeight: 1.4 }}>{employer.name}</span>
+          )}
+          {employer?.address && (
+            <span style={{ color: 'white', fontSize: '14px', fontStyle: 'italic', lineHeight: 1.4 }}>{employer.address}</span>
+          )}
+          {(employer?.postalCode || employer?.city) && (
+            <span style={{ color: 'white', fontSize: '14px', fontStyle: 'italic', lineHeight: 1.4 }}>
+              {[employer.postalCode, employer.city].filter(Boolean).join(' ')}
+            </span>
+          )}
+          {employer?.province && (
+            <span style={{ color: 'white', fontSize: '14px', fontStyle: 'italic', lineHeight: 1.4 }}>{employer.province}</span>
+          )}
+        </div>
+
+        {/* ControlJobs branding — bottom right */}
+        <div style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'flex-end', gap: '1mm' }}>
+          <span style={{ color: '#374151', fontSize: '10px', fontWeight: '500' }}>Powered by</span>
+          <ControlJobsLogo style={{ height: '36px', width: '150px', opacity: 0.9 }} />
+        </div>
       </div>
     </div>
   </div>
@@ -102,6 +215,7 @@ PrintableQr.displayName = 'PrintableQr'
 
 export function QrCodeDialog({ open, onOpenChange, workCenterId, qrData, onUpdate }: QrCodeDialogProps) {
   const { session } = useAuth()
+  const { t } = useTranslation()
   const [qrType, setQrType] = useState<"STATIC" | "DYNAMIC">("STATIC")
   const [staticQr, setStaticQr] = useState<QrCodeData | null>(null)
   const [dynamicQr, setDynamicQr] = useState<QrCodeData | null>(null)
@@ -123,20 +237,19 @@ const handlePrint = useReactToPrint({
   contentRef: printRef,
   documentTitle: '',
   pageStyle: `
-    @page { size: A4; margin: 0 !important; }
-    html, body { margin: 0 !important; padding: 0 !important; background: white !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-    * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    @page { margin: 0 !important; padding: 0 !important; }
+    html, body { margin: 0 !important; padding: 0 !important; width: 100%; height: 100%; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; box-sizing: border-box !important; }
+    #printable-qr-root { width: 100vw !important; height: 100vh !important; overflow: hidden !important; }
   `,
 })
 
 
   const printQr = () => {
     if (!selectedQr?.qrImage) {
-      alert("No hay código QR disponible para imprimir")
+      toast({ title: t("noQrToPrint"), variant: "destructive" })
       return
     }
-    console.log('Print ref:', printRef.current)
-    console.log('Selected QR:', selectedQr)
     handlePrint()
   }
 
@@ -222,16 +335,18 @@ const handlePrint = useReactToPrint({
         const result = await response.json()
         if (result.isSuccess && result.data) {
           const data = result.data
+          const emp = data.employer
           setWorkCenterData({
             id: data.id,
             name: data.name,
-            job: data.job ? {
-              id: data.job.id,
-              name: data.job.name || data.job.description,
-              client: data.job.client ? {
-                id: data.job.client.id,
-                name: data.job.client.name || data.job.client.razonSocial
-              } : undefined
+            locality: data.locality || data.city || "",
+            clientName: data.client?.name || "",
+            employer: emp ? {
+              name: emp.name,
+              address: emp.address,
+              postalCode: emp.postalCode || emp.postal_code,
+              city: emp.city,
+              province: emp.province,
             } : undefined
           })
         }
@@ -265,11 +380,11 @@ const handlePrint = useReactToPrint({
         await fetchQrCodes()
         // Don't call onUpdate() here to keep dialog open
       } else {
-        alert("Error al activar el código QR")
+        toast({ title: t("qrActivateError"), variant: "destructive" })
       }
     } catch (error) {
       console.error("Error activating QR:", error)
-      alert("Error al activar el código QR")
+      toast({ title: t("qrActivateError"), variant: "destructive" })
     } finally {
       setIsSaving(false)
     }
@@ -299,11 +414,11 @@ const handlePrint = useReactToPrint({
         await fetchQrCodes()
         // Don't call onUpdate() here to keep dialog open
       } else {
-        alert("Error al desactivar el código QR")
+        toast({ title: t("qrDeactivateError"), variant: "destructive" })
       }
     } catch (error) {
       console.error("Error deactivating QR:", error)
-      alert("Error al desactivar el código QR")
+      toast({ title: t("qrDeactivateError"), variant: "destructive" })
     } finally {
       setIsSaving(false)
     }
@@ -329,16 +444,16 @@ const handlePrint = useReactToPrint({
       )
 
       if (response.ok) {
-        alert("Email enviado correctamente")
+        toast({ title: t("emailSentSuccess") })
         setShowEmailInput(false)
         setClientEmail("")
       } else {
         const error = await response.json()
-        alert(error.message || "Error al enviar el email")
+        toast({ title: error.message || t("emailSendError"), variant: "destructive" })
       }
     } catch (error) {
       console.error("Error sending email:", error)
-      alert("Error al enviar el email")
+      toast({ title: t("emailSendError"), variant: "destructive" })
     } finally {
       setIsSendingEmail(false)
     }
@@ -367,15 +482,15 @@ const handlePrint = useReactToPrint({
       )
 
       if (response.ok) {
-        alert("Código QR estático regenerado correctamente")
+        toast({ title: t("qrRegenerateSuccess") })
         await fetchQrCodes()
       } else {
         const error = await response.json()
-        alert(error.message || "Error al regenerar el código QR")
+        toast({ title: error.message || t("qrRegenerateError"), variant: "destructive" })
       }
     } catch (error) {
       console.error("Error regenerating QR:", error)
-      alert("Error al regenerar el código QR")
+      toast({ title: t("qrRegenerateError"), variant: "destructive" })
     } finally {
       setIsRegenerating(false)
     }
@@ -398,7 +513,12 @@ const handlePrint = useReactToPrint({
     }}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle className="text-center">Código QR - Centro de Trabajo</DialogTitle>
+          <DialogTitle className="text-center">
+            <div className="text-base font-bold uppercase tracking-wide">{workCenterData?.name || t("workCenter")}</div>
+            {workCenterData?.locality && (
+              <div className="text-sm font-normal text-muted-foreground">{workCenterData.locality}</div>
+            )}
+          </DialogTitle>
           <DialogDescription className="sr-only">
             Configuración del código QR estático o dinámico para el centro de trabajo
           </DialogDescription>
@@ -407,7 +527,7 @@ const handlePrint = useReactToPrint({
         {isLoading ? (
           <AnimatedLoader size={32} className="py-8" />
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-4">
             {/* QR Type Toggle */}
             <div className="flex justify-center">
               <div className="inline-flex rounded-lg border border-gray-300 overflow-hidden">
@@ -421,7 +541,7 @@ const handlePrint = useReactToPrint({
                       : "bg-white text-gray-700 hover:bg-gray-50"
                   } disabled:opacity-50`}
                 >
-                  Estático
+                  {t("qrStatic")}
                 </button>
                 <button
                   type="button"
@@ -433,36 +553,52 @@ const handlePrint = useReactToPrint({
                       : "bg-white text-gray-700 hover:bg-gray-50"
                   } disabled:opacity-50`}
                 >
-                  Dinámico
+                  {t("qrDynamic")}
                 </button>
               </div>
             </div>
 
-            {/* QR Code Display */}
-            <div className="flex flex-col items-center gap-3">
+            {/* QR Code Display - fixed height to prevent layout shift between tabs */}
+            <div className="flex flex-col items-center gap-2">
               {selectedQr?.qrImage ? (
-                <>
-                  <img src={selectedQr.qrImage} alt="QR Code" className="w-56 h-56 border-2 border-gray-200 rounded-lg" />
-                  {qrType === "DYNAMIC" && timeUntilExpiry && (
-                    <div className="text-sm text-gray-600 font-medium">
-                      Expira en: <span className="text-[#6B21A8]">{timeUntilExpiry}</span>
-                    </div>
-                  )}
-                </>
+                <img src={selectedQr.qrImage} alt="QR Code" className="w-48 h-48 border-2 border-gray-200 rounded-lg" />
               ) : (
-                <div className="w-56 h-56 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center text-gray-400">
+                <div className="w-48 h-48 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center text-gray-400">
                   <div className="text-center">
                     <QrCode className="h-12 w-12 mx-auto mb-2 opacity-30" />
-                    <p className="text-sm">No hay código QR {qrType === "STATIC" ? "estático" : "dinámico"}</p>
+                    <p className="text-sm">
+                      {qrType === "DYNAMIC"
+                        ? t("dynamicQrInactive")
+                        : t("staticQrInactive")}
+                    </p>
                   </div>
                 </div>
               )}
+              {/* Always render progress bar row to keep consistent height */}
+              <div className="w-48 h-2">
+                {qrType === "DYNAMIC" && isActive && selectedQr?.qrImage && timeUntilExpiry && (
+                  <div className="h-2 w-full rounded-full bg-gray-200 overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-[#6B21A8] transition-all duration-1000 ease-linear"
+                      style={{
+                        width: (() => {
+                          if (!dynamicQr?.expiresAt) return '0%'
+                          const now = new Date().getTime()
+                          const expiry = new Date(dynamicQr.expiresAt).getTime()
+                          const remaining = Math.max(0, expiry - now)
+                          return `${Math.min(100, (remaining / 30000) * 100)}%`
+                        })(),
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Active Toggle */}
             <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <Label className="text-base font-medium">Estado:</Label>
+              <div className="flex items-center gap-2">
+                <Label className="text-sm font-medium">{t("activate")}</Label>
                 <button
                   type="button"
                   onClick={(e) => {
@@ -471,34 +607,34 @@ const handlePrint = useReactToPrint({
                     isActive ? handleDeactivateQr() : handleActivateQrType(qrType)
                   }}
                   disabled={isSaving}
-                  className={`relative inline-flex h-8 w-16 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#6B21A8] focus:ring-offset-2 disabled:opacity-50 ${
+                  className={`relative inline-flex h-6 w-12 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#6B21A8] focus:ring-offset-2 disabled:opacity-50 ${
                     isActive ? "bg-[#6B21A8]" : "bg-gray-300"
                   }`}
                 >
                   <span
-                    className={`inline-block h-6 w-6 transform rounded-full bg-white shadow-lg transition-transform ${
-                      isActive ? "translate-x-9" : "translate-x-1"
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-lg transition-transform ${
+                      isActive ? "translate-x-7" : "translate-x-0.5"
                     }`}
                   />
                   <span
-                    className={`absolute text-xs font-medium transition-opacity ${
-                      isActive ? "left-2 text-white opacity-100" : "left-2 opacity-0"
+                    className={`absolute text-[10px] font-medium transition-opacity ${
+                      isActive ? "left-1.5 text-white opacity-100" : "left-1.5 opacity-0"
                     }`}
                   >
-                    Sí
+                    {t("yes")}
                   </span>
                   <span
-                    className={`absolute text-xs font-medium transition-opacity ${
-                      !isActive ? "right-2 text-gray-600 opacity-100" : "right-2 opacity-0"
+                    className={`absolute text-[10px] font-medium transition-opacity ${
+                      !isActive ? "right-1.5 text-gray-600 opacity-100" : "right-1.5 opacity-0"
                     }`}
                   >
-                    No
+                    {t("no")}
                   </span>
                 </button>
               </div>
 
-              {/* Action Buttons */}
-              <div className="flex items-center gap-2">
+              {/* Action Buttons - always reserve space for consistent layout */}
+              <div className="flex items-center gap-2 min-h-[36px]">
                 {selectedQr?.isSelected && qrType === "STATIC" && (
                   <>
                     <Button 
@@ -538,7 +674,7 @@ const handlePrint = useReactToPrint({
             {/* Email Input */}
             {showEmailInput && qrType === "STATIC" && (
               <div className="space-y-3 p-4 bg-gray-50 rounded-lg">
-                <Label className="text-sm font-medium">Enviar QR estático por email:</Label>
+                <Label className="text-sm font-medium">{t("sendStaticQrByEmail")}</Label>
                 <div className="flex gap-2">
                   <Input
                     type="email"
@@ -552,11 +688,11 @@ const handlePrint = useReactToPrint({
                     disabled={!clientEmail || isSendingEmail}
                     className="bg-[#6B21A8] hover:bg-[#581C87] text-white"
                   >
-                    {isSendingEmail ? "Enviando..." : "Enviar"}
+                    {isSendingEmail ? t("sending") : t("send")}
                   </Button>
                 </div>
                 <p className="text-xs text-gray-500">
-                  El cliente recibirá el código QR estático por email para imprimirlo
+                  {t("sendStaticQrHint")}
                 </p>
               </div>
             )}
@@ -564,13 +700,15 @@ const handlePrint = useReactToPrint({
         )}
       </DialogContent>
       
-      {/* Hidden printable component */}
-      <div style={{ display: 'none' }}>
+      {/* Hidden printable component — offscreen (not display:none) so refs can measure */}
+      <div style={{ position: 'fixed', left: '-9999px', top: 0, width: '148mm', height: '210mm' }}>
         <PrintableQr 
           ref={printRef}
           qrImage={selectedQr?.qrImage || ''}
           workCenterName={workCenterData?.name || "WORKCENTER 1"}
-          clientName={workCenterData?.job?.client?.name || "CLIENTE"}
+          workCenterCity={workCenterData?.locality || ""}
+          clientName={workCenterData?.clientName || "CLIENTE"}
+          employer={workCenterData?.employer}
         />
       </div>
     </Dialog>

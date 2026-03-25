@@ -382,8 +382,21 @@ export default function AddClientModal({ open, onOpenChange, onClientAdded }: Ad
                 <GoogleAddressInput
                   value={formData.address}
                   onChange={(value, placeId, components) => {
-                    updateFormData("address", value)
                     if (components) {
+                      // Store only street + number in address field; other parts go to their own fields
+                      const parts = [components.street, components.streetNumber].filter(Boolean)
+                      let addressOnly: string
+                      if (parts.length > 0) {
+                        addressOnly = parts.join(" ")
+                      } else {
+                        // No street/number (Plus Codes, business names, etc.) — strip city/province/country/postalCode from the full address
+                        let cleaned = value
+                        for (const part of [components.postalCode, components.city, components.province, components.country].filter(Boolean)) {
+                          cleaned = cleaned.replace(part, "")
+                        }
+                        addressOnly = cleaned.replace(/,\s*,/g, ",").replace(/^[\s,]+|[\s,]+$/g, "").trim()
+                      }
+                      updateFormData("address", addressOnly || value)
                       if (components.street) updateFormData("street", components.street)
                       if (components.streetNumber) updateFormData("streetNumber", components.streetNumber)
                       if (components.floorDoor) updateFormData("floorDoor", components.floorDoor)
@@ -393,6 +406,9 @@ export default function AddClientModal({ open, onOpenChange, onClientAdded }: Ad
                       if (components.postalCode) updateFormData("postalCode", components.postalCode)
                       if (components.latitude) updateFormData("latitude", components.latitude)
                       if (components.longitude) updateFormData("longitude", components.longitude)
+                    } else {
+                      // Manual typing (no Google selection)
+                      updateFormData("address", value)
                     }
                   }}
                   placeholder="Calle, Número, Ciudad..."

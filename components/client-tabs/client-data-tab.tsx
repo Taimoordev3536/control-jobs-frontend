@@ -423,8 +423,21 @@ export function ClientDataTab({ clientId }: ClientDataTabProps) {
           <GoogleAddressInput
             value={clientData.address || ""}
             onChange={(value, placeId, components) => {
-              handleInputChange("address", value)
               if (components) {
+                // Store only street + number in address field; other parts go to their own fields
+                const parts = [components.street, components.streetNumber].filter(Boolean)
+                let addressOnly: string
+                if (parts.length > 0) {
+                  addressOnly = parts.join(" ")
+                } else {
+                  // No street/number (Plus Codes, business names, etc.) — strip city/province/country/postalCode from the full address
+                  let cleaned = value
+                  for (const part of [components.postalCode, components.city, components.province, components.country].filter(Boolean)) {
+                    cleaned = cleaned.replace(part, "")
+                  }
+                  addressOnly = cleaned.replace(/,\s*,/g, ",").replace(/^[\s,]+|[\s,]+$/g, "").trim()
+                }
+                handleInputChange("address", addressOnly || value)
                 if (components.street) handleInputChange("street", components.street)
                 if (components.streetNumber) handleInputChange("streetNumber", components.streetNumber)
                 if (components.floorDoor) handleInputChange("floorDoor", components.floorDoor)
@@ -434,6 +447,9 @@ export function ClientDataTab({ clientId }: ClientDataTabProps) {
                 if (components.postalCode) handleInputChange("postalCode", components.postalCode)
                 if (components.latitude) handleInputChange("latitude", components.latitude)
                 if (components.longitude) handleInputChange("longitude", components.longitude)
+              } else {
+                // Manual typing (no Google selection)
+                handleInputChange("address", value)
               }
             }}
             className="flex h-9 w-full rounded-md border border-input bg-muted/30 px-3 py-1 text-xs text-foreground ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"

@@ -8,6 +8,8 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Slider } from "@/components/ui/slider"
 import { useAuth } from "@/hooks/use-auth"
+import { useTranslation } from "@/hooks/use-translation"
+import { toast } from "@/hooks/use-toast"
 
 declare global {
   interface Window {
@@ -21,15 +23,23 @@ interface GpsDialogProps {
   onOpenChange: (open: boolean) => void
   workCenterId: string
   gpsData?: { active: boolean; latitude: number; longitude: number; radius: number }
+  defaultLatitude?: number
+  defaultLongitude?: number
   onUpdate: () => void
 }
 
-export function GpsDialog({ open, onOpenChange, workCenterId, gpsData, onUpdate }: GpsDialogProps) {
+const formatNumber = (n: number) => n.toLocaleString('en-US')
+const parseFormattedNumber = (s: string) => parseInt(s.replace(/,/g, ''), 10)
+
+export function GpsDialog({ open, onOpenChange, workCenterId, gpsData, defaultLatitude, defaultLongitude, onUpdate }: GpsDialogProps) {
   const { session } = useAuth()
-  const [latitude, setLatitude] = useState(gpsData?.latitude || 37.3891)
-  const [longitude, setLongitude] = useState(gpsData?.longitude || -5.9845)
-  const [radius, setRadius] = useState(gpsData?.radius || 100)
-  const [radiusInput, setRadiusInput] = useState(String(gpsData?.radius || 100))
+  const { t } = useTranslation()
+  const fallbackLat = Number(gpsData?.latitude) || defaultLatitude || 37.3891
+  const fallbackLng = Number(gpsData?.longitude) || defaultLongitude || -5.9845
+  const [latitude, setLatitude] = useState(fallbackLat)
+  const [longitude, setLongitude] = useState(fallbackLng)
+  const [radius, setRadius] = useState(Number(gpsData?.radius) || 100)
+  const [radiusInput, setRadiusInput] = useState(formatNumber(Number(gpsData?.radius) || 100))
   const [active, setActive] = useState(gpsData?.active || false)
   const [isSaving, setIsSaving] = useState(false)
   const [mapLoaded, setMapLoaded] = useState(false)
@@ -40,42 +50,47 @@ export function GpsDialog({ open, onOpenChange, workCenterId, gpsData, onUpdate 
   const circleRef = useRef<any>(null)
   const markerRef = useRef<any>(null)
 
-  // Convert slider value to radius (logarithmic scale)
+  // Convert slider value to radius (logarithmic scale: 10m → 1000m → 20,000,000m)
   const sliderToRadius = (sliderValue: number): number => {
     if (sliderValue <= 50) {
-      // First half: 10m to 1000m (linear)
+      // First half: 10m to 1,000m (linear)
       return Math.round(10 + (sliderValue / 50) * 990)
     } else {
-      // Second half: 1000m to 1000000m (linear)
-      return Math.round(1000 + ((sliderValue - 50) / 50) * 999000)
+      // Second half: 1,000m to 20,000,000m (exponential)
+      const t = (sliderValue - 50) / 50 // 0..1
+      return Math.round(1000 * Math.pow(20000, t))
     }
   }
 
   // Convert radius to slider value
   const radiusToSlider = (radiusValue: number): number => {
     if (radiusValue <= 1000) {
-      return Math.round((radiusValue - 10) / 990 * 50)
+      return Math.round(((radiusValue - 10) / 990) * 50)
     } else {
-      return Math.round(50 + ((radiusValue - 1000) / 999000) * 50)
+      // inverse of 1000 * 20000^t
+      const t = Math.log(radiusValue / 1000) / Math.log(20000)
+      return Math.round(50 + t * 50)
     }
   }
 
   // Calculate appropriate zoom level based on radius
   const getZoomFromRadius = (radiusMeters: number): number => {
-    // Approximate zoom levels for different radius sizes
-    if (radiusMeters >= 500000) return 5   // 500km+
-    if (radiusMeters >= 200000) return 7   // 200km+
-    if (radiusMeters >= 100000) return 8   // 100km+
-    if (radiusMeters >= 50000) return 9    // 50km+
-    if (radiusMeters >= 20000) return 10   // 20km+
-    if (radiusMeters >= 10000) return 11   // 10km+
-    if (radiusMeters >= 5000) return 12    // 5km+
-    if (radiusMeters >= 2000) return 13    // 2km+
-    if (radiusMeters >= 1000) return 14    // 1km+
-    if (radiusMeters >= 500) return 15     // 500m+
-    if (radiusMeters >= 200) return 16     // 200m+
-    if (radiusMeters >= 100) return 17     // 100m+
-    return 18                               // <100m
+    if (radiusMeters >= 10000000) return 2  // 10,000km+
+    if (radiusMeters >= 5000000) return 3   // 5,000km+
+    if (radiusMeters >= 2000000) return 4   // 2,000km+
+    if (radiusMeters >= 500000) return 5    // 500km+
+    if (radiusMeters >= 200000) return 7    // 200km+
+    if (radiusMeters >= 100000) return 8    // 100km+
+    if (radiusMeters >= 50000) return 9     // 50km+
+    if (radiusMeters >= 20000) return 10    // 20km+
+    if (radiusMeters >= 10000) return 11    // 10km+
+    if (radiusMeters >= 5000) return 12     // 5km+
+    if (radiusMeters >= 2000) return 13     // 2km+
+    if (radiusMeters >= 1000) return 14     // 1km+
+    if (radiusMeters >= 500) return 15      // 500m+
+    if (radiusMeters >= 200) return 16      // 200m+
+    if (radiusMeters >= 100) return 17      // 100m+
+    return 18                                // <100m
   }
 
   // Reset map refs when dialog closes
@@ -240,11 +255,43 @@ export function GpsDialog({ open, onOpenChange, workCenterId, gpsData, onUpdate 
     }
   }, [mapLoaded, open, dialogReady, initializeMap, mapInitialized])
 
+  // Reverse-geocode lat/lng into address components using Google Maps Geocoder
+  const reverseGeocode = async (lat: number, lng: number) => {
+    if (!window.google?.maps?.Geocoder) return null
+    try {
+      const geocoder = new window.google.maps.Geocoder()
+      const result = await new Promise<any>((resolve, reject) => {
+        geocoder.geocode({ location: { lat, lng } }, (results: any[], status: string) => {
+          if (status === "OK" && results?.[0]) resolve(results[0])
+          else reject(status)
+        })
+      })
+
+      const get = (type: string) =>
+        result.address_components?.find((c: any) => c.types.includes(type))?.long_name || ""
+
+      return {
+        address: result.formatted_address || "",
+        street: get("route"),
+        streetNumber: get("street_number"),
+        locality: get("locality") || get("sublocality") || get("administrative_area_level_2"),
+        province: get("administrative_area_level_1"),
+        country: get("country"),
+        postalCode: get("postal_code"),
+      }
+    } catch {
+      return null
+    }
+  }
+
   const handleSave = async () => {
     if (!session?.accessToken) return
 
     setIsSaving(true)
     try {
+      // Reverse-geocode to get address fields from the marker coordinates
+      const addressFields = await reverseGeocode(latitude, longitude)
+
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_BASE_URL}/work-centers/${workCenterId}/signing-methods/gps`,
         {
@@ -258,6 +305,7 @@ export function GpsDialog({ open, onOpenChange, workCenterId, gpsData, onUpdate 
             latitude,
             longitude,
             radius,
+            ...(addressFields || {}),
           }),
         }
       )
@@ -266,11 +314,11 @@ export function GpsDialog({ open, onOpenChange, workCenterId, gpsData, onUpdate 
         onUpdate()
         onOpenChange(false)
       } else {
-        alert("Error al guardar la configuración GPS")
+        toast({ title: t("gpsSaveError"), variant: "destructive" })
       }
     } catch (error) {
       console.error("Error saving GPS config:", error)
-      alert("Error al guardar la configuración GPS")
+      toast({ title: t("gpsSaveError"), variant: "destructive" })
     } finally {
       setIsSaving(false)
     }
@@ -293,7 +341,7 @@ export function GpsDialog({ open, onOpenChange, workCenterId, gpsData, onUpdate 
             />
             {!mapLoaded && (
               <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
-                <p className="text-gray-500">Cargando mapa...</p>
+                <p className="text-gray-500">{t("loadingMap")}</p>
               </div>
             )}
           </div>
@@ -301,30 +349,29 @@ export function GpsDialog({ open, onOpenChange, workCenterId, gpsData, onUpdate 
           {/* Radius Slider */}
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-4">
-              <Label>Radio</Label>
+              <Label>{t("radius")}</Label>
               <div className="flex items-center gap-2">
                 <Input
-                  type="number"
+                  type="text"
+                  inputMode="numeric"
                   value={radiusInput}
                   onChange={(e) => setRadiusInput(e.target.value)}
-                  onBlur={(e) => {
-                    const value = parseInt(e.target.value) || 10
-                    const validValue = Math.max(10, Math.min(1000000, value))
+                  onBlur={() => {
+                    const value = parseFormattedNumber(radiusInput) || 10
+                    const validValue = Math.max(10, Math.min(20000000, value))
                     setRadius(validValue)
-                    setRadiusInput(String(validValue))
+                    setRadiusInput(formatNumber(validValue))
                   }}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
-                      const value = parseInt(radiusInput) || 10
-                      const validValue = Math.max(10, Math.min(1000000, value))
+                      const value = parseFormattedNumber(radiusInput) || 10
+                      const validValue = Math.max(10, Math.min(20000000, value))
                       setRadius(validValue)
-                      setRadiusInput(String(validValue))
+                      setRadiusInput(formatNumber(validValue))
                       e.currentTarget.blur()
                     }
                   }}
-                  min={10}
-                  max={1000000}
-                  className="w-24 h-8 text-sm"
+                  className="w-36 h-8 text-sm text-right"
                 />
                 <span className="text-sm text-muted-foreground">m</span>
               </div>
@@ -334,7 +381,7 @@ export function GpsDialog({ open, onOpenChange, workCenterId, gpsData, onUpdate 
               onValueChange={(value) => {
                 const newRadius = sliderToRadius(value[0])
                 setRadius(newRadius)
-                setRadiusInput(String(newRadius))
+                setRadiusInput(formatNumber(newRadius))
               }}
               min={0}
               max={100}
@@ -344,29 +391,29 @@ export function GpsDialog({ open, onOpenChange, workCenterId, gpsData, onUpdate 
           </div>
 
           {/* Active Toggle */}
-          <div className="flex items-center gap-3">
-            <Label className="text-base font-medium">Activar:</Label>
+          <div className="flex items-center gap-2">
+            <Label className="text-sm font-medium">{t("activate")}</Label>
             <button
               type="button"
               onClick={() => setActive(!active)}
-              className={`relative inline-flex h-8 w-16 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#6B21A8] focus:ring-offset-2 ${
+              className={`relative inline-flex h-6 w-12 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#6B21A8] focus:ring-offset-2 ${
                 active ? "bg-[#6B21A8]" : "bg-gray-300"
               }`}
             >
               <span
-                className={`inline-block h-6 w-6 transform rounded-full bg-white shadow-lg transition-transform ${
-                  active ? "translate-x-9" : "translate-x-1"
+                className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-lg transition-transform ${
+                  active ? "translate-x-7" : "translate-x-0.5"
                 }`}
               />
-              <span className={`absolute text-xs font-medium transition-opacity ${
-                active ? "left-2 text-white opacity-100" : "left-2 opacity-0"
+              <span className={`absolute text-[10px] font-medium transition-opacity ${
+                active ? "left-1.5 text-white opacity-100" : "left-1.5 opacity-0"
               }`}>
-                Sí
+                {t("yes")}
               </span>
-              <span className={`absolute text-xs font-medium transition-opacity ${
-                !active ? "right-2 text-gray-600 opacity-100" : "right-2 opacity-0"
+              <span className={`absolute text-[10px] font-medium transition-opacity ${
+                !active ? "right-1.5 text-gray-600 opacity-100" : "right-1.5 opacity-0"
               }`}>
-                No
+                {t("no")}
               </span>
             </button>
           </div>
@@ -378,7 +425,7 @@ export function GpsDialog({ open, onOpenChange, workCenterId, gpsData, onUpdate 
               disabled={isSaving}
               className="bg-[#6B21A8] hover:bg-[#581C87] text-white"
             >
-              Guardar
+              {t("save")}
             </Button>
           </div>
         </div>

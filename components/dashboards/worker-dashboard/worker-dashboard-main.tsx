@@ -24,7 +24,7 @@ import { useTranslation } from "@/hooks/use-translation"
 import { LoadingSpinner } from "@/components/dashboard-loader"
 import { useAuth } from "@/hooks/use-auth"
 import { Button } from "@/components/ui/button"
-import { useToast } from "@/hooks/use-toast"
+import { toast } from "@/hooks/use-toast"
 
 // Extract user-friendly message from a raw backend error (JSON string or Error)
 function parseBackendError(err: unknown, fallback: string): string {
@@ -672,9 +672,26 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
         latitude: position.coords.latitude,
         longitude: position.coords.longitude,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("GPS check-in error:", error);
-      setError("Could not access location. Please enable GPS.");
+      const msg = error instanceof Error ? error.message : String(error);
+
+      // GPS-specific error messages
+      if (error instanceof GeolocationPositionError || msg.includes('location')) {
+        toast({ variant: "destructive", title: "Location Required", description: "Could not access your location. Please enable GPS and try again." });
+      } else if (msg.includes('not in range')) {
+        toast({ variant: "destructive", title: "Out of Range", description: msg });
+      } else if (msg.includes('not activated')) {
+        toast({ variant: "destructive", title: "GPS Not Activated", description: msg });
+      } else if (msg.includes('not enabled for this job')) {
+        toast({ variant: "destructive", title: "Method Not Allowed", description: msg });
+      } else if (msg.includes('no work center has GPS activated')) {
+        toast({ variant: "destructive", title: "GPS Not Available", description: msg });
+      } else if (msg.includes('No shift is scheduled')) {
+        toast({ variant: "destructive", title: "No Shift Today", description: msg });
+      } else {
+        toast({ variant: "destructive", title: "GPS Check-in Failed", description: parseBackendError(error, "Failed to check in with GPS") });
+      }
       setActionLoading(false);
     }
   };
