@@ -95,8 +95,19 @@ const GoogleAddressInput: React.FC<GoogleAddressInputProps> = ({
         components.longitude = place.geometry.location.lng()
       }
 
+      // Build clean "Street, Number" address for the input field
+      const streetParts = [components.street, components.streetNumber].filter(Boolean)
+      const cleanAddress = streetParts.length > 0
+        ? streetParts.join(", ")
+        : place.formatted_address
+
+      // Update the uncontrolled input to show only the clean address
+      if (inputRef.current) {
+        inputRef.current.value = cleanAddress
+      }
+
       // ✅ Use ref to always call latest onChange (avoids stale closure)
-      onChangeRef.current(place.formatted_address, place.place_id, components)
+      onChangeRef.current(cleanAddress, place.place_id, components)
     })
   }, [isReady]) // Remove onChange from deps — use ref instead
 

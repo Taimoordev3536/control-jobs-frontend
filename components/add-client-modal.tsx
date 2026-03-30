@@ -387,7 +387,7 @@ export default function AddClientModal({ open, onOpenChange, onClientAdded }: Ad
                       const parts = [components.street, components.streetNumber].filter(Boolean)
                       let addressOnly: string
                       if (parts.length > 0) {
-                        addressOnly = parts.join(" ")
+                        addressOnly = parts.join(", ")
                       } else {
                         // No street/number (Plus Codes, business names, etc.) — strip city/province/country/postalCode from the full address
                         let cleaned = value

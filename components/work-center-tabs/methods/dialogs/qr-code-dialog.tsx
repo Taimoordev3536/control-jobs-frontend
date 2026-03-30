@@ -226,7 +226,9 @@ export function QrCodeDialog({ open, onOpenChange, workCenterId, qrData, onUpdat
   const [showEmailInput, setShowEmailInput] = useState(false)
   const [isRegenerating, setIsRegenerating] = useState(false)
   const [timeUntilExpiry, setTimeUntilExpiry] = useState<string>("")
-  const [workCenterData, setWorkCenterData] = useState<WorkCenterData | null>(null) 
+  const [workCenterData, setWorkCenterData] = useState<WorkCenterData | null>(null)
+  const [isLoadingWorkCenter, setIsLoadingWorkCenter] = useState(false)
+  const [progressPercent, setProgressPercent] = useState(100)
   const printRef = useRef<HTMLDivElement>(null)
 
   const selectedQr = qrType === "STATIC" ? staticQr : dynamicQr
@@ -260,20 +262,25 @@ const handlePrint = useReactToPrint({
     fetchWorkCenterDetails()
   }, [open, session?.accessToken, workCenterId])
 
-  // Update expiry countdown for dynamic QR
+  // Update expiry countdown and progress bar for dynamic QR
   useEffect(() => {
     if (!dynamicQr?.expiresAt || !dynamicQr?.isSelected) {
       setTimeUntilExpiry("")
+      setProgressPercent(100)
       return
     }
 
-    const updateCountdown = () => {
-      const now = new Date()
-      const expiry = new Date(dynamicQr.expiresAt!)
-      const diff = expiry.getTime() - now.getTime()
+    const totalDuration = 30000 // 30 seconds
+    const expiryTime = new Date(dynamicQr.expiresAt).getTime()
+    const startTime = expiryTime - totalDuration
+
+    const update = () => {
+      const now = Date.now()
+      const diff = expiryTime - now
 
       if (diff <= 0) {
         setTimeUntilExpiry("Expirado - Actualizando...")
+        setProgressPercent(0)
         fetchQrCodes() // Refresh to get new token
         return
       }
@@ -281,10 +288,14 @@ const handlePrint = useReactToPrint({
       const minutes = Math.floor(diff / 60000)
       const seconds = Math.floor((diff % 60000) / 1000)
       setTimeUntilExpiry(`${minutes}:${seconds.toString().padStart(2, '0')}`)
+
+      const elapsed = now - startTime
+      const remaining = Math.max(0, totalDuration - elapsed)
+      setProgressPercent(Math.min(100, (remaining / totalDuration) * 100))
     }
 
-    updateCountdown()
-    const interval = setInterval(updateCountdown, 1000)
+    update()
+    const interval = setInterval(update, 200)
     return () => clearInterval(interval)
   }, [dynamicQr?.expiresAt, dynamicQr?.isSelected])
 
@@ -321,6 +332,7 @@ const handlePrint = useReactToPrint({
   }
 
   const fetchWorkCenterDetails = async () => {
+    setIsLoadingWorkCenter(true)
     try {
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_BASE_URL}/work-centers/${workCenterId}`,
@@ -353,6 +365,8 @@ const handlePrint = useReactToPrint({
       }
     } catch (error) {
       console.error("Error fetching work center details:", error)
+    } finally {
+      setIsLoadingWorkCenter(false)
     }
   }
 
@@ -514,9 +528,18 @@ const handlePrint = useReactToPrint({
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="text-center">
-            <div className="text-base font-bold uppercase tracking-wide">{workCenterData?.name || t("workCenter")}</div>
-            {workCenterData?.locality && (
-              <div className="text-sm font-normal text-muted-foreground">{workCenterData.locality}</div>
+            {isLoadingWorkCenter && !workCenterData ? (
+              <>
+                <div className="h-5 w-40 mx-auto bg-gray-200 rounded animate-pulse" />
+                <div className="h-4 w-24 mx-auto bg-gray-100 rounded animate-pulse mt-1" />
+              </>
+            ) : (
+              <>
+                <div className="text-base font-bold uppercase tracking-wide">{workCenterData?.name || ""}</div>
+                {workCenterData?.locality && (
+                  <div className="text-sm font-normal text-muted-foreground">{workCenterData.locality}</div>
+                )}
+              </>
             )}
           </DialogTitle>
           <DialogDescription className="sr-only">
@@ -575,21 +598,30 @@ const handlePrint = useReactToPrint({
                 </div>
               )}
               {/* Always render progress bar row to keep consistent height */}
-              <div className="w-48 h-2">
+              <div className="h-4">
                 {qrType === "DYNAMIC" && isActive && selectedQr?.qrImage && timeUntilExpiry && (
-                  <div className="h-2 w-full rounded-full bg-gray-200 overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-[#6B21A8] transition-all duration-1000 ease-linear"
-                      style={{
-                        width: (() => {
-                          if (!dynamicQr?.expiresAt) return '0%'
-                          const now = new Date().getTime()
-                          const expiry = new Date(dynamicQr.expiresAt).getTime()
-                          const remaining = Math.max(0, expiry - now)
-                          return `${Math.min(100, (remaining / 30000) * 100)}%`
-                        })(),
-                      }}
-                    />
+                  <div className="flex items-center gap-2 w-56">
+                    <span className={`text-xs font-semibold tabular-nums whitespace-nowrap transition-colors ${
+                      Math.ceil((progressPercent / 100) * 30) <= 10 ? 'text-[#C2185B]' : 'text-[#6B21A8]'
+                    }`}>
+                      {(() => {
+                        const totalSecs = Math.ceil((progressPercent / 100) * 30)
+                        const mm = String(Math.floor(totalSecs / 60)).padStart(2, '0')
+                        const ss = String(totalSecs % 60).padStart(2, '0')
+                        return `${mm}:${ss}`
+                      })()}
+                    </span>
+                    <div className="h-2 flex-1 rounded-full bg-gray-200 overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-colors ${
+                        Math.ceil((progressPercent / 100) * 30) <= 10 ? 'bg-[#C2185B]' : 'bg-[#6B21A8]'
+                      }`}
+                        style={{
+                          width: `${progressPercent}%`,
+                          transition: 'width 200ms linear',
+                        }}
+                      />
+                    </div>
                   </div>
                 )}
               </div>

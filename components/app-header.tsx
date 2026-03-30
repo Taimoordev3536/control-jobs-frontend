@@ -56,7 +56,7 @@ export function AppHeader({ collapsed, toggleSidebar }: AppHeaderProps) {
   return (
     <header className={`header ${collapsed ? "header-collapsed" : "header-expanded"}`}>
       <div className="flex items-center gap-4">
-        <button className="toggle-button" onClick={toggleSidebar}>
+        <button className="toggle-button ml-2" onClick={toggleSidebar}>
           <Menu className="h-5 w-5" />
         </button>
       </div>
@@ -73,7 +73,7 @@ export function AppHeader({ collapsed, toggleSidebar }: AppHeaderProps) {
                 if (next) markAllRead()
               }}
             >
-              <NotificationIcon className="h-6 w-6" />
+              <NotificationIcon className="h-5 w-5" />
               <span className="tooltip">{t("notification")}</span>
               {unreadCount > 0 && (
                 <span className="absolute -top-1 -right-1 h-5 min-w-5 px-1 rounded-full bg-red-600 text-white text-[10px] flex items-center justify-center">
@@ -126,24 +126,24 @@ export function AppHeader({ collapsed, toggleSidebar }: AppHeaderProps) {
               className="header-icon-button"
               onClick={() => setTodayQrOpen(true)}
             >
-              <QrCode className="h-6 w-6" />
+              <QrCode className="h-5 w-5" />
               <span className="tooltip">{t("todayQr") || "Today's QR"}</span>
             </button>
           )}
           <button className="header-icon-button">
-            <MessageIcon className="h-6 w-6" />
+            <MessageIcon className="h-5 w-5" />
             <span className="tooltip">{t("messages")}</span>
           </button>
           <button className="header-icon-button">
-            <ContactIcon className="h-6 w-6" />
+            <ContactIcon className="h-5 w-5" />
             <span className="tooltip">{t("contact")}</span>
           </button>
           <button className="header-icon-button">
-            <SuggestionIcon className="h-6 w-6" />
+            <SuggestionIcon className="h-5 w-5" />
             <span className="tooltip">{t("suggestions")}</span>
           </button>
           <button className="header-icon-button">
-            <WebIcon className="h-6 w-6" />
+            <WebIcon className="h-5 w-5" />
             <span className="tooltip">{t("Web")}</span>
           </button>
         </div>
@@ -151,28 +151,28 @@ export function AppHeader({ collapsed, toggleSidebar }: AppHeaderProps) {
         {/* Three Dots Button on Mobile */}
         <div className="sm:hidden relative">
           <button onClick={() => setMobileDropdownOpen(!mobileDropdownOpen)} className="header-icon-button">
-            <MoreVertical className="h-6 w-6" />
+            <MoreVertical className="h-5 w-5" />
           </button>
           {mobileDropdownOpen && (
             <div className="absolute right-0 mt-2 bg-card rounded shadow-lg p-2 z-50 border border-border">
               <button className="header-icon-button block w-full text-left">
-                <NotificationIcon className="h-7 w-7 inline-block mr-2" />
+                <NotificationIcon className="h-5 w-5 inline-block mr-2" />
                 {t("notification")}
               </button>
               <button className="header-icon-button block w-full text-left">
-                <MessageIcon className="h-6 w-6 inline-block mr-2" />
+                <MessageIcon className="h-5 w-5 inline-block mr-2" />
                 {t("messages")}
               </button>
               <button className="header-icon-button block w-full text-left">
-                <ContactIcon className="h-6 w-6 inline-block mr-2" />
+                <ContactIcon className="h-5 w-5 inline-block mr-2" />
                 {t("contact")}
               </button>
               <button className="header-icon-button block w-full text-left">
-                <SuggestionIcon className="h-6 w-6 inline-block mr-2" />
+                <SuggestionIcon className="h-5 w-5 inline-block mr-2" />
                 {t("suggestions")}
               </button>
               <button className="header-icon-button block w-full text-left">
-                <WebIcon className="h-6 w-6 inline-block mr-2" />
+                <WebIcon className="h-5 w-5 inline-block mr-2" />
                 {t("Web")}
               </button>
             </div>

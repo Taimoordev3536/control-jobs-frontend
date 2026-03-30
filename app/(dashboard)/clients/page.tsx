@@ -5,7 +5,7 @@ import { exportToCSV, exportToXLSX, exportToPDF } from "@/lib/export"
 import { useRouter } from "next/navigation"
 import { Plus, Filter } from "lucide-react"
 import { useTranslation } from "@/hooks/use-translation"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import AddClientModal from "@/components/add-client-modal"
 import { useAuth } from "@/hooks/use-auth"
 import { AnimatedLoader } from "@/components/animated-loader"
@@ -30,30 +30,49 @@ export default function ClientsPage() {
     asset: c.active === true || c.active === "true",
   })
 
+  const fetchClients = useCallback(async () => {
+    if (!session?.accessToken) return
+    setIsLoading(true)
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/client`, {
+        headers: {
+          Authorization: `Bearer ${session.accessToken}`,
+          "Content-Type": "application/json",
+        },
+      })
+      if (!res.ok) throw new Error("Failed to fetch clients")
+      const data = await res.json()
+      const mappedClients = (data.data || []).map(mapClient)
+      setClients(mappedClients)
+    } catch (err) {
+      console.error("Error fetching clients:", err)
+      setClients([])
+    } finally {
+      setIsLoading(false)
+    }
+  }, [session?.accessToken])
+
   useEffect(() => {
-    const fetchClients = async () => {
-      if (!session?.accessToken) return
-      setIsLoading(true)
-      try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/client`, {
-          headers: {
-            Authorization: `Bearer ${session.accessToken}`,
-            "Content-Type": "application/json",
-          },
-        })
-        if (!res.ok) throw new Error("Failed to fetch clients")
-        const data = await res.json()
-        const mappedClients = (data.data || []).map(mapClient)
-        setClients(mappedClients)
-      } catch (err) {
-        console.error("Error fetching clients:", err)
-        setClients([])
-      } finally {
-        setIsLoading(false)
+    fetchClients()
+  }, [fetchClients])
+
+  // Re-fetch client list when user navigates back to this page
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        fetchClients()
       }
     }
-    fetchClients()
-  }, [session?.accessToken])
+    const handleFocus = () => {
+      fetchClients()
+    }
+    document.addEventListener("visibilitychange", handleVisibilityChange)
+    window.addEventListener("focus", handleFocus)
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange)
+      window.removeEventListener("focus", handleFocus)
+    }
+  }, [fetchClients])
 
   const columns = [
     { key: "name", label: t("name"), sortable: true },

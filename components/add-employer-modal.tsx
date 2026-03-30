@@ -437,7 +437,7 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded, 
                       const parts = [components.street, components.streetNumber].filter(Boolean)
                       let addressOnly: string
                       if (parts.length > 0) {
-                        addressOnly = parts.join(" ")
+                        addressOnly = parts.join(", ")
                       } else {
                         let cleaned = value
                         for (const part of [components.postalCode, components.city, components.province, components.country].filter(Boolean)) {

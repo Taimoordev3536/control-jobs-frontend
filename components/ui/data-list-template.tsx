@@ -225,12 +225,12 @@ export default function DataListTemplate({
     return (
       <button
         onClick={onClick}
-        className="p-2 text-[#662D91] hover:bg-purple-50 dark:hover:bg-purple-950 rounded-md border border-purple-200 dark:border-purple-800 transition-colors"
+        className="p-1.5 text-[#662D91] hover:bg-purple-50 dark:hover:bg-purple-950 rounded-md transition-colors"
         title={title}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
       >
-        {hovered ? <IconHover className="w-7 h-7" /> : <IconDefault className="w-7 h-7" />}
+        {hovered ? <IconHover className="w-5 h-5" /> : <IconDefault className="w-5 h-5" />}
       </button>
     )
   }
@@ -261,9 +261,9 @@ export default function DataListTemplate({
       <div className="relative sm:hidden">
         <button
           onClick={() => setOpen(!open)}
-          className="p-2 text-[#662D91] hover:bg-purple-50 dark:hover:bg-purple-950 rounded-md border border-purple-200 dark:border-purple-800"
+          className="p-1.5 text-[#662D91] hover:bg-purple-50 dark:hover:bg-purple-950 rounded-md"
         >
-          <MoreVertical className="w-7 h-7" />
+          <MoreVertical className="w-5 h-5" />
         </button>
         {open && (
           <div className="absolute right-0 mt-2 bg-white dark:bg-gray-800 rounded shadow-lg z-50 w-40">
@@ -293,8 +293,8 @@ export default function DataListTemplate({
     <div className="p-2 bg-background min-h-screen relative">
       <div className="bg-card rounded-lg shadow-sm border border-border">
         {/* Header */}
-        <div className="flex justify-between items-center p-3 border-b border-border bg-gray-100 dark:bg-gray-800">
-          <h1 className="text-lg sm:text-2xl font-semibold text-foreground truncate">{title}</h1>
+        <div className="flex justify-between items-center px-3 py-1.5 border-b border-border bg-gray-100 dark:bg-gray-800">
+          <h1 className="text-base sm:text-lg font-semibold text-foreground truncate">{title}</h1>
           <div className="flex items-center gap-2">
             {/* Search input */}
             <div className="relative hidden sm:block">
@@ -303,7 +303,7 @@ export default function DataListTemplate({
                 value={searchQuery}
                 onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1) }}
                 placeholder={t("search") || "Search..."}
-                className="w-[8.5rem] h-[2.75rem] px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:border-[#662D91] focus:ring-1 focus:ring-[#662D91] bg-background"
+                className="w-[8.5rem] h-[2rem] px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:border-[#662D91] focus:ring-1 focus:ring-[#662D91] bg-background"
               />
             </div>
             {actionButtons.length > 0 && (
@@ -437,7 +437,7 @@ export default function DataListTemplate({
                                   ref={provided.innerRef}
                                   {...provided.draggableProps}
                                   {...provided.dragHandleProps}
-                                  className={`px-5 py-2 text-sm font-semibold text-foreground transition-colors cursor-move ${
+                                  className={`px-4 py-[7px] text-xs font-semibold text-foreground transition-colors cursor-move ${
                                     snapshot.isDragging ? "bg-purple-200 dark:bg-purple-800" : ""
                                   } text-center border border-gray-300 dark:border-gray-700 ${
                                     column.sortable ? "hover:bg-purple-100 dark:hover:bg-purple-900/50" : ""
@@ -459,7 +459,7 @@ export default function DataListTemplate({
                         {filtersVisible && (
                           <tr className="bg-white">
                             {localColumns.map((column) => (
-                              <th key={`filter-${column.key}`} className="px-5 py-2 text-sm font-normal text-foreground border border-gray-300 dark:border-gray-700">
+                              <th key={`filter-${column.key}`} className="px-4 py-2 text-xs font-normal text-foreground border border-gray-300 dark:border-gray-700">
                                 <input
                                   type="text"
                                   value={filters[column.key] || ""}
@@ -535,20 +535,20 @@ export default function DataListTemplate({
           }
 
           return (
-            <div className="px-4 sm:px-6 py-2 flex flex-col items-center gap-2 border-t border-border bg-card bg-gray-100 dark:bg-gray-800">
+            <div className="px-3 sm:px-4 py-1.5 flex flex-col items-center gap-1.5 border-t border-border bg-card bg-gray-100 dark:bg-gray-800">
               {/* Page buttons */}
-              <div className="flex items-center gap-1 flex-wrap justify-center">
+              <div className="flex items-center gap-0.5 flex-wrap justify-center">
                 {/* First */}
                 <button
-                  className="px-1.5 sm:px-2 py-1 text-xs sm:text-sm border border-gray-300 dark:border-gray-600 rounded hover:bg-muted disabled:opacity-40 transition-colors"
+                  className="px-1 sm:px-1.5 py-0.5 text-[11px] border border-gray-300 dark:border-gray-600 rounded hover:bg-muted disabled:opacity-40 transition-colors"
                   onClick={() => setCurrentPage(1)}
                   disabled={currentPage === 1}
                 >
-                  <ChevronsLeft size={14} className="sm:w-4 sm:h-4" />
+                  <ChevronsLeft size={12} className="sm:w-3.5 sm:h-3.5" />
                 </button>
                 {/* Previous */}
                 <button
-                  className="px-1.5 sm:px-2 py-1 text-xs sm:text-sm border border-gray-300 dark:border-gray-600 rounded hover:bg-muted disabled:opacity-40 transition-colors"
+                  className="px-1 sm:px-1.5 py-0.5 text-[11px] border border-gray-300 dark:border-gray-600 rounded hover:bg-muted disabled:opacity-40 transition-colors"
                   onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
                   disabled={currentPage === 1}
                 >
@@ -559,11 +559,11 @@ export default function DataListTemplate({
                 {/* Page numbers */}
                 {getPageNumbers().map((page, idx) =>
                   typeof page === "string" ? (
-                    <span key={`ellipsis-${idx}`} className="px-1 sm:px-2 py-1 text-xs sm:text-sm text-muted-foreground select-none">…</span>
+                    <span key={`ellipsis-${idx}`} className="px-1 py-0.5 text-[11px] text-muted-foreground select-none">…</span>
                   ) : (
                     <button
                       key={page}
-                      className={`px-2 sm:px-3 py-1 text-xs sm:text-sm rounded transition-colors ${
+                      className={`px-1.5 sm:px-2 py-0.5 text-[11px] rounded transition-colors ${
                         page === currentPage
                           ? "bg-[#662D91] text-white font-semibold"
                           : "border border-gray-300 dark:border-gray-600 hover:bg-muted text-muted-foreground hover:text-foreground"
@@ -577,7 +577,7 @@ export default function DataListTemplate({
 
                 {/* Next */}
                 <button
-                  className="px-1.5 sm:px-2 py-1 text-xs sm:text-sm border border-gray-300 dark:border-gray-600 rounded hover:bg-muted disabled:opacity-40 transition-colors"
+                  className="px-1 sm:px-1.5 py-0.5 text-[11px] border border-gray-300 dark:border-gray-600 rounded hover:bg-muted disabled:opacity-40 transition-colors"
                   onClick={() => setCurrentPage(Math.min(filteredTotalPages, currentPage + 1))}
                   disabled={currentPage === filteredTotalPages}
                 >
@@ -586,17 +586,17 @@ export default function DataListTemplate({
                 </button>
                 {/* Last */}
                 <button
-                  className="px-1.5 sm:px-2 py-1 text-xs sm:text-sm border border-gray-300 dark:border-gray-600 rounded hover:bg-muted disabled:opacity-40 transition-colors"
+                  className="px-1 sm:px-1.5 py-0.5 text-[11px] border border-gray-300 dark:border-gray-600 rounded hover:bg-muted disabled:opacity-40 transition-colors"
                   onClick={() => setCurrentPage(filteredTotalPages)}
                   disabled={currentPage === filteredTotalPages}
                 >
-                  <ChevronsRight size={14} className="sm:w-4 sm:h-4" />
+                  <ChevronsRight size={12} className="sm:w-3.5 sm:h-3.5" />
                 </button>
               </div>
 
               {/* Go to page */}
               {filteredTotalPages > 7 && (
-                <div className="flex items-center gap-2 text-xs sm:text-sm">
+                <div className="flex items-center gap-1.5 text-[11px]">
                   <span className="text-muted-foreground">{t("goToPage")}:</span>
                   <input
                     type="number"
@@ -605,11 +605,11 @@ export default function DataListTemplate({
                     value={goToPageInput}
                     onChange={(e) => setGoToPageInput(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleGoToPage()}
-                    className="w-16 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:border-[#662D91] focus:ring-1 focus:ring-[#662D91] bg-background"
+                    className="w-14 px-1.5 py-0.5 text-xs border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:border-[#662D91] focus:ring-1 focus:ring-[#662D91] bg-background"
                   />
                   <button
                     onClick={handleGoToPage}
-                    className="px-3 py-1 text-sm bg-[#662D91] text-white rounded hover:bg-[#532073] transition-colors"
+                    className="px-2 py-0.5 text-xs bg-[#662D91] text-white rounded hover:bg-[#532073] transition-colors"
                   >
                     {t("go")}
                   </button>

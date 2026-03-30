@@ -204,7 +204,7 @@ export default function TabTableTemplate({
                               ref={provided.innerRef}
                               {...provided.draggableProps}
                               {...provided.dragHandleProps}
-                              className={`px-6 py-2 text-sm font-semibold text-foreground transition-colors cursor-move ${
+                              className={`px-4 py-[7px] text-xs font-semibold text-foreground transition-colors cursor-move ${
                                 snapshot.isDragging ? "bg-purple-200 dark:bg-purple-800" : ""
                               } text-center border border-gray-300 dark:border-gray-700 ${
                                 column.sortable ? "hover:bg-purple-100 dark:hover:bg-purple-900/50" : ""
@@ -226,7 +226,7 @@ export default function TabTableTemplate({
                     {filtersVisible && (
                       <tr className="bg-white">
                         {localColumns.map((column) => (
-                          <th key={`filter-${column.key}`} className="px-5 py-2 text-sm font-normal text-foreground border border-gray-300 dark:border-gray-700">
+                          <th key={`filter-${column.key}`} className="px-4 py-2 text-xs font-normal text-foreground border border-gray-300 dark:border-gray-700">
                             <input
                               type="text"
                               value={filters[column.key] || ""}
@@ -247,7 +247,7 @@ export default function TabTableTemplate({
                 <tr>
                   <td
                     colSpan={columns.length}
-                    className="px-6 py-2 text-center text-muted-foreground text-lg border border-gray-300 dark:border-gray-700"
+                    className="px-3 py-2 text-center text-muted-foreground text-lg border border-gray-300 dark:border-gray-700"
                   >
                     {loading ? (
                       <AnimatedLoader size={32} className="py-4" />
@@ -291,24 +291,24 @@ export default function TabTableTemplate({
 
       {/* Pagination */}
       {showPagination && filteredData.length > 0 && (
-        <div className="px-6 py-4 flex items-center justify-between border-t border-border bg-card bg-gray-100 dark:bg-gray-800">
-          <div className="text-sm text-muted-foreground">
+        <div className="px-4 py-1.5 flex items-center justify-between border-t border-border bg-card bg-gray-100 dark:bg-gray-800">
+          <div className="text-xs text-muted-foreground">
             {t("showingRecordsFrom")} {((currentPage - 1) * itemsPerPage + 1)} {t("to")}{" "}
             {Math.min(currentPage * itemsPerPage, total)} {t("outOfTotal")} {total} {t("records")}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <button
-              className="px-3 py-1 text-sm text-muted-foreground hover:text-foreground disabled:opacity-50 transition-colors"
+              className="px-2 py-0.5 text-xs text-muted-foreground hover:text-foreground disabled:opacity-50 transition-colors"
               onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
               disabled={currentPage === 1}
             >
               {t("back")}
             </button>
-            <button className="px-3 py-1 text-sm bg-[#662D91] text-white rounded-md hover:bg-[#532073] transition-colors">
+            <button className="px-2 py-0.5 text-xs bg-[#662D91] text-white rounded-md hover:bg-[#532073] transition-colors">
               {currentPage}
             </button>
             <button
-              className="px-3 py-1 text-sm text-muted-foreground hover:text-foreground disabled:opacity-50 transition-colors"
+              className="px-2 py-0.5 text-xs text-muted-foreground hover:text-foreground disabled:opacity-50 transition-colors"
               onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
               disabled={currentPage === totalPages}
             >

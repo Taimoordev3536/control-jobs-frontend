@@ -55,12 +55,10 @@ export default function WorkerDetailPage() {
       <div className="bg-card border-b border-border">
         {activeTab === "data" ? (
           <div className="grid grid-cols-3 items-center px-4 pt-1 pb-1 sm:px-3">
-            <h1 className="text-sm sm:text-base font-semibold text-foreground truncate">
+            <div />
+            <h1 className="text-sm sm:text-base font-semibold text-foreground truncate text-center">
               {workerName}
             </h1>
-            <span className="text-sm sm:text-base font-medium text-foreground text-center">
-              {t("workers")}
-            </span>
             <div className="flex justify-end">
               <button onClick={() => router.back()} className="p-1 text-muted-foreground hover:text-foreground transition-colors">
                 <ArrowLeft className="h-5 w-5" />
@@ -68,7 +66,7 @@ export default function WorkerDetailPage() {
             </div>
           </div>
         ) : (
-          <div className="flex items-center px-4 pt-1 pb-1 sm:px-3">
+          <div className="flex items-center justify-center px-4 pt-1 pb-1 sm:px-3">
             <h1 className="text-sm sm:text-base font-semibold text-foreground truncate">
               {workerName}
             </h1>
@@ -97,7 +95,7 @@ export default function WorkerDetailPage() {
 
       {/* Tab Content */}
       <div className="min-h-[400px] bg-card p-2">
-        {activeTab === "data" && <WorkerDataTab />}
+        {activeTab === "data" && <WorkerDataTab onNameChange={setWorkerName} />}
         {activeTab === "calendar" && <WorkerCalendarTab />}
         {activeTab === "jobs" && <WorkerJobsTab />}
         {activeTab === "customers" && <WorkerClientTab />}

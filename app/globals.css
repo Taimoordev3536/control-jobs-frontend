@@ -145,7 +145,7 @@ html body[data-scroll-locked] {
   }
 
   .sidebar-content {
-    @apply flex-1 overflow-y-auto py-4;
+    @apply flex-1 overflow-y-auto py-3;
   }
 
   .sidebar-footer {
@@ -159,7 +159,7 @@ html body[data-scroll-locked] {
   }
 
   .sidebar-item {
-    @apply flex items-center w-full px-3 py-2.5 rounded-md text-sm font-medium transition-all duration-200;
+    @apply flex items-center w-full px-3 py-2 rounded-md text-sm font-medium transition-all duration-200;
     @apply focus-visible:outline-none focus-visible:ring-2;
     color: hsl(var(--sidebar-foreground));
     border: 1px solid transparent;
@@ -197,11 +197,11 @@ html body[data-scroll-locked] {
   }
 
   .sidebar-submenu {
-    @apply pl-2 mt-1 space-y-1;
+    @apply pl-2 mt-1 space-y-0.5;
   }
 
   .sidebar-submenu-item {
-    @apply flex items-center px-3 py-2 text-sm rounded-md transition-all duration-200;
+    @apply flex items-center px-3 py-1.5 text-sm rounded-md transition-all duration-200;
     color: hsl(var(--sidebar-foreground) / 0.8);
   }
 
@@ -217,7 +217,7 @@ html body[data-scroll-locked] {
   }
 
   .sidebar-divider {
-    @apply border-t my-2;
+    @apply border-t my-1.5;
     border-color: hsl(var(--sidebar-border));
   }
 
@@ -261,11 +261,11 @@ html body[data-scroll-locked] {
   }
 
   .main-content {
-    @apply mt-[60px] ml-56 transition-all duration-300;
+    @apply mt-[60px] ml-[216px] transition-all duration-300;
   }
 
   .main-content-collapsed {
-    @apply ml-16;
+    @apply ml-[72px];
   }
 
   /* Logo styles */
@@ -283,7 +283,7 @@ html body[data-scroll-locked] {
 
   /* Header components */
   .toggle-button {
-    @apply bg-transparent border-none cursor-pointer flex items-center justify-center p-2 rounded-md;
+    @apply bg-transparent border-none cursor-pointer flex items-center justify-center p-1 rounded-md;
     @apply hover:bg-accent hover:text-accent-foreground transition-colors;
     color: hsl(var(--foreground));
   }
@@ -293,7 +293,7 @@ html body[data-scroll-locked] {
   }
 
   .header-icon-button {
-    @apply bg-transparent border-none cursor-pointer flex items-center justify-center p-2 rounded-md relative;
+    @apply bg-transparent border-0 cursor-pointer flex items-center justify-center p-1 rounded-md relative;
     @apply hover:bg-accent hover:text-accent-foreground transition-colors;
     color: hsl(var(--foreground));
   }
@@ -316,14 +316,14 @@ html body[data-scroll-locked] {
   }
 
   .data-table th {
-    @apply p-3 text-left font-medium border-b;
+    @apply p-2 text-left font-medium border-b;
     background-color: hsl(var(--muted) / 0.5);
     border-color: hsl(var(--border));
     color: hsl(var(--foreground));
   }
 
   .data-table td {
-    @apply p-3 border-b;
+    @apply p-2 border-b;
     border-color: hsl(var(--border));
   }
 
@@ -332,7 +332,7 @@ html body[data-scroll-locked] {
   }
 
   .page-title {
-    @apply text-2xl font-medium mb-4 p-4 border-b-2;
+    @apply text-lg font-medium mb-3 p-3 border-b-2;
     border-color: hsl(var(--primary));
     color: hsl(var(--foreground));
   }
@@ -353,7 +353,7 @@ html body[data-scroll-locked] {
   }
 
   .pagination-button {
-    @apply flex items-center justify-center w-8 h-8 rounded border cursor-pointer transition-colors;
+    @apply flex items-center justify-center w-6 h-6 rounded border-0 cursor-pointer transition-colors;
     background-color: hsl(var(--background));
     border-color: hsl(var(--border));
     color: hsl(var(--foreground));
