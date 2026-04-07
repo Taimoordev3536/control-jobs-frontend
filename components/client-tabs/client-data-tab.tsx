@@ -183,7 +183,7 @@ export function ClientDataTab({ clientId }: ClientDataTabProps) {
         setOriginalData(clientData)
         toast({
           title: t("clientUpdatedSuccessfully") || "Client updated successfully!",
-          variant: "default",
+          variant: "success",
         })
       } else {
         throw new Error(result.message || "Failed to save client data")
@@ -220,7 +220,7 @@ export function ClientDataTab({ clientId }: ClientDataTabProps) {
 
       toast({
         title: t("clientDeletedSuccessfully") || "Client deleted successfully!",
-        variant: "default",
+        variant: "success",
       })
 
       // Redirect back to clients list after successful deletion

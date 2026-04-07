@@ -103,7 +103,7 @@ export default function PartnerEmployersTab({ partnerId }: PartnerEmployersTabPr
       setEmployers((prev) => prev.filter((e) => e.id !== deleteTarget.id))
       toast({
         title: t("employerDeletedSuccessfully"),
-        variant: "default",
+        variant: "success",
       })
     } catch (err: any) {
       toast({

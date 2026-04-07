@@ -210,7 +210,7 @@ export default function AddPartnerModal({ open, onOpenChange, onPartnerAdded }: 
           formData.accessAccountStatus === "request"
             ? t("Credentials have been sent to the partner's email")
             : "",
-        variant: "default",
+        variant: "success",
       })
       if (typeof onPartnerAdded === "function" && result.data) {
         const newPartner = {
@@ -680,10 +680,9 @@ export default function AddPartnerModal({ open, onOpenChange, onPartnerAdded }: 
                   </Label>
                   <Input
                     id="accessEmailDisplay"
-                    value={formData.accessEmail !== null ? formData.accessEmail : formData.email}
-                    onChange={(e) => updateFormData("accessEmail", e.target.value)}
-                    className="mt-1"
-                    placeholder={formData.email}
+                    value={formData.email}
+                    readOnly
+                    className="mt-1 bg-muted cursor-not-allowed"
                   />
                 </div>
               </div>

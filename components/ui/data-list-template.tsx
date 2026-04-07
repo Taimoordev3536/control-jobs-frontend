@@ -462,10 +462,11 @@ export default function DataListTemplate({
                               <th key={`filter-${column.key}`} className="px-4 py-2 text-xs font-normal text-foreground border border-gray-300 dark:border-gray-700">
                                 <input
                                   type="text"
+                                  size={1}
                                   value={filters[column.key] || ""}
                                   onChange={(e) => setFilters((prev) => ({ ...prev, [column.key]: e.target.value }))}
                                   placeholder={t("filter") + "..."}
-                                  className="w-full p-1 text-sm border rounded focus:outline-none focus:border-[#662D91] focus:ring-1 focus:ring-[#662D91]"
+                                  className="w-full min-w-0 p-1 text-sm border rounded focus:outline-none focus:border-[#662D91] focus:ring-1 focus:ring-[#662D91]"
                                 />
                               </th>
                             ))}

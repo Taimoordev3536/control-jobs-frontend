@@ -167,7 +167,7 @@ export function WorkCenterDescriptionTab({ workCenter, onUpdate }: WorkCenterDes
       onUpdate() // re-fetches from API → triggers useEffect above to resync formData
       toast({
         title: t("workCenterUpdatedSuccessfully") || "Centro de trabajo actualizado correctamente",
-        variant: "default",
+        variant: "success",
       })
     } catch (error) {
       console.error("Error saving work center:", error)
@@ -206,7 +206,7 @@ export function WorkCenterDescriptionTab({ workCenter, onUpdate }: WorkCenterDes
 
       toast({
         title: t("workCenterDeletedSuccessfully") || "Centro de trabajo eliminado correctamente",
-        variant: "default",
+        variant: "success",
       })
       router.back()
     } catch (error) {

@@ -33,6 +33,7 @@ export function useAuth() {
       toast({
         title: t("loginSuccessTitle"),
         description: t("loginSuccessDescription"),
+        variant: "success",
       })
 
       // Redirect to dashboard after successful login
@@ -56,6 +57,7 @@ export function useAuth() {
       toast({
         title: t("logoutTitle"),
         description: t("logoutDescription"),
+        variant: "success",
       })
       router.push("/login")
     } catch (error) {

@@ -211,7 +211,7 @@ export default function PartnerDataTab({ partnerId, onNameChange }: PartnerDataT
         setHasChanges(false)
         setOriginalData(partnerData)
         onNameChange?.(partnerData.name)
-        toast({ title: t("partnerUpdatedSuccessfully") || "Partner updated successfully", variant: "default" })
+        toast({ title: t("partnerUpdatedSuccessfully") || "Partner updated successfully", variant: "success" })
       } else {
         throw new Error(result.message || "Failed to save partner data")
       }
@@ -237,7 +237,7 @@ export default function PartnerDataTab({ partnerId, onNameChange }: PartnerDataT
         },
       })
       if (!response.ok) throw new Error(`Failed to delete partner: ${response.status}`)
-      toast({ title: t("partnerDeletedSuccessfully") || "Partner deleted successfully", variant: "default" })
+      toast({ title: t("partnerDeletedSuccessfully") || "Partner deleted successfully", variant: "success" })
       router.push("/partners")
     } catch (err) {
       toast({

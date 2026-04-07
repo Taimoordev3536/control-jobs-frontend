@@ -1948,7 +1948,7 @@ export default function JobFormCore({
           mode === "create"
             ? t("jobCreatedSuccessfully") || "Job created successfully!"
             : t("jobUpdatedSuccessfully") || "Job updated successfully!",
-        variant: "default",
+        variant: "success",
       });
 
       onComplete(result.data || result);
@@ -2007,7 +2007,7 @@ export default function JobFormCore({
 
       toast({
         title: t("jobDeletedSuccessfully") || "Job deleted successfully!",
-        variant: "default",
+        variant: "success",
       });
 
       // Navigate back to dashboard or jobs list

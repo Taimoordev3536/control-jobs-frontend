@@ -222,7 +222,7 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded, 
       // Show success toast
       toast({
         title: t("Employer Created successfully!"),
-        variant: "default",
+        variant: "success",
       })
 
       // Map backend employer to frontend fields and add to list
@@ -704,10 +704,9 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded, 
                   </Label>
                   <Input
                     id="accessEmailDisplay"
-                    value={formData.accessEmail !== null ? formData.accessEmail : formData.email}
-                    onChange={(e) => updateFormData("accessEmail", e.target.value)}
-                    className="mt-1"
-                    placeholder={formData.email}
+                    value={formData.email}
+                    readOnly
+                    className="mt-1 bg-muted cursor-not-allowed"
                   />
                 </div>
               </div>

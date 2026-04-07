@@ -190,7 +190,7 @@ export default function AddClientModal({ open, onOpenChange, onClientAdded }: Ad
       toast({
         title: t("clientCreatedSuccessfully") || "Client created successfully!",
         description: "",
-        variant: "default",
+        variant: "success",
       })
 
       // Map backend client to frontend fields with proper data
@@ -645,16 +645,10 @@ export default function AddClientModal({ open, onOpenChange, onClientAdded }: Ad
                   </Label>
                   <Input
                     id="accessEmailDisplay"
-                    value={formData.accessEmail !== null ? formData.accessEmail : formData.email}
-                    onChange={(e) => updateFormData('accessEmail', e.target.value)}
-                    className={`mt-1 ${validationErrors.accessEmail ? "border-red-500" : ""}`}
-                    placeholder={formData.email}
+                    value={formData.email}
+                    readOnly
+                    className="mt-1 bg-muted cursor-not-allowed"
                   />
-                  {validationErrors.accessEmail && (
-                    <p className="mt-1 text-sm text-red-500">
-                      {t("invalidEmailFormat") || "Formato incorrecto"}
-                    </p>
-                  )}
                 </div>
               </div>
 

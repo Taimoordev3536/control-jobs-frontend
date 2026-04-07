@@ -177,7 +177,7 @@ export default function AddWorkerModal({ open, onOpenChange, onWorkerAdded }: Ad
       toast({
         title: t("Worker created successfully!"),
         description: "",
-        variant: "default",
+        variant: "success",
       })
 
       // Map backend worker to frontend fields with proper data
@@ -642,10 +642,9 @@ export default function AddWorkerModal({ open, onOpenChange, onWorkerAdded }: Ad
                   </Label>
                   <Input
                     id="accessEmailDisplay"
-                    value={formData.accessEmail !== null ? formData.accessEmail : formData.email}
-                    onChange={(e) => updateFormData('accessEmail', e.target.value)}
-                    className="mt-1"
-                    placeholder={formData.email}
+                    value={formData.email}
+                    readOnly
+                    className="mt-1 bg-muted cursor-not-allowed"
                   />
                 </div>
               </div>

@@ -79,14 +79,16 @@ export function ClientWorkCenterTab({ clientId }: ClientWorkCenterTabProps) {
       render: (value: any, row: any) => (
         <div className="flex flex-col">
           <span className="text-sm font-medium text-foreground">{value}</span>
-          <span className="text-xs text-muted-foreground">{row.code}</span>
+          {row.code ? (
+            <span className="text-xs text-muted-foreground">{row.code}</span>
+          ) : null}
         </div>
       ),
     },
     { key: "address", label: t("address"), sortable: true },
-    { key: "locality", label: t("locality"), sortable: true },
     { key: "postalCode", label: t("postalCode"), sortable: true, align: "center" as const },
-    
+    { key: "locality", label: t("city"), sortable: true },
+
   ]
 
   const actionButtons = [
@@ -141,10 +143,10 @@ export function ClientWorkCenterTab({ clientId }: ClientWorkCenterTabProps) {
           setWorkCenters((prev) => [
             {
               id: wc.id,
-              code: wc.code || `WC-${wc.id}`,
-              denomination: wc.name || wc.denomination || wc.name,
+              code: wc.code || "",
+              denomination: wc.name || wc.denomination || "",
               address: wc.address || "-",
-              locality: wc.locality || "-",
+              locality: wc.locality || wc.city || "-",
               postalCode: wc.postalCode || "-",
               employees: wc.employeesCount ?? 0,
               established: wc.createdAt ? new Date(wc.createdAt).toLocaleDateString() : "-",

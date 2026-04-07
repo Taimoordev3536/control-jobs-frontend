@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef, forwardRef } from "react"
+import { useState, useEffect } from "react"
 import { Printer, Mail, RefreshCw, QrCode } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
@@ -10,8 +10,6 @@ import { useTranslation } from "@/hooks/use-translation"
 import { toast } from "@/hooks/use-toast"
 import { Input } from "@/components/ui/input"
 import { AnimatedLoader } from "@/components/animated-loader"
-import ControlJobsLogo from "@/icons/Logos/ControlJobs.svg"
-import { useReactToPrint } from "react-to-print"
 
 interface QrCodeData {
   id: string
@@ -35,6 +33,7 @@ interface WorkCenterData {
     postalCode?: string
     city?: string
     province?: string
+    logoUrl?: string
   }
 }
 
@@ -46,172 +45,264 @@ interface QrCodeDialogProps {
   onUpdate: () => void
 }
 
-// Auto-size dual lines: both lines share the SAME font size (determined by the longer text)
-function AutoSizeDualLine({ line1, line2, maxFontSize, minFontSize = 8, style }: {
-  line1: string; line2?: string; maxFontSize: number; minFontSize?: number; style?: React.CSSProperties
-}) {
-  const containerRef = useRef<HTMLDivElement>(null)
-  const text1Ref = useRef<HTMLSpanElement>(null)
-  const text2Ref = useRef<HTMLSpanElement>(null)
-  const [fontSize, setFontSize] = useState(maxFontSize)
-
-  useEffect(() => {
-    if (!containerRef.current || !text1Ref.current) return
-    const containerWidth = containerRef.current.clientWidth
-    if (containerWidth === 0) return
-    let size = maxFontSize
-    const applySize = (s: number) => {
-      text1Ref.current!.style.fontSize = `${s}px`
-      if (text2Ref.current) text2Ref.current.style.fontSize = `${s}px`
-    }
-    applySize(size)
-    while (size > minFontSize) {
-      const over1 = text1Ref.current.scrollWidth > containerWidth
-      const over2 = text2Ref.current ? text2Ref.current.scrollWidth > containerWidth : false
-      if (!over1 && !over2) break
-      size -= 1
-      applySize(size)
-    }
-    setFontSize(size)
-  }, [line1, line2, maxFontSize, minFontSize])
-
-  return (
-    <div ref={containerRef} style={{ width: '100%', overflow: 'hidden', textAlign: 'center' }}>
-      <span ref={text1Ref} style={{ fontSize: `${fontSize}px`, whiteSpace: 'nowrap', display: 'block', ...style }}>
-        {line1}
-      </span>
-      {line2 && (
-        <span ref={text2Ref} style={{ fontSize: `${fontSize}px`, whiteSpace: 'nowrap', display: 'block', marginTop: '1mm', ...style }}>
-          {line2}
-        </span>
-      )}
-    </div>
-  )
+function escapeHtml(s: string): string {
+  return String(s ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;")
 }
 
-// Auto-sizing single line text
-function AutoSizeText({ text, maxFontSize, minFontSize = 8, style }: { text: string; maxFontSize: number; minFontSize?: number; style?: React.CSSProperties }) {
-  const containerRef = useRef<HTMLDivElement>(null)
-  const textRef = useRef<HTMLSpanElement>(null)
-  const [fontSize, setFontSize] = useState(maxFontSize)
-
-  useEffect(() => {
-    if (!containerRef.current || !textRef.current) return
-    const containerWidth = containerRef.current.clientWidth
-    if (containerWidth === 0) return
-    let size = maxFontSize
-    textRef.current.style.fontSize = `${size}px`
-    while (textRef.current.scrollWidth > containerWidth && size > minFontSize) {
-      size -= 1
-      textRef.current.style.fontSize = `${size}px`
-    }
-    setFontSize(size)
-  }, [text, maxFontSize, minFontSize])
-
-  return (
-    <div ref={containerRef} style={{ width: '100%', overflow: 'hidden' }}>
-      <span ref={textRef} style={{ fontSize: `${fontSize}px`, whiteSpace: 'nowrap', display: 'block', ...style }}>
-        {text}
-      </span>
-    </div>
-  )
-}
-
-// Printable QR Component
-interface PrintableQrProps {
+/**
+ * Print the QR by opening a popup window with self-contained HTML.
+ * This gives us full control of @page size (A5 landscape), margins, and layout —
+ * which react-to-print wasn't reliably delivering (Chrome was falling back to A4).
+ *
+ * Layout (A5 landscape, 210 × 148 mm):
+ *  - 6mm gray frame on every side (uniform border)
+ *  - Work Center Name + City:  fixed 20mm block, both lines share an auto-scaled
+ *                              single-line font (white-space: nowrap, no wrap)
+ *  - QR code: fills remaining vertical space
+ *  - Client Name:              fixed 12mm block, single line, auto-scaled
+ *  - Footer 18mm: employer (4 lines, white italic, left) + ControlJobs (2 lines, right)
+ */
+function openQrPrintWindow(args: {
   qrImage: string
   workCenterName: string
   workCenterCity: string
   clientName: string
   employer?: {
-    name: string
+    name?: string
     address?: string
     postalCode?: string
     city?: string
     province?: string
+    logoUrl?: string
   }
-}
+}): boolean {
+  const { qrImage, workCenterName, workCenterCity, clientName, employer } = args
+  const wcName = (workCenterName || "").toUpperCase()
+  const wcCity = (workCenterCity || "").toUpperCase()
+  const cName = (clientName || "").toUpperCase()
+  const empPcCity = [employer?.postalCode, employer?.city].filter(Boolean).join(" ")
 
-const PrintableQr = forwardRef<HTMLDivElement, PrintableQrProps>(({ qrImage, workCenterName, workCenterCity, clientName, employer }, ref) => (
-  <div ref={ref} id="printable-qr-root" style={{ 
-    width: '100%',
-    height: '100%',
-    margin: 0, 
-    padding: 0,
-    backgroundColor: '#a6a6a6',
-    boxSizing: 'border-box' as const,
-    overflow: 'hidden',
-  }}>
-    {/* Gray frame with generous padding acting as the visible border */}
-    <div style={{
-      width: '100%',
-      height: '100%',
-      padding: '3%',
-      display: 'flex',
-      flexDirection: 'column' as const,
-      gap: '3%',
-      boxSizing: 'border-box' as const,
-    }}>
-      {/* Work Center Name + City block */}
-      <div style={{ flex: '0 0 10%', backgroundColor: 'white', padding: '2% 3%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxSizing: 'border-box' as const }}>
-        <AutoSizeDualLine
-          line1={workCenterName.toUpperCase()}
-          line2={workCenterCity ? workCenterCity.toUpperCase() : undefined}
-          maxFontSize={36}
-          style={{ fontWeight: 'bold', letterSpacing: '0.05em', color: 'black', textAlign: 'center' }}
-        />
+  // Employer logo HTML — only rendered if logoUrl is available
+  const empLogoHtml = employer?.logoUrl
+    ? `<img id="emp-logo" class="emp-logo" src="${escapeHtml(employer.logoUrl)}" alt="" />`
+    : ""
+
+  // Build absolute URL for logo so the popup can load it
+  // Embed ControlJobs logo as data URL since popup is about:blank and can't load from origin
+  const logoUrl = "data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4NCjwhLS0gR2VuZXJhdG9yOiBBZG9iZSBJbGx1c3RyYXRvciAyMi4xLjAsIFNWRyBFeHBvcnQgUGx1Zy1JbiAuIFNWRyBWZXJzaW9uOiA2LjAwIEJ1aWxkIDApICAtLT4NCjxzdmcgdmVyc2lvbj0iMS4xIiBpZD0iQ2FwYV8xIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHhtbG5zOnhsaW5rPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rIiB4PSIwcHgiIHk9IjBweCINCgkgdmlld0JveD0iMCAwIDI5MC4xIDU1LjMiIHN0eWxlPSJlbmFibGUtYmFja2dyb3VuZDpuZXcgMCAwIDI5MC4xIDU1LjM7IiB4bWw6c3BhY2U9InByZXNlcnZlIj4NCjxzdHlsZSB0eXBlPSJ0ZXh0L2NzcyI+DQoJLnN0MHtmaWxsOiMzMzMzMzM7fQ0KCS5zdDF7ZmlsbDojNjYyRDkxO30NCgkuc3Qye2ZpbGw6IzMzMzMzMztzdHJva2U6IzMzMzMzMztzdHJva2Utd2lkdGg6MS41O3N0cm9rZS1taXRlcmxpbWl0OjEwO30NCjwvc3R5bGU+DQo8Zz4NCgk8Zz4NCgkJPGc+DQoJCQk8Zz4NCgkJCQk8cGF0aCBjbGFzcz0ic3QwIiBkPSJNMzUuNCwzMy4xYzEuNCwwLDEuOSwxLjEsMSwyLjNjLTMuNyw1LjItOS41LDguNS0xNS45LDguNUM5LjIsNDMuOSwwLDM0LDAsMjEuN0MwLDEwLDkuMiwwLDIwLjQsMA0KCQkJCQljNi40LDAsMTIsMy4yLDE1LjgsOC4yYzAuOSwxLjMsMC4zLDIuMy0xLjEsMi4zaC0xYy0wLjksMC0xLjUtMC4zLTIuMi0xYy0yLjktMy4yLTctNS4yLTExLjQtNS4yYy05LDAtMTYuMyw3LjktMTYuMywxNy4zDQoJCQkJCWMwLDkuOSw3LjIsMTcuOCwxNi4zLDE3LjhjNC41LDAsOC43LTIsMTEuNi01LjNjMC43LTAuOCwxLjMtMS4xLDIuMi0xLjFIMzUuNHoiLz4NCgkJCQk8cGF0aCBjbGFzcz0ic3QwIiBkPSJNNDIuNCwzMC4yYzAtNy41LDYuMi0xMy43LDEzLjctMTMuN2M3LjUsMCwxMy43LDYuMiwxMy43LDEzLjdjMCw3LjQtNi4yLDEzLjgtMTMuNywxMy44DQoJCQkJCUM0OC42LDQ0LDQyLjQsMzcuNiw0Mi40LDMwLjJ6IE00Ni42LDMwLjJjMCw1LjIsNC4xLDkuOCw5LjUsOS44czkuNS00LjYsOS41LTkuOGMwLTUuMy00LjEtOS43LTkuNS05LjdTNDYuNiwyNC44LDQ2LjYsMzAuMnoiDQoJCQkJCS8+DQoJCQkJPHBhdGggY2xhc3M9InN0MCIgZD0iTTc4LDQzLjNjLTEuMywwLTEuOS0wLjctMS45LTEuOVYxOC44YzAtMS4zLDAuNy0xLjksMS45LTEuOWgwLjJjMS4zLDAsMS45LDAuNywxLjksMS45djEuMw0KCQkJCQljMi4xLTIuMyw1LTMuNiw4LjYtMy42YzcuNiwwLDEwLjgsMy40LDEwLjgsMTEuOHYxMy4xYzAsMS4zLTAuNywxLjktMS45LDEuOWgtMC4yYy0xLjMsMC0xLjktMC43LTEuOS0xLjlWMjguMw0KCQkJCQljMC01LjItMi40LTcuOC02LjgtNy44Yy01LjMtMC4xLTguNiwyLjktOC42LDguOHYxMi4xYzAsMS4zLTAuNywxLjktMS45LDEuOUg3OHoiLz4NCgkJCQk8cGF0aCBjbGFzcz0ic3QwIiBkPSJNMTE3LDIwLjZoLTR2MjAuOGMwLDEuMy0wLjcsMS45LTEuOSwxLjloLTAuMmMtMS4zLDAtMS45LTAuNy0xLjktMS45VjIwLjZoLTJjLTEuMywwLTEuOS0wLjctMS45LTEuOQ0KCQkJCQljMC0xLjEsMC43LTEuNywxLjktMS43aDJWOC41YzAtMS4zLDAuNy0xLjksMS45LTEuOWgwLjJjMS4zLDAsMS45LDAuNywxLjksMS45djguNWg0YzEuMywwLDEuOSwwLjYsMS45LDEuOA0KCQkJCQlTMTE4LjIsMjAuNiwxMTcsMjAuNnoiLz4NCgkJCQk8cGF0aCBjbGFzcz0ic3QwIiBkPSJNMTI4LjMsMjAuNWMxLjctMiw0LjEtMy40LDctMy44YzEuMy0wLjIsMiwwLjUsMiwxLjh2MC4xYzAsMS4zLTAuNywxLjgtMS45LDJjLTMuOSwwLjYtNy4xLDMuNC03LjEsOC4xDQoJCQkJCXYxMi43YzAsMS4zLTAuNywxLjktMS45LDEuOWgtMC4yYy0xLjMsMC0xLjktMC43LTEuOS0xLjlWMTguOGMwLTEuMywwLjctMS45LDEuOS0xLjloMC4yYzEuMywwLDEuOSwwLjcsMS45LDEuOVYyMC41eiIvPg0KCQkJCTxwYXRoIGNsYXNzPSJzdDAiIGQ9Ik0xNzUuOCw0My4zYy0xLjMsMC0xLjktMC43LTEuOS0xLjl2LTM5YzAtMS4zLDAuNy0xLjksMS45LTEuOWgwLjJjMS4zLDAsMS45LDAuNywxLjksMS45djM5DQoJCQkJCWMwLDEuMy0wLjcsMS45LTEuOSwxLjlIMTc1Ljh6Ii8+DQoJCQk8L2c+DQoJCTwvZz4NCgkJPGc+DQoJCQk8cGF0aCBjbGFzcz0ic3QxIiBkPSJNMTgwLjcsNTIuOGMwLTEuMiwwLjctMS44LDEuOS0yYzYuNC0wLjcsMTAuMS01LDEwLjEtMTEuOVYyLjRjMC0xLjMsMC43LTEuOSwxLjktMS45aDAuNQ0KCQkJCWMxLjMsMCwxLjksMC43LDEuOSwxLjl2MzYuNWMwLDkuNy01LjMsMTUuNi0xNC40LDE2LjRjLTEuMywwLjEtMi0wLjctMi0xLjlWNTIuOHoiLz4NCgkJCTxwYXRoIGNsYXNzPSJzdDEiIGQ9Ik0yMDQsMzAuMmMwLTcuNSw2LjItMTMuNywxMy43LTEzLjdjNy41LDAsMTMuNyw2LjIsMTMuNywxMy43YzAsNy40LTYuMiwxMy44LTEzLjcsMTMuOA0KCQkJCUMyMTAuMSw0NCwyMDQsMzcuNiwyMDQsMzAuMnogTTIwOC4yLDMwLjJjMCw1LjIsNC4xLDkuOCw5LjUsOS44czkuNS00LjYsOS41LTkuOGMwLTUuMy00LjEtOS43LTkuNS05LjdTMjA4LjIsMjQuOCwyMDguMiwzMC4yeiINCgkJCQkvPg0KCQkJPHBhdGggY2xhc3M9InN0MSIgZD0iTTIzOS41LDQzLjNjLTEuMywwLTEuOS0wLjctMS45LTEuOXYtMzljMC0xLjMsMC43LTEuOSwxLjktMS45aDAuMmMxLjMsMCwxLjksMC43LDEuOSwxLjl2MTguOA0KCQkJCWMyLjQtMi45LDUuOS00LjcsMTAtNC43YzcuNSwwLDEzLjcsNi4yLDEzLjcsMTMuN2MwLDcuNC02LjIsMTMuOC0xMy43LDEzLjhjLTQsMC03LjYtMS45LTEwLTQuOXYyLjNjMCwxLjMtMC43LDEuOS0xLjksMS45DQoJCQkJSDIzOS41eiBNMjYxLjEsMzAuMmMwLTUuMy00LTkuNy05LjQtOS43Yy01LjIsMC05LjgsNC40LTkuOCw5LjdjMCw1LjIsNC42LDkuOCw5LjgsOS44QzI1Ny4xLDQwLDI2MS4xLDM1LjQsMjYxLjEsMzAuMnoiLz4NCgkJCTxwYXRoIGNsYXNzPSJzdDEiIGQ9Ik0yODQuNywyMmMtMC45LTEuMS0yLjYtMS43LTQuOC0xLjdjLTMuMiwwLTUuNCwxLjUtNS40LDMuNWMwLDIsMS43LDMuMSw2LjEsNGM2LjgsMS40LDkuNSwzLjcsOS41LDguMQ0KCQkJCWMwLDQuNi0zLjUsNy45LTEwLjEsNy45Yy01LDAtOC42LTIuMy05LjgtNS45Yy0wLjQtMS4zLDAuNC0yLDEuNy0yYzEuMSwwLDEuNiwwLjUsMi4yLDEuNGMxLDEuNiwzLjIsMi43LDUuOSwyLjcNCgkJCQljMy45LDAsNi41LTEuNyw2LjUtNC4xYzAtMi41LTEuNy0zLjQtNi41LTQuM2MtNi4zLTEuMy05LjEtMy41LTkuMS03LjdjMC00LDMuMS03LjMsOS4xLTcuM2M0LjMsMCw3LjMsMS45LDguNiw0LjgNCgkJCQljMC41LDEuMy0wLjIsMi4xLTEuNiwyLjFDMjg1LjksMjMuNCwyODUuNCwyMi45LDI4NC43LDIyeiIvPg0KCQk8L2c+DQoJPC9nPg0KCTxnPg0KCQk8cGF0aCBjbGFzcz0ic3QyIiBkPSJNMTY0LjMsMjIuNGMtMi4xLTIuNy01LjEtNC41LTguNC01Yy0zLjMtMC40LTYuNiwwLjQtOS4zLDIuNWwtMS0xYy0wLjMtMC4zLTAuNS0wLjItMC42LDAuMmwtMC4zLDMuNQ0KCQkJYzAsMC40LDAuMywwLjcsMC42LDAuN2wzLjUtMC4zYzAuNCwwLDAuNS0wLjMsMC4yLTAuNmwtMS0xYzIuMi0xLjYsNC45LTIuMyw3LjYtMS45YzIuOCwwLjQsNS4zLDEuOSw3LjEsNC4yDQoJCQljMS43LDIuMywyLjUsNS4yLDIuMSw4Yy0wLjMsMi0xLjEsMy45LTIuMyw1LjVjLTAuNSwwLjYtMS4xLDEuMi0xLjgsMS43Yy0yLjMsMS44LTUuMSwyLjUtNy45LDIuMmMtMi44LTAuNC01LjMtMS45LTcuMS00LjINCgkJCWMtMS43LTIuMi0yLjUtNS0yLjEtNy44YzAuMS0wLjYtMC4zLTEuMS0wLjktMS4yYy0wLjYtMC4xLTEuMSwwLjMtMS4xLDAuOWMtMC40LDMuNCwwLjUsNi43LDIuNiw5LjRjMi4xLDIuNyw1LjEsNC41LDguNCw1DQoJCQljMy40LDAuNCw2LjctMC41LDkuNC0yLjZjMC44LTAuNiwxLjUtMS4zLDIuMS0yLjFjMS41LTEuOSwyLjUtNC4xLDIuOC02LjVDMTY3LjMsMjguNiwxNjYuNCwyNS4yLDE2NC4zLDIyLjR6Ii8+DQoJCTxwYXRoIGNsYXNzPSJzdDAiIGQ9Ik0xNTMuNywyMS45Yy0wLjUsMC0wLjgsMC40LTAuOCwwLjh2OC40bDcuNSw0YzAuMSwwLjEsMC4zLDAuMSwwLjQsMC4xYzAuMywwLDAuNi0wLjIsMC43LTAuNQ0KCQkJYzAuMi0wLjQsMC4xLTAuOS0wLjQtMS4xbC02LjctMy41di03LjRDMTU0LjUsMjIuMywxNTQuMiwyMS45LDE1My43LDIxLjl6Ii8+DQoJPC9nPg0KPC9nPg0KPC9zdmc+DQo="
+
+  const html = `<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>QR</title>
+<style>
+  @page {
+    size: portrait;
+    margin: 0;
+  }
+  * {
+    box-sizing: border-box;
+    margin: 0; padding: 0;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    color-adjust: exact;
+  }
+  html, body {
+    margin: 0; padding: 0;
+    width: 100vw; height: 100vh;
+    font-family: Arial, Helvetica, sans-serif;
+    background: #a6a6a6;
+    overflow: hidden;
+  }
+  .page {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    padding: 2% 3%;
+    display: flex; flex-direction: column;
+    gap: 1.5%;
+    overflow: hidden;
+  }
+  .wc, .client {
+    background: #fff;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .wc { flex: 0 0 14%; padding: 0.5% 2%; }
+  .wc-inner { width: 100%; text-align: center; line-height: 1.15; }
+  .wc-inner .line,
+  .client .line {
+    display: block;
+    white-space: nowrap;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    color: #000;
+  }
+  .wc-inner .line + .line { margin-top: 0.5%; }
+  .qr {
+    flex: 1 1 auto;
+    background: #fff;
+    padding: 2% 1%;
+    display: flex; align-items: center; justify-content: center;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .qr img { width: 80%; height: auto; max-height: 95%; object-fit: contain; }
+  .client { flex: 0 0 6%; padding: 0.5% 3%; }
+  .client .line { width: 100%; text-align: center; }
+  .footer {
+    flex: 0 0 12%;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    padding: 0 0.5%;
+    color: #fff;
+    flex-shrink: 0;
+  }
+  .emp-section {
+    display: flex;
+    align-items: flex-end;
+    gap: 2%;
+    max-width: 60%;
+  }
+  .emp-logo {
+    height: 80%;
+    width: auto;
+    max-width: 15%;
+    object-fit: contain;
+    flex-shrink: 0;
+    filter: brightness(0) invert(1);
+  }
+  .emp {
+    display: flex; flex-direction: column;
+    gap: 3px;
+    font-style: italic;
+    font-size: 14pt;
+    line-height: 1.3;
+  }
+  .emp span {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #fff;
+  }
+  .emp .n { font-weight: 700; }
+  .brand {
+    display: flex; flex-direction: column;
+    align-items: flex-end;
+    justify-content: flex-end;
+    gap: 2px;
+    height: 100%;
+  }
+  .brand .pw {
+    color: #fff;
+    font-size: 14pt;
+    font-style: italic;
+    font-weight: 500;
+  }
+  .brand img { height: 50%; width: auto; max-width: 100%; }
+</style>
+</head>
+<body>
+  <div class="page">
+    <div class="wc">
+      <div class="wc-inner">
+        <span class="line">${escapeHtml(wcName)}</span>
+        ${wcCity ? `<span class="line">${escapeHtml(wcCity)}</span>` : ""}
       </div>
-
-      {/* QR Code block — large, minimal inner padding so QR fills the box */}
-      <div style={{ flex: '1 1 auto', backgroundColor: 'white', padding: '1%', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', boxSizing: 'border-box' as const }}>
-        {qrImage ? (
-          <img src={qrImage} alt="QR Code" style={{ width: '100%', height: '100%', objectFit: 'contain' }} crossOrigin="anonymous" />
-        ) : (
-          <div style={{ width: '200px', height: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f3f4f6', border: '2px dashed #d1d5db' }}>
-            <span style={{ color: '#6b7280' }}>QR Code</span>
-          </div>
-        )}
-      </div>
-
-      {/* Client Name block */}
-      <div style={{ flex: '0 0 6%', backgroundColor: 'white', padding: '1% 3%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxSizing: 'border-box' as const }}>
-        <AutoSizeText
-          text={clientName.toUpperCase()}
-          maxFontSize={26}
-          style={{ fontWeight: 'bold', letterSpacing: '0.05em', color: 'black', textAlign: 'center' }}
-        />
-      </div>
-
-      {/* Bottom area: Employer info (left) + ControlJobs (right) */}
-      <div style={{ flex: '0 0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', padding: '0 0.5%' }}>
-        {/* Employer info — white italic text on gray */}
-        <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '2px' }}>
-          {employer?.name && (
-            <span style={{ color: 'white', fontSize: '14px', fontWeight: 'bold', fontStyle: 'italic', lineHeight: 1.4 }}>{employer.name}</span>
-          )}
-          {employer?.address && (
-            <span style={{ color: 'white', fontSize: '14px', fontStyle: 'italic', lineHeight: 1.4 }}>{employer.address}</span>
-          )}
-          {(employer?.postalCode || employer?.city) && (
-            <span style={{ color: 'white', fontSize: '14px', fontStyle: 'italic', lineHeight: 1.4 }}>
-              {[employer.postalCode, employer.city].filter(Boolean).join(' ')}
-            </span>
-          )}
-          {employer?.province && (
-            <span style={{ color: 'white', fontSize: '14px', fontStyle: 'italic', lineHeight: 1.4 }}>{employer.province}</span>
-          )}
+    </div>
+    <div class="qr"><img id="qr-img" src="${escapeHtml(qrImage)}" alt="QR" /></div>
+    <div class="client">
+      <span class="line">${escapeHtml(cName)}</span>
+    </div>
+    <div class="footer">
+      <div class="emp-section">
+        ${empLogoHtml}
+        <div class="emp">
+          <span class="n">${escapeHtml(employer?.name || "")}</span>
+          <span>${escapeHtml(employer?.address || "")}</span>
+          <span>${escapeHtml(empPcCity)}</span>
+          <span>${escapeHtml(employer?.province || "")}</span>
         </div>
-
-        {/* ControlJobs branding — bottom right */}
-        <div style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'flex-end', gap: '1mm' }}>
-          <span style={{ color: '#374151', fontSize: '10px', fontWeight: '500' }}>Powered by</span>
-          <ControlJobsLogo style={{ height: '36px', width: '150px', opacity: 0.9 }} />
-        </div>
+      </div>
+      <div class="brand">
+        <span class="pw">Powered by</span>
+        <img id="cj-logo" src="${escapeHtml(logoUrl)}" alt="ControlJobs" />
       </div>
     </div>
   </div>
-))
-PrintableQr.displayName = 'PrintableQr'
+<script>
+(function () {
+  function fitLines(container, lines, maxPt, minPt) {
+    if (!container || lines.length === 0) return;
+    var usable = container.clientWidth - 2;
+    var fs = maxPt;
+    var step = 0.5;
+    function apply(s) { for (var i = 0; i < lines.length; i++) lines[i].style.fontSize = s + 'pt'; }
+    apply(fs);
+    var guard = 0;
+    while (fs > minPt && guard < 500) {
+      var over = false;
+      for (var j = 0; j < lines.length; j++) {
+        if (lines[j].scrollWidth > usable) { over = true; break; }
+      }
+      if (!over) break;
+      fs -= step;
+      apply(fs);
+      guard++;
+    }
+  }
+
+  function fitAll() {
+    var wc = document.querySelector('.wc-inner');
+    var wcLines = wc ? Array.prototype.slice.call(wc.querySelectorAll('.line')) : [];
+    fitLines(wc, wcLines, 96, 10);
+
+    var cl = document.querySelector('.client');
+    var clLines = cl ? Array.prototype.slice.call(cl.querySelectorAll('.line')) : [];
+    fitLines(cl, clLines, 40, 8);
+  }
+
+  function waitForImg(img) {
+    return new Promise(function (res) {
+      if (!img || img.complete) return res();
+      img.addEventListener('load', function () { res(); }, { once: true });
+      img.addEventListener('error', function () { res(); }, { once: true });
+    });
+  }
+
+  var imgs = [
+    document.getElementById('qr-img'),
+    document.getElementById('cj-logo'),
+    document.getElementById('emp-logo')
+  ].filter(Boolean);
+
+  Promise.all(imgs.map(waitForImg)).then(function () {
+    fitAll();
+    setTimeout(function () {
+      window.focus();
+      window.print();
+      setTimeout(function () { window.close(); }, 600);
+    }, 100);
+  });
+})();
+</script>
+</body>
+</html>`
+
+  const w = window.open("", "_blank", "width=900,height=650,menubar=no,toolbar=no,location=no,status=no")
+  if (!w) return false
+  w.document.open()
+  w.document.write(html)
+  w.document.close()
+  return true
+}
 
 export function QrCodeDialog({ open, onOpenChange, workCenterId, qrData, onUpdate }: QrCodeDialogProps) {
   const { session } = useAuth()
@@ -229,30 +320,29 @@ export function QrCodeDialog({ open, onOpenChange, workCenterId, qrData, onUpdat
   const [workCenterData, setWorkCenterData] = useState<WorkCenterData | null>(null)
   const [isLoadingWorkCenter, setIsLoadingWorkCenter] = useState(false)
   const [progressPercent, setProgressPercent] = useState(100)
-  const printRef = useRef<HTMLDivElement>(null)
 
   const selectedQr = qrType === "STATIC" ? staticQr : dynamicQr
   // Check both isSelected and isActive for backward compatibility with old data
   const isActive = selectedQr?.isSelected || selectedQr?.isActive || false
-
-const handlePrint = useReactToPrint({
-  contentRef: printRef,
-  documentTitle: '',
-  pageStyle: `
-    @page { margin: 0 !important; padding: 0 !important; }
-    html, body { margin: 0 !important; padding: 0 !important; width: 100%; height: 100%; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-    * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; box-sizing: border-box !important; }
-    #printable-qr-root { width: 100vw !important; height: 100vh !important; overflow: hidden !important; }
-  `,
-})
-
 
   const printQr = () => {
     if (!selectedQr?.qrImage) {
       toast({ title: t("noQrToPrint"), variant: "destructive" })
       return
     }
-    handlePrint()
+    const ok = openQrPrintWindow({
+      qrImage: selectedQr.qrImage,
+      workCenterName: workCenterData?.name || "",
+      workCenterCity: workCenterData?.locality || "",
+      clientName: workCenterData?.clientName || "",
+      employer: workCenterData?.employer,
+    })
+    if (!ok) {
+      toast({
+        title: "Permite ventanas emergentes para imprimir el QR",
+        variant: "destructive",
+      })
+    }
   }
 
   // Fetch QR codes when dialog opens
@@ -359,6 +449,7 @@ const handlePrint = useReactToPrint({
               postalCode: emp.postalCode || emp.postal_code,
               city: emp.city,
               province: emp.province,
+              logoUrl: emp.logoUrl || emp.logo_url || emp.logo || undefined,
             } : undefined
           })
         }
@@ -458,7 +549,7 @@ const handlePrint = useReactToPrint({
       )
 
       if (response.ok) {
-        toast({ title: t("emailSentSuccess") })
+        toast({ title: t("emailSentSuccess"), variant: "success" })
         setShowEmailInput(false)
         setClientEmail("")
       } else {
@@ -496,7 +587,7 @@ const handlePrint = useReactToPrint({
       )
 
       if (response.ok) {
-        toast({ title: t("qrRegenerateSuccess") })
+        toast({ title: t("qrRegenerateSuccess"), variant: "success" })
         await fetchQrCodes()
       } else {
         const error = await response.json()
@@ -731,18 +822,6 @@ const handlePrint = useReactToPrint({
           </div>
         )}
       </DialogContent>
-      
-      {/* Hidden printable component — offscreen (not display:none) so refs can measure */}
-      <div style={{ position: 'fixed', left: '-9999px', top: 0, width: '148mm', height: '210mm' }}>
-        <PrintableQr 
-          ref={printRef}
-          qrImage={selectedQr?.qrImage || ''}
-          workCenterName={workCenterData?.name || "WORKCENTER 1"}
-          workCenterCity={workCenterData?.locality || ""}
-          clientName={workCenterData?.clientName || "CLIENTE"}
-          employer={workCenterData?.employer}
-        />
-      </div>
     </Dialog>
   )
 }

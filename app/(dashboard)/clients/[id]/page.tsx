@@ -17,7 +17,7 @@ export default function ClientDetailPage() {
   const searchParams = useSearchParams()
   const { session } = useAuth()
   const router = useRouter()
-  const [activeTab, setActiveTab] = useState("data")
+  const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "data")
   const [clientName, setClientName] = useState(searchParams.get("name") || "")
 
   useEffect(() => {
@@ -53,25 +53,17 @@ export default function ClientDetailPage() {
     <div className="bg-background min-h-screen">
       {/* Header */}
       <div className="bg-card border-b border-border">
-        {activeTab === "data" ? (
-          <div className="grid grid-cols-3 items-center px-4 pt-1 pb-1 sm:px-3">
-            <div />
-            <h1 className="text-sm sm:text-base font-semibold text-foreground truncate text-center">
-              {clientName}
-            </h1>
-            <div className="flex justify-end">
-              <button onClick={() => router.back()} className="p-1 text-muted-foreground hover:text-foreground transition-colors">
-                <ArrowLeft className="h-5 w-5" />
-              </button>
-            </div>
+        <div className="grid grid-cols-3 items-center px-4 pt-1 pb-1 sm:px-3">
+          <div />
+          <h1 className="text-sm sm:text-base font-semibold text-foreground truncate text-center">
+            {clientName}
+          </h1>
+          <div className="flex justify-end">
+            <button onClick={() => router.back()} className="p-1 text-muted-foreground hover:text-foreground transition-colors">
+              <ArrowLeft className="h-5 w-5" />
+            </button>
           </div>
-        ) : (
-          <div className="flex items-center justify-center px-4 pt-1 pb-1 sm:px-3">
-            <h1 className="text-sm sm:text-base font-semibold text-foreground truncate">
-              {clientName}
-            </h1>
-          </div>
-        )}
+        </div>
 
         {/* Tabs */}
         <div className="border-b border-border">

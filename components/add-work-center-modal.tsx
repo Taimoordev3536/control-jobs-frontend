@@ -143,14 +143,16 @@ export default function AddWorkCenterModal({
       const result = await response.json();
       toast({
         title: t("Work center created successfully!"),
-        variant: "default",
+        variant: "success",
       });
 
       if (typeof onWorkCenterAdded === "function" && result.data) {
         const newWorkCenter = {
           id: result.data.publicId || result.data.id,
+          code: result.data.code || "",
           name: result.data.name,
           address: result.data.address,
+          locality: result.data.locality || result.data.city || "-",
           postalCode: result.data.postalCode || "-",
           landline: result.data.landline || "-",
           contactName: result.data.contactName || "-",

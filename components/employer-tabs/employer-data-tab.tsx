@@ -239,7 +239,7 @@ export default function EmployerDataTab({ employerId }: EmployerDataTabProps) {
         setOriginalData(employerData)
         toast({
           title: t("employerUpdatedSuccessfully"),
-          variant: "default",
+          variant: "success",
         })
       } else {
         throw new Error(result.message || "Failed to save employer data")
@@ -279,7 +279,7 @@ export default function EmployerDataTab({ employerId }: EmployerDataTabProps) {
 
       toast({
         title: t("employerDeletedSuccessfully"),
-        variant: "default",
+        variant: "success",
       })
 
       router.back()

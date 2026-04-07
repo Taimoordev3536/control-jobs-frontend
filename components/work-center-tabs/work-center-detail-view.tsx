@@ -17,6 +17,8 @@ interface WorkCenterDetailViewProps {
 interface WorkCenter {
   id: number
   publicId?: string
+  clientId?: string
+  clientName?: string
   code: string
   name: string
   denomination: string
@@ -91,6 +93,8 @@ export default function WorkCenterDetailView({ workCenterId, onBack }: WorkCente
         setWorkCenter({
           id: backendData.id,
           publicId: backendData.publicId,
+          clientId: backendData.client?.publicId || backendData.clientId || undefined,
+          clientName: backendData.client?.name || "",
           code: backendData.code || `WC${backendData.id.toString().padStart(3, '0')}`,
           name: backendData.name,
           denomination: backendData.name, // name -> denomination
@@ -181,6 +185,10 @@ export default function WorkCenterDetailView({ workCenterId, onBack }: WorkCente
   const handleBack = () => {
     if (onBack) {
       onBack()
+      return
+    }
+    if (workCenter?.clientId) {
+      router.push(`/clients/${workCenter.clientId}?tab=work-centers`)
     } else {
       router.back()
     }
@@ -204,27 +212,17 @@ export default function WorkCenterDetailView({ workCenterId, onBack }: WorkCente
     <div className="bg-background min-h-screen">
       {/* Header */}
       <div className="bg-card border-b border-border">
-        {activeTab === "description" ? (
-          <div className="grid grid-cols-3 items-center px-4 pt-1 pb-1 sm:px-3">
-            <h1 className="text-sm sm:text-base font-semibold text-foreground truncate">
-              {workCenter?.name || "Centro de trabajo"}
-            </h1>
-            <span className="text-sm sm:text-base font-medium text-foreground text-center">
-              {t("workCenters")}
-            </span>
-            <div className="flex justify-end">
-              <button onClick={handleBack} className="p-1 text-muted-foreground hover:text-foreground transition-colors">
-                <ArrowLeft className="h-5 w-5" />
-              </button>
-            </div>
+        <div className="grid grid-cols-3 items-center px-4 pt-1 pb-1 sm:px-3">
+          <div />
+          <h1 className="text-sm sm:text-base font-semibold text-foreground truncate text-center">
+            {workCenter?.name || ""}
+          </h1>
+          <div className="flex justify-end">
+            <button onClick={handleBack} className="p-1 text-muted-foreground hover:text-foreground transition-colors">
+              <ArrowLeft className="h-5 w-5" />
+            </button>
           </div>
-        ) : (
-          <div className="flex items-center px-4 pt-1 pb-1 sm:px-3">
-            <h1 className="text-sm sm:text-base font-semibold text-foreground truncate">
-              {workCenter?.name || "Centro de trabajo"}
-            </h1>
-          </div>
-        )}
+        </div>
 
         {/* Tabs */}
         <div className="border-b border-border">
@@ -237,7 +235,7 @@ export default function WorkCenterDetailView({ workCenterId, onBack }: WorkCente
                   : "border-transparent text-muted-foreground hover:text-[#662D91] hover:border-[#662D91]"
               }`}
             >
-              Descripción
+              {t("workCenter")}
             </button>
             <button
               onClick={() => setActiveTab("methods")}
@@ -247,7 +245,7 @@ export default function WorkCenterDetailView({ workCenterId, onBack }: WorkCente
                   : "border-transparent text-muted-foreground hover:text-[#662D91] hover:border-[#662D91]"
               }`}
             >
-              Métodos de fichaje
+              {t("signingMethods")}
             </button>
           </nav>
         </div>

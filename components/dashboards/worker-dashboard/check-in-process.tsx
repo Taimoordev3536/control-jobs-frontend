@@ -474,6 +474,7 @@ export function CheckInProcess({ job, method, token, onBack, onComplete, preScan
       toast({
         title: "✅ Check-In Successful",
         description: `You have checked in to ${job.title}.`,
+        variant: "success",
       })
       onComplete()
     } catch (error) {

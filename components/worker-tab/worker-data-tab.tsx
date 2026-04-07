@@ -225,7 +225,7 @@ export function WorkerDataTab() {
         setHasChanges(false)
         toast({
           title: t("workerUpdatedSuccessfully") || "Worker updated successfully!",
-          variant: "default",
+          variant: "success",
         })
       } else {
         throw new Error(result.developerError || "Failed to save worker data")
@@ -261,7 +261,7 @@ export function WorkerDataTab() {
 
       toast({
         title: t("workerDeletedSuccessfully") || "Worker deleted successfully!",
-        variant: "default",
+        variant: "success",
       })
 
       router.push("/workers")
