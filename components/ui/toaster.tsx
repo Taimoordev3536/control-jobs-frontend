@@ -32,7 +32,7 @@ export function Toaster() {
         const isDestructive = variant === "destructive"
 
         const icon = isSuccess ? (
-          <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-500">
+          <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-700">
             <Check className="h-4 w-4 text-white" strokeWidth={3} />
           </div>
         ) : isDestructive ? (

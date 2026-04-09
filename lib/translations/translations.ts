@@ -84,6 +84,8 @@ surveyMonitoringValueTips: "Set a limit. If responses are under this value, an a
   clientSummerScheduleTip: "If the client has a special summer schedule, enter the start and end dates. If the whole year has the same schedule, leave it blank.",
   requiredFieldsMissing: "Required fields missing",
   summerSchedulePeriod: "Summer Schedule Period",
+  summerPeriodMissingInClient: "Summer period missing in client profile",
+  summerPeriodBothOrNeither: "Both summer start and end dates are required, or leave both empty",
 
   // info tooltip for start date in add-job-modal
   jobStartDateTip: "Past dates are not allowed. Please select today or a future date.",
@@ -683,6 +685,41 @@ surveyMonitoringValueTips: "Set a limit. If responses are under this value, an a
     workerSurvey: "Survey for Workers ",
     datePlaceholder: "dd/mm/yyyy",
     newWorkCenter: "New Work Center",
+
+    // ── Backend validation messages (used by lib/backend-error.ts) ──
+    unexpectedError: "An unexpected error occurred",
+    valMustBeEmail: "{{field}} must be a valid email address",
+    valRequired: "{{field}} is required",
+    valMustBeString: "{{field}} must be text",
+    valMustBeNumber: "{{field}} must be a number",
+    valMustBeInteger: "{{field}} must be a whole number",
+    valMustBeBoolean: "{{field}} must be true or false",
+    valMustBeDate: "{{field}} must be a valid date",
+    valMinLength: "{{field}} must be at least {{value}} characters long",
+    valMaxLength: "{{field}} must be at most {{value}} characters long",
+    valMustBePhone: "{{field}} must be a valid phone number",
+    valInvalidFormat: "{{field}} has an invalid format",
+    valInvalidValue: "{{field}} has an invalid value",
+    valMustBeUuid: "{{field}} must be a valid identifier",
+    valMustBePositive: "{{field}} must be a positive number",
+    valMinValue: "{{field}} must be at least {{value}}",
+    valMaxValue: "{{field}} must be at most {{value}}",
+
+    // Backend field-name labels (camelCase keys mirror the backend payload fields)
+    contactEmail: "Contact email",
+    contactPhone: "Contact phone",
+    contactName: "Contact name",
+    accessEmailField: "Access email",
+    landline: "Landline",
+    postalCode: "Postal code",
+    streetNumber: "Street number",
+    floorDoor: "Floor / Door",
+    locality: "City",
+    province: "Province",
+    country: "Country",
+    latitude: "Latitude",
+    longitude: "Longitude",
+    observations: "Observations",
   },
   es: {
       // add modal json
@@ -754,6 +791,8 @@ surveyMonitoringValueTips: "Set a limit. If responses are under this value, an a
     clientSummerScheduleTip: "Si el cliente hace un horario especial en verano, indicar la fecha de inicio y fin. Si todo el año tiene los mismos horarios, dejarlo en blanco.",
     requiredFieldsMissing: "Campos obligatorios",
     summerSchedulePeriod: "Periodo Horario de Verano",
+    summerPeriodMissingInClient: "Periodo de verano no configurado en el perfil del cliente",
+    summerPeriodBothOrNeither: "Las fechas de inicio y fin del verano son obligatorias, o deja ambas vacías",
 
     // info tooltip for code field in add-client-modal
     erpCustomerCodeTip: "Tu código de cliente en el ERP",
@@ -1370,6 +1409,41 @@ surveyMonitoringValueTips: "Set a limit. If responses are under this value, an a
     workerSurvey: "Parámetros para los Trabajadores",
     datePlaceholder: "dd/mm/aaaa",
     newWorkCenter: "Nuevo Centro de trabajo",
+
+    // ── Mensajes de validación del backend (usados por lib/backend-error.ts) ──
+    unexpectedError: "Ha ocurrido un error inesperado",
+    valMustBeEmail: "{{field}} debe ser un correo electrónico válido",
+    valRequired: "{{field}} es obligatorio",
+    valMustBeString: "{{field}} debe ser texto",
+    valMustBeNumber: "{{field}} debe ser un número",
+    valMustBeInteger: "{{field}} debe ser un número entero",
+    valMustBeBoolean: "{{field}} debe ser verdadero o falso",
+    valMustBeDate: "{{field}} debe ser una fecha válida",
+    valMinLength: "{{field}} debe tener al menos {{value}} caracteres",
+    valMaxLength: "{{field}} debe tener como máximo {{value}} caracteres",
+    valMustBePhone: "{{field}} debe ser un número de teléfono válido",
+    valInvalidFormat: "{{field}} tiene un formato no válido",
+    valInvalidValue: "{{field}} tiene un valor no válido",
+    valMustBeUuid: "{{field}} debe ser un identificador válido",
+    valMustBePositive: "{{field}} debe ser un número positivo",
+    valMinValue: "{{field}} debe ser al menos {{value}}",
+    valMaxValue: "{{field}} debe ser como máximo {{value}}",
+
+    // Etiquetas de campos del backend (las claves en camelCase coinciden con los campos del payload)
+    contactEmail: "Email de contacto",
+    contactPhone: "Teléfono de contacto",
+    contactName: "Nombre de contacto",
+    accessEmailField: "Email de acceso",
+    landline: "Teléfono fijo",
+    postalCode: "Código postal",
+    streetNumber: "Número",
+    floorDoor: "Piso / Puerta",
+    locality: "Población",
+    province: "Provincia",
+    country: "País",
+    latitude: "Latitud",
+    longitude: "Longitud",
+    observations: "Observaciones",
   },
 
   // Calendar translations

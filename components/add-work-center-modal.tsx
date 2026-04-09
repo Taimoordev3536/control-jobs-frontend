@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
 import { useTranslation } from "@/hooks/use-translation";
+import { useBackendError } from "@/lib/backend-error";
 import { useAuth } from "@/hooks/use-auth";
 import GoogleAddressInput, { AddressComponents } from "@/components/GoogleAddressInput";
 
@@ -32,6 +33,7 @@ export default function AddWorkCenterModal({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { t } = useTranslation();
+  const translateBackendError = useBackendError();
   const { session, getUserRole } = useAuth();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -100,7 +102,7 @@ export default function AddWorkCenterModal({
 
       const clientId = getClientIdFromPath();
 
-      const payload = {
+      const payload: Record<string, any> = {
         name: formData.name,
         address: formData.address,
         street: formData.street,
@@ -112,7 +114,6 @@ export default function AddWorkCenterModal({
         contactName: formData.contactName,
         landline: formData.landline,
         contactPhone: formData.contactPhone,
-        contactEmail: formData.contactEmail,
         postalCode: formData.postalCode,
         // Include clientId if we're creating for a specific client
         clientId: clientId || undefined,
@@ -121,6 +122,12 @@ export default function AddWorkCenterModal({
         longitude: formData.longitude,
         gpsRadius: formData.gpsRadius,
       };
+
+      // contactEmail is optional — only include it when the user actually entered one,
+      // because the backend's @IsEmail() validator rejects empty strings.
+      if (formData.contactEmail && formData.contactEmail.trim() !== "") {
+        payload.contactEmail = formData.contactEmail.trim();
+      }
 
       const token = session?.accessToken;
       // Use new unified endpoint
@@ -191,7 +198,7 @@ export default function AddWorkCenterModal({
     } catch (err: any) {
       setError(err.message);
       toast({
-        title: err.message || t("unexpectedError"),
+        title: translateBackendError(err),
         variant: "destructive",
       });
     } finally {

@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useMemo, useEffect, useCallback } from "react"
+import { useState, useMemo, useEffect, useCallback, useRef, useLayoutEffect } from "react"
 import { ChevronUp, ChevronDown, MoreVertical, ChevronsLeft, ChevronsRight } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useTranslation } from "@/hooks/use-translation"
@@ -73,6 +73,35 @@ export default function DataListTemplate({
   const [filters, setFilters] = useState<Record<string, string>>({})
   const [searchQuery, setSearchQuery] = useState("")
   const [goToPageInput, setGoToPageInput] = useState("")
+  const tableRef = useRef<HTMLTableElement | null>(null)
+  const [columnWidths, setColumnWidths] = useState<number[] | null>(null)
+
+  // Helper: extract a plain string from any React node (handles span/strong/array/etc.)
+  const reactNodeToString = (node: any): string => {
+    if (node == null || typeof node === "boolean") return ""
+    if (typeof node === "string" || typeof node === "number") return String(node)
+    if (Array.isArray(node)) return node.map(reactNodeToString).join("")
+    if (typeof node === "object" && node.props) return reactNodeToString(node.props.children)
+    return ""
+  }
+
+  // Helper: get the searchable/filterable text for a cell — uses column.render output if present,
+  // localizes booleans, and falls back to String(value).
+  const getCellText = useCallback(
+    (row: any, column: Column): string => {
+      const value = row?.[column.key]
+      if (column.render) {
+        try {
+          return reactNodeToString(column.render(value, row)).trim()
+        } catch {
+          /* fall through */
+        }
+      }
+      if (typeof value === "boolean") return value ? t("yeah") : t("no")
+      return value == null ? "" : String(value)
+    },
+    [t]
+  )
 
   // Sync column labels when translations/props change, preserving drag-and-drop order
   useEffect(() => {
@@ -121,11 +150,7 @@ export default function DataListTemplate({
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase()
       result = result.filter((row) =>
-        localColumns.some((col) => {
-          const cell = row?.[col.key]
-          const text = cell == null ? "" : String(cell)
-          return text.toLowerCase().includes(query)
-        })
+        localColumns.some((col) => getCellText(row, col).toLowerCase().includes(query))
       )
     }
 
@@ -135,16 +160,44 @@ export default function DataListTemplate({
       if (activeFilters.length > 0) {
         result = result.filter((row) => {
           return activeFilters.every(([key, value]) => {
-            const cell = row?.[key]
-            const text = cell == null ? "" : String(cell)
-            return text.toLowerCase().includes(value.toLowerCase())
+            const col = localColumns.find((c) => c.key === key)
+            if (!col) return true
+            return getCellText(row, col).toLowerCase().includes(value.toLowerCase())
           })
         })
       }
     }
 
     return result
-  }, [sortedData, filters, filtersVisible, searchQuery, localColumns])
+  }, [sortedData, filters, filtersVisible, searchQuery, localColumns, getCellText])
+
+  // When filters/search reduce results so currentPage is out of range, snap back to page 1.
+  // This fixes the "filters only work on page 1" bug — typing into a filter while on page 2+
+  // previously left currentPage past the end of filteredData and showed nothing.
+  useEffect(() => {
+    const filteredTotalPages = Math.max(1, Math.ceil(filteredData.length / itemsPerPage))
+    if (currentPage > filteredTotalPages) {
+      setCurrentPage(1)
+    }
+  }, [filteredData.length, itemsPerPage, currentPage])
+
+  // Measure column widths once after the table first renders with data, then lock them in
+  // with table-layout: fixed so they don't reflow as filtering shrinks cell content.
+  useLayoutEffect(() => {
+    if (columnWidths) return
+    if (!tableRef.current) return
+    if ((data?.length ?? 0) === 0) return
+    const ths = tableRef.current.querySelectorAll<HTMLTableCellElement>("thead tr:first-child th")
+    if (ths.length === 0) return
+    const widths = Array.from(ths).map((th) => th.getBoundingClientRect().width)
+    if (widths.every((w) => w > 0)) setColumnWidths(widths)
+  }, [data, columnWidths, localColumns.length])
+
+  // Reset locked widths if column count or order changes (e.g. via drag-and-drop) so we re-measure.
+  useEffect(() => {
+    setColumnWidths(null)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [localColumns.length])
 
   const handleSort = (column: string) => {
     const columnConfig = localColumns.find((col) => col.key === column)
@@ -418,9 +471,15 @@ export default function DataListTemplate({
                 const [removed] = reordered.splice(result.source.index, 1)
                 reordered.splice(result.destination.index, 0, removed)
                 setLocalColumns(reordered)
+                // Re-measure widths after a reorder
+                setColumnWidths(null)
               }}
             >
-              <table className="w-full">
+              <table
+                ref={tableRef}
+                className="w-full"
+                style={columnWidths ? { tableLayout: "fixed" } : undefined}
+              >
                 <thead>
                   <Droppable droppableId="columns" direction="horizontal">
                     {(provided) => (
@@ -437,6 +496,12 @@ export default function DataListTemplate({
                                   ref={provided.innerRef}
                                   {...provided.draggableProps}
                                   {...provided.dragHandleProps}
+                                  style={{
+                                    ...(provided.draggableProps as any).style,
+                                    ...(columnWidths && columnWidths[index] != null
+                                      ? { width: `${columnWidths[index]}px` }
+                                      : {}),
+                                  }}
                                   className={`px-4 py-[7px] text-xs font-semibold text-foreground transition-colors cursor-move ${
                                     snapshot.isDragging ? "bg-purple-200 dark:bg-purple-800" : ""
                                   } text-center border border-gray-300 dark:border-gray-700 ${

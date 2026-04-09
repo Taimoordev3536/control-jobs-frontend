@@ -10,6 +10,7 @@ import { useTranslation } from "@/hooks/use-translation"
 import { useAuth } from "@/hooks/use-auth"
 import { AnimatedLoader } from "@/components/animated-loader"
 import { toast } from "@/hooks/use-toast"
+import { useBackendError } from "@/lib/backend-error"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,6 +28,7 @@ interface PartnerEmployersTabProps {
 
 export default function PartnerEmployersTab({ partnerId }: PartnerEmployersTabProps) {
   const { t } = useTranslation()
+  const translateBackendError = useBackendError()
   const router = useRouter()
   const { session } = useAuth()
 
@@ -107,7 +109,7 @@ export default function PartnerEmployersTab({ partnerId }: PartnerEmployersTabPr
       })
     } catch (err: any) {
       toast({
-        title: err.message || t("unexpectedError"),
+        title: translateBackendError(err),
         variant: "destructive",
       })
     } finally {

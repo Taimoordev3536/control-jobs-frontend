@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect, useRef, useLayoutEffect, useCallback } from "react"
 import { ChevronUp, ChevronDown } from "lucide-react"
 import { useTranslation } from "@/hooks/use-translation"
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd"
@@ -54,6 +54,32 @@ export default function TabTableTemplate({
   const [currentPage, setCurrentPage] = useState(1)
   const [filtersVisibleInternal, setFiltersVisibleInternal] = useState(false)
   const [filtersInternal, setFiltersInternal] = useState<Record<string, string>>({})
+  const tableRef = useRef<HTMLTableElement | null>(null)
+  const [columnWidths, setColumnWidths] = useState<number[] | null>(null)
+
+  const reactNodeToString = (node: any): string => {
+    if (node == null || typeof node === "boolean") return ""
+    if (typeof node === "string" || typeof node === "number") return String(node)
+    if (Array.isArray(node)) return node.map(reactNodeToString).join("")
+    if (typeof node === "object" && node.props) return reactNodeToString(node.props.children)
+    return ""
+  }
+
+  const getCellText = useCallback(
+    (row: any, column: TabTableColumn): string => {
+      const value = row?.[column.key]
+      if (column.render) {
+        try {
+          return reactNodeToString(column.render(value, row)).trim()
+        } catch {
+          /* fall through */
+        }
+      }
+      if (typeof value === "boolean") return value ? t("yeah") : t("no")
+      return value == null ? "" : String(value)
+    },
+    [t]
+  )
 
   // Use controlled props when provided, otherwise fall back to internal state
   const filtersVisible = typeof showFilters === "boolean" ? showFilters : filtersVisibleInternal
@@ -104,12 +130,36 @@ export default function TabTableTemplate({
 
     return sortedData.filter((row) => {
       return activeFilters.every(([key, value]) => {
-        const cell = row?.[key]
-        const text = cell == null ? "" : String(cell)
-        return text.toLowerCase().includes(value.toLowerCase())
+        const col = localColumns.find((c) => c.key === key)
+        if (!col) return true
+        return getCellText(row, col).toLowerCase().includes(value.toLowerCase())
       })
     })
-  }, [sortedData, filters, filtersVisible])
+  }, [sortedData, filters, filtersVisible, localColumns, getCellText])
+
+  // Snap back to page 1 if filters/search reduce results past current page (fixes "filters
+  // only work on page 1" bug).
+  useEffect(() => {
+    const filteredTotalPages = Math.max(1, Math.ceil(filteredData.length / itemsPerPage))
+    if (currentPage > filteredTotalPages) setCurrentPage(1)
+  }, [filteredData.length, itemsPerPage, currentPage])
+
+  // Lock column widths after the table first renders with data so they don't reflow when
+  // filtering shrinks cell content.
+  useLayoutEffect(() => {
+    if (columnWidths) return
+    if (!tableRef.current) return
+    if ((data?.length ?? 0) === 0) return
+    const ths = tableRef.current.querySelectorAll<HTMLTableCellElement>("thead tr:first-child th")
+    if (ths.length === 0) return
+    const widths = Array.from(ths).map((th) => th.getBoundingClientRect().width)
+    if (widths.every((w) => w > 0)) setColumnWidths(widths)
+  }, [data, columnWidths, localColumns.length])
+
+  useEffect(() => {
+    setColumnWidths(null)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [localColumns.length])
 
   const handleSort = (column: string) => {
     const columnConfig = localColumns.find((col) => col.key === column)
@@ -185,9 +235,14 @@ export default function TabTableTemplate({
             const [removed] = reordered.splice(result.source.index, 1)
             reordered.splice(result.destination.index, 0, removed)
             setLocalColumns(reordered)
+            setColumnWidths(null)
           }}
         >
-          <table className="w-full">
+          <table
+            ref={tableRef}
+            className="w-full"
+            style={columnWidths ? { tableLayout: "fixed" } : undefined}
+          >
             <thead>
               <Droppable droppableId="columns" direction="horizontal">
                 {(provided) => (
@@ -204,6 +259,12 @@ export default function TabTableTemplate({
                               ref={provided.innerRef}
                               {...provided.draggableProps}
                               {...provided.dragHandleProps}
+                              style={{
+                                ...(provided.draggableProps as any).style,
+                                ...(columnWidths && columnWidths[index] != null
+                                  ? { width: `${columnWidths[index]}px` }
+                                  : {}),
+                              }}
                               className={`px-4 py-[7px] text-xs font-semibold text-foreground transition-colors cursor-move ${
                                 snapshot.isDragging ? "bg-purple-200 dark:bg-purple-800" : ""
                               } text-center border border-gray-300 dark:border-gray-700 ${

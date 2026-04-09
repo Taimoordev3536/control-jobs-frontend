@@ -21,6 +21,7 @@ import {
 import { useTranslation } from "@/hooks/use-translation"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
+import { useBackendError } from "@/lib/backend-error"
 import GoogleAddressInput, { AddressComponents } from "@/components/GoogleAddressInput"
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip"
 
@@ -77,6 +78,7 @@ export function WorkCenterDescriptionTab({ workCenter, onUpdate }: WorkCenterDes
   const { t } = useTranslation()
   const { session } = useAuth()
   const { toast } = useToast()
+  const translateBackendError = useBackendError()
   const router = useRouter()
 
   const [formData, setFormData] = useState(() => buildFormData(workCenter))
@@ -140,8 +142,11 @@ export function WorkCenterDescriptionTab({ workCenter, onUpdate }: WorkCenterDes
         observations: formData.observations,
       }
 
-      // Only include email if non-empty (empty string fails @IsEmail validation)
-      if (formData.email) backendData.contactEmail = formData.email
+      // contactEmail is optional. Send the trimmed value when present, or null when the
+      // user has cleared a previously-set email so the backend actually unsets it.
+      // (Sending an empty string would trip @IsEmail() validation.)
+      const trimmedEmail = (formData.email || "").trim()
+      backendData.contactEmail = trimmedEmail === "" ? null : trimmedEmail
 
       // Parse coordinates — TypeORM returns decimal columns as strings from the DB
       const lat = formData.latitude != null ? parseFloat(String(formData.latitude)) : null
@@ -173,7 +178,7 @@ export function WorkCenterDescriptionTab({ workCenter, onUpdate }: WorkCenterDes
       console.error("Error saving work center:", error)
       toast({
         title: t("errorUpdatingWorkCenter") || "Error al actualizar el centro de trabajo",
-        description: error instanceof Error ? error.message : undefined,
+        description: translateBackendError(error),
         variant: "destructive",
       })
     } finally {
@@ -213,7 +218,7 @@ export function WorkCenterDescriptionTab({ workCenter, onUpdate }: WorkCenterDes
       console.error("Error deleting work center:", error)
       toast({
         title: t("errorDeletingWorkCenter") || "Error al eliminar el centro de trabajo",
-        description: error instanceof Error ? error.message : undefined,
+        description: translateBackendError(error),
         variant: "destructive",
       })
     } finally {

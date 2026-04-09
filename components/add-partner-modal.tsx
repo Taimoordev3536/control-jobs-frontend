@@ -11,6 +11,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { toast } from "@/hooks/use-toast"
 import { useTranslation } from "@/hooks/use-translation"
+import { useBackendError } from "@/lib/backend-error"
 import { useAuth } from "@/hooks/use-auth"
 import GoogleAddressInput from "@/components/GoogleAddressInput"
 
@@ -48,6 +49,7 @@ export default function AddPartnerModal({ open, onOpenChange, onPartnerAdded }: 
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const { t } = useTranslation()
+  const translateBackendError = useBackendError()
   const { session, getUserRole } = useAuth()
   const [formData, setFormData] = useState({
     name: "",
@@ -265,7 +267,7 @@ export default function AddPartnerModal({ open, onOpenChange, onPartnerAdded }: 
     } catch (err: any) {
       setError(err.message)
       toast({
-        title: err.message || t("unexpectedError"),
+        title: translateBackendError(err),
         variant: "destructive",
       })
     } finally {

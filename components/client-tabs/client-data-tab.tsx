@@ -54,6 +54,10 @@ interface ClientData {
   responsible: string
   winterSchedule: string | null
   summerSchedule: string | null
+  // Summer period boundaries (DD/MM) — drives job creation summer schedule
+  // window. Mirrors SeasonalSchedule.startDate / endDate on the job side.
+  summerStartDate: string | null
+  summerEndDate: string | null
   accessAccountStatus: string
   userId: number
   name: string
@@ -108,8 +112,22 @@ export function ClientDataTab({ clientId }: ClientDataTabProps) {
         const result = await response.json()
 
         if (result.isSuccess && result.data) {
+          // Normalize the address into the canonical "Street, Number" format.
+          // Older client rows (created via the sign-up flow) may have stored
+          // the address without the comma between street name and number;
+          // rebuild it from the structured street/streetNumber columns when
+          // both are available so the field always renders correctly.
+          const normalizeAddress = (data: any): string => {
+            const street = (data.street || "").toString().trim()
+            const number = (data.streetNumber || "").toString().trim()
+            if (street && number) return `${street}, ${number}`
+            if (street) return street
+            if (number) return number
+            return data.address || ""
+          }
           const mapped = {
             ...result.data,
+            address: normalizeAddress(result.data),
             active: result.data.active !== undefined ? result.data.active : true,
           }
           setClientData(mapped)
@@ -152,6 +170,22 @@ export function ClientDataTab({ clientId }: ClientDataTabProps) {
       toast({
         title: t("requiredFieldsMissing") || "Campos obligatorios",
         description: missing.join(", "),
+        variant: "destructive",
+      })
+      return
+    }
+
+    // Summer period must be both-or-neither: empty pair means "no summer
+    // window" (job will use normal/winter shifts year-round); a single
+    // populated field is invalid.
+    const hasStart = !!clientData.summerStartDate?.trim()
+    const hasEnd = !!clientData.summerEndDate?.trim()
+    if (hasStart !== hasEnd) {
+      toast({
+        title: t("requiredFieldsMissing") || "Campos obligatorios",
+        description:
+          t("summerPeriodBothOrNeither") ||
+          "Both summer start and end dates are required, or leave both empty",
         variant: "destructive",
       })
       return
@@ -424,11 +458,16 @@ export function ClientDataTab({ clientId }: ClientDataTabProps) {
             value={clientData.address || ""}
             onChange={(value, placeId, components) => {
               if (components) {
-                // Store only street + number in address field; other parts go to their own fields
-                const parts = [components.street, components.streetNumber].filter(Boolean)
+                // Store only street + number in address field; other parts go to their own fields.
+                // Required format: "Street, Number" — always with a comma between the street name
+                // and the number (per the address field spec).
                 let addressOnly: string
-                if (parts.length > 0) {
-                  addressOnly = parts.join(" ")
+                if (components.street && components.streetNumber) {
+                  addressOnly = `${components.street}, ${components.streetNumber}`
+                } else if (components.street) {
+                  addressOnly = components.street
+                } else if (components.streetNumber) {
+                  addressOnly = components.streetNumber
                 } else {
                   // No street/number (Plus Codes, business names, etc.) — strip city/province/country/postalCode from the full address
                   let cleaned = value
@@ -567,7 +606,7 @@ export function ClientDataTab({ clientId }: ClientDataTabProps) {
             />
           </div>
         </div>
-        <div className="space-y-1 min-w-0" style={{ flex: "0 0 24%" }}>
+        <div className="space-y-1 min-w-0" style={{ flex: "0 0 21%" }}>
           <Label htmlFor="email" className="text-xs font-medium text-foreground flex items-center gap-1">
             {t("email")} <span className="text-red-500">*</span>
           </Label>
@@ -601,21 +640,31 @@ export function ClientDataTab({ clientId }: ClientDataTabProps) {
           <Label className="text-xs font-medium text-foreground flex items-center gap-1">
             {t("summerSchedulePeriod") || "Periodo Horario de Verano"} {tip(t("clientSummerScheduleTip"))}
           </Label>
-          <div className="flex items-center gap-2">
-            <Input
-              placeholder="dd/mm"
-              value={clientData.winterSchedule || ""}
-              onChange={(e) => handleDateInput("winterSchedule", e.target.value)}
-              className="h-9 w-20 text-xs bg-muted/30 border-input text-foreground text-center"
-              maxLength={5}
-            />
-            <Input
-              placeholder="dd/mm"
-              value={clientData.summerSchedule || ""}
-              onChange={(e) => handleDateInput("summerSchedule", e.target.value)}
-              className="h-9 w-20 text-xs bg-muted/30 border-input text-foreground text-center"
-              maxLength={5}
-            />
+          <div className="flex items-end gap-2">
+            <div className="flex flex-col items-center">
+              <span className="text-[10px] text-muted-foreground leading-none mb-0.5">
+                {t("start") || "Start"}
+              </span>
+              <Input
+                placeholder="dd/mm"
+                value={clientData.summerStartDate || ""}
+                onChange={(e) => handleDateInput("summerStartDate", e.target.value)}
+                className="h-9 w-20 text-xs bg-muted/30 border-input text-foreground text-center"
+                maxLength={5}
+              />
+            </div>
+            <div className="flex flex-col items-center">
+              <span className="text-[10px] text-muted-foreground leading-none mb-0.5">
+                {t("end") || "End"}
+              </span>
+              <Input
+                placeholder="dd/mm"
+                value={clientData.summerEndDate || ""}
+                onChange={(e) => handleDateInput("summerEndDate", e.target.value)}
+                className="h-9 w-20 text-xs bg-muted/30 border-input text-foreground text-center"
+                maxLength={5}
+              />
+            </div>
           </div>
         </div>
       </div>

@@ -25,18 +25,11 @@ import { LoadingSpinner } from "@/components/dashboard-loader"
 import { useAuth } from "@/hooks/use-auth"
 import { Button } from "@/components/ui/button"
 import { toast } from "@/hooks/use-toast"
+import { useBackendError } from "@/lib/backend-error"
 
-// Extract user-friendly message from a raw backend error (JSON string or Error)
-function parseBackendError(err: unknown, fallback: string): string {
-  const msg = err instanceof Error ? err.message : String(err);
-  // Try to parse embedded JSON like: {"message":"...","statusCode":500,...}
-  try {
-    const json = JSON.parse(msg.replace(/^[^{]*/, ''));
-    return json?.message || fallback;
-  } catch {
-    return msg || fallback;
-  }
-}
+// Backend error parsing/translation lives in `lib/backend-error.ts` and is consumed
+// inside the component via `useBackendError()`. The previous local `parseBackendError`
+// helper has been removed to avoid duplicating that logic.
 
 // Updated interfaces
 interface TaskHistory {
@@ -167,6 +160,7 @@ interface ApiWorkerResponse {
 
 export default function WorkerDashboardMain() {
   const { t } = useTranslation("worker-dashboard");
+  const translateBackendError = useBackendError();
   const { session, logout } = useAuth();
 
   const [todayAssignments, setTodayAssignments] = useState<JobAssignment[]>([]);
@@ -629,7 +623,7 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
 
     } catch (error) {
       console.error("Check-in error:", error);
-      toast({ variant: "destructive", title: "Check-in Failed", description: parseBackendError(error, "Failed to check in") });
+      toast({ variant: "destructive", title: "Check-in Failed", description: translateBackendError(error, "Failed to check in") });
     } finally {
       setActionLoading(false);
     }
@@ -690,7 +684,7 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
       } else if (msg.includes('No shift is scheduled')) {
         toast({ variant: "destructive", title: "No Shift Today", description: msg });
       } else {
-        toast({ variant: "destructive", title: "GPS Check-in Failed", description: parseBackendError(error, "Failed to check in with GPS") });
+        toast({ variant: "destructive", title: "GPS Check-in Failed", description: translateBackendError(error, "Failed to check in with GPS") });
       }
       setActionLoading(false);
     }
@@ -792,7 +786,7 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
       }
     } catch (error) {
       console.error("Error checking out:", error);
-      toast({ variant: "destructive", title: "Check-out Failed", description: parseBackendError(error, "Failed to check out") });
+      toast({ variant: "destructive", title: "Check-out Failed", description: translateBackendError(error, "Failed to check out") });
     } finally {
       setActionLoading(false);
     }
@@ -894,7 +888,7 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
       }
     } catch (error) {
       console.error("Error starting break:", error);
-      toast({ variant: "destructive", title: "Break Start Failed", description: parseBackendError(error, "Failed to start break") });
+      toast({ variant: "destructive", title: "Break Start Failed", description: translateBackendError(error, "Failed to start break") });
     } finally {
       setActionLoading(false);
     }
@@ -988,7 +982,7 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
       }
     } catch (error) {
       console.error("Error ending break:", error);
-      toast({ variant: "destructive", title: "Break End Failed", description: parseBackendError(error, "Failed to end break") });
+      toast({ variant: "destructive", title: "Break End Failed", description: translateBackendError(error, "Failed to end break") });
     } finally {
       setActionLoading(false);
     }

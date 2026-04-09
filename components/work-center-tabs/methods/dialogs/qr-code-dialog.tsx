@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label"
 import { useAuth } from "@/hooks/use-auth"
 import { useTranslation } from "@/hooks/use-translation"
 import { toast } from "@/hooks/use-toast"
+import { useBackendError } from "@/lib/backend-error"
 import { Input } from "@/components/ui/input"
 import { AnimatedLoader } from "@/components/animated-loader"
 
@@ -26,6 +27,8 @@ interface WorkCenterData {
   id: number
   name: string
   locality?: string
+  address?: string
+  province?: string
   clientName?: string
   employer?: {
     name: string
@@ -123,9 +126,14 @@ function openQrPrintWindow(args: {
   .page {
     position: absolute;
     top: 0; left: 0; right: 0; bottom: 0;
-    padding: 2% 3%;
+    /* Use vw on every side AND for the gap so the borders and the spacing
+       between the boxes all resolve against the same reference (page width)
+       and end up visually identical. (CSS percentage padding is always
+       relative to width, but percentage gap in column flex is relative to
+       height — mixing them caused the asymmetry.) */
+    padding: 3vw;
     display: flex; flex-direction: column;
-    gap: 1.5%;
+    gap: 3vw;
     overflow: hidden;
   }
   .wc, .client {
@@ -134,7 +142,7 @@ function openQrPrintWindow(args: {
     overflow: hidden;
     flex-shrink: 0;
   }
-  .wc { flex: 0 0 14%; padding: 0.5% 2%; }
+  .wc { flex: 0 0 18%; padding: 1% 1%; }
   .wc-inner { width: 100%; text-align: center; line-height: 1.15; }
   .wc-inner .line,
   .client .line {
@@ -239,34 +247,42 @@ function openQrPrintWindow(args: {
   </div>
 <script>
 (function () {
+  // Binary-search the largest font size in [minPt, maxPt] that lets every line
+  // fit within both the width AND the height of its container. Previously this
+  // only checked width and stepped down by 0.5pt from a low cap, which left the
+  // work-center title looking tiny inside its white box.
   function fitLines(container, lines, maxPt, minPt) {
     if (!container || lines.length === 0) return;
-    var usable = container.clientWidth - 2;
-    var fs = maxPt;
-    var step = 0.5;
+    var usableW = container.clientWidth;
+    var usableH = container.clientHeight;
     function apply(s) { for (var i = 0; i < lines.length; i++) lines[i].style.fontSize = s + 'pt'; }
-    apply(fs);
-    var guard = 0;
-    while (fs > minPt && guard < 500) {
-      var over = false;
-      for (var j = 0; j < lines.length; j++) {
-        if (lines[j].scrollWidth > usable) { over = true; break; }
+    function fits(s) {
+      apply(s);
+      // Check every line is within the container width
+      for (var i = 0; i < lines.length; i++) {
+        if (lines[i].scrollWidth > usableW) return false;
       }
-      if (!over) break;
-      fs -= step;
-      apply(fs);
-      guard++;
+      // And the stack of lines is within the container height
+      if (container.scrollHeight > usableH) return false;
+      return true;
     }
+    var lo = minPt, hi = maxPt, best = minPt;
+    // 1pt-precision binary search — fast and converges in ~8 iterations.
+    for (var iter = 0; iter < 16 && lo <= hi; iter++) {
+      var mid = Math.floor((lo + hi) / 2);
+      if (fits(mid)) { best = mid; lo = mid + 1; } else { hi = mid - 1; }
+    }
+    apply(best);
   }
 
   function fitAll() {
     var wc = document.querySelector('.wc-inner');
     var wcLines = wc ? Array.prototype.slice.call(wc.querySelectorAll('.line')) : [];
-    fitLines(wc, wcLines, 96, 10);
+    fitLines(wc, wcLines, 200, 14);
 
     var cl = document.querySelector('.client');
     var clLines = cl ? Array.prototype.slice.call(cl.querySelectorAll('.line')) : [];
-    fitLines(cl, clLines, 40, 8);
+    fitLines(cl, clLines, 80, 12);
   }
 
   function waitForImg(img) {
@@ -307,6 +323,7 @@ function openQrPrintWindow(args: {
 export function QrCodeDialog({ open, onOpenChange, workCenterId, qrData, onUpdate }: QrCodeDialogProps) {
   const { session } = useAuth()
   const { t } = useTranslation()
+  const translateBackendError = useBackendError()
   const [qrType, setQrType] = useState<"STATIC" | "DYNAMIC">("STATIC")
   const [staticQr, setStaticQr] = useState<QrCodeData | null>(null)
   const [dynamicQr, setDynamicQr] = useState<QrCodeData | null>(null)
@@ -442,6 +459,8 @@ export function QrCodeDialog({ open, onOpenChange, workCenterId, qrData, onUpdat
             id: data.id,
             name: data.name,
             locality: data.locality || data.city || "",
+            address: data.address || "",
+            province: data.province || "",
             clientName: data.client?.name || "",
             employer: emp ? {
               name: emp.name,
@@ -554,7 +573,7 @@ export function QrCodeDialog({ open, onOpenChange, workCenterId, qrData, onUpdat
         setClientEmail("")
       } else {
         const error = await response.json()
-        toast({ title: error.message || t("emailSendError"), variant: "destructive" })
+        toast({ title: translateBackendError(error, "emailSendError"), variant: "destructive" })
       }
     } catch (error) {
       console.error("Error sending email:", error)
@@ -591,7 +610,7 @@ export function QrCodeDialog({ open, onOpenChange, workCenterId, qrData, onUpdat
         await fetchQrCodes()
       } else {
         const error = await response.json()
-        toast({ title: error.message || t("qrRegenerateError"), variant: "destructive" })
+        toast({ title: translateBackendError(error, "qrRegenerateError"), variant: "destructive" })
       }
     } catch (error) {
       console.error("Error regenerating QR:", error)
@@ -627,9 +646,27 @@ export function QrCodeDialog({ open, onOpenChange, workCenterId, qrData, onUpdat
             ) : (
               <>
                 <div className="text-base font-bold uppercase tracking-wide">{workCenterData?.name || ""}</div>
-                {workCenterData?.locality && (
-                  <div className="text-sm font-normal text-muted-foreground">{workCenterData.locality}</div>
-                )}
+                {(() => {
+                  // Prefer the dedicated locality column. If the work center was created without
+                  // a Google-suggested address, locality may be empty — in that case derive a city
+                  // candidate from the address string ("Calle X 25, Pamplona, Spain" → "Pamplona"),
+                  // and as a last resort show the address itself so users always see *something*
+                  // identifying the work center under its name.
+                  const locality = (workCenterData?.locality || "").trim()
+                  if (locality) return (
+                    <div className="text-sm font-normal text-muted-foreground">{locality}</div>
+                  )
+                  const address = (workCenterData?.address || "").trim()
+                  if (address) {
+                    const parts = address.split(",").map((p) => p.trim()).filter(Boolean)
+                    // Take the second segment if present (typical "street, city, country")
+                    const candidate = parts.length >= 2 ? parts[1] : parts[0]
+                    if (candidate) return (
+                      <div className="text-sm font-normal text-muted-foreground">{candidate}</div>
+                    )
+                  }
+                  return null
+                })()}
               </>
             )}
           </DialogTitle>
@@ -691,17 +728,7 @@ export function QrCodeDialog({ open, onOpenChange, workCenterId, qrData, onUpdat
               {/* Always render progress bar row to keep consistent height */}
               <div className="h-4">
                 {qrType === "DYNAMIC" && isActive && selectedQr?.qrImage && timeUntilExpiry && (
-                  <div className="flex items-center gap-2 w-56">
-                    <span className={`text-xs font-semibold tabular-nums whitespace-nowrap transition-colors ${
-                      Math.ceil((progressPercent / 100) * 30) <= 10 ? 'text-[#C2185B]' : 'text-[#6B21A8]'
-                    }`}>
-                      {(() => {
-                        const totalSecs = Math.ceil((progressPercent / 100) * 30)
-                        const mm = String(Math.floor(totalSecs / 60)).padStart(2, '0')
-                        const ss = String(totalSecs % 60).padStart(2, '0')
-                        return `${mm}:${ss}`
-                      })()}
-                    </span>
+                  <div className="flex items-center w-48">
                     <div className="h-2 flex-1 rounded-full bg-gray-200 overflow-hidden">
                       <div
                         className={`h-full rounded-full transition-colors ${

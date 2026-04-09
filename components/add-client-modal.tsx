@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "@/hooks/use-toast"
 import { useTranslation } from "@/hooks/use-translation"
+import { useBackendError } from "@/lib/backend-error"
 import { useAuth } from "@/hooks/use-auth"
 import GoogleAddressInput, { AddressComponents } from "@/components/GoogleAddressInput"
 
@@ -26,6 +27,7 @@ export default function AddClientModal({ open, onOpenChange, onClientAdded }: Ad
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const { t } = useTranslation()
+  const translateBackendError = useBackendError()
   const { session, getUserRole } = useAuth()
 
   const [formData, setFormData] = useState({
@@ -247,9 +249,10 @@ export default function AddClientModal({ open, onOpenChange, onClientAdded }: Ad
         })
       }, 1000)
     } catch (err: any) {
-      setError(err.message)
+      const message = translateBackendError(err)
+      setError(message)
       toast({
-        title: err.message || t("unexpectedError"),
+        title: message,
         variant: "destructive",
       })
     } finally {

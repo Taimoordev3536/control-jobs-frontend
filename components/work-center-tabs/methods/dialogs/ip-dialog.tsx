@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label"
 import { useAuth } from "@/hooks/use-auth"
 import { useTranslation } from "@/hooks/use-translation"
 import { toast } from "@/hooks/use-toast"
+import { useBackendError } from "@/lib/backend-error"
 
 interface IpDialogProps {
   open: boolean
@@ -20,6 +21,7 @@ interface IpDialogProps {
 export function IpDialog({ open, onOpenChange, workCenterId, ipData, onUpdate }: IpDialogProps) {
   const { session } = useAuth()
   const { t } = useTranslation()
+  const translateBackendError = useBackendError()
   const [ipAddress, setIpAddress] = useState(ipData?.ipAddress || "")
   const [active, setActive] = useState(ipData?.active || false)
   const [isSaving, setIsSaving] = useState(false)
@@ -62,7 +64,7 @@ export function IpDialog({ open, onOpenChange, workCenterId, ipData, onUpdate }:
         onOpenChange(false)
       } else {
         const err = await response.json().catch(() => ({}))
-        toast({ title: err.message || t("ipSaveError"), variant: "destructive" })
+        toast({ title: translateBackendError(err, "ipSaveError"), variant: "destructive" })
       }
     } catch (error) {
       console.error("Error saving IP config:", error)

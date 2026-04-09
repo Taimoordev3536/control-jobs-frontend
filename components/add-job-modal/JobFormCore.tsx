@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import { useTranslation } from "@/hooks/use-translation";
+import { useBackendError } from "@/lib/backend-error";
 import { useAuth } from "@/hooks/use-auth";
 import { isValidDuration } from "@/components/ui/time-field";
 
@@ -55,6 +56,7 @@ export default function JobFormCore({
   const [workerQuery, setWorkerQuery] = useState("");
 
   const { t } = useTranslation("employer-dashboard");
+  const translateBackendError = useBackendError();
   const { session } = useAuth();
 
   // API Data
@@ -194,6 +196,73 @@ export default function JobFormCore({
       }
     }
   }, [clients, formData.clientId]);
+
+  // Summer period sourced from the selected client's profile (DD/MM strings).
+  // Mirrors SeasonalSchedule.startDate / endDate naming on the job side so the
+  // existing job logic in job.service.ts can reuse it without translation.
+  // In EDIT mode, fall back to whatever the legacy job already has saved so
+  // pre-existing jobs continue to display their original dates unchanged.
+  const clientSummerPeriod = useMemo(() => {
+    const selectedClient = clients.find(
+      (c: any) => String(c.id) === String(formData.clientId)
+    );
+    if (selectedClient?.summerStartDate || selectedClient?.summerEndDate) {
+      return {
+        startDate: selectedClient.summerStartDate ?? null,
+        endDate: selectedClient.summerEndDate ?? null,
+      };
+    }
+    if (mode === "edit") {
+      const legacy = (formData.seasonPeriods || []).find(
+        (p: any) => p.season === "summer"
+      );
+      if (legacy && (legacy.startDate || legacy.endDate)) {
+        return {
+          startDate: legacy.startDate || null,
+          endDate: legacy.endDate || null,
+        };
+      }
+    }
+    return { startDate: null, endDate: null };
+  }, [clients, formData.clientId, formData.seasonPeriods, mode]);
+
+  // CREATE mode only: keep formData.seasonPeriods.summer in sync with the
+  // client's summer period so the create-job payload reflects client values.
+  // Edit mode is intentionally untouched — legacy jobs retain stored dates.
+  useEffect(() => {
+    if (mode !== "create") return;
+    setFormData((prev) => {
+      const others = (prev.seasonPeriods || []).filter(
+        (p: any) => p.season !== "summer"
+      );
+      const next =
+        clientSummerPeriod.startDate && clientSummerPeriod.endDate
+          ? [
+              ...others,
+              {
+                season: "summer",
+                startDate: clientSummerPeriod.startDate,
+                endDate: clientSummerPeriod.endDate,
+              },
+            ]
+          : others;
+      // Avoid unnecessary state churn when value is unchanged.
+      const prevSummer = (prev.seasonPeriods || []).find(
+        (p: any) => p.season === "summer"
+      );
+      const nextSummer = next.find((p: any) => p.season === "summer");
+      const same =
+        (prevSummer?.startDate || "") === (nextSummer?.startDate || "") &&
+        (prevSummer?.endDate || "") === (nextSummer?.endDate || "") &&
+        (prev.seasonPeriods || []).length === next.length;
+      if (same) return prev;
+      return { ...prev, seasonPeriods: next };
+    });
+  }, [
+    mode,
+    clientSummerPeriod.startDate,
+    clientSummerPeriod.endDate,
+  ]);
 
   const fetchWorkers = useCallback(async () => {
     setLoadingWorkers(true);
@@ -1495,6 +1564,44 @@ export default function JobFormCore({
         }
       }
 
+      // Schedules step: if the user has actually entered any summer shifts,
+      // the client must have a summer period configured. No shifts → no
+      // requirement, can proceed freely (only normal shifts will apply).
+      if (
+        currentSigningStep === 2 &&
+        (formData.scheduleType as string) === "programming"
+      ) {
+        const summer = formData.schedules?.summer as any;
+        let summerHasShifts = false;
+        if (summer) {
+          outer: for (const day of Object.keys(summer)) {
+            const daySched = summer[day];
+            if (!daySched) continue;
+            for (const shift of ["morning", "afternoon", "evening"]) {
+              const cell = daySched[shift];
+              if (cell && (cell.start || cell.end)) {
+                summerHasShifts = true;
+                break outer;
+              }
+            }
+          }
+        }
+        if (
+          summerHasShifts &&
+          (!clientSummerPeriod?.startDate || !clientSummerPeriod?.endDate)
+        ) {
+          const msg =
+            t("summerPeriodMissingInClient") ||
+            "Summer period missing in client profile";
+          setErrors({ summerPeriod: msg });
+          toast({
+            title: msg,
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+
       if (currentSigningStep < 4) {
         setCurrentSigningStep(currentSigningStep + 1);
       } else {
@@ -1538,7 +1645,7 @@ export default function JobFormCore({
 
       setCurrentMainStep(3);
     }
-  }, [currentMainStep, currentSigningStep, formData, t]);
+  }, [currentMainStep, currentSigningStep, formData, t, clientSummerPeriod, mode]);
 
   const handlePrevious = useCallback(() => {
     if (currentMainStep === 1) {
@@ -1959,7 +2066,7 @@ export default function JobFormCore({
     } catch (error: any) {
       console.error(`Error ${mode}ing job:`, error);
       toast({
-        title: error.message || t("errorCreatingJob") || `Error ${mode}ing job`,
+        title: translateBackendError(error, "errorCreatingJob"),
         variant: "destructive",
       });
     } finally {
@@ -2015,7 +2122,7 @@ export default function JobFormCore({
     } catch (error: any) {
       console.error("Error deleting job:", error);
       toast({
-        title: error.message || t("errorDeletingJob") || "Error deleting job",
+        title: translateBackendError(error, "errorDeletingJob"),
         variant: "destructive",
       });
     } finally {
@@ -2182,6 +2289,7 @@ export default function JobFormCore({
                 pairingRegistryRef={pairingRegistryRef}
                 daysOfWeek={daysOfWeek}
                 clearCurrentSeasonSchedules={clearCurrentSeasonSchedules}
+                clientSummerPeriod={clientSummerPeriod}
                 commitValue={(key: string, value: string) => {
                   // Parse the key: format is "day-shift-timeType" e.g. "monday-morning-start"
                   const parts = key.split("-");

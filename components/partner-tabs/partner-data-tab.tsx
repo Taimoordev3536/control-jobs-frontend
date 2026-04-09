@@ -10,6 +10,7 @@ import { useTranslation } from "@/hooks/use-translation"
 import { useAuth } from "@/hooks/use-auth"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
+import { useBackendError } from "@/lib/backend-error"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AnimatedLoader } from "@/components/animated-loader"
 import { Label } from "@/components/ui/label"
@@ -76,6 +77,7 @@ export default function PartnerDataTab({ partnerId, onNameChange }: PartnerDataT
   const { session } = useAuth()
   const router = useRouter()
   const { toast } = useToast()
+  const translateBackendError = useBackendError()
 
   const [partnerData, setPartnerData] = useState<PartnerData | null>(null)
   const [originalData, setOriginalData] = useState<PartnerData | null>(null)
@@ -217,7 +219,7 @@ export default function PartnerDataTab({ partnerId, onNameChange }: PartnerDataT
       }
     } catch (err) {
       toast({
-        title: err instanceof Error ? err.message : "Failed to save partner data",
+        title: translateBackendError(err, "errorSavingPartner"),
         variant: "destructive",
       })
     } finally {
@@ -241,7 +243,7 @@ export default function PartnerDataTab({ partnerId, onNameChange }: PartnerDataT
       router.push("/partners")
     } catch (err) {
       toast({
-        title: err instanceof Error ? err.message : "Failed to delete partner",
+        title: translateBackendError(err, "errorDeletingPartner"),
         variant: "destructive",
       })
     } finally {

@@ -15,6 +15,7 @@ import { useTranslation } from "@/hooks/use-translation"
 import { useAuth } from "@/hooks/use-auth"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
+import { useBackendError } from "@/lib/backend-error"
 import { Info } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AnimatedLoader } from "@/components/animated-loader"
@@ -73,6 +74,7 @@ export default function EmployerDataTab({ employerId }: EmployerDataTabProps) {
   const { session } = useAuth()
   const router = useRouter()
   const { toast } = useToast()
+  const translateBackendError = useBackendError()
 
   const [employerData, setEmployerData] = useState<EmployerData | null>(null)
   const [originalData, setOriginalData] = useState<EmployerData | null>(null)
@@ -247,7 +249,7 @@ export default function EmployerDataTab({ employerId }: EmployerDataTabProps) {
     } catch (err) {
       console.error("Error saving employer data:", err)
       toast({
-        title: err instanceof Error ? err.message : "Failed to save employer data",
+        title: translateBackendError(err, "errorSavingEmployer"),
         variant: "destructive",
       })
     } finally {
@@ -286,7 +288,7 @@ export default function EmployerDataTab({ employerId }: EmployerDataTabProps) {
     } catch (err) {
       console.error("Error deleting employer:", err)
       toast({
-        title: err instanceof Error ? err.message : "Failed to delete employer",
+        title: translateBackendError(err, "errorDeletingEmployer"),
         variant: "destructive",
       })
     } finally {

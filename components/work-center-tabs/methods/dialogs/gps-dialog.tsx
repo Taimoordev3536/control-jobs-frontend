@@ -28,8 +28,10 @@ interface GpsDialogProps {
   onUpdate: () => void
 }
 
-const formatNumber = (n: number) => n.toLocaleString('en-US')
-const parseFormattedNumber = (s: string) => parseInt(s.replace(/,/g, ''), 10)
+// Use Spanish/European thousand separator (".") instead of the US comma.
+// e.g. 2759459 → "2.759.459"
+const formatNumber = (n: number) => n.toLocaleString('es-ES')
+const parseFormattedNumber = (s: string) => parseInt(s.replace(/\./g, ''), 10)
 
 export function GpsDialog({ open, onOpenChange, workCenterId, gpsData, defaultLatitude, defaultLongitude, onUpdate }: GpsDialogProps) {
   const { session } = useAuth()

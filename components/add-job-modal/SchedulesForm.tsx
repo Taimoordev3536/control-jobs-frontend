@@ -7,7 +7,6 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip"
 import { TimePicker } from "@/components/ui/time-picker"
-import ManualDateField from "@/components/ui/manual-date-field"
 import { useTranslation } from "@/hooks/use-translation"
 import { FormData, ShiftKey, DayKey } from "./types"
 import { SHIFT_KEYS, DAY_KEYS, formatAsYouType, isValidTime, computeMultiDayTotals } from "./utils"
@@ -24,6 +23,11 @@ interface SchedulesFormProps {
   updateScheduleTime: (day: string, shift: ShiftKey, timeType: "start" | "end", value: string) => void
   commitValue: (key: string, value: string) => void
   clearCurrentSeasonSchedules: () => void
+  // Summer period sourced from the selected client's profile (DD/MM strings).
+  // Replaces the previously manual per-job inputs — same shape/naming as the
+  // job-side seasonalSchedule.startDate / endDate so the existing job logic
+  // can consume it without translation.
+  clientSummerPeriod: { startDate: string | null; endDate: string | null } | null
 }
 
 export default function SchedulesForm({
@@ -38,12 +42,33 @@ export default function SchedulesForm({
   updateScheduleTime,
   commitValue,
   clearCurrentSeasonSchedules,
+  clientSummerPeriod,
 }: SchedulesFormProps) {
   const { t } = useTranslation()
 
   const currentSeasonSchedules = formData.schedules[formData.currentSeason]
   const { disabledSlots, pairingRegistry } = computeMultiDayTotals(currentSeasonSchedules, pairingRegistryRef.current)
   pairingRegistryRef.current = pairingRegistry
+
+  // Detect whether the user has actually entered any summer shift cells.
+  // Used to decide whether to surface the "missing client period" warning
+  // — entering shifts is what makes the client period mandatory.
+  const summerHasShifts = (() => {
+    const summer = formData.schedules?.summer
+    if (!summer) return false
+    for (const day of DAY_KEYS) {
+      const daySched = (summer as any)[day]
+      if (!daySched) continue
+      for (const shift of SHIFT_KEYS) {
+        const cell = daySched[shift]
+        if (cell && (cell.start || cell.end)) return true
+      }
+    }
+    return false
+  })()
+
+  const clientPeriodMissing =
+    !clientSummerPeriod?.startDate || !clientSummerPeriod?.endDate
 
   return (
     <div className="space-y-4">
@@ -93,35 +118,41 @@ export default function SchedulesForm({
           </div>
         )}
 
-        {/* right: when summer selected show season range inputs in header */}
+        {/* right: when summer selected show read-only season range from client profile */}
         {(formData.scheduleType as string) === "programming" && formData.currentSeason === "summer" && (
-          <div className="flex items-center gap-2 mr-4">
+          <div className="flex flex-col items-end gap-1 mr-4">
             <div className="flex items-center gap-2">
-              <ManualDateField
-                label={t("start") || "Start"}
-                value={formData.seasonPeriods.find((p) => p.season === "summer")?.startDate || null}
-                onChange={(v) => {
-                  const updated = formData.seasonPeriods.filter((p) => p.season !== "summer")
-                  updated.push({ season: "summer", startDate: v || "", endDate: formData.seasonPeriods.find((p) => p.season === "summer")?.endDate || "" })
-                  updateFormData("seasonPeriods", updated)
-                }}
-                format={"DD/MM"}
-                placeholder={"DD/MM"}
-              />
-              <span className="text-sm">{t("to") || "to"}</span>
-              <ManualDateField
-                label={t("end") || "End"}
-                value={formData.seasonPeriods.find((p) => p.season === "summer")?.endDate || null}
-                onChange={(v) => {
-                  const updated = formData.seasonPeriods.filter((p) => p.season !== "summer")
-                  updated.push({ season: "summer", startDate: formData.seasonPeriods.find((p) => p.season === "summer")?.startDate || "", endDate: v || "" })
-                  updateFormData("seasonPeriods", updated)
-                }}
-                format={"DD/MM"}
-                placeholder={"DD/MM"}
-                size="sm"
-              />
+              <div className="flex flex-col items-center">
+                <span className="text-[10px] text-muted-foreground leading-none mb-0.5">
+                  {t("start") || "Start"}
+                </span>
+                <Input
+                  readOnly
+                  tabIndex={-1}
+                  placeholder="DD/MM"
+                  value={clientSummerPeriod?.startDate || ""}
+                  className="h-7 w-20 text-xs text-center bg-gray-100 border-gray-300 cursor-not-allowed"
+                />
+              </div>
+              <span className="text-sm mt-3">{t("to") || "to"}</span>
+              <div className="flex flex-col items-center">
+                <span className="text-[10px] text-muted-foreground leading-none mb-0.5">
+                  {t("end") || "End"}
+                </span>
+                <Input
+                  readOnly
+                  tabIndex={-1}
+                  placeholder="DD/MM"
+                  value={clientSummerPeriod?.endDate || ""}
+                  className="h-7 w-20 text-xs text-center bg-gray-100 border-gray-300 cursor-not-allowed"
+                />
+              </div>
             </div>
+            {clientPeriodMissing && summerHasShifts && (
+              <span className="text-[10px] text-red-600">
+                {t("summerPeriodMissingInClient") || "Summer period missing in client profile"}
+              </span>
+            )}
           </div>
         )}
       </div>
