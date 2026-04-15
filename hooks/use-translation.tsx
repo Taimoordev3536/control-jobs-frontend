@@ -72,6 +72,7 @@ import employerDashboardTranslations from "@/lib/translations/employer-dashboard
 import jobAttendanceDetailTranslations from "@/lib/translations/job-attendance-detail"
 import loginTranslations from "@/lib/translations/login"
 import jobDetailTranslations from "@/lib/translations/job-detail"
+import subUserTranslations from "@/lib/translations/sub-user"
 
 type TranslationNamespace =
   | "default"
@@ -81,6 +82,7 @@ type TranslationNamespace =
   | "job-attendance-detail"
   | "login"
   | "job-detail"
+  | "sub-user"
 
 export function useTranslation(namespace: TranslationNamespace = "default") {
   const { language, setLanguage } = useContext(LanguageContext)
@@ -99,6 +101,8 @@ export function useTranslation(namespace: TranslationNamespace = "default") {
         return loginTranslations
       case "job-detail":
         return jobDetailTranslations
+      case "sub-user":
+        return subUserTranslations
       case "default":
       default:
         return translations
@@ -106,7 +110,7 @@ export function useTranslation(namespace: TranslationNamespace = "default") {
   }
 
   const t = (key: string, params?: Record<string, any>) => {
-    const translationSource = getTranslationSource(namespace)
+    const translationSource = getTranslationSource(namespace) as any
     let translation = translationSource[language]?.[key] || key
 
     // Handle interpolation for dynamic values
