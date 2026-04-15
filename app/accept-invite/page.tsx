@@ -8,6 +8,7 @@ import { Lock, Eye, EyeOff } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import { LoadingSpinner } from "@/components/loading-spinner"
 import { toast } from "@/hooks/use-toast"
 import { useTranslation } from "@/hooks/use-translation"
 import { acceptInvite } from "@/lib/api/sub-users"
@@ -46,9 +47,12 @@ function AcceptInviteForm() {
       router.push("/login")
     } catch (e: any) {
       toast({ title: t("toastAcceptFailed"), description: e.message, variant: "destructive" })
-    } finally {
       setBusy(false)
     }
+  }
+
+  if (busy) {
+    return <LoadingSpinner />
   }
 
   return (
