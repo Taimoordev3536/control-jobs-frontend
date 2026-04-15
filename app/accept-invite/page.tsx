@@ -137,7 +137,7 @@ function AcceptInviteForm() {
 
 export default function AcceptInvitePage() {
   return (
-    <Suspense fallback={<div className="p-6">Loading…</div>}>
+    <Suspense fallback={<LoadingSpinner />}>
       <AcceptInviteForm />
     </Suspense>
   )
