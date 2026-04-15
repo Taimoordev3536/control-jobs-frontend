@@ -13,6 +13,7 @@ import { useTranslation } from "@/hooks/use-translation"
 import { LanguageSwitcher } from "./language-switcher"
 import { useAuth } from "@/hooks/use-auth"
 import { useEffect, useRef, useState } from "react"
+import { useRouter } from "next/navigation"
 import { useNotifications } from "@/components/providers/notification-provider"
 import { X } from "lucide-react"
 import { ClientTodayMergedQrDisplay } from "./dashboards/client-dashboard/client-today-merged-qr-display"
@@ -27,7 +28,34 @@ export function AppHeader({ collapsed, toggleSidebar }: AppHeaderProps) {
   const { session, getUserRole } = useAuth()
   const [mobileDropdownOpen, setMobileDropdownOpen] = useState(false)
   const { unreadCount, items, markAllRead, dismiss } = useNotifications()
+  const router = useRouter()
   const [notifOpen, setNotifOpen] = useState(false)
+
+  const MANUAL_ATTENDANCE_TYPES = new Set([
+    "MANUAL_ATTENDANCE_REQUESTED",
+    "MANUAL_ATTENDANCE_APPROVED",
+    "MANUAL_ATTENDANCE_REJECTED",
+    "MANUAL_ATTENDANCE_CANCELLED",
+  ])
+
+  const getNotifTitle = (type: string) => {
+    switch (type) {
+      case "CHECK_IN": return t("workerCheckedIn")
+      case "CHECK_OUT": return t("workerCheckedOut")
+      case "MANUAL_ATTENDANCE_REQUESTED": return t("manualAttendanceRequested") || "Manual attendance requested"
+      case "MANUAL_ATTENDANCE_APPROVED": return t("manualAttendanceApproved") || "Manual attendance approved"
+      case "MANUAL_ATTENDANCE_REJECTED": return t("manualAttendanceRejected") || "Manual attendance rejected"
+      case "MANUAL_ATTENDANCE_CANCELLED": return t("manualAttendanceCancelled") || "Manual attendance cancelled"
+      default: return t("notification")
+    }
+  }
+
+  const handleNotifClick = (type: string) => {
+    if (MANUAL_ATTENDANCE_TYPES.has(type)) {
+      setNotifOpen(false)
+      router.push("/jobs/manual-requests")
+    }
+  }
   const [todayQrOpen, setTodayQrOpen] = useState(false)
   const notifRef = useRef<HTMLDivElement | null>(null)
   const userRole = getUserRole()
@@ -87,12 +115,27 @@ export function AppHeader({ collapsed, toggleSidebar }: AppHeaderProps) {
                   {t("notification")}
                 </div>
                 <div className="max-h-96 overflow-auto">
-                  {(items && items.length > 0 ? items.slice(0, 10) : []).map((a) => (
-                    <div key={a.localId || `${a.type}-${a.jobId}-${a.createdAt}`} className="px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground relative pr-8">
+                  {(items && items.length > 0 ? items.slice(0, 10) : []).map((a) => {
+                    const clickable = MANUAL_ATTENDANCE_TYPES.has(a.type)
+                    return (
+                    <div
+                      key={a.localId || `${a.type}-${a.jobId}-${a.createdAt}`}
+                      className={`px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground relative pr-8 ${clickable ? "cursor-pointer" : ""}`}
+                      role={clickable ? "button" : undefined}
+                      tabIndex={clickable ? 0 : undefined}
+                      onClick={() => handleNotifClick(a.type)}
+                      onKeyDown={(e) => {
+                        if (clickable && (e.key === "Enter" || e.key === " ")) {
+                          e.preventDefault()
+                          handleNotifClick(a.type)
+                        }
+                      }}
+                    >
                       <button
                         className="absolute right-2 top-2 p-1 rounded hover:bg-muted"
                         aria-label="close notification"
-                          onClick={async () => {
+                          onClick={async (e) => {
+                            e.stopPropagation()
                             if (a.id) {
                               try {
                                 const token = session?.accessToken
@@ -107,13 +150,12 @@ export function AppHeader({ collapsed, toggleSidebar }: AppHeaderProps) {
                       >
                         <X className="h-4 w-4" />
                       </button>
-                      <div className="font-semibold">
-                        {a.type === "CHECK_IN" ? t("workerCheckedIn") : t("workerCheckedOut")}
-                      </div>
+                      <div className="font-semibold">{getNotifTitle(a.type)}</div>
                       <div className="text-muted-foreground">{a.message}</div>
                       <div className="text-[11px] text-muted-foreground mt-1">{new Date(a.createdAt).toLocaleString()}</div>
                     </div>
-                  ))}
+                    )
+                  })}
                   {(!items || items.length === 0) && (
                     <div className="px-3 py-6 text-sm text-muted-foreground text-center">{t("noNotifications")}</div>
                   )}

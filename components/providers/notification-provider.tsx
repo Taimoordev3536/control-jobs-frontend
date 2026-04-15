@@ -4,10 +4,18 @@ import { createSocket } from "@/lib/socket"
 import { useAuth } from "@/hooks/use-auth"
 import { toast } from "@/hooks/use-toast"
 
+type AlertType =
+  | "CHECK_IN"
+  | "CHECK_OUT"
+  | "MANUAL_ATTENDANCE_REQUESTED"
+  | "MANUAL_ATTENDANCE_APPROVED"
+  | "MANUAL_ATTENDANCE_REJECTED"
+  | "MANUAL_ATTENDANCE_CANCELLED"
+
 type AlertItem = {
   id?: number
   localId?: string
-  type: "CHECK_IN" | "CHECK_OUT"
+  type: AlertType
   jobId: number
   workerId: number
   employerUserId: number
@@ -44,7 +52,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
           const list: AlertItem[] = (json?.data || []).map((n: any) => ({
             id: n.id,
             localId: `db-${n.id}`,
-            type: (n.type === 'CHECK_IN' ? 'CHECK_IN' : 'CHECK_OUT'),
+            type: n.type as AlertType,
             jobId: n.meta?.jobId || 0,
             workerId: n.meta?.workerId || 0,
             employerUserId: n.meta?.employerUserId || 0,
@@ -67,8 +75,16 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       const localId = alert.id ? `db-${alert.id}` : `rt-${Date.now()}-${Math.random()}`
       setItems((prev) => [{ ...alert, localId }, ...prev].slice(0, 50))
       setUnread((c) => c + 1)
+      const titleMap: Record<string, string> = {
+        CHECK_IN: "Worker checked in",
+        CHECK_OUT: "Worker checked out",
+        MANUAL_ATTENDANCE_REQUESTED: "Manual attendance requested",
+        MANUAL_ATTENDANCE_APPROVED: "Manual attendance approved",
+        MANUAL_ATTENDANCE_REJECTED: "Manual attendance rejected",
+        MANUAL_ATTENDANCE_CANCELLED: "Manual attendance cancelled",
+      }
       toast({
-        title: alert.type === "CHECK_IN" ? "Worker checked in" : "Worker checked out",
+        title: titleMap[alert.type] || "New notification",
         description: alert.message,
       })
     }

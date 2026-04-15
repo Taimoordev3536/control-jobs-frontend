@@ -12,7 +12,7 @@ import NotificationIcon from "../../../icons/Header/Notification.svg"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Building2, MapPin, Clock, Calendar, AlertCircle, Users, Eye, LogIn, Edit, Bell, QrCode, Lock, Globe } from "lucide-react"
+import { Building2, MapPin, Clock, Calendar, AlertCircle, Users, Eye, LogIn, Edit, Bell, QrCode, Lock, Globe, FileEdit } from "lucide-react"
 import { useTranslation } from "@/hooks/use-translation"
 import { useRouter } from "next/navigation"
 
@@ -79,9 +79,10 @@ interface EmployerJobCardProps {
   onViewDetails: (job: any) => void
   onEdit: (jobId: string | number) => void
   onViewRecords: (job: any) => void
+  onAddManualAttendance?: (job: any) => void
 }
 
-export function EmployerJobCard({ job, onViewDetails, onEdit, onViewRecords }: EmployerJobCardProps) {
+export function EmployerJobCard({ job, onViewDetails, onEdit, onViewRecords, onAddManualAttendance }: EmployerJobCardProps) {
     const router = useRouter();
   const { t } = useTranslation("employer-dashboard")
 
@@ -459,6 +460,20 @@ const getStatusConfig = (status: string) => {
             {t("edit")}
           </Button>
         </div>
+        {/* Manual Attendance Button */}
+        {onAddManualAttendance && (
+          <div className="pt-1">
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full h-8 text-xs border-purple-300 text-purple-600 hover:bg-purple-50"
+              onClick={() => onAddManualAttendance(job)}
+            >
+              <FileEdit className="w-3 h-3 mr-1" />
+              {t("addManualAttendance") || "Add Manual Attendance"}
+            </Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   )

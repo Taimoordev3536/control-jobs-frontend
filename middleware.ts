@@ -7,7 +7,11 @@ export default withAuth(
     const { pathname } = req.nextUrl
 
     // Allow access to auth pages without authentication
-    if (pathname.startsWith("/login") || pathname.startsWith("/register")) {
+    if (
+      pathname.startsWith("/login") ||
+      pathname.startsWith("/register") ||
+      pathname.startsWith("/accept-invite")
+    ) {
       return NextResponse.next()
     }
 
@@ -55,7 +59,11 @@ export default withAuth(
         const { pathname } = req.nextUrl
 
         // Allow access to auth pages
-        if (pathname.startsWith("/login") || pathname.startsWith("/register")) {
+        if (
+          pathname.startsWith("/login") ||
+          pathname.startsWith("/register") ||
+          pathname.startsWith("/accept-invite")
+        ) {
           return true
         }
 

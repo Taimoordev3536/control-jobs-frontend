@@ -215,7 +215,7 @@ export default function WorkCenterDetailView({ workCenterId, onBack }: WorkCente
         <div className="grid grid-cols-3 items-center px-4 pt-1 pb-1 sm:px-3">
           <div />
           <h1 className="text-sm sm:text-base font-semibold text-foreground truncate text-center">
-            {workCenter?.name || ""}
+            {workCenter?.clientName || ""}
           </h1>
           <div className="flex justify-end">
             <button onClick={handleBack} className="p-1 text-muted-foreground hover:text-foreground transition-colors">

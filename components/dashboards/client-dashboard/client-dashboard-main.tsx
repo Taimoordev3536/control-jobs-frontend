@@ -12,6 +12,7 @@ import { LoadingSpinner } from "@/components/dashboard-loader"
 import { useAuth } from "@/hooks/use-auth"
 import { JobAttendanceDetail } from "@/components/job-attendance-detail"
 import { ClientJobCard } from "./client-job-card"
+import ManualAttendanceRequestForm from "@/components/manual-attendance/manual-attendance-request-form"
 
 interface ApiJob {
   jobId: number
@@ -168,6 +169,8 @@ export default function ClientDashboard() {
   })
 
   const [jobs, setJobs] = useState<Job[]>([])
+  const [manualAttendanceJob, setManualAttendanceJob] = useState<any>(null)
+  const [showManualAttendanceForm, setShowManualAttendanceForm] = useState(false)
 
   const transformApiJobToJob = (apiJob: ApiJob): Job => {
     const currentDate = new Date()
@@ -823,6 +826,10 @@ export default function ClientDashboard() {
                     job={job}
                     onViewDetails={() => handleViewDetails(job)}
                     onViewRecords={() => handleViewAttendanceDetails(job)}
+                    onAddManualAttendance={(j: any) => {
+                      setManualAttendanceJob(j);
+                      setShowManualAttendanceForm(true);
+                    }}
                   />
                 ))}
 
@@ -837,6 +844,17 @@ export default function ClientDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Manual Attendance Modal */}
+      <ManualAttendanceRequestForm
+        open={showManualAttendanceForm}
+        onOpenChange={setShowManualAttendanceForm}
+        job={manualAttendanceJob}
+        mode="direct"
+        onSuccess={() => {
+          setShowManualAttendanceForm(false);
+        }}
+      />
     </div>
   )
 }

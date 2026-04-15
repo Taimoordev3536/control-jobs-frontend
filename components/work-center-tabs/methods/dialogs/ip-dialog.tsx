@@ -89,7 +89,7 @@ export function IpDialog({ open, onOpenChange, workCenterId, ipData, onUpdate }:
               id="ipAddress"
               value={ipAddress}
               onChange={(e) => setIpAddress(e.target.value)}
-              placeholder={detectedIp || "203.0.113.1"}
+              placeholder={`P. Ej.: ${detectedIp || "88.71.10.189"}`}
             />
             <p className="text-xs text-muted-foreground">{t("publicIpHint")}</p>
           </div>

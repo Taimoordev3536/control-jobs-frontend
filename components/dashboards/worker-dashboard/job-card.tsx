@@ -15,7 +15,7 @@ import NotificationIcon from "../../../icons/Header/Notification.svg"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Calendar, Clock, MapPin, QrCode, Globe, Lock } from "lucide-react"
+import { Calendar, Clock, MapPin, QrCode, Globe, Lock, FileEdit } from "lucide-react"
 import { useTranslation } from "@/hooks/use-translation"
 import { useRouter } from "next/navigation"
 
@@ -68,9 +68,10 @@ interface ClientJobCardProps {
   onViewDetails: (job: Job) => void
   onViewRecords: (job: Job) => void
   onEnter?: (job: Job, method?: string, data?: any) => void
+  onRequestManualAttendance?: (job: Job) => void
 }
 
-export function ClientJobCard({ job, onViewDetails, onViewRecords, onEnter }: ClientJobCardProps) {
+export function ClientJobCard({ job, onViewDetails, onViewRecords, onEnter, onRequestManualAttendance }: ClientJobCardProps) {
   const { t } = useTranslation("dashboard")
   const router = useRouter()
 
@@ -386,6 +387,20 @@ export function ClientJobCard({ job, onViewDetails, onViewRecords, onEnter }: Cl
             {t("enter") || "Enter"}
           </Button>
         </div>
+        {/* Manual Attendance Request Button */}
+        {onRequestManualAttendance && (
+          <div className="pt-1">
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full h-8 text-xs border-purple-300 text-purple-600 hover:bg-purple-50"
+              onClick={() => onRequestManualAttendance(job)}
+            >
+              <FileEdit className="w-3 h-3 mr-1" />
+              {t("requestManualAttendance") || "Request Manual Attendance"}
+            </Button>
+          </div>
+        )}
         {/* Sign-in methods dialog (opened when Enter is clicked) */}
         <SignInMethodDialog
           isOpen={dialogOpen}

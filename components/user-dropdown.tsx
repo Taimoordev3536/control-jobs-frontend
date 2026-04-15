@@ -20,10 +20,15 @@ import Link from "next/link"
 
 export function UserDropdown() {
   const { t } = useTranslation()
-  const { user, logout, getUserRole } = useAuth()
+  const { user, logout, getUserRole, isSubUser } = useAuth()
   const userRole = getUserRole()
 
   const getDropdownItems = () => {
+    const items = buildItems()
+    return isSubUser ? items.filter((i) => i.href !== "/users") : items
+  }
+
+  const buildItems = () => {
     switch (userRole) {
       case "worker":
         return [

@@ -26,6 +26,7 @@ import { useAuth } from "@/hooks/use-auth"
 import { Button } from "@/components/ui/button"
 import { toast } from "@/hooks/use-toast"
 import { useBackendError } from "@/lib/backend-error"
+import ManualAttendanceRequestForm from "@/components/manual-attendance/manual-attendance-request-form"
 
 // Backend error parsing/translation lives in `lib/backend-error.ts` and is consumed
 // inside the component via `useBackendError()`. The previous local `parseBackendError`
@@ -215,6 +216,10 @@ export default function WorkerDashboardMain() {
 
   // Job detail view state
   const [detailJob, setDetailJob] = useState<JobAssignment | null>(null);
+
+  // Manual attendance state
+  const [manualAttendanceJob, setManualAttendanceJob] = useState<any>(null);
+  const [showManualAttendanceForm, setShowManualAttendanceForm] = useState(false);
   
 const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => {
   // Log the API job data to debug work session
@@ -1311,6 +1316,10 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
                       onFillSurvey={handleFillSurvey}
                       onCompleteTask={(j: any, taskId: any) => handleTaskToggle(j.publicId || j.id, taskId)}
                       onViewDetail={handleViewDetail}
+                      onRequestManualAttendance={(job: any) => {
+                        setManualAttendanceJob(job);
+                        setShowManualAttendanceForm(true);
+                      }}
                       onEnter={async (job: any, method?: string, data?: any) => {
                         const signingMethod = method?.toLowerCase() || 'web';
                         
@@ -1367,6 +1376,17 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
           </CardContent>
         </Card>
       </div>
+
+      {/* Manual Attendance Request Modal */}
+      <ManualAttendanceRequestForm
+        open={showManualAttendanceForm}
+        onOpenChange={setShowManualAttendanceForm}
+        job={manualAttendanceJob}
+        mode="request"
+        onSuccess={() => {
+          toast({ title: "Manual attendance request submitted" });
+        }}
+      />
     </div>
   );
 }

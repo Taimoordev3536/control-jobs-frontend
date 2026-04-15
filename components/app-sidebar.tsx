@@ -162,6 +162,7 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar }: Ap
               { title: t("control"), href: "/jobs/control", iconKey: "control" },
               { title: t("consultations"), href: "/jobs/consultations", iconKey: "consultations" },
               { title: t("all"), href: "/jobs/all", iconKey: "all" },
+              { title: t("myRequests") || "My Requests", href: "/jobs/manual-requests", iconKey: "manual-requests" },
             ],
           },
           {
@@ -208,6 +209,7 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar }: Ap
             items: [
               { title: t("control"), href: "/jobs/control", iconKey: "control" },
               { title: t("all"), href: "/jobs/all", iconKey: "all" },
+              { title: t("attendanceRequests") || "Attendance Requests", href: "/jobs/manual-requests", iconKey: "manual-requests" },
             ],
           },
           {
@@ -245,6 +247,7 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar }: Ap
             items: [
               { title: t("control"), href: "/jobs/control", iconKey: "control" },
               { title: t("all"), href: "/jobs/all", iconKey: "all" },
+              { title: t("attendanceRequests") || "Attendance Requests", href: "/jobs/manual-requests", iconKey: "manual-requests" },
             ],
           },
           {

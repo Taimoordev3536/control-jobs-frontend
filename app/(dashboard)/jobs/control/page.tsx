@@ -31,6 +31,10 @@ const ControlSurveysTab = dynamic(() => import("@/components/control-tabs/contro
   loading: () => <AnimatedLoader size={24} className="p-6" />,
   ssr: false,
 })
+const ControlManualTab = dynamic(() => import("@/components/control-tabs/control-manual-tab"), {
+  loading: () => <AnimatedLoader size={24} className="p-6" />,
+  ssr: false,
+})
 
 // Import SVG icons
 import AddIcon1 from "../../../../icons/Controles/add1.svg"
@@ -128,6 +132,7 @@ function JobsControlPage() {
     { key: "signings", label: t("signings") },
     { key: "tasks", label: t("tasks") },
     { key: "surveys", label: t("surveys") },
+    { key: "manual", label: t("manualAttendance") || "Manual" },
   ]
 
   const actionButtons = [
@@ -331,6 +336,9 @@ function JobsControlPage() {
           )}
           {activeTab === "surveys" && (
             <ControlSurveysTab showFilters={showFilters} onShowFiltersChange={setShowFilters} />
+          )}
+          {activeTab === "manual" && (
+            <ControlManualTab showFilters={showFilters} onShowFiltersChange={setShowFilters} />
           )}
         </div>
       </div>

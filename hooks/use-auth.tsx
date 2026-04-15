@@ -2,15 +2,29 @@
 
 import { useSession, signIn, signOut } from "next-auth/react"
 import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { toast } from "@/hooks/use-toast"
 import { useTranslation } from "@/hooks/use-translation"
+import { getSubUserContext, SubUserContext } from "@/lib/api/sub-users"
 
 export function useAuth() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
+  const [subUser, setSubUser] = useState<SubUserContext>({ isSubUser: false })
   const { language, setLanguage, t } = useTranslation("login") // Explicitly set namespace to "login"
+
+  useEffect(() => {
+    if (status !== "authenticated") {
+      setSubUser({ isSubUser: false })
+      return
+    }
+    let cancelled = false
+    getSubUserContext()
+      .then((ctx) => { if (!cancelled) setSubUser(ctx) })
+      .catch(() => { if (!cancelled) setSubUser({ isSubUser: false }) })
+    return () => { cancelled = true }
+  }, [status])
 
   const login = async (email: string, password: string) => {
     setIsLoading(true)
@@ -85,6 +99,11 @@ export function useAuth() {
     return userRole ? roles.some((role) => role.toLowerCase() === userRole) : false
   }
 
+  const canEdit = () => {
+    if (!subUser.isSubUser) return true
+    return subUser.permission === "EDIT"
+  }
+
   return {
     user: session?.user,
     session,
@@ -95,5 +114,8 @@ export function useAuth() {
     getUserRole,
     hasRole,
     hasAnyRole,
+    subUser,
+    isSubUser: subUser.isSubUser,
+    canEdit,
   }
 }

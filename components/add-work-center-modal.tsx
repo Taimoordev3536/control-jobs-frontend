@@ -149,7 +149,7 @@ export default function AddWorkCenterModal({
 
       const result = await response.json();
       toast({
-        title: t("Work center created successfully!"),
+        title: t("workCenterCreatedSuccessfully"),
         variant: "success",
       });
 

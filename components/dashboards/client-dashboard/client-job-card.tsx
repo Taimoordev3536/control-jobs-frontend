@@ -11,7 +11,7 @@ import NotificationIcon from "../../../icons/Header/Notification.svg"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Calendar, Clock, MapPin, QrCode, Globe, Lock } from "lucide-react"
+import { Calendar, Clock, MapPin, QrCode, Globe, Lock, FileEdit } from "lucide-react"
 import { useTranslation } from "@/hooks/use-translation"
 import { useRouter } from "next/navigation"
 
@@ -63,9 +63,10 @@ interface ClientJobCardProps {
   job: Job
   onViewDetails: (job: Job) => void
   onViewRecords: (job: Job) => void
+  onAddManualAttendance?: (job: Job) => void
 }
 
-export function ClientJobCard({ job, onViewDetails, onViewRecords }: ClientJobCardProps) {
+export function ClientJobCard({ job, onViewDetails, onViewRecords, onAddManualAttendance }: ClientJobCardProps) {
   const { t } = useTranslation("dashboard")
   const router = useRouter()
 
@@ -369,6 +370,20 @@ export function ClientJobCard({ job, onViewDetails, onViewRecords }: ClientJobCa
             {t("records")}
           </Button>
         </div>
+        {/* Manual Attendance Button */}
+        {onAddManualAttendance && (
+          <div className="pt-1">
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full h-8 text-xs border-purple-300 text-purple-600 hover:bg-purple-50"
+              onClick={() => onAddManualAttendance(job)}
+            >
+              <FileEdit className="w-3 h-3 mr-1" />
+              {t("addManualAttendance") || "Manual Attendance"}
+            </Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   )

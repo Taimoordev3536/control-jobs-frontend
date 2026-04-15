@@ -4,6 +4,7 @@ import { useState } from "react"
 import Profile from "./profile"
 import Workcenter from "./workcenter"
 import Notification from "./notification"
+import ManualAttendancePermissionSettings from "@/components/manual-attendance/manual-attendance-permission-settings"
 
 export default function EmployerConfigurationMainPage() {
   const [activeTab, setActiveTab] = useState("profile")
@@ -12,6 +13,7 @@ export default function EmployerConfigurationMainPage() {
     { key: "profile", label: "Profile" },
     { key: "workcenter", label: "Work Center" },
     { key: "notification", label: "Notification" },
+    { key: "manual-attendance", label: "Manual Attendance" },
   ]
 
   return (
@@ -45,6 +47,7 @@ export default function EmployerConfigurationMainPage() {
         {activeTab === "profile" && <Profile />}
         {activeTab === "workcenter" && <Workcenter />}
         {activeTab === "notification" && <Notification />}
+        {activeTab === "manual-attendance" && <ManualAttendancePermissionSettings level="employer" />}
       </div>
     </div>
   )

@@ -26,6 +26,7 @@ import { useAuth } from "@/hooks/use-auth"
 import AddJobModal from "@/components/add-job-modal/main"
 import JobDetail from "@/components/job-detail/job-detail"
 import { EmployerJobCard } from "./employer-job-card"
+import ManualAttendanceRequestForm from "@/components/manual-attendance/manual-attendance-request-form"
 
 interface ApiJob {
   jobId: number
@@ -185,6 +186,9 @@ export default function EmployerDashboard() {
   const [showAddJobModal, setShowAddJobModal] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selectedJobForDetail, setSelectedJobForDetail] = useState<string | null>(null)
+  const [manualAttendanceJob, setManualAttendanceJob] = useState<any>(null)
+  const [showManualAttendanceForm, setShowManualAttendanceForm] = useState(false)
+  const [pendingRequestsCount, setPendingRequestsCount] = useState(0)
 
   const occupations = [t("cleaning"), t("security"), t("maintenance"), t("delivery"), t("itSupport"), t("landscaping")]
 
@@ -489,6 +493,15 @@ export default function EmployerDashboard() {
 
   useEffect(() => {
     fetchJobs()
+    // Fetch pending manual attendance requests count
+    if (session?.accessToken) {
+      fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/manual-attendance/requests/pending/count`, {
+        headers: { Authorization: `Bearer ${session.accessToken}` },
+      })
+        .then((r) => r.ok ? r.json() : null)
+        .then((data) => { if (data?.data?.count) setPendingRequestsCount(data.data.count) })
+        .catch(() => {})
+    }
   }, [session?.accessToken])
 
   const handleViewDetails = (job: Job) => {
@@ -670,6 +683,30 @@ export default function EmployerDashboard() {
           ))}
         </div>
 
+        {/* Pending Manual Attendance Requests Banner */}
+        {pendingRequestsCount > 0 && (
+          <Card className="border border-yellow-200 bg-yellow-50 dark:bg-yellow-950/30 shadow-sm">
+            <CardContent className="p-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-yellow-400">
+                  <AlertCircle className="w-4 h-4 text-white" />
+                </div>
+                <span className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+                  {pendingRequestsCount} {t("pendingAttendanceRequests") || "pending attendance request(s)"}
+                </span>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-yellow-300 text-yellow-700 hover:bg-yellow-100"
+                onClick={() => router.push("/jobs/control")}
+              >
+                {t("reviewNow") || "Review Now"}
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Compact Filters */}
         <Card className="border border-border shadow-sm bg-card">
           <CardContent className="p-4">
@@ -768,6 +805,10 @@ export default function EmployerDashboard() {
                   onViewDetails={(j: any) => handleViewDetails(j as any)}
                   onEdit={handleEditJob}
                   onViewRecords={(j: any) => handleViewDetails(j as any)}
+                  onAddManualAttendance={(j: any) => {
+                    setManualAttendanceJob(j);
+                    setShowManualAttendanceForm(true);
+                  }}
                 />
               ))}
             </div>
@@ -816,6 +857,17 @@ export default function EmployerDashboard() {
 
       {/* Add Job Modal viewAttendance  */}
       <AddJobModal open={showAddJobModal} onOpenChange={setShowAddJobModal} onJobAdded={handleJobAdded} />
+
+      {/* Manual Attendance Direct Entry Modal */}
+      <ManualAttendanceRequestForm
+        open={showManualAttendanceForm}
+        onOpenChange={setShowManualAttendanceForm}
+        job={manualAttendanceJob}
+        mode="direct"
+        onSuccess={() => {
+          setShowManualAttendanceForm(false);
+        }}
+      />
     </div>
   )
 }
