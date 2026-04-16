@@ -31,6 +31,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { impersonateUser } from "@/lib/api/impersonate"
+import impersonationTranslations from "@/lib/translations/impersonation"
 
 interface EmployerData {
   id: number
@@ -70,8 +72,9 @@ interface EmployerDataTabProps {
 }
 
 export default function EmployerDataTab({ employerId }: EmployerDataTabProps) {
-  const { t } = useTranslation()
-  const { session } = useAuth()
+  const { t, language } = useTranslation()
+  const { session, isImpersonating, isSubUser, hasRole, hasAnyRole } = useAuth()
+  const ti = (key: string) => (impersonationTranslations as any)[language]?.[key] || key
   const router = useRouter()
   const { toast } = useToast()
   const translateBackendError = useBackendError()
@@ -85,6 +88,24 @@ export default function EmployerDataTab({ employerId }: EmployerDataTabProps) {
   const [error, setError] = useState<string | null>(null)
   const [hasChanges, setHasChanges] = useState(false)
   const [resetKey, setResetKey] = useState(0)
+  const [isImpersonateLoading, setIsImpersonateLoading] = useState(false)
+
+  // Admin and Partner can impersonate employers (not sub-users, not during impersonation)
+  const canImpersonate = hasAnyRole(["admin", "partner"]) && !isSubUser && !isImpersonating
+
+  const handleLoginAs = async () => {
+    if (!employerId) return
+    setIsImpersonateLoading(true)
+    try {
+      const result = await impersonateUser("employer", employerId, session?.accessToken)
+      window.open(`/impersonate?token=${result.token}`, "_blank")
+      toast({ title: ti("toastSuccess"), variant: "success" })
+    } catch (err: any) {
+      toast({ title: ti("toastError"), description: err.message, variant: "destructive" })
+    } finally {
+      setIsImpersonateLoading(false)
+    }
+  }
 
   // Dropdown data
   const [partners, setPartners] = useState<{ id: string | number; name: string }[]>([])
@@ -566,9 +587,17 @@ export default function EmployerDataTab({ employerId }: EmployerDataTabProps) {
         <div className="shrink-0">
           <Button className="h-9 bg-purple-600 hover:bg-purple-700 text-white px-4 text-xs">{t("users")}</Button>
         </div>
-        <div className="shrink-0">
-          <Button className="h-9 bg-green-600 hover:bg-green-700 text-white px-4 text-xs">{t("login")}</Button>
-        </div>
+        {canImpersonate && (
+          <div className="shrink-0">
+            <Button
+              className="h-9 bg-green-600 hover:bg-green-700 text-white px-4 text-xs"
+              onClick={handleLoginAs}
+              disabled={isImpersonateLoading}
+            >
+              {isImpersonateLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : t("login")}
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Row 5: Observaciones 50%, Profile image minimized */}

@@ -47,6 +47,7 @@ interface DataListTemplateProps {
   emptyMessage?: string | React.ReactNode
   defaultSortColumn?: string
   defaultSortDirection?: "asc" | "desc"
+  pinnedRows?: any[]
 }
 
 export default function DataListTemplate({
@@ -62,6 +63,7 @@ export default function DataListTemplate({
   emptyMessage = "No data available",
   defaultSortColumn = null,
   defaultSortDirection = "asc",
+  pinnedRows = [],
 }: DataListTemplateProps) {
   const { t } = useTranslation()
   const router = useRouter()
@@ -417,7 +419,7 @@ export default function DataListTemplate({
         </div>
 
         {/* Table */}
-        {(sortedData?.length ?? 0) === 0 ? (
+        {(sortedData?.length ?? 0) === 0 && pinnedRows.length === 0 ? (
           <div className="p-12 text-center">
             {typeof emptyMessage === 'string' ? (
               <p className="text-muted-foreground text-lg">{emptyMessage}</p>
@@ -429,6 +431,33 @@ export default function DataListTemplate({
           <>
             {/* ── Mobile card view (< md) ── */}
             <div className="md:hidden divide-y divide-border">
+              {/* Pinned rows always appear first */}
+              {currentPage === 1 && pinnedRows.map((row, index) => (
+                <div
+                  key={`pinned-${row.id || index}`}
+                  className="p-4 space-y-2 transition-colors bg-purple-50/50 dark:bg-purple-950/20 border-b-2 border-[#662D91]/20"
+                >
+                  {localColumns[0] && (
+                    <div className="text-sm font-semibold text-[#662D91] dark:text-purple-300">
+                      {localColumns[0].render
+                        ? localColumns[0].render(row[localColumns[0].key], row)
+                        : renderValue(row[localColumns[0].key], localColumns[0].key)}
+                    </div>
+                  )}
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                    {localColumns.slice(1).map((column) => (
+                      <div key={column.key} className="contents">
+                        <span className="text-xs font-medium text-muted-foreground truncate">{column.label}</span>
+                        <span className="text-xs text-foreground truncate text-right">
+                          {column.render
+                            ? column.render(row[column.key], row)
+                            : renderValue(row[column.key], column.key) || "-"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
               {filteredData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((row, index) => (
                 <div
                   key={row.id || index}
@@ -542,6 +571,26 @@ export default function DataListTemplate({
                   </Droppable>
                 </thead>
                 <tbody>
+                  {/* Pinned rows always appear first on page 1 */}
+                  {currentPage === 1 && pinnedRows.map((row, index) => (
+                    <tr
+                      key={`pinned-${row.id || index}`}
+                      className="border-b-2 border-[#662D91]/20 bg-purple-50/50 dark:bg-purple-950/20"
+                    >
+                      {localColumns.map((column) => (
+                        <td
+                          key={`pinned-${row.id || index}-${column.key}`}
+                          className={`px-3 py-2 text-sm ${
+                            column.key === localColumns[0].key ? "text-foreground font-medium" : "text-muted-foreground"
+                          } ${getAlignmentClass(column, row[column.key])} border border-gray-300 dark:border-gray-700`}
+                        >
+                          {column.render
+                            ? column.render(row[column.key], row)
+                            : renderValue(row[column.key], column.key)}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
                   {filteredData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((row, index) => (
                     <tr
                       key={row.id || index}

@@ -2,7 +2,7 @@ import { getSession } from "next-auth/react"
 
 export type SubUserPermission = "EDIT" | "VIEW_ONLY"
 export type SubUserStatus = "active" | "pending" | "inactive"
-export type SubUserScope = "partner" | "employer" | "client"
+export type SubUserScope = "admin" | "partner" | "employer" | "client"
 
 export interface SubUser {
   id: number

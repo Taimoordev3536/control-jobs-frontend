@@ -37,7 +37,7 @@ import {
 export default function UsersPage() {
   const router = useRouter()
   const { t } = useTranslation("sub-user")
-  const { isSubUser, isAuthenticated, isLoading: authLoading } = useAuth()
+  const { user, isSubUser, isAuthenticated, isLoading: authLoading, isImpersonating } = useAuth()
 
   const [rows, setRows] = useState<SubUser[]>([])
   const [loading, setLoading] = useState(true)
@@ -50,10 +50,10 @@ export default function UsersPage() {
   } | null>(null)
 
   useEffect(() => {
-    if (!authLoading && isAuthenticated && isSubUser) {
+    if (!authLoading && isAuthenticated && (isSubUser || isImpersonating)) {
       router.replace("/dashboard")
     }
-  }, [authLoading, isAuthenticated, isSubUser, router])
+  }, [authLoading, isAuthenticated, isSubUser, isImpersonating, router])
 
   const load = async () => {
     setLoading(true)
@@ -67,8 +67,23 @@ export default function UsersPage() {
   }
 
   useEffect(() => {
-    if (isAuthenticated && !isSubUser) load()
-  }, [isAuthenticated, isSubUser])
+    if (isAuthenticated && !isSubUser && !isImpersonating) load()
+  }, [isAuthenticated, isSubUser, isImpersonating])
+
+  // Build the pinned main-user row from the session
+  const mainUserRow = useMemo(() => {
+    if (!user) return null
+    return {
+      id: `main-${user.id}`,
+      name: [user.firstName, user.lastName].filter(Boolean).join(" ") || user.name || user.email,
+      email: user.email,
+      permission: null as SubUserPermission | null,
+      status: "active" as SubUserStatus,
+      inviteLink: null,
+      isActive: true,
+      _isPinned: true,
+    }
+  }, [user])
 
   const columns = useMemo(
     () => [
@@ -79,7 +94,10 @@ export default function UsersPage() {
         label: t("colPermission"),
         sortable: true,
         align: "center" as const,
-        render: (value: SubUserPermission | null) => <PermissionBadge value={value} t={t} />,
+        render: (value: SubUserPermission | null, row: any) =>
+          row._isPinned
+            ? <Badge className="bg-[#662D91]/10 text-[#662D91] hover:bg-[#662D91]/10 border-[#662D91]/30">{t("mainUserLabel")}</Badge>
+            : <PermissionBadge value={value} t={t} />,
       },
       {
         key: "status",
@@ -97,14 +115,15 @@ export default function UsersPage() {
         key: "_actions",
         label: "",
         align: "right" as const,
-        render: (_: any, row: SubUser) => (
-          <RowActions
-            row={row}
-            onEdit={() => setEditTarget(row)}
-            onConfirm={(action) => setConfirm({ action, sub: row })}
-            t={t}
-          />
-        ),
+        render: (_: any, row: any) =>
+          row._isPinned ? null : (
+            <RowActions
+              row={row}
+              onEdit={() => setEditTarget(row)}
+              onConfirm={(action) => setConfirm({ action, sub: row })}
+              t={t}
+            />
+          ),
       },
     ],
     [t],
@@ -128,7 +147,7 @@ export default function UsersPage() {
     [t],
   )
 
-  if (isSubUser) return null
+  if (isSubUser || isImpersonating) return null
 
   return (
     <>
@@ -139,6 +158,8 @@ export default function UsersPage() {
         isLoading={loading}
         actionButtons={actionButtons}
         emptyMessage={t("noSubUsers")}
+        defaultSortColumn="name"
+        pinnedRows={mainUserRow ? [mainUserRow] : []}
       />
 
       <CreateSubUserDialog open={createOpen} onOpenChange={setCreateOpen} onCreated={load} t={t} />

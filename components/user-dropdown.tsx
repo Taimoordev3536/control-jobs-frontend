@@ -20,12 +20,16 @@ import Link from "next/link"
 
 export function UserDropdown() {
   const { t } = useTranslation()
-  const { user, logout, getUserRole, isSubUser } = useAuth()
+  const { user, logout, getUserRole, isSubUser, isImpersonating } = useAuth()
   const userRole = getUserRole()
 
   const getDropdownItems = () => {
     const items = buildItems()
-    return isSubUser ? items.filter((i) => i.href !== "/users") : items
+    // Hide /users for sub-users and impersonated sessions
+    if (isSubUser || isImpersonating) {
+      return items.filter((i) => i.href !== "/users")
+    }
+    return items
   }
 
   const buildItems = () => {

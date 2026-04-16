@@ -26,6 +26,8 @@ import { useAuth } from "@/hooks/use-auth"
 import { useParams, useRouter } from "next/navigation"
 import { useState, useEffect } from "react"
 import { useToast } from "@/hooks/use-toast"
+import { impersonateUser } from "@/lib/api/impersonate"
+import impersonationTranslations from "@/lib/translations/impersonation"
 
 interface WorkerData {
   id: number
@@ -55,12 +57,31 @@ interface WorkerData {
 }
 
 export function WorkerDataTab() {
-  const { t } = useTranslation()
-  const { session } = useAuth()
+  const { t, language } = useTranslation()
+  const { session, isImpersonating, isSubUser, hasRole } = useAuth()
+  const ti = (key: string) => (impersonationTranslations as any)[language]?.[key] || key
   const params = useParams()
   const router = useRouter()
   const { toast } = useToast()
   const workerId = params.id as string
+  const [isImpersonateLoading, setIsImpersonateLoading] = useState(false)
+
+  // Employer can impersonate their own workers
+  const canImpersonate = hasRole("employer") && !isSubUser && !isImpersonating
+
+  const handleLoginAs = async () => {
+    if (!workerId) return
+    setIsImpersonateLoading(true)
+    try {
+      const result = await impersonateUser("worker", workerId, session?.accessToken)
+      window.open(`/impersonate?token=${result.token}`, "_blank")
+      toast({ title: ti("toastSuccess"), variant: "success" })
+    } catch (err: any) {
+      toast({ title: ti("toastError"), description: err.message, variant: "destructive" })
+    } finally {
+      setIsImpersonateLoading(false)
+    }
+  }
 
   const [workerData, setWorkerData] = useState<WorkerData>({
     id: 0,
@@ -555,6 +576,17 @@ export function WorkerDataTab() {
               className="h-9 text-xs bg-muted/30 border-input text-foreground"
             />
           </div>
+          {canImpersonate && (
+            <div className="shrink-0 flex items-end">
+              <Button
+                className="h-9 bg-green-600 hover:bg-green-700 text-white px-4 text-xs"
+                onClick={handleLoginAs}
+                disabled={isImpersonateLoading}
+              >
+                {isImpersonateLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : t("login")}
+              </Button>
+            </div>
+          )}
         </div>
         <div className="space-y-1 min-w-0" style={{ flex: "0 0 13%" }}>
           <Label htmlFor="sex" className="text-xs font-medium text-foreground">

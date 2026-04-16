@@ -363,8 +363,10 @@ export default function ClientDashboard() {
   }
 
   useEffect(() => {
-    fetchJobs()
-  }, [])
+    if (session?.accessToken) {
+      fetchJobs()
+    }
+  }, [session?.accessToken])
 
   useEffect(() => {
     const timer = setInterval(() => {

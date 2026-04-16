@@ -2,10 +2,18 @@
 
 import { useSession, signIn, signOut } from "next-auth/react"
 import { useRouter } from "next/navigation"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
 import { toast } from "@/hooks/use-toast"
 import { useTranslation } from "@/hooks/use-translation"
 import { getSubUserContext, SubUserContext } from "@/lib/api/sub-users"
+import {
+  isImpersonationSession,
+  getStoredImpersonationToken,
+  getStoredImpersonationUser,
+  getStoredImpersonationContext,
+  clearImpersonationSession,
+  type ImpersonationContext,
+} from "@/lib/api/impersonate"
 
 export function useAuth() {
   const { data: session, status } = useSession()
@@ -14,7 +22,29 @@ export function useAuth() {
   const [subUser, setSubUser] = useState<SubUserContext>({ isSubUser: false })
   const { language, setLanguage, t } = useTranslation("login") // Explicitly set namespace to "login"
 
+  // Check for tab-scoped impersonation session.
+  // We use a "checked" flag so that on the very first client render we detect
+  // the impersonation session BEFORE returning any data to consumers.
+  // This prevents the dashboard from briefly rendering the wrong role.
+  const [impersonationChecked, setImpersonationChecked] = useState(false)
+  const [impersonating, setImpersonating] = useState(false)
+  const [impersonationUser, setImpersonationUser] = useState<any>(null)
+  const [impersonationCtx, setImpersonationCtx] = useState<ImpersonationContext>({ isImpersonating: false })
+
   useEffect(() => {
+    if (typeof window === "undefined") return
+    if (isImpersonationSession()) {
+      setImpersonating(true)
+      setImpersonationUser(getStoredImpersonationUser())
+      setImpersonationCtx(getStoredImpersonationContext() || { isImpersonating: false })
+    }
+    setImpersonationChecked(true)
+  }, [])
+
+  useEffect(() => {
+    // Skip sub-user context fetch for impersonation sessions
+    if (impersonating) return
+
     if (status !== "authenticated") {
       setSubUser({ isSubUser: false })
       return
@@ -24,7 +54,7 @@ export function useAuth() {
       .then((ctx) => { if (!cancelled) setSubUser(ctx) })
       .catch(() => { if (!cancelled) setSubUser({ isSubUser: false }) })
     return () => { cancelled = true }
-  }, [status])
+  }, [status, impersonating])
 
   const login = async (email: string, password: string) => {
     setIsLoading(true)
@@ -104,11 +134,52 @@ export function useAuth() {
     return subUser.permission === "EDIT"
   }
 
+  const exitImpersonation = () => {
+    clearImpersonationSession()
+    window.close()
+  }
+
+  // If this tab is an impersonation session, override session data
+  if (impersonating && impersonationUser) {
+    const impSession = {
+      user: impersonationUser,
+      accessToken: impersonationUser.accessToken || getStoredImpersonationToken(),
+    }
+    return {
+      user: impersonationUser,
+      session: impSession as any,
+      isAuthenticated: true,
+      isLoading: false,
+      login,
+      logout: exitImpersonation,
+      getUserRole: () => {
+        const roleName = impersonationUser.role?.name
+        return roleName ? roleName.toLowerCase() : null
+      },
+      hasRole: (role: string) => {
+        const roleName = impersonationUser.role?.name
+        return roleName ? roleName.toLowerCase() === role.toLowerCase() : false
+      },
+      hasAnyRole: (roles: string[]) => {
+        const roleName = impersonationUser.role?.name
+        return roleName ? roles.some((r) => r.toLowerCase() === roleName.toLowerCase()) : false
+      },
+      subUser: { isSubUser: false } as SubUserContext,
+      isSubUser: false,
+      canEdit: () => true,
+      isImpersonating: true,
+      impersonationContext: impersonationCtx,
+      exitImpersonation,
+    }
+  }
+
   return {
     user: session?.user,
     session,
     isAuthenticated: status === "authenticated",
-    isLoading: status === "loading" || isLoading,
+    // Stay in loading state until the impersonation check has run.
+    // This prevents the dashboard from rendering the wrong role for one frame.
+    isLoading: status === "loading" || isLoading || !impersonationChecked,
     login,
     logout,
     getUserRole,
@@ -117,5 +188,8 @@ export function useAuth() {
     subUser,
     isSubUser: subUser.isSubUser,
     canEdit,
+    isImpersonating: false,
+    impersonationContext: { isImpersonating: false } as ImpersonationContext,
+    exitImpersonation: () => {},
   }
 }

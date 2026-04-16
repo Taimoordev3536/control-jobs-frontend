@@ -3,9 +3,9 @@ const subUserTranslations = {
     // Users list page
     pageTitle: "Users",
     pageSubtitle: "Manage team members who can access your account",
-    addSubUser: "Add Sub-User",
+    addSubUser: "Add Member",
     filter: "Filter",
-    noSubUsers: "No sub-users yet. Click + to invite your first team member.",
+    noSubUsers: "No members yet. Click + to invite your first team member.",
     emptyFiltered: "No matches. Try changing your filters.",
 
     // Table columns
@@ -24,6 +24,9 @@ const subUserTranslations = {
     statusPending: "Pending",
     statusInactive: "Inactive",
 
+    // Main user label
+    mainUserLabel: "You (Owner)",
+
     // Row actions menu
     actionEditPermission: "Edit permission",
     actionResendInvite: "Resend invite",
@@ -33,7 +36,7 @@ const subUserTranslations = {
     actionRemove: "Remove",
 
     // Create modal
-    createTitle: "New Sub-User",
+    createTitle: "New Member",
     createSubtitle: "Invite a team member to access your account",
     firstNameLabel: "First name",
     lastNameLabel: "Last name",
@@ -70,14 +73,14 @@ const subUserTranslations = {
     working: "Working…",
 
     // Toast messages
-    toastLoadFailed: "Failed to load sub-users",
-    toastCreateFailed: "Failed to create sub-user",
+    toastLoadFailed: "Failed to load members",
+    toastCreateFailed: "Failed to create member",
     toastUpdateFailed: "Failed to update",
     toastActionFailed: "Action failed",
     toastFillRequired: "Fill in all required fields",
     toastInviteCopied: "Invite link copied",
     toastCopyFailed: "Copy failed",
-    toastSubUserInvited: "Sub-user invited",
+    toastSubUserInvited: "Member invited",
     toastSubUserInvitedDesc: "Invite link copied to clipboard. Send it to them to set their password.",
     toastPermissionUpdated: "Permission updated",
     toastDone: "Done",
@@ -107,9 +110,9 @@ const subUserTranslations = {
     // Users list page
     pageTitle: "Usuarios",
     pageSubtitle: "Gestiona los miembros del equipo que pueden acceder a tu cuenta",
-    addSubUser: "Añadir sub-usuario",
+    addSubUser: "Añadir miembro",
     filter: "Filtrar",
-    noSubUsers: "Aún no hay sub-usuarios. Haz clic en + para invitar al primer miembro.",
+    noSubUsers: "Aún no hay miembros. Haz clic en + para invitar al primer miembro.",
     emptyFiltered: "Sin resultados. Prueba a cambiar los filtros.",
 
     // Table columns
@@ -128,6 +131,9 @@ const subUserTranslations = {
     statusPending: "Pendiente",
     statusInactive: "Inactivo",
 
+    // Main user label
+    mainUserLabel: "Tú (Propietario)",
+
     // Row actions menu
     actionEditPermission: "Editar permiso",
     actionResendInvite: "Reenviar invitación",
@@ -137,7 +143,7 @@ const subUserTranslations = {
     actionRemove: "Eliminar",
 
     // Create modal
-    createTitle: "Nuevo sub-usuario",
+    createTitle: "Nuevo miembro",
     createSubtitle: "Invita a un miembro del equipo a acceder a tu cuenta",
     firstNameLabel: "Nombre",
     lastNameLabel: "Apellido",
@@ -174,14 +180,14 @@ const subUserTranslations = {
     working: "Procesando…",
 
     // Toast messages
-    toastLoadFailed: "No se pudieron cargar los sub-usuarios",
-    toastCreateFailed: "No se pudo crear el sub-usuario",
+    toastLoadFailed: "No se pudieron cargar los miembros",
+    toastCreateFailed: "No se pudo crear el miembro",
     toastUpdateFailed: "No se pudo actualizar",
     toastActionFailed: "Acción fallida",
     toastFillRequired: "Rellena todos los campos obligatorios",
     toastInviteCopied: "Enlace de invitación copiado",
     toastCopyFailed: "Error al copiar",
-    toastSubUserInvited: "Sub-usuario invitado",
+    toastSubUserInvited: "Miembro invitado",
     toastSubUserInvitedDesc: "Enlace de invitación copiado al portapapeles. Envíaselo para que establezca su contraseña.",
     toastPermissionUpdated: "Permiso actualizado",
     toastDone: "Hecho",

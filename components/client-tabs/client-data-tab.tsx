@@ -29,6 +29,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { impersonateUser } from "@/lib/api/impersonate"
+import impersonationTranslations from "@/lib/translations/impersonation"
 
 interface ClientDataTabProps {
   clientId: string
@@ -68,8 +70,9 @@ interface ClientData {
 }
 
 export function ClientDataTab({ clientId }: ClientDataTabProps) {
-  const { t } = useTranslation()
-  const { session } = useAuth()
+  const { t, language } = useTranslation()
+  const { session, isImpersonating, isSubUser, hasRole } = useAuth()
+  const ti = (key: string) => (impersonationTranslations as any)[language]?.[key] || key
   const router = useRouter()
   const { toast } = useToast()
   const [clientData, setClientData] = useState<ClientData | null>(null)
@@ -80,6 +83,24 @@ export function ClientDataTab({ clientId }: ClientDataTabProps) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [hasChanges, setHasChanges] = useState(false)
+  const [isImpersonateLoading, setIsImpersonateLoading] = useState(false)
+
+  // Employer can impersonate their own clients
+  const canImpersonate = hasRole("employer") && !isSubUser && !isImpersonating
+
+  const handleLoginAs = async () => {
+    if (!clientId) return
+    setIsImpersonateLoading(true)
+    try {
+      const result = await impersonateUser("client", clientId, session?.accessToken)
+      window.open(`/impersonate?token=${result.token}`, "_blank")
+      toast({ title: ti("toastSuccess"), variant: "success" })
+    } catch (err: any) {
+      toast({ title: ti("toastError"), description: err.message, variant: "destructive" })
+    } finally {
+      setIsImpersonateLoading(false)
+    }
+  }
 
   useEffect(() => {
     const fetchClientData = async () => {
@@ -621,6 +642,17 @@ export function ClientDataTab({ clientId }: ClientDataTabProps) {
         <div className="shrink-0">
           <Button className="h-9 bg-purple-600 hover:bg-purple-700 text-white px-4 text-xs">{t("users")}</Button>
         </div>
+        {canImpersonate && (
+          <div className="shrink-0">
+            <Button
+              className="h-9 bg-green-600 hover:bg-green-700 text-white px-4 text-xs"
+              onClick={handleLoginAs}
+              disabled={isImpersonateLoading}
+            >
+              {isImpersonateLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : t("login")}
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Row 5: Observations 60%, Periodo Horario de Verano default */}

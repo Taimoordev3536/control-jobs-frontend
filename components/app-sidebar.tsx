@@ -52,9 +52,10 @@ interface AppSidebarProps {
   isMobile: boolean
   mobileOpen: boolean
   closeSidebar?: () => void
+  style?: React.CSSProperties
 }
 
-export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar }: AppSidebarProps) {
+export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar, style }: AppSidebarProps) {
   const { t } = useTranslation()
   const pathname = usePathname()
   const { getUserRole } = useAuth()
@@ -422,7 +423,7 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar }: Ap
   const sidebarClass = `sidebar ${collapsed ? "collapsed" : ""} ${isMobile ? (mobileOpen ? "mobile-open" : "") : ""}`
 
   return (
-    <div className={sidebarClass}>
+    <div className={sidebarClass} style={style}>
       <div className="sidebar-header">
         {collapsed ? (
           <div className="logo">

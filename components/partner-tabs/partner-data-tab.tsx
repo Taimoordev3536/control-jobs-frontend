@@ -25,6 +25,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { impersonateUser } from "@/lib/api/impersonate"
+import impersonationTranslations from "@/lib/translations/impersonation"
 
 interface PartnerData {
   id: number
@@ -73,8 +75,9 @@ const getTierId = (typeOfPartner: string): number => {
 }
 
 export default function PartnerDataTab({ partnerId, onNameChange }: PartnerDataTabProps) {
-  const { t } = useTranslation()
-  const { session } = useAuth()
+  const { t, language } = useTranslation()
+  const { session, isImpersonating, isSubUser, hasRole } = useAuth()
+  const ti = (key: string) => (impersonationTranslations as any)[language]?.[key] || key
   const router = useRouter()
   const { toast } = useToast()
   const translateBackendError = useBackendError()
@@ -88,6 +91,23 @@ export default function PartnerDataTab({ partnerId, onNameChange }: PartnerDataT
   const [error, setError] = useState<string | null>(null)
   const [hasChanges, setHasChanges] = useState(false)
   const [resetKey, setResetKey] = useState(0)
+  const [isImpersonateLoading, setIsImpersonateLoading] = useState(false)
+
+  const canImpersonate = hasRole("admin") && !isSubUser && !isImpersonating
+
+  const handleLoginAs = async () => {
+    if (!partnerId) return
+    setIsImpersonateLoading(true)
+    try {
+      const result = await impersonateUser("partner", partnerId, session?.accessToken)
+      window.open(`/impersonate?token=${result.token}`, "_blank")
+      toast({ title: ti("toastSuccess"), variant: "success" })
+    } catch (err: any) {
+      toast({ title: ti("toastError"), description: err.message, variant: "destructive" })
+    } finally {
+      setIsImpersonateLoading(false)
+    }
+  }
 
   // Fetch partner data
   useEffect(() => {
@@ -511,9 +531,17 @@ export default function PartnerDataTab({ partnerId, onNameChange }: PartnerDataT
         <div className="shrink-0">
           <Button className="h-9 bg-purple-600 hover:bg-purple-700 text-white px-4 text-xs">{t("users")}</Button>
         </div>
-        <div className="shrink-0">
-          <Button className="h-9 bg-green-600 hover:bg-green-700 text-white px-4 text-xs">{t("login")}</Button>
-        </div>
+        {canImpersonate && (
+          <div className="shrink-0">
+            <Button
+              className="h-9 bg-green-600 hover:bg-green-700 text-white px-4 text-xs"
+              onClick={handleLoginAs}
+              disabled={isImpersonateLoading}
+            >
+              {isImpersonateLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : t("login")}
+            </Button>
+          </div>
+        )}
         <div className="flex flex-col items-center justify-center shrink-0">
           <div className="w-16 h-16 rounded-full border-2 border-muted flex items-center justify-center bg-muted/20">
             <Camera className="w-4 h-4 text-muted-foreground" />

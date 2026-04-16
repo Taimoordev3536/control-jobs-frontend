@@ -10,7 +10,8 @@ export default withAuth(
     if (
       pathname.startsWith("/login") ||
       pathname.startsWith("/register") ||
-      pathname.startsWith("/accept-invite")
+      pathname.startsWith("/accept-invite") ||
+      pathname.startsWith("/impersonate")
     ) {
       return NextResponse.next()
     }
@@ -62,7 +63,8 @@ export default withAuth(
         if (
           pathname.startsWith("/login") ||
           pathname.startsWith("/register") ||
-          pathname.startsWith("/accept-invite")
+          pathname.startsWith("/accept-invite") ||
+          pathname.startsWith("/impersonate")
         ) {
           return true
         }

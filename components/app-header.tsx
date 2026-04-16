@@ -21,9 +21,10 @@ import { ClientTodayMergedQrDisplay } from "./dashboards/client-dashboard/client
 interface AppHeaderProps {
   collapsed: boolean
   toggleSidebar: () => void
+  style?: React.CSSProperties
 }
 
-export function AppHeader({ collapsed, toggleSidebar }: AppHeaderProps) {
+export function AppHeader({ collapsed, toggleSidebar, style }: AppHeaderProps) {
   const { t } = useTranslation()
   const { session, getUserRole } = useAuth()
   const [mobileDropdownOpen, setMobileDropdownOpen] = useState(false)
@@ -82,7 +83,7 @@ export function AppHeader({ collapsed, toggleSidebar }: AppHeaderProps) {
   }, [notifOpen])
 
   return (
-    <header className={`header ${collapsed ? "header-collapsed" : "header-expanded"}`}>
+    <header className={`header ${collapsed ? "header-collapsed" : "header-expanded"}`} style={style}>
       <div className="flex items-center gap-4">
         <button className="toggle-button ml-2" onClick={toggleSidebar}>
           <Menu className="h-5 w-5" />
