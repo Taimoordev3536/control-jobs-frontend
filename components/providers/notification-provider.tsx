@@ -83,9 +83,18 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         MANUAL_ATTENDANCE_REJECTED: "Manual attendance rejected",
         MANUAL_ATTENDANCE_CANCELLED: "Manual attendance cancelled",
       }
+      const variantMap: Record<string, "default" | "success" | "destructive"> = {
+        CHECK_IN: "success",
+        CHECK_OUT: "success",
+        MANUAL_ATTENDANCE_REQUESTED: "default",
+        MANUAL_ATTENDANCE_APPROVED: "success",
+        MANUAL_ATTENDANCE_REJECTED: "destructive",
+        MANUAL_ATTENDANCE_CANCELLED: "default",
+      }
       toast({
         title: titleMap[alert.type] || "New notification",
         description: alert.message,
+        variant: variantMap[alert.type] || "default",
       })
     }
 

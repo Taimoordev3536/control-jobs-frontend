@@ -144,6 +144,10 @@ const dashboardTranslations: Record<string, Record<string, string>> = {
     jobCompleted: "Job completed",
     workerCheckedIn: "Worker checked in",
     workerCheckedOut: "Worker checked out",
+
+    // Manual attendance buttons (worker / client job cards)
+    requestManualAttendance: "Request Manual Attendance",
+    addManualAttendance: "Add Manual Attendance",
   },
   es: {
 
@@ -288,6 +292,10 @@ const dashboardTranslations: Record<string, Record<string, string>> = {
     jobCompleted: "Trabajo completado",
     workerCheckedIn: "Trabajador registró entrada",
     workerCheckedOut: "Trabajador registró salida",
+
+    // Manual attendance buttons (worker / client job cards)
+    requestManualAttendance: "Solicitar asistencia manual",
+    addManualAttendance: "Añadir asistencia manual",
   },
 }
 

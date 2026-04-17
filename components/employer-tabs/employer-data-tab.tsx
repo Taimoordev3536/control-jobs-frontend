@@ -73,7 +73,7 @@ interface EmployerDataTabProps {
 
 export default function EmployerDataTab({ employerId }: EmployerDataTabProps) {
   const { t, language } = useTranslation()
-  const { session, isImpersonating, isSubUser, hasRole, hasAnyRole } = useAuth()
+  const { session, isImpersonating, isSubUser, hasRole, hasAnyRole, canEdit } = useAuth()
   const ti = (key: string) => (impersonationTranslations as any)[language]?.[key] || key
   const router = useRouter()
   const { toast } = useToast()
@@ -90,8 +90,9 @@ export default function EmployerDataTab({ employerId }: EmployerDataTabProps) {
   const [resetKey, setResetKey] = useState(0)
   const [isImpersonateLoading, setIsImpersonateLoading] = useState(false)
 
-  // Admin and Partner can impersonate employers (not sub-users, not during impersonation)
-  const canImpersonate = hasAnyRole(["admin", "partner"]) && !isSubUser && !isImpersonating
+  // Admin and Partner can impersonate employers.
+  // Sub-users: only EDIT permission can impersonate; VIEW_ONLY is hidden.
+  const canImpersonate = hasAnyRole(["admin", "partner"]) && canEdit() && !isImpersonating
 
   const handleLoginAs = async () => {
     if (!employerId) return

@@ -40,7 +40,7 @@ export default function ManualAttendancePermissionSettings({
   jobId,
 }: ManualAttendancePermissionSettingsProps) {
   const { session } = useAuth()
-  const { t } = useTranslation()
+  const { t } = useTranslation("manual-attendance")
   const [settings, setSettings] = useState<PermissionSettings>(DEFAULT_SETTINGS)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)

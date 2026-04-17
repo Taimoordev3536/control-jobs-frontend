@@ -56,11 +56,6 @@ export default function EmployerRecordsPage() {
           url.searchParams.append('jobId', jobIdParam)
         }
 
-        console.log('Fetching from URL:', url.toString())
-        console.log('Token:', session.accessToken ? 'Present' : 'Missing')
-        console.log('Session Status:', status)
-        console.log('Params Loaded:', paramsLoaded)
-
         const response = await fetch(url.toString(), {
           headers: {
             'Authorization': `Bearer ${session.accessToken}`,
@@ -68,16 +63,12 @@ export default function EmployerRecordsPage() {
           },
         })
 
-        console.log('Response status:', response.status)
         const result = await response.json()
-        console.log('API Response:', result)
-        
+
         if (result.isSuccess) {
-          console.log('Records fetched:', result.data.length)
           setRecords(result.data)
         } else {
-          console.error('Failed to fetch records:', result.message)
-          console.error('Developer error:', result.developerError)
+          console.error('Failed to fetch records:', result.message, result.developerError)
           setRecords([])
         }
       } catch (error) {

@@ -76,7 +76,7 @@ const getTierId = (typeOfPartner: string): number => {
 
 export default function PartnerDataTab({ partnerId, onNameChange }: PartnerDataTabProps) {
   const { t, language } = useTranslation()
-  const { session, isImpersonating, isSubUser, hasRole } = useAuth()
+  const { session, isImpersonating, isSubUser, hasRole, canEdit } = useAuth()
   const ti = (key: string) => (impersonationTranslations as any)[language]?.[key] || key
   const router = useRouter()
   const { toast } = useToast()
@@ -93,7 +93,9 @@ export default function PartnerDataTab({ partnerId, onNameChange }: PartnerDataT
   const [resetKey, setResetKey] = useState(0)
   const [isImpersonateLoading, setIsImpersonateLoading] = useState(false)
 
-  const canImpersonate = hasRole("admin") && !isSubUser && !isImpersonating
+  // Admin can impersonate partners.
+  // Sub-users: only EDIT permission can impersonate; VIEW_ONLY is hidden.
+  const canImpersonate = hasRole("admin") && canEdit() && !isImpersonating
 
   const handleLoginAs = async () => {
     if (!partnerId) return

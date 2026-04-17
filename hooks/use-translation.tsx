@@ -74,6 +74,7 @@ import loginTranslations from "@/lib/translations/login"
 import jobDetailTranslations from "@/lib/translations/job-detail"
 import subUserTranslations from "@/lib/translations/sub-user"
 import impersonationTranslations from "@/lib/translations/impersonation"
+import manualAttendanceTranslations from "@/lib/translations/manual-attendance"
 
 type TranslationNamespace =
   | "default"
@@ -85,6 +86,7 @@ type TranslationNamespace =
   | "job-detail"
   | "sub-user"
   | "impersonation"
+  | "manual-attendance"
 
 export function useTranslation(namespace: TranslationNamespace = "default") {
   const { language, setLanguage } = useContext(LanguageContext)
@@ -107,6 +109,8 @@ export function useTranslation(namespace: TranslationNamespace = "default") {
         return subUserTranslations
       case "impersonation":
         return impersonationTranslations
+      case "manual-attendance":
+        return manualAttendanceTranslations
       case "default":
       default:
         return translations

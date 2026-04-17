@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react"
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
@@ -20,7 +21,7 @@ import {
 } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
-import { Clock, Calendar, MapPin, AlertCircle, Loader2 } from "lucide-react"
+import { Clock, Calendar, MapPin, AlertCircle, Loader2, FileText } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useTranslation } from "@/hooks/use-translation"
 
@@ -31,6 +32,20 @@ interface Worker {
   publicId?: string
   name?: string
   code?: string
+  user?: {
+    name?: string
+    firstName?: string
+    lastName?: string
+  }
+}
+
+const getWorkerDisplayName = (w: Worker) => {
+  if (w.user?.name) return w.user.name
+  const parts = [w.user?.firstName, w.user?.lastName].filter(Boolean).join(" ").trim()
+  if (parts) return parts
+  if (w.name) return w.name
+  if (w.code) return w.code
+  return `Worker #${w.id}`
 }
 
 interface WorkCenter {
@@ -75,7 +90,7 @@ export default function ManualAttendanceRequestForm({
   onSuccess,
 }: ManualAttendanceRequestFormProps) {
   const { session } = useAuth()
-  const { t } = useTranslation()
+  const { t } = useTranslation("manual-attendance")
 
   const [requestType, setRequestType] = useState<RequestType>(preSelectedType || "FULL_DAY")
   const [requestedDate, setRequestedDate] = useState(preSelectedDate || "")
@@ -87,6 +102,11 @@ export default function ManualAttendanceRequestForm({
   const [workerNotes, setWorkerNotes] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState("")
+  const [availableJobs, setAvailableJobs] = useState<Job[]>([])
+  const [selectedJobId, setSelectedJobId] = useState("")
+  const [isLoadingJobs, setIsLoadingJobs] = useState(false)
+
+  const userRole = (session as any)?.user?.role?.name?.toLowerCase() || ""
 
   // Reset form when dialog opens
   useEffect(() => {
@@ -100,21 +120,60 @@ export default function ManualAttendanceRequestForm({
       setReason("")
       setWorkerNotes("")
       setError("")
+      setSelectedJobId("")
     }
   }, [open, preSelectedType, preSelectedDate, preSelectedWorker])
 
-  // Build work centers list from job
+  // Fetch the current user's jobs when no job is passed in
+  useEffect(() => {
+    if (!open || job || !session?.accessToken) return
+
+    const endpoint =
+      userRole === "worker"
+        ? `${process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/worker/all-jobs`
+        : userRole === "client"
+          ? `${process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/client/all-jobs`
+          : `${process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/employer/all-jobs`
+
+    setIsLoadingJobs(true)
+    fetch(endpoint, {
+      headers: {
+        Authorization: `Bearer ${session.accessToken}`,
+        "Content-Type": "application/json",
+      },
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        const list: Job[] = (data?.data || []).map((j: any) => ({
+          id: j.id,
+          publicId: j.publicId || j.jobId,
+          title: j.title || j.jobName,
+          jobName: j.jobName || j.title,
+          workers: j.workers || [],
+          workCenters: j.workCenters || (j.workCenter ? [j.workCenter] : []),
+        }))
+        setAvailableJobs(list)
+      })
+      .catch(() => setAvailableJobs([]))
+      .finally(() => setIsLoadingJobs(false))
+  }, [open, job, session?.accessToken, userRole])
+
+  // Resolve active job: prop-provided OR selected from the list
+  const activeJob: Job | undefined =
+    job || availableJobs.find((j) => (j.publicId || String(j.id)) === selectedJobId)
+
+  // Build work centers list from active job
   const workCenters: WorkCenter[] = []
-  if (job?.workCenters) {
-    job.workCenters.forEach((wc) => {
+  if (activeJob?.workCenters) {
+    activeJob.workCenters.forEach((wc) => {
       if (wc.id || wc.publicId) workCenters.push(wc as WorkCenter)
     })
-  } else if (job?.workCenter) {
-    workCenters.push(job.workCenter as WorkCenter)
+  } else if (activeJob?.workCenter) {
+    workCenters.push(activeJob.workCenter as WorkCenter)
   }
 
-  // Build workers list from job
-  const workers = job?.workers || []
+  // Build workers list from active job
+  const workers = activeJob?.workers || []
 
   // Calculate estimated hours
   const estimatedHours = (() => {
@@ -144,8 +203,15 @@ export default function ManualAttendanceRequestForm({
         requestedCheckOut = new Date(`${requestedDate}T${checkOutTime}:00`).toISOString()
       }
 
+      const resolvedJobId = activeJob?.publicId || activeJob?.jobId
+      if (!resolvedJobId) {
+        setError(t("selectAJob") || "Please select a job for this request.")
+        setIsSubmitting(false)
+        return
+      }
+
       const payload: Record<string, any> = {
-        jobId: job?.publicId || job?.jobId,
+        jobId: resolvedJobId,
         requestType,
         requestedDate,
         reason,
@@ -165,9 +231,6 @@ export default function ManualAttendanceRequestForm({
         ? `${process.env.NEXT_PUBLIC_API_BASE_URL}/manual-attendance/direct-entry`
         : `${process.env.NEXT_PUBLIC_API_BASE_URL}/manual-attendance/requests`
 
-      console.log('[ManualAttendance] job object:', job)
-      console.log('[ManualAttendance] payload:', JSON.stringify(payload, null, 2))
-
       const res = await fetch(endpoint, {
         method: "POST",
         headers: {
@@ -181,7 +244,6 @@ export default function ManualAttendanceRequestForm({
 
       if (!res.ok) {
         const errData = await res.json()
-        console.error('[ManualAttendance] error response:', errData)
         throw new Error(errData.message || "Failed to submit request")
       }
 
@@ -214,11 +276,16 @@ export default function ManualAttendanceRequestForm({
               ? (t("addManualAttendance") || "Add Manual Attendance")
               : (t("requestManualAttendance") || "Request Manual Attendance")}
           </DialogTitle>
+          <DialogDescription className="sr-only">
+            {mode === "direct"
+              ? (t("addManualAttendance") || "Add Manual Attendance")
+              : (t("requestManualAttendance") || "Request Manual Attendance")}
+          </DialogDescription>
         </DialogHeader>
 
         <div className="px-6 py-4 flex-1 overflow-y-auto space-y-4">
-          {/* Job info */}
-          {job && (
+          {/* Job info / selector */}
+          {job ? (
             <Card className="bg-purple-50 dark:bg-purple-950/30 border-purple-200">
               <CardContent className="p-3">
                 <p className="text-sm font-medium text-purple-700 dark:text-purple-300">
@@ -226,10 +293,44 @@ export default function ManualAttendanceRequestForm({
                 </p>
               </CardContent>
             </Card>
+          ) : (
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium flex items-center gap-1.5">
+                <FileText className="w-3.5 h-3.5" />
+                {t("job") || "Job"} *
+              </Label>
+              <Select
+                value={selectedJobId}
+                onValueChange={setSelectedJobId}
+                disabled={isLoadingJobs || availableJobs.length === 0}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue
+                    placeholder={
+                      isLoadingJobs
+                        ? (t("loading") || "Loading...")
+                        : availableJobs.length === 0
+                          ? (t("noJobsAvailable") || "No jobs available")
+                          : (t("selectJob") || "Select a job...")
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableJobs.map((j) => (
+                    <SelectItem
+                      key={j.publicId || j.id}
+                      value={j.publicId || String(j.id)}
+                    >
+                      {j.title || j.jobName || `Job #${j.id}`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           )}
 
-          {/* Worker selector (only for employer/client mode) */}
-          {workers.length > 0 && !preSelectedWorker && (
+          {/* Worker selector (only for employer/client mode — workers are auto-resolved on the backend) */}
+          {workers.length > 0 && !preSelectedWorker && userRole !== "worker" && (
             <div className="space-y-1.5">
               <Label className="text-sm font-medium">{t("worker") || "Worker"} *</Label>
               <Select value={selectedWorkerId} onValueChange={setSelectedWorkerId}>
@@ -239,7 +340,7 @@ export default function ManualAttendanceRequestForm({
                 <SelectContent>
                   {workers.map((w) => (
                     <SelectItem key={w.publicId || w.id} value={w.publicId || String(w.id)}>
-                      {w.name || w.code || `Worker #${w.id}`}
+                      {getWorkerDisplayName(w)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -396,7 +497,7 @@ export default function ManualAttendanceRequestForm({
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={isSubmitting || !requestedDate || !reason.trim()}
+            disabled={isSubmitting || !requestedDate || !reason.trim() || !activeJob}
             className="bg-purple-600 hover:bg-purple-700 text-white"
           >
             {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}

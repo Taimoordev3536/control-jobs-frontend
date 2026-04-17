@@ -721,6 +721,14 @@ surveyMonitoringValueTips: "Set a limit. If responses are under this value, an a
     latitude: "Latitude",
     longitude: "Longitude",
     observations: "Observations",
+
+    // Manual attendance — sidebar + notifications
+    attendanceRequests: "Attendance Requests",
+    myRequests: "My Requests",
+    manualAttendanceRequested: "Manual attendance requested",
+    manualAttendanceApproved: "Manual attendance approved",
+    manualAttendanceRejected: "Manual attendance rejected",
+    manualAttendanceCancelled: "Manual attendance cancelled",
   },
   es: {
       // add modal json
@@ -1446,6 +1454,14 @@ surveyMonitoringValueTips: "Set a limit. If responses are under this value, an a
     latitude: "Latitud",
     longitude: "Longitud",
     observations: "Observaciones",
+
+    // Manual attendance — sidebar + notifications
+    attendanceRequests: "Solicitudes de asistencia",
+    myRequests: "Mis solicitudes",
+    manualAttendanceRequested: "Asistencia manual solicitada",
+    manualAttendanceApproved: "Asistencia manual aprobada",
+    manualAttendanceRejected: "Asistencia manual rechazada",
+    manualAttendanceCancelled: "Asistencia manual cancelada",
   },
 
   // Calendar translations

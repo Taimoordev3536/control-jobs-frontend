@@ -71,7 +71,7 @@ interface ClientData {
 
 export function ClientDataTab({ clientId }: ClientDataTabProps) {
   const { t, language } = useTranslation()
-  const { session, isImpersonating, isSubUser, hasRole } = useAuth()
+  const { session, isImpersonating, isSubUser, hasRole, canEdit } = useAuth()
   const ti = (key: string) => (impersonationTranslations as any)[language]?.[key] || key
   const router = useRouter()
   const { toast } = useToast()
@@ -85,8 +85,9 @@ export function ClientDataTab({ clientId }: ClientDataTabProps) {
   const [hasChanges, setHasChanges] = useState(false)
   const [isImpersonateLoading, setIsImpersonateLoading] = useState(false)
 
-  // Employer can impersonate their own clients
-  const canImpersonate = hasRole("employer") && !isSubUser && !isImpersonating
+  // Employer can impersonate their own clients.
+  // Sub-users: only EDIT permission can impersonate; VIEW_ONLY is hidden.
+  const canImpersonate = hasRole("employer") && canEdit() && !isImpersonating
 
   const handleLoginAs = async () => {
     if (!clientId) return

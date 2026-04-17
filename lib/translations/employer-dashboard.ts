@@ -271,6 +271,11 @@ const employerDashboardTranslations: Record<string, Record<string, string>> = {
     exportCSV: "Export CSV",
     exportPDF: "Export PDF",
     noRecordsFound: "No records found",
+
+    // Manual attendance
+    addManualAttendance: "Add Manual Attendance",
+    pendingAttendanceRequests: "pending attendance request(s)",
+    reviewNow: "Review Now",
   },
   es: {
     // Header viewAttendance 
@@ -545,6 +550,11 @@ const employerDashboardTranslations: Record<string, Record<string, string>> = {
     exportCSV: "Exportar CSV",
     exportPDF: "Exportar PDF",
     noRecordsFound: "No se encontraron registros",
+
+    // Manual attendance
+    addManualAttendance: "Añadir asistencia manual",
+    pendingAttendanceRequests: "solicitud(es) de asistencia pendiente(s)",
+    reviewNow: "Revisar ahora",
   },
 }
 
