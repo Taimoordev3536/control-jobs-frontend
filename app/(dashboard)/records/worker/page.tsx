@@ -1,8 +1,9 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { AnimatedLoader } from "@/components/animated-loader"
+import { useAuth } from "@/hooks/use-auth"
 
 import DataListTemplate, { ExcelIcon, CsvIcon, PdfIcon } from "@/components/ui/data-list-template"
 import { exportToCSV, exportToXLSX, exportToPDF } from "@/lib/export"
@@ -10,45 +11,50 @@ import { Filter } from "lucide-react"
 
 export default function WorkerRecordsPage() {
   const router = useRouter()
-
-  // ---------------------------
-  // DUMMY DATA (Temporary)
-  // ---------------------------
-  const dummyRecords = [
-    {
-      id: "500",
-      fecha: "2025-01-12",
-      titular: "Manager 1",
-      job: "Garden Maintenance",
-      client: "Client Alpha",
-      entrada: "07:30",
-      salida: "11:00",
-      total: "3.5h",
-      alerts: "None",
-    },
-    {
-      id: "501",
-      fecha: "2025-01-18",
-      titular: "Supervisor 2",
-      job: "Cleaning - House 3",
-      client: "Client Beta",
-      entrada: "09:00",
-      salida: "14:00",
-      total: "5h",
-      alerts: "Late Start",
-    },
-  ]
+  const searchParams = useSearchParams()
+  const jobIdParam = searchParams.get("jobId")
+  const { session, status } = useAuth() as any
 
   const [records, setRecords] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    setIsLoading(true)
-    setTimeout(() => {
-      setRecords(dummyRecords)
-      setIsLoading(false)
-    }, 500)
-  }, [])
+    const fetchRecords = async () => {
+      if (status === "loading") return
+      if (!session?.accessToken) {
+        setIsLoading(false)
+        return
+      }
+
+      setIsLoading(true)
+      try {
+        const url = new URL(`${process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/worker/work-session-records`)
+        if (jobIdParam) url.searchParams.append("jobId", jobIdParam)
+
+        const response = await fetch(url.toString(), {
+          headers: {
+            Authorization: `Bearer ${session.accessToken}`,
+            "Content-Type": "application/json",
+          },
+        })
+
+        const result = await response.json()
+        if (result.isSuccess) {
+          setRecords(result.data)
+        } else {
+          console.error("Failed to fetch worker records:", result.message, result.developerError)
+          setRecords([])
+        }
+      } catch (err) {
+        console.error("Error fetching worker records:", err)
+        setRecords([])
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchRecords()
+  }, [jobIdParam, session?.accessToken, status])
 
   const columns = [
     { key: "fecha", label: "Fecha", sortable: true },
@@ -61,41 +67,35 @@ export default function WorkerRecordsPage() {
     { key: "alerts", label: "Alertas" },
   ]
 
-  // ---------------------------
-  // ACTION BUTTONS
-  // ---------------------------
   const actionButtons = [
     {
       icon: Filter,
       onClick: () => console.log("Filter clicked"),
       title: "Filter",
-      type: "filter",
+      type: "filter" as const,
     },
     {
       icon: ExcelIcon,
       onClick: () => exportToXLSX(records, columns, "worker-records.xlsx"),
       title: "Export Excel",
-      type: "excel",
+      type: "excel" as const,
     },
     {
       icon: CsvIcon,
       onClick: () => exportToCSV(records, columns, "worker-records.csv"),
       title: "Export CSV",
-      type: "csv",
+      type: "csv" as const,
     },
     {
       icon: PdfIcon,
       onClick: () => exportToPDF(records, columns, "worker-records.pdf"),
       title: "Export PDF",
-      type: "pdf",
+      type: "pdf" as const,
     },
   ]
 
-  // ---------------------------
-  // ROW CLICK HANDLER
-  // ---------------------------
   const handleRowClick = (item: any) => {
-    const recordId = item?.publicId || item?.id
+    const recordId = item?.workSessionPublicId || item?.publicId || item?.id
     if (recordId) router.push(`/records/worker/${recordId}`)
   }
 
@@ -107,7 +107,6 @@ export default function WorkerRecordsPage() {
       onRowClick={handleRowClick}
       actionButtons={actionButtons}
       emptyMessage={isLoading ? <AnimatedLoader size={32} /> : "No records found"}
-      role="worker"
     />
   )
 }
