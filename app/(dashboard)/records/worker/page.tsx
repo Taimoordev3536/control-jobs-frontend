@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { AnimatedLoader } from "@/components/animated-loader"
 import { useAuth } from "@/hooks/use-auth"
 
@@ -11,16 +11,28 @@ import { Filter } from "lucide-react"
 
 export default function WorkerRecordsPage() {
   const router = useRouter()
-  const searchParams = useSearchParams()
-  const jobIdParam = searchParams.get("jobId")
   const { session, status } = useAuth() as any
 
   const [records, setRecords] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [jobIdParam, setJobIdParam] = useState<string | null>(null)
+  const [paramsLoaded, setParamsLoaded] = useState(false)
+
+  // Read search params on the client to avoid useSearchParams prerender bailout
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search)
+      setJobIdParam(params.get("jobId"))
+    } catch {
+      setJobIdParam(null)
+    } finally {
+      setParamsLoaded(true)
+    }
+  }, [])
 
   useEffect(() => {
     const fetchRecords = async () => {
-      if (status === "loading") return
+      if (status === "loading" || !paramsLoaded) return
       if (!session?.accessToken) {
         setIsLoading(false)
         return
@@ -54,7 +66,7 @@ export default function WorkerRecordsPage() {
     }
 
     fetchRecords()
-  }, [jobIdParam, session?.accessToken, status])
+  }, [jobIdParam, session?.accessToken, status, paramsLoaded])
 
   const columns = [
     { key: "fecha", label: "Fecha", sortable: true },
