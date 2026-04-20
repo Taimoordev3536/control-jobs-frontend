@@ -196,16 +196,17 @@ export default function TabTableTemplate({
     </div>
   )
 
-  const getAlignmentClass = (key: string, value: any) => {
-    if (typeof value === "number" && key.toLowerCase().includes("factur")) {
-      return "text-right"; // Right align for monetary amounts
-    } else if (typeof value === "number") {
-      return "text-right"; // Right align for other numbers
-    } else if (value instanceof Date || !isNaN(Date.parse(value))) {
-      return "text-center"; // Center align for dates
-    } else {
-      return "text-left"; // Left align for text
-    }
+  const getAlignmentClass = (column: TabTableColumn, value: any) => {
+    // Respect an explicit column.align if the caller set one — otherwise
+    // auto-detect by value type. Previously auto-detection ran `Date.parse`
+    // on string values, and lenient parsing (e.g. "work center 1" → Y2001)
+    // caused random text cells to be centered as if they were dates.
+    if (column.align === "left") return "text-left";
+    if (column.align === "center") return "text-center";
+    if (column.align === "right") return "text-right";
+    if (typeof value === "number") return "text-right";
+    if (value instanceof Date) return "text-center";
+    return "text-left";
   };
 
   function renderValue(value: any, key: string) {
@@ -338,7 +339,7 @@ export default function TabTableTemplate({
                             column.key === localColumns[0].key
                               ? "text-foreground font-medium"
                               : "text-muted-foreground"
-                          } ${getAlignmentClass(column.key, row[column.key])} border border-gray-300 dark:border-gray-700`}
+                          } ${getAlignmentClass(column, row[column.key])} border border-gray-300 dark:border-gray-700`}
                         >
                           {renderValue(row[column.key], column.key) || "-"}
                         </td>
