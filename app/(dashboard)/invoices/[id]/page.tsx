@@ -1,241 +1,409 @@
 "use client"
 
-import { useParams } from "next/navigation"
+import { useEffect, useState } from "react"
+import { useParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Building2, Users, FileText, ChevronDown } from "lucide-react"
+import { ArrowLeft, Loader2, CheckCircle2, XCircle } from "lucide-react"
+import PdfIconDefault from "@/icons/Controles/pdf1.svg"
+import PdfIconHover from "@/icons/Controles/pdf2.svg"
 import { useTranslation } from "@/hooks/use-translation"
+import { useAuth } from "@/hooks/use-auth"
+import { useToast } from "@/hooks/use-toast"
+
+interface InvoiceDetail {
+  id: number
+  publicId: string
+  invoiceNumber: string
+  employerId: number
+  periodStart: string
+  periodEnd: string
+  issueDate: string
+  dueDate: string
+  isProrated: boolean
+  proratedDays: number | null
+  daysInMonth: number | null
+  monthlyFixedRate: number | string
+  perWorkCenterRate: number | string
+  perWorkerRate: number | string
+  fixedAmount: number | string
+  workcenterCount: number
+  workcenterAmount: number | string
+  workerCount: number
+  workerAmount: number | string
+  subtotal: number | string
+  discountPct: number | string
+  discountAmount: number | string
+  vatPct: number | string
+  vatAmount: number | string
+  total: number | string
+  status: string
+  paidAt: string | null
+}
+
+const fmt = (v: number | string) => {
+  const n = typeof v === "string" ? parseFloat(v) : v
+  return `${(n || 0).toFixed(2).replace(".", ",")} €`
+}
 
 export default function InvoiceDetailPage() {
-  const { t } = useTranslation()
-  const params = useParams()
-  const invoiceId = params.id
+  const { t, tEnum } = useTranslation()
+  const router = useRouter()
+  const { id: publicId } = useParams() as { id: string }
+  const { session, hasRole } = useAuth()
+  const { toast } = useToast()
+  // Mark-paid + cancel are admin-only operations (accounting actions).
+  // Partners and employers can view and download but not change status.
+  const canManage = hasRole("admin")
+
+  const [invoice, setInvoice] = useState<InvoiceDetail | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isActing, setIsActing] = useState(false)
+  const [employerName, setEmployerName] = useState<string | null>(null)
+  const [pdfHovered, setPdfHovered] = useState(false)
+
+  const fetchInvoice = async () => {
+    if (!session?.accessToken) return
+    setIsLoading(true)
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/invoices/${publicId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${session.accessToken}`,
+            "Content-Type": "application/json",
+          },
+        },
+      )
+      if (!res.ok) throw new Error("Failed to load invoice")
+      const json = await res.json()
+      const data: InvoiceDetail = json.data
+      setInvoice(data)
+
+      try {
+        const eRes = await fetch(
+          `${process.env.NEXT_PUBLIC_API_BASE_URL}/employers/${data.employerId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${session.accessToken}`,
+              "Content-Type": "application/json",
+            },
+          },
+        )
+        if (eRes.ok) {
+          const eJson = await eRes.json()
+          if (eJson?.data?.name) setEmployerName(eJson.data.name)
+        }
+      } catch {
+        /* ignore */
+      }
+    } catch (e: any) {
+      toast({ title: e.message || "Error", variant: "destructive" })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchInvoice()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [publicId, session?.accessToken])
+
+  const markPaid = async () => {
+    if (!invoice || !session?.accessToken) return
+    setIsActing(true)
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/invoices/${invoice.publicId}/mark-paid`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${session.accessToken}`,
+            "Content-Type": "application/json",
+          },
+        },
+      )
+      if (!res.ok) throw new Error("Failed to mark paid")
+      toast({ title: t("markedAsPaid") || "Marked as paid", variant: "success" as any })
+      fetchInvoice()
+    } catch (e: any) {
+      toast({ title: e.message, variant: "destructive" })
+    } finally {
+      setIsActing(false)
+    }
+  }
+
+  const cancelInvoice = async () => {
+    if (!invoice || !session?.accessToken) return
+    if (!confirm(t("confirmCancelInvoice") || "Cancel this invoice?")) return
+    setIsActing(true)
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/invoices/${invoice.publicId}/cancel`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${session.accessToken}`,
+            "Content-Type": "application/json",
+          },
+        },
+      )
+      if (!res.ok) throw new Error("Failed to cancel invoice")
+      toast({ title: t("invoiceCancelled") || "Invoice cancelled", variant: "success" as any })
+      fetchInvoice()
+    } catch (e: any) {
+      toast({ title: e.message, variant: "destructive" })
+    } finally {
+      setIsActing(false)
+    }
+  }
+
+  const downloadPdf = async () => {
+    if (!invoice || !session?.accessToken) return
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/invoices/${invoice.publicId}/pdf`,
+        {
+          headers: { Authorization: `Bearer ${session.accessToken}` },
+        },
+      )
+      if (!res.ok) throw new Error("Failed to load PDF")
+      const blob = await res.blob()
+      const objectUrl = URL.createObjectURL(blob)
+      window.open(objectUrl, "_blank")
+      // Revoke later to free memory; the new tab keeps a snapshot.
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000)
+    } catch (e: any) {
+      toast({ title: e.message || "Error", variant: "destructive" })
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="bg-background min-h-screen flex items-center justify-center p-12">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+  if (!invoice) {
+    return (
+      <div className="bg-background min-h-screen p-12 text-center">
+        <p className="text-sm text-muted-foreground">{t("noData") || "No data"}</p>
+      </div>
+    )
+  }
+
+  const statusColor =
+    invoice.status === "PAID"
+      ? "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300"
+      : invoice.status === "PENDING"
+        ? "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
+        : invoice.status === "OVERDUE"
+          ? "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300"
+          : "bg-muted text-muted-foreground"
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-full mx-auto bg-background">
-        {/* Header Section */}
-        <div className="flex items-start justify-between px-8 py-8 bg-muted/50">
-          {/* Left Side - Company Info */}
-          <div className="flex-1 max-w-md">
-            <h1 className="text-lg font-normal text-muted-foreground mb-8">{t("Bill")}</h1>
-
-            <div className="space-y-2">
-              <div className="flex items-center">
-                <span className="text-2xl font-normal text-foreground">Control</span>
-                <span className="text-2xl font-normal text-primary">Jobs</span>
-              </div>
-              <div className="text-sm text-muted-foreground space-y-1 mt-3">
-                <div className="font-normal text-muted-foreground italic">CONTROLJOBS TECH, S.L.U.</div>
-                <div className="italic">B31972524</div>
-                <div className="italic">Calvo Sotelo</div>
-                <div className="flex gap-8 italic">
-                  <span>26003</span>
-                  <span>Logroño coño</span>
-                </div>
-                <div className="flex gap-8 italic">
-                  <span>La Rioja</span>
-                  <span>España</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-8 space-y-1 text-sm">
-              <div className="flex items-center">
-                <span className="font-semibold text-foreground">{t("invoiceNo")}:</span>
-              </div>
-              <div className="flex items-center">
-                <span className="font-semibold text-foreground">{t("date")}</span>
-              </div>
-              <div className="text-muted-foreground mt-2">{t("payments")} by XXXX card</div>
-            </div>
+    <div className="bg-background min-h-screen w-full">
+      {/* Page header — matches employer-detail / system pattern */}
+      <div className="bg-card border-b border-border">
+        <div className="grid grid-cols-3 items-center px-4 pt-1 pb-1 sm:px-3">
+          <h1 className="text-sm sm:text-base font-semibold text-foreground truncate">
+            {invoice.invoiceNumber}
+          </h1>
+          <span className="text-sm sm:text-base font-medium text-foreground text-center">
+            {t("invoices")}
+          </span>
+          <div className="flex justify-end">
+            <button
+              onClick={() => router.back()}
+              className="p-1 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </button>
           </div>
+        </div>
 
-          {/* Right Side - Bill Info */}
-          <div className="flex flex-col items-end">
-            <Button variant="outline" size="sm" className="mb-8 px-3 py-1.5 text-xs font-normal bg-transparent">
-              <FileText className="h-3 w-3 mr-1" />
-              PDF
+        {/* Action bar */}
+        <div className="flex flex-wrap items-center justify-end gap-2 px-3 sm:px-4 py-2 border-t border-border">
+          <button
+            onClick={downloadPdf}
+            title="PDF"
+            onMouseEnter={() => setPdfHovered(true)}
+            onMouseLeave={() => setPdfHovered(false)}
+            className="p-1.5 text-[#662D91] hover:bg-purple-50 dark:hover:bg-purple-950 rounded-md transition-colors"
+          >
+            {pdfHovered ? (
+              <PdfIconHover className="w-5 h-5" />
+            ) : (
+              <PdfIconDefault className="w-5 h-5" />
+            )}
+          </button>
+          {canManage && invoice.status === "PENDING" && (
+            <Button
+              size="sm"
+              onClick={markPaid}
+              disabled={isActing}
+              className="h-8 text-xs bg-purple-600 hover:bg-purple-700 text-white"
+            >
+              <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+              {t("markAsPaid") || "Mark as paid"}
             </Button>
+          )}
+          {canManage && invoice.status !== "CANCELLED" && invoice.status !== "PAID" && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={cancelInvoice}
+              disabled={isActing}
+              className="h-8 text-xs text-red-600 border-red-300 hover:bg-red-50 dark:hover:bg-red-950/50"
+            >
+              <XCircle className="h-3.5 w-3.5 mr-1" />
+              {t("cancel") || "Cancel"}
+            </Button>
+          )}
+        </div>
+      </div>
 
-            <div className="text-right mb-6">
-              <h2 className="text-3xl font-normal text-foreground">{t("Bill")}</h2>
-            </div>
-
-            <div className="w-80">
-              <div className="relative mb-0">
-                <select className="w-full px-4 py-3 border border-border bg-background text-foreground text-sm appearance-none pr-10 font-normal rounded-md">
-                  <option>ANA LINARES OSÉS</option>
-                </select>
-                <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+      {/* Body */}
+      <div className="p-3 sm:p-4 space-y-3">
+        {/* Top info row — invoice meta on left, bill-to on right */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          {/* Invoice meta */}
+          <div className="rounded-md border border-border bg-card p-4">
+            <div className="space-y-2 text-xs">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">{t("invoiceNo")}</span>
+                <span className="font-semibold text-foreground">{invoice.invoiceNumber}</span>
               </div>
-
-              <div className="border-t-0">
-                <div className="bg-primary text-primary-foreground px-4 py-3 text-sm font-medium">{t("clientData")}</div>
-                <div className="border border-t-0 border-border bg-background px-4 py-4 space-y-2 text-sm">
-                  <div className="text-muted-foreground italic">Name</div>
-                  <div className="text-muted-foreground italic">CIF</div>
-                  <div className="text-muted-foreground italic">Address</div>
-                  <div className="flex gap-20">
-                    <span className="text-muted-foreground italic">CP</span>
-                    <span className="text-muted-foreground italic">Locality</span>
-                  </div>
-                  <div className="flex gap-16">
-                    <span className="text-muted-foreground italic">Province</span>
-                    <span className="text-muted-foreground italic">Country</span>
-                  </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">{t("status") || "Status"}</span>
+                <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${statusColor}`}>
+                  {tEnum("invoiceStatus", invoice.status) || invoice.status}
+                </span>
+              </div>
+              <div className="border-t border-border my-1" />
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">{t("issueDate") || "Issue date"}</span>
+                <span className="text-foreground">{invoice.issueDate}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">{t("dueDate") || "Due date"}</span>
+                <span className="text-foreground">{invoice.dueDate}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">{t("period")}</span>
+                <span className="text-foreground">
+                  {invoice.periodStart} → {invoice.periodEnd}
+                </span>
+              </div>
+              {invoice.isProrated && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">{t("prorated")}</span>
+                  <span className="text-amber-700 dark:text-amber-400">
+                    {invoice.proratedDays}/{invoice.daysInMonth} {t("days")}
+                  </span>
                 </div>
-              </div>
+              )}
+            </div>
+          </div>
+
+          {/* Bill to */}
+          <div className="rounded-md border border-border bg-card p-4">
+            <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-2">
+              {t("billTo") || "Bill to"}
+            </div>
+            <div className="text-sm font-semibold text-foreground">
+              {employerName || `#${invoice.employerId}`}
             </div>
           </div>
         </div>
 
-        {/* Billing Summary Table */}
-        <div className="px-8 py-4">
-          <div className="w-full">
-            {/* Table Header */}
-                <div className="flex mb-4 bg-purple-50 dark:bg-purple-950/50 border-b-2 border-purple-600 pb-2">
-                  <div className="w-[60%] pt-2 text-center font-semibold text-foreground">{t("billingSummary")}</div>
-                  <div className="w-[13%] pt-2 text-center font-semibold text-foreground">{t("amount")}</div>
-                  <div className="w-[13%] pt-2 text-center font-semibold text-foreground">{t("price")}</div>
-                  <div className="w-[13%] pt-2 text-center font-semibold text-foreground">{t("total")}</div>
-                  <div className="w-[1%]"></div>
-                </div>
-
-            {/* Service Rows */}
-            <div className="space-y-3 mb-8">
-              {/* First Service Row */}
-              <div className="flex items-center gap-4">
-                <div className="w-[70%]">
-                  <div className="bg-muted rounded-lg px-4 py-3 text-foreground font-medium">3 Servicio</div>
-                </div>
-                <div className="w-[10%] text-center">
-                  <input
-                    type="number"
-                    defaultValue="1"
-                    className="w-12 h-8 text-center border border-border bg-background text-foreground text-sm rounded"
-                  />
-                </div>
-                <div className="w-[10%] text-center">
-                  <div className="bg-muted/50 rounded px-3 py-2 text-blue-600 dark:text-blue-400">4.00</div>
-                </div>
-                <div className="w-[10%] text-center">
-                  <div className="bg-muted/50 rounded px-3 py-2 text-foreground">4.00</div>
-                </div>
-              </div>
-
-              {/* Second Service Row */}
-              <div className="flex items-center gap-4">
-                <div className="w-[70%]">
-                  <div className="bg-muted rounded-lg px-4 py-3 text-foreground font-medium">4 Trabajadores</div>
-                </div>
-                <div className="w-[10%] text-center">
-                  <input
-                    type="number"
-                    defaultValue="3"
-                    className="w-12 h-8 text-center border border-border bg-background text-foreground text-sm rounded"
-                  />
-                </div>
-                <div className="w-[10%] text-center">
-                  <div className="bg-muted/50 rounded px-3 py-2 text-blue-600 dark:text-blue-400">1.00</div>
-                </div>
-                <div className="w-[10%] text-center">
-                  <div className="bg-muted/50 rounded px-3 py-2 text-foreground">3.00</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Partner Discount Section */}
-            <div className="mb-8">
-              <div className="flex items-center gap-4">
-                <div className="w-[70%]"></div>
-                <div className="w-[10%] text-right">
-                  <span className="font-semibold text-foreground">Partner Dto.</span>
-                </div>
-                <div className="w-[10%] text-center">
-                  <div className="flex items-center justify-center gap-1">
-                    <input
-                      type="number"
-                      defaultValue="0"
-                      className="w-8 h-8 text-center border border-border bg-background text-foreground text-sm rounded"
-                    />
-                    <span className="text-foreground text-sm">%</span>
-                  </div>
-                </div>
-                <div className="w-[10%] text-center">
-                  <div className="bg-muted/50 rounded px-3 py-2 text-foreground">0.00</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Tax Breakdown Section */}
-            <div className="space-y-3">
-              {/* Tax Breakdown Header */}
-                  <div className="flex justify-center mb-4 bg-purple-50 dark:bg-purple-950/50 border-b-2 border-purple-600 pb-2">
-                    <span className=" pt-2 font-semibold text-foreground">{t("taxBreakdown")}</span>
-                  </div>
-
-              {/* Tax Base Row */}
-              <div className="flex items-center gap-4">
-                <div className="w-[70%]"></div>
-                <div className="w-[10%]"></div>
-                <div className="w-[10%] text-center text-foreground">{t("taxBase")}</div>
-                <div className="w-[10%] text-center">
-                  <div className="bg-muted/50 rounded px-3 py-2 text-foreground">7.00</div>
-                </div>
-              </div>
-
-              {/* VAT Row */}
-              <div className="flex items-center gap-4">
-                <div className="w-[70%]"></div>
-                <div className="w-[10%]"></div>
-                <div className="w-[10%] text-center text-foreground">VAT ( 21 %)</div>
-                <div className="w-[10%] text-center">
-                  <div className="bg-muted/50 rounded px-3 py-2 text-foreground">1.47</div>
-                </div>
-              </div>
-
-              {/* Total Row */}
-              <div className="flex items-center gap-4">
-                <div className="w-[70%]"></div>
-                <div className="w-[10%]"></div>
-                <div className="w-[10%] text-center font-bold text-foreground">{t("totalToPay")}</div>
-                <div className="w-[10%] text-center">
-                  <div className="bg-muted/50 rounded px-3 py-2 font-bold text-foreground">7</div>
-                </div>
-              </div>
-            </div>
-          </div>
+        {/* Line items table — system header style */}
+        <div className="rounded-md border border-border bg-card overflow-hidden">
+          <table className="w-full text-xs">
+            <thead className="bg-purple-50 dark:bg-purple-950/50 border-b-2 border-purple-600">
+              <tr>
+                <th className="text-left px-3 py-2 font-semibold text-foreground">
+                  {t("description") || "Description"}
+                </th>
+                <th className="text-center px-3 py-2 font-semibold text-foreground w-24">
+                  {t("quantity") || "Qty"}
+                </th>
+                <th className="text-right px-3 py-2 font-semibold text-foreground w-32">
+                  {t("price") || "Price"}
+                </th>
+                <th className="text-right px-3 py-2 font-semibold text-foreground w-32">
+                  {t("amount") || "Amount"}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr className="border-b border-border">
+                <td className="px-3 py-2 text-foreground">{t("fixedFee")}</td>
+                <td className="text-center px-3 py-2 text-foreground">1</td>
+                <td className="text-right px-3 py-2 text-foreground">{fmt(invoice.monthlyFixedRate)}</td>
+                <td className="text-right px-3 py-2 text-foreground">{fmt(invoice.fixedAmount)}</td>
+              </tr>
+              <tr className="border-b border-border bg-muted/20">
+                <td className="px-3 py-2 text-foreground">{t("workCenters")}</td>
+                <td className="text-center px-3 py-2 text-foreground">{invoice.workcenterCount}</td>
+                <td className="text-right px-3 py-2 text-foreground">{fmt(invoice.perWorkCenterRate)}</td>
+                <td className="text-right px-3 py-2 text-foreground">{fmt(invoice.workcenterAmount)}</td>
+              </tr>
+              <tr className="border-b border-border">
+                <td className="px-3 py-2 text-foreground">{t("employees")}</td>
+                <td className="text-center px-3 py-2 text-foreground">{invoice.workerCount}</td>
+                <td className="text-right px-3 py-2 text-foreground">{fmt(invoice.perWorkerRate)}</td>
+                <td className="text-right px-3 py-2 text-foreground">{fmt(invoice.workerAmount)}</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
 
-        {/* Service Details */}
-        <div className="px-8 py-4">
-                <div>
-                  <div className="flex justify-center mb-4 bg-purple-50 dark:bg-purple-950/50 border-b-2 border-purple-600 pb-2">
-                    <span className=" pt-2 font-semibold text-foreground">{t("serviceDetails")}</span>
-                  </div>
-            <div className="px-8 py-8 bg-card">
-              <div className="flex items-start gap-6 mb-8">
-                <div className="flex-shrink-0">
-                  <Building2 className="h-8 w-8 text-muted-foreground stroke-[1.5]" />
-                </div>
-                <div>
-                  <div className="text-card-foreground font-normal">• {t("center")} 1</div>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-6">
-                <div className="flex-shrink-0">
-                  <Users className="h-8 w-8 text-muted-foreground stroke-[1.5]" />
-                </div>
-                <div className="space-y-2">
-                  <div className="text-card-foreground font-normal">• {t("worker")} 1</div>
-                  <div className="text-card-foreground font-normal">• {t("worker")} 2</div>
-                </div>
-              </div>
-            </div>
+        {/* Totals — compact right-aligned card */}
+        <div className="flex justify-end">
+          <div className="w-full sm:max-w-sm rounded-md border border-border bg-card p-4 space-y-1.5 text-xs">
+            <Row label={t("subtotal")} value={fmt(invoice.subtotal)} />
+            {Number(invoice.discountPct) > 0 && (
+              <Row
+                label={`${t("discount")} (${invoice.discountPct}%)`}
+                value={`−${fmt(invoice.discountAmount)}`}
+                danger
+              />
+            )}
+            <Row
+              label={`${t("vat") || "IVA"} (${invoice.vatPct}%)`}
+              value={fmt(invoice.vatAmount)}
+            />
+            <div className="border-t-2 border-purple-600 my-2" />
+            <Row label={t("total")} value={fmt(invoice.total)} bold large />
           </div>
         </div>
       </div>
+    </div>
+  )
+}
+
+function Row({
+  label,
+  value,
+  bold,
+  large,
+  danger,
+}: {
+  label: string
+  value: string
+  bold?: boolean
+  large?: boolean
+  danger?: boolean
+}) {
+  return (
+    <div
+      className={`flex justify-between ${large ? "text-sm" : "text-xs"} ${
+        bold ? "font-semibold text-foreground" : "text-foreground/90"
+      } ${danger ? "text-amber-700 dark:text-amber-400" : ""}`}
+    >
+      <span>{label}</span>
+      <span>{value}</span>
     </div>
   )
 }

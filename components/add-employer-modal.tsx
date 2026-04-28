@@ -27,9 +27,10 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded, 
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const { t } = useTranslation()
+  const { t, tEnum } = useTranslation()
   const translateBackendError = useBackendError()
-  const { session } = useAuth()
+  const { session, hasRole } = useAuth()
+  const isPartnerRole = hasRole("partner")
 
   const [formData, setFormData] = useState({
     name: "",
@@ -55,7 +56,22 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded, 
     landline: "",
     mobile: "",
     email: "",
+    probationPeriod: "15",
   })
+
+  // Max discount the user can grant — equals the partner's commission
+  // (the discount Admin granted to the Partner).
+  const [maxDiscount, setMaxDiscount] = useState<number | null>(null)
+
+  // The rate plan that matches the chosen Clase + Tarifa, used to render
+  // the live "Estimación mensual" box on step 2.
+  const [matchedPlan, setMatchedPlan] = useState<{
+    code: string
+    label: string
+    monthlyFixed: number
+    perWorkCenter: number
+    perWorker: number
+  } | null>(null)
 
   const [validationErrors, setValidationErrors] = useState({
     name: false,
@@ -85,7 +101,9 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded, 
     { number: 3, label: t("Access") },
   ]
 
-  const [partners, setPartners] = useState<{ name: string; id: string | number }[]>([])
+  const [partners, setPartners] = useState<
+    { name: string; id: string | number; commission: number }[]
+  >([])
 
   // Pre-select partner when defaultPartnerId is provided
   useEffect(() => {
@@ -93,6 +111,15 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded, 
       setFormData((prev) => ({ ...prev, partner: defaultPartnerId }))
     }
   }, [defaultPartnerId, open])
+
+  // Auto-select self for partner role users
+  useEffect(() => {
+    if (!open || !isPartnerRole) return
+    const myPartnerId = (session as any)?.user?.partnerId
+    if (myPartnerId) {
+      setFormData((prev) => ({ ...prev, partner: String(myPartnerId) }))
+    }
+  }, [open, isPartnerRole, session])
 
   useEffect(() => {
     const fetchPartners = async () => {
@@ -106,7 +133,13 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded, 
         })
         if (res.ok) {
           const data = await res.json()
-          setPartners((data.data || []).map((p: any) => ({ name: p.name, id: p.publicId || p.id })))
+          setPartners(
+            (data.data || []).map((p: any) => ({
+              name: p.name,
+              id: p.publicId || p.id,
+              commission: Number(p.commission) || 0,
+            })),
+          )
         }
       } catch (e) {
         setPartners([])
@@ -115,18 +148,106 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded, 
     fetchPartners()
   }, [session?.accessToken])
 
-  const fees = [
-    { name: "Home", id: 1 },
-    { name: "Static", id: 2 },
-    { name: "Remote", id: 3 },
+  // Recalculate maxDiscount whenever partner selection changes
+  useEffect(() => {
+    if (!formData.partner) {
+      setMaxDiscount(null)
+      return
+    }
+    const selected = partners.find((p) => String(p.id) === String(formData.partner))
+    setMaxDiscount(selected ? selected.commission : null)
+  }, [formData.partner, partners])
+
+  // Map UI Clase value → subTypeId expected by the backend lookup.
+  // Mirrors the mapping used in the create payload.
+  const subTypeIdFromClass = (cls: string) => {
+    if (cls === "COMPANY") return 3
+    if (cls === "FREELANCER") return 2
+    if (cls === "INDIVIDUAL") return 1
+    return null
+  }
+
+  // Live "Estimación mensual" — fetch the matched rate plan from the API
+  // whenever both Clase and Tarifa are selected.
+  useEffect(() => {
+    const subTypeId = subTypeIdFromClass(formData.class)
+    const typeId = formData.fee ? Number(formData.fee) : null
+    if (!subTypeId || !typeId || !session?.accessToken) {
+      setMatchedPlan(null)
+      return
+    }
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_BASE_URL}/rate-plans/match?subTypeId=${subTypeId}&typeId=${typeId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${session.accessToken}`,
+              "Content-Type": "application/json",
+            },
+          },
+        )
+        if (!res.ok) {
+          if (!cancelled) setMatchedPlan(null)
+          return
+        }
+        const json = await res.json()
+        if (cancelled) return
+        const data = json?.data
+        if (!data) {
+          setMatchedPlan(null)
+          return
+        }
+        setMatchedPlan({
+          code: data.code,
+          label: data.label,
+          monthlyFixed: Number(data.monthlyFixed),
+          perWorkCenter: Number(data.perWorkCenter),
+          perWorker: Number(data.perWorker),
+        })
+      } catch {
+        if (!cancelled) setMatchedPlan(null)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [formData.class, formData.fee, session?.accessToken])
+
+  // Tarifa options depend on Clase:
+  //   Particular (INDIVIDUAL)            → only HOME
+  //   Empresa (COMPANY) / Autónomo (FREELANCER) → STATIC + REMOTE
+  const allFees = [
+    { id: 1, key: "HOME" },
+    { id: 2, key: "STATIC" },
+    { id: 3, key: "REMOTE" },
   ]
+  const allowedFeeKeys =
+    formData.class === "INDIVIDUAL"
+      ? ["HOME"]
+      : formData.class === "COMPANY" || formData.class === "FREELANCER"
+        ? ["STATIC", "REMOTE"]
+        : []
+  const fees = allFees
+    .filter((f) => allowedFeeKeys.includes(f.key))
+    .map((f) => ({ id: f.id, name: tEnum("employerType", f.key) }))
+
+  // If class changes and the previously-selected fee is no longer valid, clear it.
+  useEffect(() => {
+    if (!formData.fee) return
+    if (!fees.some((f) => f.id.toString() === formData.fee)) {
+      setFormData((prev) => ({ ...prev, fee: "" }))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.class])
 
   const paymentMethods = [
-    { name: t("Transfer"), id: 1 },
-    { name: t("Direct Debit"), id: 2 },
-    { name: t("Card"), id: 3 },
-    { name: t("PayPal"), id: 4 },
-    { name: t("Others"), id: 5 },
+    { name: tEnum("paymentMethod", "TRANSFER"), id: 1 },
+    { name: tEnum("paymentMethod", "DIRECT_DEBIT"), id: 2 },
+    { name: tEnum("paymentMethod", "CARD"), id: 3 },
+    { name: tEnum("paymentMethod", "PAYPAL"), id: 4 },
+    { name: tEnum("paymentMethod", "OTHERS"), id: 5 },
   ]
 
   const handleNext = () => {
@@ -143,7 +264,7 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded, 
       if (Object.values(errors).some((error) => error)) return
     } else if (currentStep === 2) {
       const errors = {
-        partner: !formData.partner,
+        partner: isPartnerRole ? false : !formData.partner,
         fee: !formData.fee,
         nif: !formData.nif,
       }
@@ -190,7 +311,8 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded, 
         phone: formData.mobile,
         landline: formData.landline,
         typeId: Number.parseInt(formData.fee),
-        subTypeId: formData.class === "company" ? 3 : 1,
+        subTypeId:
+          formData.class === "COMPANY" ? 3 : formData.class === "FREELANCER" ? 2 : 1,
         fee: Number.parseFloat(formData.fee) || 0,
         discount: Number.parseFloat(formData.discount) || 0,
         paymentMethodId: Number.parseInt(formData.paymentMethod),
@@ -238,12 +360,7 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded, 
         const newEmployer = {
           id: result.data.publicId || result.data.id,
           name: result.data.name || formData.name,
-          class:
-            formData.class === "company"
-              ? t("company")
-              : formData.class === "self-employed"
-              ? t("self-employed")
-              : t("individual"),
+          class: tEnum("employerSubType", formData.class),
           type: selectedFeeType?.name || formData.fee,
           fee: selectedFeeType?.name || formData.fee,
           lack: new Date().toLocaleDateString(), // Use current date since it was just created
@@ -297,6 +414,7 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded, 
       landline: "",
       mobile: "",
       email: "",
+      probationPeriod: "15",
     })
     setCurrentStep(1)
     setValidationErrors({
@@ -394,9 +512,9 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded, 
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="placeholder">{t("selectClass")}</SelectItem>
-                    <SelectItem value="individual">Individual</SelectItem>
-                    <SelectItem value="self-employed">Self-Employed</SelectItem>
-                    <SelectItem value="company">Company</SelectItem>
+                    <SelectItem value="INDIVIDUAL">{tEnum("employerSubType", "INDIVIDUAL")}</SelectItem>
+                    <SelectItem value="COMPANY">{tEnum("employerSubType", "COMPANY")}</SelectItem>
+                    <SelectItem value="FREELANCER">{tEnum("employerSubType", "FREELANCER")}</SelectItem>
                   </SelectContent>
                 </Select>
                 {validationErrors.class && (
@@ -543,28 +661,30 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded, 
           {/* Step 2: Billing */}
           {currentStep === 2 && (
             <div className="space-y-3">
-              <div>
-                <Label htmlFor="partner" className="text-sm font-medium text-foreground">
-                  {t("partner")} <span className="text-destructive">*</span>
-                </Label>
-                <Select
-                  value={formData.partner}
-                  onValueChange={(value) => updateFormData("partner", value)}
-                  disabled={!!defaultPartnerId}
-                >
-                  <SelectTrigger className={`mt-1 ${defaultPartnerId ? "opacity-70" : ""}`}>
-                    <SelectValue placeholder={t("selectPartner")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {partners.map((partner) => (
-                      <SelectItem key={partner.id} value={partner.id.toString()}>
-                        {partner.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {validationErrors.partner && <p className="mt-1 text-sm text-destructive">{t("thisFieldIsRequired")}</p>}
-              </div>
+              {!isPartnerRole && (
+                <div>
+                  <Label htmlFor="partner" className="text-sm font-medium text-foreground">
+                    {t("partner")} <span className="text-destructive">*</span>
+                  </Label>
+                  <Select
+                    value={formData.partner}
+                    onValueChange={(value) => updateFormData("partner", value)}
+                    disabled={!!defaultPartnerId}
+                  >
+                    <SelectTrigger className={`mt-1 ${defaultPartnerId ? "opacity-70" : ""}`}>
+                      <SelectValue placeholder={t("selectPartner")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {partners.map((partner) => (
+                        <SelectItem key={partner.id} value={partner.id.toString()}>
+                          {partner.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {validationErrors.partner && <p className="mt-1 text-sm text-destructive">{t("thisFieldIsRequired")}</p>}
+                </div>
+              )}
 
               <div>
                 <Label htmlFor="nif" className="text-sm font-medium text-foreground">
@@ -598,15 +718,65 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded, 
                 {validationErrors.fee && <p className="mt-1 text-sm text-destructive">{t("thisFieldIsRequired")}</p>}
               </div>
 
+              {matchedPlan && (
+                <div className="rounded-md border border-purple-200 bg-purple-50 dark:bg-purple-950/30 dark:border-purple-900 p-3 text-sm">
+                  <div className="font-medium text-foreground mb-2">
+                    {t("monthlyEstimate")}
+                  </div>
+                  <div className="space-y-1 text-foreground/90">
+                    <div className="flex justify-between">
+                      <span>{t("fixedFee")}:</span>
+                      <span className="font-medium">
+                        {matchedPlan.monthlyFixed.toFixed(2).replace(".", ",")} €
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>{t("perWorkCenter")}:</span>
+                      <span className="font-medium">
+                        {matchedPlan.perWorkCenter.toFixed(2).replace(".", ",")} €
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>{t("perWorker")}:</span>
+                      <span className="font-medium">
+                        {matchedPlan.perWorker.toFixed(2).replace(".", ",")} €
+                      </span>
+                    </div>
+                  </div>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    {t("monthlyEstimateNote")}
+                  </p>
+                </div>
+              )}
+
               <div>
                 <Label htmlFor="discount" className="text-sm font-medium text-foreground">
                   {t("discount")}
+                  {maxDiscount !== null && (
+                    <span className="ml-1 text-xs text-muted-foreground">
+                      (max {maxDiscount}%)
+                    </span>
+                  )}
                 </Label>
                 <div className="flex items-center mt-1">
                   <Input
                     id="discount"
+                    type="number"
+                    min={0}
+                    max={maxDiscount ?? undefined}
                     value={formData.discount}
-                    onChange={(e) => updateFormData("discount", e.target.value)}
+                    onChange={(e) => {
+                      const raw = e.target.value
+                      if (raw === "") {
+                        updateFormData("discount", "")
+                        return
+                      }
+                      const num = Number(raw)
+                      if (Number.isNaN(num)) return
+                      const clamped =
+                        maxDiscount !== null && num > maxDiscount ? maxDiscount : num
+                      updateFormData("discount", String(clamped))
+                    }}
                     className="w-20"
                   />
                   <span className="ml-2 text-muted-foreground">%</span>
@@ -700,17 +870,37 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded, 
                 </RadioGroup>
               </div>
 
-              <div className={formData.activateAccount !== "request" ? "invisible" : ""}>
-                <div>
-                  <Label htmlFor="accessEmailDisplay" className="text-sm font-medium text-foreground">
-                    {t("email")}
-                  </Label>
-                  <Input
-                    id="accessEmailDisplay"
-                    value={formData.email}
-                    readOnly
-                    className="mt-1 bg-muted cursor-not-allowed"
-                  />
+              <div>
+                <Label className="text-sm font-medium text-foreground">{t("email")}</Label>
+                <div
+                  aria-readonly
+                  className="mt-1 px-3 py-2 rounded-md border border-input bg-muted text-sm text-muted-foreground select-none pointer-events-none"
+                >
+                  {formData.email || "—"}
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="probationPeriod" className="text-sm font-medium text-foreground">
+                  {t("probationPeriod")}
+                </Label>
+                <div className="flex items-center gap-2 mt-1">
+                  <Select
+                    value={formData.probationPeriod}
+                    onValueChange={(value) => updateFormData("probationPeriod", value)}
+                  >
+                    <SelectTrigger className="w-24">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-60">
+                      {Array.from({ length: 31 }, (_, i) => i).map((n) => (
+                        <SelectItem key={n} value={String(n)}>
+                          {n}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <span className="text-sm text-muted-foreground">{t("days")}</span>
                 </div>
               </div>
 

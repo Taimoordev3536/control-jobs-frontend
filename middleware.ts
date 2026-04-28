@@ -6,7 +6,8 @@ export default withAuth(
     const token = req.nextauth.token
     const { pathname } = req.nextUrl
 
-    // Allow access to auth pages without authentication
+    // Allow access to auth pages without authentication.
+    // /register is the public self-signup page (Method 3).
     if (
       pathname.startsWith("/login") ||
       pathname.startsWith("/register") ||
@@ -27,9 +28,9 @@ export default withAuth(
     // Define role-based access rules
     const roleRoutes: Record<string, string[]> = {
       admin: ["/dashboard", "/partners", "/employers", "/invoices", "/commissions", "/rates", "/information", "/utilities", "/aid", "/tasks"],
-      partner: ["/dashboard", "/employers", "/billing", "/information", "/utilities", "/aid", "/tasks"],
+      partner: ["/dashboard", "/employers", "/billing", "/invoices", "/commissions", "/rates", "/information", "/utilities", "/aid", "/tasks"],
       // employer: ["/dashboard", "/jobs", "/clients", "/workers", "/surveys", "/information", "/utilities", "/aid", "/tasks"],
-      employer: ["/dashboard", "/jobs", "/clients", "/workers", "/work-centers", "/surveys", "/information", "/utilities", "/aid", "/tasks", "/records"],
+      employer: ["/dashboard", "/jobs", "/clients", "/workers", "/work-centers", "/surveys", "/invoices", "/billing", "/information", "/utilities", "/aid", "/tasks", "/records"],
       client: ["/dashboard", "/jobs", "/surveys", "/information", "/aid", "/tasks", "/records"],
       worker: ["/dashboard", "/jobs", "/occupation", "/surveys", "/information", "/aid", "/tasks", "/records"],
     }

@@ -72,7 +72,7 @@ interface EmployerDataTabProps {
 }
 
 export default function EmployerDataTab({ employerId }: EmployerDataTabProps) {
-  const { t, language } = useTranslation()
+  const { t, language, tEnum } = useTranslation()
   const { session, isImpersonating, isSubUser, hasRole, hasAnyRole, canEdit } = useAuth()
   const ti = (key: string) => (impersonationTranslations as any)[language]?.[key] || key
   const router = useRouter()
@@ -113,17 +113,17 @@ export default function EmployerDataTab({ employerId }: EmployerDataTabProps) {
   const [employerTypes, setEmployerTypes] = useState<{ id: number; name: string }[]>([])
 
   const subTypeOptions = [
-    { id: 1, name: t("individual") || "Individual" },
-    { id: 2, name: t("freelancer") || "Freelancer" },
-    { id: 3, name: t("company") || "Company" },
+    { id: 1, name: tEnum("employerSubType", "INDIVIDUAL") },
+    { id: 2, name: tEnum("employerSubType", "FREELANCER") },
+    { id: 3, name: tEnum("employerSubType", "COMPANY") },
   ]
 
   const paymentMethods = [
-    { id: 1, name: t("Transfer") || "Transfer" },
-    { id: 2, name: t("Direct Debit") || "Direct Debit" },
-    { id: 3, name: t("Card") || "Card" },
-    { id: 4, name: t("PayPal") || "PayPal" },
-    { id: 5, name: t("Others") || "Others" },
+    { id: 1, name: tEnum("paymentMethod", "TRANSFER") },
+    { id: 2, name: tEnum("paymentMethod", "DIRECT_DEBIT") },
+    { id: 3, name: tEnum("paymentMethod", "CARD") },
+    { id: 4, name: tEnum("paymentMethod", "PAYPAL") },
+    { id: 5, name: tEnum("paymentMethod", "OTHERS") },
   ]
 
   // Fetch employer data

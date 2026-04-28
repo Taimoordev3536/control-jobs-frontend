@@ -26,7 +26,7 @@ export default function AddWorkerModal({ open, onOpenChange, onWorkerAdded }: Ad
   const [currentStep, setCurrentStep] = useState(1)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const { t } = useTranslation()
+  const { t, tEnum } = useTranslation()
   const translateBackendError = useBackendError()
   const { session, getUserRole } = useAuth()
 
@@ -553,9 +553,9 @@ export default function AddWorkerModal({ open, onOpenChange, onWorkerAdded }: Ad
                     <SelectValue placeholder={t("selectGender") || "Select gender"} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="1">{t("man") || "Man"}</SelectItem>
-                    <SelectItem value="2">{t("woman") || "Woman"}</SelectItem>
-                    <SelectItem value="3">{t("other") || "Other"}</SelectItem>
+                    <SelectItem value="1">{tEnum("gender", "MALE")}</SelectItem>
+                    <SelectItem value="2">{tEnum("gender", "FEMALE")}</SelectItem>
+                    <SelectItem value="3">{tEnum("gender", "OTHER")}</SelectItem>
                   </SelectContent>
                 </Select>
                 {validationErrors.gender && (

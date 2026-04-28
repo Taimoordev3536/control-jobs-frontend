@@ -9,6 +9,7 @@ import { ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useTranslation } from "@/hooks/use-translation"
 import EmployerDataTab from "@/components/employer-tabs/employer-data-tab"
+import EmployerBillingTab from "@/components/employer-tabs/employer-billing-tab"
 import EmployerInvoicesTab from "@/components/employer-tabs/employer-invoices-tab"
 import { useAuth } from "@/hooks/use-auth"
 
@@ -36,7 +37,7 @@ interface Employer {
 }
 
 export default function EmployerDetailPage() {
-  const { t } = useTranslation()
+  const { t, tEnum } = useTranslation()
   const { id } = useParams() as { id: string }
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -80,13 +81,15 @@ export default function EmployerDetailPage() {
   }, [id, session?.accessToken])
 
   const getTypeLabel = (typeId: number) => {
-    const types: Record<number, string> = { 1: t("home"), 2: t("static"), 3: t("remote") }
-    return types[typeId] || t("unknown")
+    const keys: Record<number, string> = { 1: "HOME", 2: "STATIC", 3: "REMOTE" }
+    const key = keys[typeId]
+    return key ? tEnum("employerType", key) : t("unknown")
   }
 
   const getSubTypeLabel = (subTypeId: number) => {
-    const subTypes = { 1: t("individual"), 2: t("freelancer"), 3: t("company") }
-    return subTypes[subTypeId as keyof typeof subTypes] || t("unknown")
+    const keys: Record<number, string> = { 1: "INDIVIDUAL", 2: "FREELANCER", 3: "COMPANY" }
+    const key = keys[subTypeId]
+    return key ? tEnum("employerSubType", key) : t("unknown")
   }
 
   if (isLoading) {
@@ -117,6 +120,7 @@ export default function EmployerDetailPage() {
 
   const tabs = [
     { key: "data", label: t("data") },
+    { key: "billing", label: t("billing") },
     { key: "invoices", label: t("invoices") },
   ]
 
@@ -171,6 +175,7 @@ export default function EmployerDetailPage() {
         {activeTab === "data" && (
           <EmployerDataTab employerId={id} />
         )}
+        {activeTab === "billing" && <EmployerBillingTab employerId={id} />}
         {activeTab === "invoices" && <EmployerInvoicesTab />}
       </div>
     </div>

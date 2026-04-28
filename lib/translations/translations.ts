@@ -1,6 +1,6 @@
 import { loadBindings } from "next/dist/build/swc"
 
-const translations: Record<string, Record<string, string>> = {
+const translations: Record<string, Record<string, any>> = {
   en: {
     //Add modal json
     addressPlaceholder: "Address",
@@ -388,6 +388,10 @@ surveyMonitoringValueTips: "Set a limit. If responses are under this value, an a
     workCenters: "Work Centers",
     employees: "Employees",
     vatNotIncluded: "(VAT not included)",
+    monthlyEstimate: "Monthly estimate",
+    monthlyEstimateNote: "Final amount depends on the number of work centers and workers.",
+    perWorkCenter: "Per work center",
+    perWorker: "Per worker",
 
     // Invite page translations
     userRegistration: "User registration",
@@ -729,6 +733,139 @@ surveyMonitoringValueTips: "Set a limit. If responses are under this value, an a
     manualAttendanceApproved: "Manual attendance approved",
     manualAttendanceRejected: "Manual attendance rejected",
     manualAttendanceCancelled: "Manual attendance cancelled",
+
+    // Billing tab
+    currentRates: "Current rates",
+    billingStatus: "Billing status",
+    trialEndsOn: "Trial ends on",
+    currentMonthCalculation: "Current month calculation",
+    prorated: "Prorated",
+    subtotal: "Subtotal",
+    subtotalWithDiscount: "Subtotal with discount",
+    vat: "VAT",
+    estimatedTotal: "Estimated total",
+    retry: "Retry",
+    noData: "No data",
+    saving: "Saving...",
+    saveChanges: "Save changes",
+    invoiceHistory: "Invoice history",
+    issueDate: "Issue date",
+    dueDate: "Due date",
+    billTo: "Bill to",
+    description: "Description",
+    quantity: "Qty",
+    markAsPaid: "Mark as paid",
+    markedAsPaid: "Marked as paid",
+    invoiceCancelled: "Invoice cancelled",
+    confirmCancelInvoice: "Cancel this invoice?",
+    saved: "Saved",
+    readOnlyForRole: "Read-only",
+    myInvoices: "My invoices",
+
+    // Invitation flow (Method 2)
+    inviteEmployer: "Invite employer",
+    inviteEmployerSubtitle: "Send a signup link with a free trial. The recipient completes the form themselves.",
+    sendInvite: "Send invite",
+    invitationSent: "Invitation sent",
+    linkCopied: "Link copied",
+    linkOnlyOnIssue: "Link is only available at issue time. Resend to get a new one.",
+    invitationRevoked: "Invitation revoked",
+    confirmRevoke: "Revoke this invitation?",
+    copyLink: "Copy link",
+    link: "Link",
+    noLinkAvailable: "No link available for this invitation",
+    inviteHistory: "Invitation history",
+    noInvitesSent: "No invitations sent yet.",
+    dateSent: "Sent",
+    expiresOn: "Expires",
+    revoke: "Revoke",
+    actions: "Actions",
+    invitationExpired: "This invitation has expired",
+    invitationAlreadyUsed: "This invitation has already been used",
+    invitationInvalid: "Invalid invitation",
+    invitationInvalidDesc: "This invitation link is no longer valid. Please ask your partner to send a new one.",
+    completeRegistration: "Complete your registration",
+    invitedBy: "Invited by",
+    accountCreated: "Account created!",
+    createYourAccount: "Create your account",
+    registerSubtitle: "Sign up and try ControlJobs free for up to 15 days. No credit card needed.",
+    alreadyHaveAccount: "Already have an account?",
+    dontHaveAccount: "Don't have an account?",
+    signIn: "Sign in",
+    signUp: "Sign up",
+    invalidEmail: "Invalid email",
+    password: "Password",
+    confirmPassword: "Confirm password",
+    passwordTooShort: "Password must be 8 characters or longer",
+    passwordsDontMatch: "Passwords don't match",
+    emailRequired: "Email is required",
+    noAccess: "Access denied",
+
+    // ============================================================
+    // Enum / lookup values
+    // Keys must match the language-neutral keys returned by the API.
+    // Resolved via tEnum(category, key) — see hooks/use-translation.tsx.
+    // ============================================================
+    enums: {
+      employerType: {
+        HOME: "Home",
+        STATIC: "Static",
+        REMOTE: "Remote",
+      },
+      employerSubType: {
+        INDIVIDUAL: "Individual",
+        COMPANY: "Company",
+        FREELANCER: "Freelancer",
+      },
+      paymentMethod: {
+        TRANSFER: "Transfer",
+        DIRECT_DEBIT: "Direct Debit",
+        CARD: "Card",
+        PAYPAL: "PayPal",
+        OTHERS: "Others",
+      },
+      gender: {
+        MALE: "Male",
+        FEMALE: "Female",
+        OTHER: "Other",
+      },
+      partnerType: {
+        GOLD: "Gold",
+        SILVER: "Silver",
+        BRONZE: "Bronze",
+        AFFILIATE: "Affiliate",
+      },
+      clockAction: {
+        CLOCK_IN: "Clock In",
+        CLOCK_OUT: "Clock Out",
+        PAUSE: "Pause",
+        CONTINUE: "Continue",
+      },
+      taskStatus: {
+        BEFORE: "Before",
+        DURING: "During",
+        AFTER: "After",
+      },
+      billingStatus: {
+        TRIAL: "Trial",
+        ACTIVE: "Active",
+        SUSPENDED: "Suspended",
+        CANCELLED: "Cancelled",
+      },
+      invoiceStatus: {
+        PENDING: "Pending",
+        PAID: "Paid",
+        OVERDUE: "Overdue",
+        CANCELLED: "Cancelled",
+        REFUNDED: "Refunded",
+      },
+      invitationStatus: {
+        PENDING: "Pending",
+        ACCEPTED: "Accepted",
+        EXPIRED: "Expired",
+        REVOKED: "Revoked",
+      },
+    } as any,
   },
   es: {
       // add modal json
@@ -741,7 +878,7 @@ surveyMonitoringValueTips: "Set a limit. If responses are under this value, an a
     requestAccessTip: "Se enviará un mail al cliente para comunicar su cuenta de acceso a la aplicación y solicitar una contraseña.",
     namePlaceholder: "nombre",
     selectClass: "Seleccionar clase",
-    selectPartner: "Seleccionar socio",
+    selectPartner: "Seleccionar partner",
     selectFeeType: "Seleccionar tipo de tarifa",
     newEmployer: "Nuevo empleador",
     newPartner: "Nuevo Partner",
@@ -1118,6 +1255,10 @@ surveyMonitoringValueTips: "Set a limit. If responses are under this value, an a
     workCenters: "Centros de trabajo",
     employees: "Empleados",
     vatNotIncluded: "(IVA no incluido)",
+    monthlyEstimate: "Estimación mensual",
+    monthlyEstimateNote: "El total final depende del nº de centros y trabajadores que se asignen.",
+    perWorkCenter: "Por centro de trabajo",
+    perWorker: "Por trabajador",
 
     // Invite page translations
     userRegistration: "Registro de usuario",
@@ -1462,6 +1603,137 @@ surveyMonitoringValueTips: "Set a limit. If responses are under this value, an a
     manualAttendanceApproved: "Asistencia manual aprobada",
     manualAttendanceRejected: "Asistencia manual rechazada",
     manualAttendanceCancelled: "Asistencia manual cancelada",
+
+    // Billing tab
+    currentRates: "Tarifas vigentes",
+    billingStatus: "Estado de facturación",
+    trialEndsOn: "Periodo de prueba acaba el",
+    currentMonthCalculation: "Cálculo del mes en curso",
+    prorated: "Prorrateado",
+    subtotal: "Subtotal",
+    subtotalWithDiscount: "Subtotal con descuento",
+    vat: "IVA",
+    estimatedTotal: "Total estimado",
+    retry: "Reintentar",
+    noData: "Sin datos",
+    saving: "Guardando...",
+    saveChanges: "Guardar cambios",
+    invoiceHistory: "Historial de facturas",
+    issueDate: "Fecha de emisión",
+    dueDate: "Vencimiento",
+    billTo: "Facturar a",
+    description: "Descripción",
+    quantity: "Cant.",
+    markAsPaid: "Marcar como pagada",
+    markedAsPaid: "Marcada como pagada",
+    invoiceCancelled: "Factura cancelada",
+    confirmCancelInvoice: "¿Cancelar esta factura?",
+    saved: "Guardado",
+    readOnlyForRole: "Solo lectura",
+    myInvoices: "Mis facturas",
+
+    // Invitation flow (Method 2)
+    inviteEmployer: "Invitar empleador",
+    inviteEmployerSubtitle: "Envía un enlace de registro con un periodo de prueba gratis. El destinatario rellena el formulario.",
+    sendInvite: "Enviar invitación",
+    invitationSent: "Invitación enviada",
+    linkCopied: "Enlace copiado",
+    linkOnlyOnIssue: "El enlace solo está disponible al emitir la invitación. Vuelve a enviar para obtener uno nuevo.",
+    invitationRevoked: "Invitación revocada",
+    confirmRevoke: "¿Revocar esta invitación?",
+    copyLink: "Copiar enlace",
+    link: "Enlace",
+    noLinkAvailable: "No hay enlace disponible para esta invitación",
+    inviteHistory: "Historial de invitaciones",
+    noInvitesSent: "Aún no has enviado invitaciones.",
+    dateSent: "Enviado",
+    expiresOn: "Caduca",
+    revoke: "Revocar",
+    actions: "Acciones",
+    invitationExpired: "Esta invitación ha caducado",
+    invitationAlreadyUsed: "Esta invitación ya ha sido usada",
+    invitationInvalid: "Invitación no válida",
+    invitationInvalidDesc: "Este enlace de invitación ya no es válido. Por favor pide a tu partner que te envíe uno nuevo.",
+    completeRegistration: "Completa tu registro",
+    invitedBy: "Invitado por",
+    accountCreated: "¡Cuenta creada!",
+    createYourAccount: "Crea tu cuenta",
+    registerSubtitle: "Regístrate y prueba ControlJobs gratis hasta 15 días. Sin tarjeta de crédito.",
+    alreadyHaveAccount: "¿Ya tienes cuenta?",
+    dontHaveAccount: "¿No tienes cuenta?",
+    signIn: "Iniciar sesión",
+    signUp: "Regístrate",
+    invalidEmail: "Email no válido",
+    password: "Contraseña",
+    confirmPassword: "Confirmar contraseña",
+    passwordTooShort: "La contraseña debe tener al menos 8 caracteres",
+    passwordsDontMatch: "Las contraseñas no coinciden",
+    emailRequired: "El correo es obligatorio",
+    noAccess: "Acceso denegado",
+
+    // ============================================================
+    // Enum / lookup values (Spanish)
+    // ============================================================
+    enums: {
+      employerType: {
+        HOME: "Home",
+        STATIC: "Static",
+        REMOTE: "Remote",
+      },
+      employerSubType: {
+        INDIVIDUAL: "Particular",
+        COMPANY: "Empresa",
+        FREELANCER: "Autónomo",
+      },
+      paymentMethod: {
+        TRANSFER: "Transferencia",
+        DIRECT_DEBIT: "Domiciliación",
+        CARD: "Tarjeta",
+        PAYPAL: "PayPal",
+        OTHERS: "Otros",
+      },
+      gender: {
+        MALE: "Hombre",
+        FEMALE: "Mujer",
+        OTHER: "Otro",
+      },
+      partnerType: {
+        GOLD: "Oro",
+        SILVER: "Plata",
+        BRONZE: "Bronce",
+        AFFILIATE: "Afiliado",
+      },
+      clockAction: {
+        CLOCK_IN: "Entrada",
+        CLOCK_OUT: "Salida",
+        PAUSE: "Pausa",
+        CONTINUE: "Continuar",
+      },
+      taskStatus: {
+        BEFORE: "Antes",
+        DURING: "Durante",
+        AFTER: "Después",
+      },
+      billingStatus: {
+        TRIAL: "Periodo de prueba",
+        ACTIVE: "Activo",
+        SUSPENDED: "Suspendido",
+        CANCELLED: "Cancelado",
+      },
+      invoiceStatus: {
+        PENDING: "Pendiente",
+        PAID: "Pagada",
+        OVERDUE: "Vencida",
+        CANCELLED: "Cancelada",
+        REFUNDED: "Reembolsada",
+      },
+      invitationStatus: {
+        PENDING: "Pendiente",
+        ACCEPTED: "Aceptada",
+        EXPIRED: "Caducada",
+        REVOKED: "Revocada",
+      },
+    } as any,
   },
 
   // Calendar translations
@@ -1494,7 +1766,6 @@ surveyMonitoringValueTips: "Set a limit. If responses are under this value, an a
   year: "Año",
   month: "Mes",
   selectDate: "Seleccionar fecha", // Calendar-specific translations for date picker
-
 }
 
 export default translations

@@ -57,7 +57,7 @@ interface WorkerData {
 }
 
 export function WorkerDataTab() {
-  const { t, language } = useTranslation()
+  const { t, language, tEnum } = useTranslation()
   const { session, isImpersonating, isSubUser, hasRole, canEdit } = useAuth()
   const ti = (key: string) => (impersonationTranslations as any)[language]?.[key] || key
   const params = useParams()
@@ -598,9 +598,9 @@ export function WorkerDataTab() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="min-w-0 w-[150px]">
-              <SelectItem value="man">{t("man")}</SelectItem>
-              <SelectItem value="woman">{t("woman")}</SelectItem>
-              <SelectItem value="other">{t("other")}</SelectItem>
+              <SelectItem value="man">{tEnum("gender", "MALE")}</SelectItem>
+              <SelectItem value="woman">{tEnum("gender", "FEMALE")}</SelectItem>
+              <SelectItem value="other">{tEnum("gender", "OTHER")}</SelectItem>
             </SelectContent>
           </Select>
         </div>

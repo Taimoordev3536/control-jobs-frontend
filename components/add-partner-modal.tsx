@@ -21,23 +21,18 @@ interface AddPartnerModalProps {
   onPartnerAdded?: (partner: any) => void
 }
 
-// Helper function to map typeOfPartner to partnerTierId
-const partnerTypes = [
-  { label: "Gold", value: "Gold", tierId: 1 },
-  { label: "Silver", value: "Silver", tierId: 2 },
-  { label: "Bronze", value: "Bronze", tierId: 3 },
-  { label: "Affiliate", value: "Affiliate", tierId: 5 },
-]
+// Partner tier keys (language-neutral). Display labels come from tEnum().
+const partnerTypeKeys = ["GOLD", "SILVER", "BRONZE", "AFFILIATE"] as const
 
 const getPartnerTierId = (typeOfPartner: string): number => {
   switch (typeOfPartner) {
-    case "Gold":
+    case "GOLD":
       return 1
-    case "Silver":
+    case "SILVER":
       return 2
-    case "Bronze":
+    case "BRONZE":
       return 3
-    case "Affiliate":
+    case "AFFILIATE":
       return 4
     default:
       return 0
@@ -48,7 +43,7 @@ export default function AddPartnerModal({ open, onOpenChange, onPartnerAdded }: 
   const [currentStep, setCurrentStep] = useState(1)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const { t } = useTranslation()
+  const { t, tEnum } = useTranslation()
   const translateBackendError = useBackendError()
   const { session, getUserRole } = useAuth()
   const [formData, setFormData] = useState({
@@ -70,7 +65,7 @@ export default function AddPartnerModal({ open, onOpenChange, onPartnerAdded }: 
     typeOfPartner: "",
     commission: "",
     retention: "15",
-    paymentMethod: "Transfer",
+    paymentMethod: "TRANSFER",
     accountIban: "",
     bicSwift: "",
     responsible: "",
@@ -247,7 +242,7 @@ export default function AddPartnerModal({ open, onOpenChange, onPartnerAdded }: 
           typeOfPartner: "",
           commission: "",
           retention: "15",
-          paymentMethod: "Transfer",
+          paymentMethod: "TRANSFER",
           accountIban: "",
           bicSwift: "",
           responsible: "",
@@ -516,9 +511,9 @@ export default function AddPartnerModal({ open, onOpenChange, onPartnerAdded }: 
                     <SelectValue placeholder={t("selectType")} />
                   </SelectTrigger>
                   <SelectContent>
-                    {partnerTypes.map((pt) => (
-                      <SelectItem key={pt.value} value={pt.value}>
-                        {pt.label}
+                    {partnerTypeKeys.map((key) => (
+                      <SelectItem key={key} value={key}>
+                        {tEnum("partnerType", key)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -573,11 +568,11 @@ export default function AddPartnerModal({ open, onOpenChange, onPartnerAdded }: 
                     <SelectValue placeholder="Select a type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Transfer">Transfer</SelectItem>
-                    <SelectItem value="Direct Debit">Direct Debit</SelectItem>
-                    <SelectItem value="Card">Card</SelectItem>
-                    <SelectItem value="PayPal">PayPal</SelectItem>
-                    <SelectItem value="Others">Others</SelectItem>
+                    <SelectItem value="TRANSFER">{tEnum("paymentMethod", "TRANSFER")}</SelectItem>
+                    <SelectItem value="DIRECT_DEBIT">{tEnum("paymentMethod", "DIRECT_DEBIT")}</SelectItem>
+                    <SelectItem value="CARD">{tEnum("paymentMethod", "CARD")}</SelectItem>
+                    <SelectItem value="PAYPAL">{tEnum("paymentMethod", "PAYPAL")}</SelectItem>
+                    <SelectItem value="OTHERS">{tEnum("paymentMethod", "OTHERS")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

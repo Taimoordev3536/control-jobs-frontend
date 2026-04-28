@@ -273,6 +273,14 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar, styl
             ],
           },
           {
+            id: "billing",
+            title: t("billing"),
+            icon: () => <BillingIcon className="h-5 w-5" />,
+            items: [
+              { title: t("myInvoices"), href: "/invoices", iconKey: "invoices" },
+            ],
+          },
+          {
             id: "information",
             title: t("information"),
             icon: () => <InformationIcon className="h-5 w-5" />,
@@ -289,7 +297,7 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar, styl
             icon: () => <UtilitiesIcon className="h-5 w-5" />,
             items: [
               { title: t("import"), href: "/utilities/import", iconKey: "import" },
-              { title: t("invite"), href: "/utilities/invite", iconKey: "invite" },
+              // Employer role can't invite other employers — entry hidden.
             ],
           },
           {
@@ -340,7 +348,7 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar, styl
             icon: () => <UtilitiesIcon className="h-5 w-5" />,
             items: [
               { title: t("import"), href: "/utilities/import", iconKey: "import" },
-              { title: t("invite"), href: "/utilities/invite", iconKey: "invite" },
+              { title: t("inviteEmployer"), href: "/utilities/invite", iconKey: "invite" },
             ],
           },
           {
@@ -397,7 +405,7 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar, styl
               { title: t("payments"), href: "/utilities/payments", iconKey: "payments" },
               { title: t("pages"), href: "/utilities/payments", iconKey: "payments" },
               { title: t("import"), href: "/utilities/import", iconKey: "import" },
-              { title: t("invite"), href: "/utilities/invite", iconKey: "invite" },
+              { title: t("inviteEmployer"), href: "/utilities/invite", iconKey: "invite" },
             ],
           },
           {

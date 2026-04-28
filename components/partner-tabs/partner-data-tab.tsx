@@ -60,22 +60,22 @@ interface PartnerDataTabProps {
   onNameChange?: (name: string) => void
 }
 
-const partnerTypes = [
-  { label: "Gold", value: "Gold", tierId: 1 },
-  { label: "Silver", value: "Silver", tierId: 2 },
-  { label: "Bronze", value: "Bronze", tierId: 3 },
-  { label: "Affiliate", value: "Affiliate", tierId: 4 },
+const partnerTypeKeys: Array<{ value: string; tierId: number }> = [
+  { value: "GOLD", tierId: 1 },
+  { value: "SILVER", tierId: 2 },
+  { value: "BRONZE", tierId: 3 },
+  { value: "AFFILIATE", tierId: 4 },
 ]
 
-const paymentMethods = ["Transfer", "Direct Debit", "Card", "PayPal", "Others"]
+const paymentMethodKeys = ["TRANSFER", "DIRECT_DEBIT", "CARD", "PAYPAL", "OTHERS"] as const
 
 const getTierId = (typeOfPartner: string): number => {
-  const found = partnerTypes.find((p) => p.value === typeOfPartner)
+  const found = partnerTypeKeys.find((p) => p.value === typeOfPartner)
   return found?.tierId ?? 0
 }
 
 export default function PartnerDataTab({ partnerId, onNameChange }: PartnerDataTabProps) {
-  const { t, language } = useTranslation()
+  const { t, language, tEnum } = useTranslation()
   const { session, isImpersonating, isSubUser, hasRole, canEdit } = useAuth()
   const ti = (key: string) => (impersonationTranslations as any)[language]?.[key] || key
   const router = useRouter()
@@ -566,9 +566,9 @@ export default function PartnerDataTab({ partnerId, onNameChange }: PartnerDataT
               <SelectValue placeholder={t("selectType")} />
             </SelectTrigger>
             <SelectContent>
-              {partnerTypes.map((pt) => (
+              {partnerTypeKeys.map((pt) => (
                 <SelectItem key={pt.value} value={pt.value}>
-                  {pt.label}
+                  {tEnum("partnerType", pt.value)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -609,9 +609,9 @@ export default function PartnerDataTab({ partnerId, onNameChange }: PartnerDataT
               <SelectValue placeholder={t("selectPaymentMethod")} />
             </SelectTrigger>
             <SelectContent>
-              {paymentMethods.map((m) => (
+              {paymentMethodKeys.map((m) => (
                 <SelectItem key={m} value={m}>
-                  {m}
+                  {tEnum("paymentMethod", m)}
                 </SelectItem>
               ))}
             </SelectContent>

@@ -119,7 +119,10 @@ export function useTranslation(namespace: TranslationNamespace = "default") {
 
   const t = (key: string, params?: Record<string, any>) => {
     const translationSource = getTranslationSource(namespace) as any
-    let translation = translationSource[language]?.[key] || key
+    const bundle = translationSource[language]
+    let translation: any =
+      bundle?.[key] !== undefined ? bundle[key] : resolvePath(bundle, key)
+    if (translation === undefined || translation === null) translation = key
 
     // Handle interpolation for dynamic values
     if (params && typeof translation === "string") {
@@ -131,9 +134,35 @@ export function useTranslation(namespace: TranslationNamespace = "default") {
     return translation
   }
 
+  // Translate an enum/lookup value. `category` is the namespace inside
+  // `enums` (e.g. "employerType"), `value` is the language-neutral key
+  // returned by the backend (e.g. "HOME"). Falls back to the raw value
+  // so missing translations never break the UI.
+  const tEnum = (category: string, value: string | null | undefined) => {
+    if (value === null || value === undefined || value === "") return ""
+    const key = `enums.${category}.${value}`
+    const result = t(key)
+    return result === key ? value : result
+  }
+
   return {
     language,
     setLanguage,
     t,
+    tEnum,
   }
+}
+
+// Walk a dot-notation path through the translation bundle. Only used as a
+// fallback so existing flat keys (some of which legitimately contain dots,
+// e.g. "Street, Number, Town...") keep their direct lookup.
+function resolvePath(obj: any, path: string): any {
+  if (!obj || typeof obj !== "object") return undefined
+  const parts = path.split(".")
+  let current: any = obj
+  for (const part of parts) {
+    if (current === null || current === undefined) return undefined
+    current = current[part]
+  }
+  return current
 }

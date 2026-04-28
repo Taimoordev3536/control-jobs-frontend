@@ -22,7 +22,7 @@ interface Employer {
 }
 
 export default function EmployersPage() {
-  const { t } = useTranslation()
+  const { t, tEnum } = useTranslation()
   const router = useRouter()
   const { session } = useAuth()
   const [employers, setEmployers] = useState<Employer[]>([])
@@ -88,11 +88,13 @@ export default function EmployersPage() {
       key: "class",
       label: t("class"),
       sortable: true,
+      render: (value: any) => tEnum("employerSubType", value),
     },
     {
       key: "type", // Show employer type name in Fee column
       label: t("fee"),
       sortable: true,
+      render: (value: any) => tEnum("employerType", value),
     },
     {
       key: "partner",
