@@ -8,6 +8,7 @@ import { useTranslation } from "@/hooks/use-translation"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { exportToCSV, exportToXLSX, exportToPDF } from "@/lib/export"
+import { AnimatedLoader } from "@/components/animated-loader"
 
 interface InvoiceRow {
   id: number
@@ -188,7 +189,9 @@ export default function InvoicesPage() {
       columns={columns}
       actionButtons={actionButtons}
       isLoading={isLoading}
-      emptyMessage={t("noInvoicesAvailable")}
+      emptyMessage={
+        isLoading ? <AnimatedLoader size={32} /> : t("noInvoicesAvailable")
+      }
       onRowClick={handleRowClick}
     />
   )

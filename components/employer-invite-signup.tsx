@@ -12,9 +12,10 @@ import { useToast } from "@/hooks/use-toast"
 import GoogleAddressInput from "@/components/GoogleAddressInput"
 
 interface VerifiedToken {
-  email: string
+  description: string
   partnerId: number
   partnerName: string
+  discountPercent: number
   trialDays: number
 }
 
@@ -59,10 +60,10 @@ export default function EmployerInviteSignup({
     longitude: null as number | null,
     landline: "",
     mobile: "",
-    email: verified.email,                 // read-only mirror
+    email: "",                             // editable — recipient picks their address
     class: "" as "INDIVIDUAL" | "COMPANY" | "FREELANCER" | "",
     fee: "",                               // tarifa typeId
-    discount: "",                          // hidden if 0 — driven by partner commission, default 0
+    discount: String(verified.discountPercent || 0),  // locked display, value comes from token server-side
     paymentMethod: "1",
     accountIban: "",
     bicSwift: "",
@@ -142,6 +143,12 @@ export default function EmployerInviteSignup({
       if (!form.name) return toast({ title: t("thisFieldIsRequired") })
       if (!form.address) return toast({ title: t("thisFieldIsRequired") })
       if (!form.mobile) return toast({ title: t("thisFieldIsRequired") })
+      if (!form.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+        return toast({
+          title: t("invalidEmail") || "Please enter a valid email",
+          variant: "destructive",
+        })
+      }
       setStep(2)
     } else if (step === 2) {
       if (!form.fee) return toast({ title: t("thisFieldIsRequired") })
@@ -219,8 +226,15 @@ export default function EmployerInviteSignup({
           {t("completeRegistration") || "Complete your registration"}
         </h2>
         <p className="text-xs text-muted-foreground mt-1">
-          {t("invitedBy") || "Invited by"}: <span className="font-medium text-foreground">{verified.partnerName}</span>
+          {t("invitedBy") || "Invited by"}:{" "}
+          <span className="font-medium text-foreground">{verified.partnerName}</span>
         </p>
+        {verified.description ? (
+          <p className="text-[11px] text-muted-foreground mt-0.5">
+            {t("offer") || "Offer"}:{" "}
+            <span className="font-medium text-foreground">{verified.description}</span>
+          </p>
+        ) : null}
       </div>
 
       {/* Step indicator */}
@@ -317,10 +331,15 @@ export default function EmployerInviteSignup({
             </div>
 
             <div>
-              <Label className="text-xs">{t("email")}</Label>
-              <div className="mt-1 px-3 py-2 rounded-md border border-input bg-muted text-xs text-muted-foreground select-none pointer-events-none">
-                {form.email}
-              </div>
+              <Label className="text-xs">{t("email")} *</Label>
+              <Input
+                type="email"
+                value={form.email}
+                onChange={(e) => update("email", e.target.value)}
+                placeholder="you@company.com"
+                className="mt-1 h-9 text-xs"
+                autoComplete="email"
+              />
             </div>
           </>
         )}
@@ -381,17 +400,14 @@ export default function EmployerInviteSignup({
               </div>
             )}
 
-            {/* Dto. % — hidden entirely if 0 (per Image #14 spec) */}
-            {Number(form.discount) > 0 && (
+            {/* Dto. % — hidden entirely if 0; otherwise read-only (locked from token) */}
+            {verified.discountPercent > 0 && (
               <div>
                 <Label className="text-xs">{t("discount")}</Label>
                 <div className="flex items-center mt-1">
-                  <Input
-                    type="number"
-                    value={form.discount}
-                    onChange={(e) => update("discount", e.target.value)}
-                    className="w-20 h-9 text-xs"
-                  />
+                  <div className="w-20 h-9 px-3 flex items-center rounded-md border border-input bg-muted text-xs text-foreground select-none pointer-events-none">
+                    {verified.discountPercent}
+                  </div>
                   <span className="ml-2 text-xs text-muted-foreground">%</span>
                 </div>
               </div>

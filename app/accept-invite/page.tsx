@@ -30,9 +30,10 @@ function decodeJwtPayload(token: string): any | null {
 }
 
 interface VerifiedToken {
-  email: string
+  description: string
   partnerId: number
   partnerName: string
+  discountPercent: number
   trialDays: number
 }
 
