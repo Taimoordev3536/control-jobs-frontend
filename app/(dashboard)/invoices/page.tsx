@@ -24,6 +24,14 @@ interface InvoiceRow {
 
 const fmt = (n: number) => `${n.toFixed(2).replace(".", ",")} €`
 
+// Backend ISO ("2026-04-28") → dd/mm/aaaa for the list-page Date column.
+const fmtDate = (iso: string | null | undefined): string => {
+  if (!iso) return ""
+  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})/)
+  if (!m) return iso
+  return `${m[3]}/${m[2]}/${m[1]}`
+}
+
 export default function InvoicesPage() {
   const router = useRouter()
   const { t, tEnum } = useTranslation()
@@ -114,7 +122,7 @@ export default function InvoicesPage() {
       invoices.map((inv) => ({
         id: inv.id,
         publicId: inv.publicId,
-        date: inv.issueDate,
+        date: fmtDate(inv.issueDate),
         invoiceNo: inv.invoiceNumber,
         employer: employerNames[inv.employerId] || `#${inv.employerId}`,
         total: fmt(inv.total),

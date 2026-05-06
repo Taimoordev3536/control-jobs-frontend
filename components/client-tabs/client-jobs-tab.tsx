@@ -54,19 +54,28 @@ export function ClientJobsTab({ clientId }: ClientJobsTabProps) {
         const result = await response.json()
         const data = Array.isArray(result?.data) ? result.data : []
         setJobs(
-          data.map((j: any) => ({
-            jobId: j.jobId,
-            publicId: j.publicId,
-            jobName: j.jobName,
-            workCenters: j.workCenters,
-            workCenterNames: j.workCenterNames,
-            workers: j.workers,
-            denomination: j.jobName,
-            workCentersLabel:
-              j.workCenterNames ||
-              (Array.isArray(j.workCenters) ? j.workCenters.map((w: any) => w.name).join(", ") : ""),
-            workersLabel: String(Array.isArray(j.workers) ? j.workers.length : 0),
-          }))
+          data.map((j: any) => {
+            const workCenters: Array<{ name?: string }> = Array.isArray(j.workCenters)
+              ? j.workCenters
+              : []
+            const workers: Array<{ name?: string | null }> = Array.isArray(j.workers)
+              ? j.workers
+              : []
+            return {
+              jobId: j.jobId,
+              publicId: j.publicId,
+              jobName: j.jobName,
+              workCenters: j.workCenters,
+              workCenterNames: j.workCenterNames,
+              workers: j.workers,
+              denomination: j.jobName,
+              // Sort/filter values: newline-joined so the natural string compare
+              // still works while the column render below shows one item per line.
+              workCentersLabel:
+                j.workCenterNames || workCenters.map((w) => w?.name || "").filter(Boolean).join("\n"),
+              workersLabel: workers.map((w) => w?.name || "").filter(Boolean).join("\n"),
+            }
+          }),
         )
       } catch (error) {
         console.error("Error fetching client jobs:", error)
@@ -95,10 +104,44 @@ export function ClientJobsTab({ clientId }: ClientJobsTabProps) {
     )
   }
 
+  // Renders an array of strings as a stack of <div> rows so each work center
+  // / worker name lands on its own line in the cell instead of being joined
+  // with commas (which produced ugly soft-wraps on long names).
+  const renderLines = (items: Array<string | null | undefined>) => {
+    const cleaned = items.filter((v): v is string => !!v && v.trim() !== "")
+    if (cleaned.length === 0) return "-"
+    return (
+      <div className="flex flex-col gap-0.5">
+        {cleaned.map((line, i) => (
+          <span key={i} className="leading-snug">{line}</span>
+        ))}
+      </div>
+    )
+  }
+
   const columns: TabTableColumn[] = [
-    { key: "denomination", label: t("denomination"), sortable: true },
-    { key: "workCentersLabel", label: t("workCenters"), sortable: true },
-    { key: "workersLabel", label: t("workers"), sortable: true, align: "center" },
+    {
+      key: "denomination",
+      label: t("denomination"),
+      sortable: true,
+      width: "35%",
+    },
+    {
+      key: "workCentersLabel",
+      label: t("workCenters"),
+      sortable: true,
+      width: "35%",
+      render: (_value, row: ClientJobRow) =>
+        renderLines((row.workCenters || []).map((w) => w?.name)),
+    },
+    {
+      key: "workersLabel",
+      label: t("workers"),
+      sortable: true,
+      width: "30%",
+      render: (_value, row: ClientJobRow) =>
+        renderLines((row.workers || []).map((w) => w?.name || null)),
+    },
   ]
 
   return (

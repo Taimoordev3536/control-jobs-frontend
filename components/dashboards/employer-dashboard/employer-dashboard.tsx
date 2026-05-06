@@ -27,6 +27,7 @@ import AddJobModal from "@/components/add-job-modal/main"
 import JobDetail from "@/components/job-detail/job-detail"
 import { EmployerJobCard } from "./employer-job-card"
 import ManualAttendanceRequestForm from "@/components/manual-attendance/manual-attendance-request-form"
+import { PaymentMethodModal } from "@/components/payment-method-modal"
 
 interface ApiJob {
   jobId: number
@@ -189,6 +190,37 @@ export default function EmployerDashboard() {
   const [manualAttendanceJob, setManualAttendanceJob] = useState<any>(null)
   const [showManualAttendanceForm, setShowManualAttendanceForm] = useState(false)
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0)
+  // Trial-end / payment-method state — drives the AWAITING_PAYMENT_METHOD
+  // banner and the modal triggered from it. We poll once on mount; the
+  // modal's `onSaved` callback flips this locally so the banner disappears
+  // immediately on save without needing another round-trip.
+  const [billingStatus, setBillingStatus] = useState<string | null>(null)
+  const [currentPaymentMethodId, setCurrentPaymentMethodId] = useState<number | null>(null)
+  const [showPaymentMethodModal, setShowPaymentMethodModal] = useState(false)
+
+  useEffect(() => {
+    if (!session?.accessToken) return
+    let cancelled = false
+    const load = async () => {
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/employers/me`, {
+          headers: { Authorization: `Bearer ${session.accessToken}` },
+        })
+        if (!res.ok) return
+        const json = await res.json()
+        if (!cancelled) {
+          setBillingStatus(json?.data?.billingStatus ?? null)
+          setCurrentPaymentMethodId(json?.data?.paymentMethodId ?? null)
+        }
+      } catch {
+        /* swallow — banner just won't render */
+      }
+    }
+    load()
+    return () => {
+      cancelled = true
+    }
+  }, [session?.accessToken])
 
   const occupations = [t("cleaning"), t("security"), t("maintenance"), t("delivery"), t("itSupport"), t("landscaping")]
 
@@ -707,6 +739,54 @@ export default function EmployerDashboard() {
           </Card>
         )}
 
+        {/* Trial-ended → payment method required banner. Shown on every load
+            until the employer submits a payment method (which flips them
+            from AWAITING_PAYMENT_METHOD to ACTIVE). */}
+        {billingStatus === "AWAITING_PAYMENT_METHOD" && (() => {
+          // `t()` returns the key itself when missing — explicit fallback
+          // so a stale bundle still shows readable English instead of the
+          // raw camelCase key in the banner.
+          const headlineRaw = t("trialEnded")
+          const headline =
+            headlineRaw && headlineRaw !== "trialEnded"
+              ? headlineRaw
+              : "Your trial has ended"
+          const bodyRaw = t("trialEndedAddPaymentMethod")
+          const body =
+            bodyRaw && bodyRaw !== "trialEndedAddPaymentMethod"
+              ? bodyRaw
+              : "Add a payment method to continue using ControlJobs without interruption."
+          const ctaRaw = t("addPaymentMethod")
+          const cta =
+            ctaRaw && ctaRaw !== "addPaymentMethod" ? ctaRaw : "Add payment method"
+          return (
+            <Card className="border-l-4 border-l-amber-500 border border-amber-200 bg-gradient-to-r from-amber-50 to-amber-50/40 dark:from-amber-950/40 dark:to-amber-950/10 shadow-sm">
+              <CardContent className="p-4 flex items-center justify-between gap-4 flex-wrap">
+                <div className="flex items-start gap-3 min-w-0 flex-1">
+                  <div className="h-10 w-10 rounded-full bg-amber-500 flex items-center justify-center shrink-0 shadow-sm">
+                    <AlertCircle className="w-5 h-5 text-white" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">
+                      {headline}
+                    </p>
+                    <p className="text-xs text-amber-800/90 dark:text-amber-200/80 mt-0.5 leading-relaxed">
+                      {body}
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  onClick={() => setShowPaymentMethodModal(true)}
+                  className="bg-[#6B21A8] hover:bg-[#5b1d91] text-white shadow-sm gap-1.5 shrink-0"
+                >
+                  {cta}
+                  <span aria-hidden>→</span>
+                </Button>
+              </CardContent>
+            </Card>
+          )
+        })()}
+
         {/* Compact Filters */}
         <Card className="border border-border shadow-sm bg-card">
           <CardContent className="p-4">
@@ -866,6 +946,17 @@ export default function EmployerDashboard() {
         mode="direct"
         onSuccess={() => {
           setShowManualAttendanceForm(false);
+        }}
+      />
+
+      <PaymentMethodModal
+        open={showPaymentMethodModal}
+        onOpenChange={setShowPaymentMethodModal}
+        initialPaymentMethodId={currentPaymentMethodId}
+        trialEndedMode={billingStatus === "AWAITING_PAYMENT_METHOD"}
+        onSaved={({ paymentMethodId, billingStatus: nextStatus }) => {
+          setCurrentPaymentMethodId(paymentMethodId)
+          if (nextStatus) setBillingStatus(nextStatus)
         }}
       />
     </div>

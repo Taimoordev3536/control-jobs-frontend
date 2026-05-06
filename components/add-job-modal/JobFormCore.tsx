@@ -1080,7 +1080,7 @@ export default function JobFormCore({
       };
     });
 
-    toast({ title: "Borrado", description: "Horarios borrados" });
+    toast({ title: "Borrado", description: "Horarios borrados", variant: "success" });
   }, []);
 
   const toggleWorkerSelection = useCallback((workerId: string) => {
@@ -1296,6 +1296,7 @@ export default function JobFormCore({
         title: t("taskUpdated") || "Task Updated",
         description:
           t("taskUpdatedDescription") || "Task has been updated successfully",
+        variant: "success",
       });
     } else {
       // Add new task
@@ -1329,6 +1330,7 @@ export default function JobFormCore({
         title: t("taskAdded") || "Task Added",
         description:
           t("taskAddedDescription") || "Task has been added to the list",
+        variant: "success",
       });
     }
   };

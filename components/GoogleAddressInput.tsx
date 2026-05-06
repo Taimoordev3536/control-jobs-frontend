@@ -18,6 +18,13 @@ interface GoogleAddressInputProps {
   onChange: (value: string, placeId?: string, components?: AddressComponents) => void
   placeholder?: string
   className?: string
+  /**
+   * When true, store Google's full `formatted_address` (e.g. "Av. San Ignacio, 7, 31002
+   * Pamplona, Navarra, España") instead of the trimmed "Street, Number" form. Used for
+   * work-centers so a worker can locate the exact site without separate city/postal/
+   * province fields.
+   */
+  useFullAddress?: boolean
 }
 
 const GoogleAddressInput: React.FC<GoogleAddressInputProps> = ({
@@ -25,16 +32,22 @@ const GoogleAddressInput: React.FC<GoogleAddressInputProps> = ({
   onChange,
   placeholder,
   className,
+  useFullAddress = false,
 }) => {
   const inputRef = useRef<HTMLInputElement>(null)
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null)
   const onChangeRef = useRef(onChange)
+  const useFullAddressRef = useRef(useFullAddress)
   const [isReady, setIsReady] = useState(false)
 
-  // Keep the ref in sync with latest onChange prop to avoid stale closures
+  // Keep refs in sync with latest props to avoid stale closures inside the
+  // place_changed listener (which is attached once when google maps is ready).
   useEffect(() => {
     onChangeRef.current = onChange
   }, [onChange])
+  useEffect(() => {
+    useFullAddressRef.current = useFullAddress
+  }, [useFullAddress])
 
   // Sync the uncontrolled input when the value prop is changed externally
   // (e.g. from LocationPickerDialog or form reset)
@@ -95,19 +108,22 @@ const GoogleAddressInput: React.FC<GoogleAddressInputProps> = ({
         components.longitude = place.geometry.location.lng()
       }
 
-      // Build clean "Street, Number" address for the input field
+      // Choose how to render the address back into the input:
+      //  - useFullAddress: keep Google's full formatted_address (city, postal code,
+      //    province, country) so workers can locate the exact site.
+      //  - default: trim to "Street, Number" for forms that surface city/postal/
+      //    province as separate fields and don't want them duplicated here.
       const streetParts = [components.street, components.streetNumber].filter(Boolean)
-      const cleanAddress = streetParts.length > 0
-        ? streetParts.join(", ")
-        : place.formatted_address
+      const finalAddress = useFullAddressRef.current
+        ? place.formatted_address
+        : (streetParts.length > 0 ? streetParts.join(", ") : place.formatted_address)
 
-      // Update the uncontrolled input to show only the clean address
       if (inputRef.current) {
-        inputRef.current.value = cleanAddress
+        inputRef.current.value = finalAddress
       }
 
       // ✅ Use ref to always call latest onChange (avoids stale closure)
-      onChangeRef.current(cleanAddress, place.place_id, components)
+      onChangeRef.current(finalAddress, place.place_id, components)
     })
   }, [isReady]) // Remove onChange from deps — use ref instead
 

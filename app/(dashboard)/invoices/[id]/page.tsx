@@ -3,12 +3,18 @@
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, Loader2, CheckCircle2, XCircle } from "lucide-react"
+import { ArrowLeft, CheckCircle2, XCircle } from "lucide-react"
 import PdfIconDefault from "@/icons/Controles/pdf1.svg"
 import PdfIconHover from "@/icons/Controles/pdf2.svg"
 import { useTranslation } from "@/hooks/use-translation"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
+import { AnimatedLoader } from "@/components/animated-loader"
+
+interface InvoiceSnapshotRow {
+  id?: number
+  name: string
+}
 
 interface InvoiceDetail {
   id: number
@@ -38,11 +44,25 @@ interface InvoiceDetail {
   total: number | string
   status: string
   paidAt: string | null
+  // "Page 2" snapshots — present when accessLevel is 'full'.
+  workCenters?: InvoiceSnapshotRow[]
+  workers?: InvoiceSnapshotRow[]
+  // 'full' = page 1 + page 2 visible | 'page1Only' = page 2 hidden (Bronze).
+  accessLevel?: 'full' | 'page1Only'
 }
 
 const fmt = (v: number | string) => {
   const n = typeof v === "string" ? parseFloat(v) : v
   return `${(n || 0).toFixed(2).replace(".", ",")} €`
+}
+
+// Backend ISO ("2026-04-28") → dd/mm/aaaa display. Invariant from spec §5;
+// applied to issue date, due date, and the period range below.
+const fmtDate = (iso: string | null | undefined): string => {
+  if (!iso) return ""
+  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})/)
+  if (!m) return iso
+  return `${m[3]}/${m[2]}/${m[1]}`
 }
 
 export default function InvoiceDetailPage() {
@@ -178,11 +198,7 @@ export default function InvoiceDetailPage() {
   }
 
   if (isLoading) {
-    return (
-      <div className="bg-background min-h-screen flex items-center justify-center p-12">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    )
+    return <AnimatedLoader />
   }
   if (!invoice) {
     return (
@@ -283,26 +299,23 @@ export default function InvoiceDetailPage() {
               <div className="border-t border-border my-1" />
               <div className="flex justify-between">
                 <span className="text-muted-foreground">{t("issueDate") || "Issue date"}</span>
-                <span className="text-foreground">{invoice.issueDate}</span>
+                <span className="text-foreground">{fmtDate(invoice.issueDate)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">{t("dueDate") || "Due date"}</span>
-                <span className="text-foreground">{invoice.dueDate}</span>
+                <span className="text-foreground">{fmtDate(invoice.dueDate)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">{t("period")}</span>
                 <span className="text-foreground">
-                  {invoice.periodStart} → {invoice.periodEnd}
+                  {fmtDate(invoice.periodStart)} → {fmtDate(invoice.periodEnd)}
+                  {invoice.isProrated && invoice.proratedDays != null && (
+                    <span className="ml-1 text-amber-700 dark:text-amber-400">
+                      ({invoice.proratedDays} {t("days")})
+                    </span>
+                  )}
                 </span>
               </div>
-              {invoice.isProrated && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">{t("prorated")}</span>
-                  <span className="text-amber-700 dark:text-amber-400">
-                    {invoice.proratedDays}/{invoice.daysInMonth} {t("days")}
-                  </span>
-                </div>
-              )}
             </div>
           </div>
 
@@ -378,6 +391,61 @@ export default function InvoiceDetailPage() {
             <Row label={t("total")} value={fmt(invoice.total)} bold large />
           </div>
         </div>
+
+        {/* Page 2 — worksites + workers detail.
+              accessLevel === 'page1Only' (Bronze partner): hide entirely
+              and show a small muted notice instead. Affiliates never reach
+              this page (backend 403). Other roles see the full lists. */}
+        {invoice.accessLevel === "page1Only" ? (
+          <div className="rounded-md border border-dashed border-border bg-muted/30 p-3 text-xs text-muted-foreground">
+            {t("invoiceDetailPage2Restricted") ||
+              "Worksite and worker detail isn't available at your access level."}
+          </div>
+        ) : (
+          ((invoice.workCenters?.length ?? 0) > 0 ||
+            (invoice.workers?.length ?? 0) > 0) && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+              {/* Work centers */}
+              <div className="rounded-md border border-border bg-card p-4">
+                <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-2">
+                  {t("workCenters") || "Work centers"} (
+                  {invoice.workCenters?.length ?? 0})
+                </div>
+                {invoice.workCenters && invoice.workCenters.length > 0 ? (
+                  <ul className="space-y-1 text-xs text-foreground">
+                    {invoice.workCenters.map((w, i) => (
+                      <li key={i} className="flex gap-2">
+                        <span className="text-muted-foreground">•</span>
+                        <span>{w.name}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-xs text-muted-foreground">—</p>
+                )}
+              </div>
+
+              {/* Workers */}
+              <div className="rounded-md border border-border bg-card p-4">
+                <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-2">
+                  {t("workers") || "Workers"} ({invoice.workers?.length ?? 0})
+                </div>
+                {invoice.workers && invoice.workers.length > 0 ? (
+                  <ul className="space-y-1 text-xs text-foreground">
+                    {invoice.workers.map((w, i) => (
+                      <li key={i} className="flex gap-2">
+                        <span className="text-muted-foreground">•</span>
+                        <span>{w.name}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-xs text-muted-foreground">—</p>
+                )}
+              </div>
+            </div>
+          )
+        )}
       </div>
     </div>
   )

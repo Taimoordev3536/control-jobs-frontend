@@ -309,6 +309,7 @@ export default function AddWorkCenterModal({
                 <div className="flex-1">
                   <GoogleAddressInput
                     value={formData.address}
+                    useFullAddress
                     onChange={(value, placeId, components) => {
                       updateFormData("address", value);
                       if (components) {

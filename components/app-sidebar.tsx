@@ -272,14 +272,9 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar, styl
               { title: t("workers"), href: "/surveys/workers", iconKey: "workers" },
             ],
           },
-          {
-            id: "billing",
-            title: t("billing"),
-            icon: () => <BillingIcon className="h-5 w-5" />,
-            items: [
-              { title: t("myInvoices"), href: "/invoices", iconKey: "invoices" },
-            ],
-          },
+          // Billing entry intentionally removed for the employer role —
+          // invoices are reachable from the avatar dropdown ("Billing"
+          // → /invoices) so the sidebar stays focused on operational items.
           {
             id: "information",
             title: t("information"),

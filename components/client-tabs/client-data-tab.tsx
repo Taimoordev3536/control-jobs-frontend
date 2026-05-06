@@ -204,10 +204,9 @@ export function ClientDataTab({ clientId }: ClientDataTabProps) {
     const hasEnd = !!clientData.summerEndDate?.trim()
     if (hasStart !== hasEnd) {
       toast({
-        title: t("requiredFieldsMissing") || "Campos obligatorios",
-        description:
+        title:
           t("summerPeriodBothOrNeither") ||
-          "Both summer start and end dates are required, or leave both empty",
+          "Both period dates must be entered or both left empty.",
         variant: "destructive",
       })
       return
@@ -640,9 +639,6 @@ export function ClientDataTab({ clientId }: ClientDataTabProps) {
             className="h-9 text-xs bg-muted/30 border-input text-foreground"
           />
         </div>
-        <div className="shrink-0">
-          <Button className="h-9 bg-purple-600 hover:bg-purple-700 text-white px-4 text-xs">{t("users")}</Button>
-        </div>
         {canImpersonate && (
           <div className="shrink-0">
             <Button
@@ -650,7 +646,7 @@ export function ClientDataTab({ clientId }: ClientDataTabProps) {
               onClick={handleLoginAs}
               disabled={isImpersonateLoading}
             >
-              {isImpersonateLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : t("login")}
+              {isImpersonateLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Login as"}
             </Button>
           </div>
         )}

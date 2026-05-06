@@ -197,7 +197,7 @@ function InviteLinkCell({ value, t }: { value: string | null; t: TranslateFn }) 
     e.stopPropagation()
     try {
       await navigator.clipboard.writeText(value)
-      toast({ title: t("toastInviteCopied") })
+      toast({ title: t("toastInviteCopied"), variant: "success" })
     } catch {
       toast({ title: t("toastCopyFailed"), variant: "destructive" })
     }
@@ -343,6 +343,7 @@ function CreateSubUserDialog({
       toast({
         title: t("toastSubUserInvited"),
         description: t("toastSubUserInvitedDesc"),
+        variant: "success",
       })
       onOpenChange(false)
       onCreated()
@@ -503,7 +504,7 @@ function EditPermissionDialog({
     setBusy(true)
     try {
       await updateSubUser(target.id, { permission })
-      toast({ title: t("toastPermissionUpdated") })
+      toast({ title: t("toastPermissionUpdated"), variant: "success" })
       onSaved()
       onClose()
     } catch (e: any) {
@@ -637,9 +638,10 @@ function ConfirmDialog({
         toast({
           title: t("toastNewInviteGenerated"),
           description: t("toastNewInviteDesc"),
+          variant: "success",
         })
       }
-      if (action !== "reset") toast({ title: t("toastDone") })
+      if (action !== "reset") toast({ title: t("toastDone"), variant: "success" })
       onDone()
       onClose()
     } catch (e: any) {

@@ -311,6 +311,7 @@ export function WorkCenterDescriptionTab({ workCenter, onUpdate }: WorkCenterDes
             <div className="relative">
               <GoogleAddressInput
                 value={formData.address}
+                useFullAddress
                 onChange={(value: string, placeId?: string, components?: AddressComponents) => {
                   handleChange("address", value)
                   if (components) {

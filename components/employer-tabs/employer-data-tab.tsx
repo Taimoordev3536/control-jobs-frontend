@@ -4,8 +4,8 @@
 
 "use client"
 
-import { useState, useEffect } from "react"
-import { Camera, Loader2, AlertCircle, RefreshCw } from "lucide-react"
+import { useState, useEffect, useRef } from "react"
+import { Camera, Loader2, AlertCircle, RefreshCw, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -63,15 +63,21 @@ interface EmployerData {
   responsible: string
   accessAccountStatus: string
   email: string | null
+  logoUrl?: string | null
+  logoPublicId?: string | null
   createdAt: string
   updatedAt: string
 }
 
 interface EmployerDataTabProps {
   employerId: string
+  // When true, logo upload/delete hit /employers/me/logo so an employer-role
+  // user can manage their own brand from "Mis Datos" without admin/partner
+  // privileges. Defaults to the admin/partner :id-scoped endpoint.
+  selfServiceLogo?: boolean
 }
 
-export default function EmployerDataTab({ employerId }: EmployerDataTabProps) {
+export default function EmployerDataTab({ employerId, selfServiceLogo = false }: EmployerDataTabProps) {
   const { t, language, tEnum } = useTranslation()
   const { session, isImpersonating, isSubUser, hasRole, hasAnyRole, canEdit } = useAuth()
   const ti = (key: string) => (impersonationTranslations as any)[language]?.[key] || key
@@ -89,6 +95,74 @@ export default function EmployerDataTab({ employerId }: EmployerDataTabProps) {
   const [hasChanges, setHasChanges] = useState(false)
   const [resetKey, setResetKey] = useState(0)
   const [isImpersonateLoading, setIsImpersonateLoading] = useState(false)
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false)
+  const logoInputRef = useRef<HTMLInputElement | null>(null)
+
+  const handleLogoSelect = () => logoInputRef.current?.click()
+
+  const handleLogoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ""
+    if (!file) return
+    if (!["image/png", "image/jpeg", "image/jpg"].includes(file.type)) {
+      toast({ title: t("logoMustBePngOrJpeg") || "Logo must be PNG or JPEG", variant: "destructive" })
+      return
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast({ title: t("logoTooLarge") || "Logo must be 2 MB or smaller", variant: "destructive" })
+      return
+    }
+    if (!session?.accessToken) return
+
+    setIsUploadingLogo(true)
+    try {
+      const fd = new FormData()
+      fd.append("file", file)
+      const path = selfServiceLogo ? "me/logo" : `${employerId}/logo`
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/employers/${path}`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${session.accessToken}` },
+        body: fd,
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.message || `Error ${res.status}`)
+      }
+      const result = await res.json()
+      setEmployerData((prev) =>
+        prev
+          ? { ...prev, logoUrl: result.data?.logoUrl || null, logoPublicId: result.data?.logoPublicId || null }
+          : prev,
+      )
+      toast({ title: t("logoUpdated") || "Logo updated", variant: "success" })
+    } catch (err: any) {
+      toast({ title: translateBackendError(err), variant: "destructive" })
+    } finally {
+      setIsUploadingLogo(false)
+    }
+  }
+
+  const handleLogoDelete = async () => {
+    if (!session?.accessToken || !employerData?.logoUrl) return
+    setIsUploadingLogo(true)
+    try {
+      const path = selfServiceLogo ? "me/logo" : `${employerId}/logo`
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/employers/${path}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${session.accessToken}` },
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.message || `Error ${res.status}`)
+      }
+      setEmployerData((prev) => (prev ? { ...prev, logoUrl: null, logoPublicId: null } : prev))
+      toast({ title: t("logoRemoved") || "Logo removed", variant: "success" })
+    } catch (err: any) {
+      toast({ title: translateBackendError(err), variant: "destructive" })
+    } finally {
+      setIsUploadingLogo(false)
+    }
+  }
 
   // Admin and Partner can impersonate employers.
   // Sub-users: only EDIT permission can impersonate; VIEW_ONLY is hidden.
@@ -539,7 +613,7 @@ export default function EmployerDataTab({ employerId }: EmployerDataTabProps) {
         </div>
       </div>
 
-      {/* Row 4: Teléfono(12%)+Móvil(12%)+Email(26%) = 50% wrapper; Users btn, Login btn */}
+      {/* Row 4: Teléfono(12%)+Móvil(12%)+Email(26%) = 50% wrapper; Login btn */}
       <div className="flex gap-3 items-end">
         <div className="flex gap-3 items-end min-w-0" style={{ flex: "0 0 50%" }}>
           <div className="space-y-1 min-w-0" style={{ flex: "0 0 calc(24% - 0.5rem)" }}>
@@ -585,9 +659,6 @@ export default function EmployerDataTab({ employerId }: EmployerDataTabProps) {
             />
           </div>
         </div>
-        <div className="shrink-0">
-          <Button className="h-9 bg-purple-600 hover:bg-purple-700 text-white px-4 text-xs">{t("users")}</Button>
-        </div>
         {canImpersonate && (
           <div className="shrink-0">
             <Button
@@ -595,7 +666,7 @@ export default function EmployerDataTab({ employerId }: EmployerDataTabProps) {
               onClick={handleLoginAs}
               disabled={isImpersonateLoading}
             >
-              {isImpersonateLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : t("login")}
+              {isImpersonateLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Login as"}
             </Button>
           </div>
         )}
@@ -615,11 +686,42 @@ export default function EmployerDataTab({ employerId }: EmployerDataTabProps) {
           />
         </div>
         <div className="flex flex-col items-center justify-center shrink-0">
-          <div className="w-16 h-16 rounded-full border-2 border-muted flex items-center justify-center bg-muted/20">
-            <Camera className="w-4 h-4 text-muted-foreground" />
+          <div className="relative w-16 h-16 rounded-full border-2 border-muted flex items-center justify-center bg-muted/20 overflow-hidden">
+            {isUploadingLogo ? (
+              <Loader2 className="w-4 h-4 text-muted-foreground animate-spin" />
+            ) : employerData.logoUrl ? (
+              <>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={employerData.logoUrl} alt="Logo" className="w-full h-full object-contain" />
+                <button
+                  type="button"
+                  onClick={handleLogoDelete}
+                  className="absolute top-0 right-0 bg-red-500 hover:bg-red-600 text-white rounded-full w-4 h-4 flex items-center justify-center"
+                  aria-label={t("removeLogo") || "Remove logo"}
+                  title={t("removeLogo") || "Remove logo"}
+                >
+                  <X className="w-2.5 h-2.5" />
+                </button>
+              </>
+            ) : (
+              <Camera className="w-4 h-4 text-muted-foreground" />
+            )}
           </div>
-          <Button variant="outline" className="text-[10px] px-2 py-0 h-6 bg-transparent mt-1">
-            {t("chooseFile") || "Choose file"}
+          <input
+            ref={logoInputRef}
+            type="file"
+            accept="image/png,image/jpeg"
+            className="hidden"
+            onChange={handleLogoChange}
+          />
+          <Button
+            variant="outline"
+            type="button"
+            onClick={handleLogoSelect}
+            disabled={isUploadingLogo}
+            className="text-[10px] px-2 py-0 h-6 bg-transparent mt-1"
+          >
+            {employerData.logoUrl ? (t("changeLogo") || "Change") : (t("chooseFile") || "Choose file")}
           </Button>
         </div>
       </div>

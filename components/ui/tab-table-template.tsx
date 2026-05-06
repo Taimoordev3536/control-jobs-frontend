@@ -13,6 +13,10 @@ export interface TabTableColumn {
   sortable?: boolean
   align?: "left" | "center" | "right"
   render?: (value: any, row: any) => React.ReactNode
+  // Optional explicit width (e.g. "35%", "200px"). When set, overrides the
+  // auto-locked content-derived width that the table normally uses, so
+  // callers can pin proportional columns (e.g. 35% / 35% / 30%).
+  width?: string
 }
 
 interface TabTableTemplateProps {
@@ -242,7 +246,11 @@ export default function TabTableTemplate({
           <table
             ref={tableRef}
             className="w-full"
-            style={columnWidths ? { tableLayout: "fixed" } : undefined}
+            style={
+              columnWidths || localColumns.some((c) => c.width)
+                ? { tableLayout: "fixed" }
+                : undefined
+            }
           >
             <thead>
               <Droppable droppableId="columns" direction="horizontal">
@@ -262,9 +270,13 @@ export default function TabTableTemplate({
                               {...provided.dragHandleProps}
                               style={{
                                 ...(provided.draggableProps as any).style,
-                                ...(columnWidths && columnWidths[index] != null
-                                  ? { width: `${columnWidths[index]}px` }
-                                  : {}),
+                                // Caller-provided width (e.g. "35%") wins over the
+                                // auto-locked content-derived width.
+                                ...(column.width
+                                  ? { width: column.width }
+                                  : columnWidths && columnWidths[index] != null
+                                    ? { width: `${columnWidths[index]}px` }
+                                    : {}),
                               }}
                               className={`px-4 py-[7px] text-xs font-semibold text-foreground transition-colors cursor-move ${
                                 snapshot.isDragging ? "bg-purple-200 dark:bg-purple-800" : ""

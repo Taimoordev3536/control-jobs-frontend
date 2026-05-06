@@ -484,7 +484,7 @@ export default function PartnerDataTab({ partnerId, onNameChange }: PartnerDataT
         </div>
       </div>
 
-      {/* Row 4: Teléfono(12%)+Móvil(12%)+Email(26%) = 50% wrapper; Users btn, Login btn; Profile image minimized */}
+      {/* Row 4: Teléfono(12%)+Móvil(12%)+Email(26%) = 50% wrapper; Login btn; Profile image minimized */}
       <div className="flex gap-3 items-end">
         <div className="flex gap-3 items-end min-w-0" style={{ flex: "0 0 50%" }}>
           <div className="space-y-1 min-w-0" style={{ flex: "0 0 calc(24% - 0.5rem)" }}>
@@ -530,9 +530,6 @@ export default function PartnerDataTab({ partnerId, onNameChange }: PartnerDataT
             />
           </div>
         </div>
-        <div className="shrink-0">
-          <Button className="h-9 bg-purple-600 hover:bg-purple-700 text-white px-4 text-xs">{t("users")}</Button>
-        </div>
         {canImpersonate && (
           <div className="shrink-0">
             <Button
@@ -540,7 +537,7 @@ export default function PartnerDataTab({ partnerId, onNameChange }: PartnerDataT
               onClick={handleLoginAs}
               disabled={isImpersonateLoading}
             >
-              {isImpersonateLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : t("login")}
+              {isImpersonateLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Login as"}
             </Button>
           </div>
         )}

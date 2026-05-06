@@ -96,7 +96,7 @@ function AcceptInviteForm() {
     setBusy(true)
     try {
       await acceptInvite(token, password)
-      toast({ title: t("toastPasswordSet"), description: t("toastPasswordSetDesc") })
+      toast({ title: t("toastPasswordSet"), description: t("toastPasswordSetDesc"), variant: "success" })
       router.push("/login")
     } catch (e: any) {
       toast({ title: t("toastAcceptFailed"), description: e.message, variant: "destructive" })

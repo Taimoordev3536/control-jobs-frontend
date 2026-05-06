@@ -137,7 +137,14 @@ export function QrCodeDialog({ open, onOpenChange, workCenterId, qrData, onUpdat
     fetchWorkCenterDetails()
   }, [open, session?.accessToken, workCenterId])
 
-  // Update expiry countdown and progress bar for dynamic QR
+  // Update expiry countdown and progress bar for dynamic QR.
+  //
+  // Visual countdown is anchored to the client's receipt of this QR, not the
+  // server-side `expiresAt - 30s`. Network latency previously made the
+  // server-anchored start time slightly in the past on arrival, so the bar
+  // started at 95-98% instead of 100% (user-reported "starts below 30 seconds").
+  // The actual server expiry is still respected by the scan flow on the
+  // backend; this effect only drives the visual.
   useEffect(() => {
     if (!dynamicQr?.expiresAt || !dynamicQr?.isSelected) {
       setTimeUntilExpiry("")
@@ -146,32 +153,41 @@ export function QrCodeDialog({ open, onOpenChange, workCenterId, qrData, onUpdat
     }
 
     const totalDuration = 30000 // 30 seconds
-    const expiryTime = new Date(dynamicQr.expiresAt).getTime()
-    const startTime = expiryTime - totalDuration
+    const visualStart = Date.now()
+    const visualEnd = visualStart + totalDuration
+
+    // Refetch exactly once per cycle, after a short hold at 0% so the bar is
+    // visibly empty before the next QR loads (otherwise React batches the
+    // setState(0) with the new dynamicQr and the bar appears to skip zero).
+    let didRefetch = false
+    let refetchTimer: ReturnType<typeof setTimeout> | null = null
 
     const update = () => {
       const now = Date.now()
-      const diff = expiryTime - now
+      const diff = visualEnd - now
 
       if (diff <= 0) {
         setTimeUntilExpiry("Expirado - Actualizando...")
         setProgressPercent(0)
-        fetchQrCodes() // Refresh to get new token
+        if (!didRefetch) {
+          didRefetch = true
+          refetchTimer = setTimeout(() => fetchQrCodes(), 350)
+        }
         return
       }
 
       const minutes = Math.floor(diff / 60000)
       const seconds = Math.floor((diff % 60000) / 1000)
       setTimeUntilExpiry(`${minutes}:${seconds.toString().padStart(2, '0')}`)
-
-      const elapsed = now - startTime
-      const remaining = Math.max(0, totalDuration - elapsed)
-      setProgressPercent(Math.min(100, (remaining / totalDuration) * 100))
+      setProgressPercent((diff / totalDuration) * 100)
     }
 
     update()
     const interval = setInterval(update, 200)
-    return () => clearInterval(interval)
+    return () => {
+      clearInterval(interval)
+      if (refetchTimer) clearTimeout(refetchTimer)
+    }
   }, [dynamicQr?.expiresAt, dynamicQr?.isSelected])
 
   const fetchQrCodes = async () => {
@@ -551,48 +567,49 @@ export function QrCodeDialog({ open, onOpenChange, workCenterId, qrData, onUpdat
                 </button>
               </div>
 
-              {/* Action Buttons - always reserve space for consistent layout */}
-              <div className="flex items-center gap-2 min-h-[36px]">
+              {/* Action Buttons - mirror the borderless toolbar icon style
+                  used in DataListTemplate's ActionIconButton: plain <button>,
+                  purple text, soft purple hover bg, hover swaps PDF1 → PDF2. */}
+              <div className="flex items-center gap-1 min-h-[36px]">
                 {selectedQr?.isSelected && qrType === "STATIC" && (
                   <>
-                    <Button
-                      variant="outline"
-                      size="icon"
+                    <button
+                      type="button"
                       onClick={printQr}
                       onMouseEnter={() => setPdfHovered(true)}
                       onMouseLeave={() => setPdfHovered(false)}
                       disabled={isDownloadingPdf}
                       aria-label="Descargar PDF"
                       title="Descargar QR en PDF"
+                      className="p-1.5 text-[#662D91] hover:bg-purple-50 dark:hover:bg-purple-950 rounded-md transition-colors disabled:opacity-60"
                     >
                       {isDownloadingPdf ? (
-                        <RefreshCw className="h-5 w-5 animate-spin" />
+                        <RefreshCw className="w-5 h-5 animate-spin" />
                       ) : pdfHovered ? (
-                        <PdfIcon2 className="h-5 w-5" />
+                        <PdfIcon2 className="w-5 h-5" />
                       ) : (
-                        <PdfIcon1 className="h-5 w-5" />
+                        <PdfIcon1 className="w-5 h-5" />
                       )}
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="icon" 
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => setShowEmailInput(!showEmailInput)}
                       aria-label="Enviar por email"
                       title="Enviar QR por email"
+                      className="p-1.5 text-[#662D91] hover:bg-purple-50 dark:hover:bg-purple-950 rounded-md transition-colors"
                     >
-                      <Mail className="h-4 w-4" />
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="icon" 
+                      <Mail className="w-5 h-5" />
+                    </button>
+                    <button
+                      type="button"
                       onClick={handleRegenerateStaticQr}
                       disabled={isRegenerating}
                       aria-label="Regenerar"
                       title="Regenerar QR (el anterior quedará inválido)"
-                      className="text-orange-600 hover:text-orange-700"
+                      className="p-1.5 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950 rounded-md transition-colors disabled:opacity-60"
                     >
-                      <RefreshCw className={`h-4 w-4 ${isRegenerating ? 'animate-spin' : ''}`} />
-                    </Button>
+                      <RefreshCw className={`w-5 h-5 ${isRegenerating ? 'animate-spin' : ''}`} />
+                    </button>
                   </>
                 )}
               </div>

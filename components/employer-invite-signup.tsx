@@ -139,10 +139,10 @@ export default function EmployerInviteSignup({
 
   const next = () => {
     if (step === 1) {
-      if (!form.class) return toast({ title: t("thisFieldIsRequired") })
-      if (!form.name) return toast({ title: t("thisFieldIsRequired") })
-      if (!form.address) return toast({ title: t("thisFieldIsRequired") })
-      if (!form.mobile) return toast({ title: t("thisFieldIsRequired") })
+      if (!form.class) return toast({ title: t("thisFieldIsRequired"), variant: "destructive" })
+      if (!form.name) return toast({ title: t("thisFieldIsRequired"), variant: "destructive" })
+      if (!form.address) return toast({ title: t("thisFieldIsRequired"), variant: "destructive" })
+      if (!form.mobile) return toast({ title: t("thisFieldIsRequired"), variant: "destructive" })
       if (!form.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
         return toast({
           title: t("invalidEmail") || "Please enter a valid email",
@@ -151,14 +151,14 @@ export default function EmployerInviteSignup({
       }
       setStep(2)
     } else if (step === 2) {
-      if (!form.fee) return toast({ title: t("thisFieldIsRequired") })
-      if (!form.nif) return toast({ title: t("thisFieldIsRequired") })
+      if (!form.fee) return toast({ title: t("thisFieldIsRequired"), variant: "destructive" })
+      if (!form.nif) return toast({ title: t("thisFieldIsRequired"), variant: "destructive" })
       setStep(3)
     }
   }
 
   const submit = async () => {
-    if (!form.responsible) return toast({ title: t("thisFieldIsRequired") })
+    if (!form.responsible) return toast({ title: t("thisFieldIsRequired"), variant: "destructive" })
     if (form.password.length < 8) {
       return toast({ title: t("passwordTooShort") || "Password must be 8+ chars", variant: "destructive" })
     }
