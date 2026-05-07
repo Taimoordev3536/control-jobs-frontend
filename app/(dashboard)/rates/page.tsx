@@ -3,10 +3,12 @@
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Loader2 } from "lucide-react"
+import { Calendar, Clock, Loader2 } from "lucide-react"
 import { useTranslation } from "@/hooks/use-translation"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
+import { apiFetch } from "@/lib/api"
+import { AnimatedLoader } from "@/components/animated-loader"
 
 interface RatePlan {
   id: number
@@ -18,6 +20,17 @@ interface RatePlan {
   perWorkCenter: number | string
   perWorker: number | string
   isActive: boolean
+  pendingMonthlyFixed: number | string | null
+  pendingPerWorkCenter: number | string | null
+  pendingPerWorker: number | string | null
+  pendingEffectiveAt: string | null
+}
+
+const fmtDate = (iso: string | null | undefined): string => {
+  if (!iso) return ""
+  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})/)
+  if (!m) return iso
+  return `${m[3]}/${m[2]}/${m[1]}`
 }
 
 const COLUMN_CODES = ["PARTICULAR_HOME", "BUSINESS_STATIC", "BUSINESS_REMOTE"] as const
@@ -44,44 +57,40 @@ export default function RatesPage() {
   const [isSaving, setIsSaving] = useState(false)
   const [isDirty, setIsDirty] = useState(false)
 
-  useEffect(() => {
-    const fetchPlans = async () => {
-      if (!session?.accessToken) return
-      setIsLoading(true)
-      try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/rate-plans`, {
-          headers: {
-            Authorization: `Bearer ${session.accessToken}`,
-            "Content-Type": "application/json",
-          },
-        })
-        if (!res.ok) throw new Error("Failed to load rate plans")
-        const json = await res.json()
-        const list: RatePlan[] = json.data || []
-        const next: Record<ColumnCode, RatePlan | null> = {
-          PARTICULAR_HOME: null,
-          BUSINESS_STATIC: null,
-          BUSINESS_REMOTE: null,
+  // Inputs always show the CURRENT live values (what's billed today).
+  // Pending (scheduled) values appear only in the banner above so admins
+  // can't confuse "what's billed now" with "what's coming."
+  const loadPlans = async () => {
+    if (!session?.accessToken) return
+    const json = await apiFetch<{ data: RatePlan[] }>("/rate-plans")
+    const next: Record<ColumnCode, RatePlan | null> = {
+      PARTICULAR_HOME: null,
+      BUSINESS_STATIC: null,
+      BUSINESS_REMOTE: null,
+    }
+    for (const p of json.data || []) {
+      if ((COLUMN_CODES as readonly string[]).includes(p.code)) {
+        next[p.code as ColumnCode] = {
+          ...p,
+          monthlyFixed: Number(p.monthlyFixed),
+          perWorkCenter: Number(p.perWorkCenter),
+          perWorker: Number(p.perWorker),
+          pendingMonthlyFixed: p.pendingMonthlyFixed,
+          pendingPerWorkCenter: p.pendingPerWorkCenter,
+          pendingPerWorker: p.pendingPerWorker,
+          pendingEffectiveAt: p.pendingEffectiveAt,
         }
-        for (const p of list) {
-          if ((COLUMN_CODES as readonly string[]).includes(p.code)) {
-            next[p.code as ColumnCode] = {
-              ...p,
-              monthlyFixed: Number(p.monthlyFixed),
-              perWorkCenter: Number(p.perWorkCenter),
-              perWorker: Number(p.perWorker),
-            }
-          }
-        }
-        setPlans(next)
-        setIsDirty(false)
-      } catch (e: any) {
-        toast({ title: e.message || "Error", variant: "destructive" })
-      } finally {
-        setIsLoading(false)
       }
     }
-    fetchPlans()
+    setPlans(next)
+    setIsDirty(false)
+  }
+
+  useEffect(() => {
+    setIsLoading(true)
+    loadPlans()
+      .catch((e) => toast({ title: e.message || "Error", variant: "destructive" }))
+      .finally(() => setIsLoading(false))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.accessToken])
 
@@ -106,26 +115,17 @@ export default function RatesPage() {
       for (const code of COLUMN_CODES) {
         const plan = plans[code]
         if (!plan) continue
-        const body = {
-          monthlyFixed: Number(plan.monthlyFixed) || 0,
-          perWorkCenter: Number(plan.perWorkCenter) || 0,
-          perWorker: Number(plan.perWorker) || 0,
-        }
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_BASE_URL}/rate-plans/${plan.id}`,
-          {
-            method: "PATCH",
-            headers: {
-              Authorization: `Bearer ${session.accessToken}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(body),
+        await apiFetch(`/rate-plans/${plan.id}`, {
+          method: "PATCH",
+          body: {
+            monthlyFixed: Number(plan.monthlyFixed) || 0,
+            perWorkCenter: Number(plan.perWorkCenter) || 0,
+            perWorker: Number(plan.perWorker) || 0,
           },
-        )
-        if (!res.ok) throw new Error(`Failed to save ${code}`)
+        })
       }
       toast({ title: t("saved") || "Saved", variant: "success" as any })
-      setIsDirty(false)
+      await loadPlans()
     } catch (e: any) {
       toast({ title: e.message || "Error", variant: "destructive" })
     } finally {
@@ -138,6 +138,22 @@ export default function RatesPage() {
     return v === null || v === undefined ? "" : String(v)
   }
 
+  const cancelPending = async (planId: number) => {
+    if (!session?.accessToken || !canEdit) return
+    if (!confirm(t("confirmCancelPending") || "Cancel the scheduled rate change?")) return
+    try {
+      await apiFetch(`/rate-plans/${planId}/cancel-pending`, { method: "POST" })
+      toast({ title: t("pendingCancelled") || "Pending change cancelled", variant: "success" as any })
+      await loadPlans()
+    } catch (e: any) {
+      toast({ title: e.message || "Error", variant: "destructive" })
+    }
+  }
+
+  const pendingPlans = COLUMN_CODES
+    .map((c) => plans[c])
+    .filter((p): p is RatePlan => !!p && !!p.pendingEffectiveAt)
+
   return (
     <div className="p-6 bg-background min-h-screen">
       <div className="bg-card rounded-lg shadow-sm border border-border">
@@ -148,9 +164,68 @@ export default function RatesPage() {
           )}
         </div>
 
+        {pendingPlans.length > 0 && (
+          <div className="mx-6 mt-4 mb-4 rounded-lg border border-amber-300 bg-gradient-to-r from-amber-50 to-amber-50/40 dark:from-amber-950/40 dark:to-amber-950/10 overflow-hidden">
+            <div className="p-4 flex items-start gap-3">
+              <div className="p-1.5 rounded-lg bg-amber-500 flex items-center justify-center shrink-0">
+                <Clock className="w-4 h-4 text-white" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h3 className="text-sm font-semibold text-amber-900 dark:text-amber-200">
+                  {t("pendingRateChange")}
+                </h3>
+                <p className="mt-0.5 text-xs text-amber-800/80 dark:text-amber-300/80">
+                  {t("rateChangeNotice")}
+                </p>
+              </div>
+            </div>
+
+            <div className="border-t border-amber-200/60 dark:border-amber-900/40 divide-y divide-amber-200/60 dark:divide-amber-900/40">
+              {pendingPlans.map((p) => (
+                <div
+                  key={p.id}
+                  className="px-4 py-3 flex flex-wrap items-center justify-between gap-3"
+                >
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-amber-900 dark:text-amber-100">
+                      {COLUMN_LABEL[p.code as ColumnCode]}
+                      <span className="inline-flex items-center gap-1 text-[11px] font-normal px-1.5 py-0.5 rounded bg-amber-200/60 dark:bg-amber-900/50 text-amber-900 dark:text-amber-200">
+                        <Calendar className="w-3 h-3" />
+                        {t("effectiveFrom")} {fmtDate(p.pendingEffectiveAt)}
+                      </span>
+                    </div>
+                    <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-amber-900/90 dark:text-amber-200/90">
+                      <span>
+                        {t("fixedFee")}:{" "}
+                        <strong>{Number(p.pendingMonthlyFixed).toFixed(2).replace(".", ",")} €</strong>
+                      </span>
+                      <span>
+                        {t("workCenters")}:{" "}
+                        <strong>{Number(p.pendingPerWorkCenter).toFixed(2).replace(".", ",")} €</strong>
+                      </span>
+                      <span>
+                        {t("employees")}:{" "}
+                        <strong>{Number(p.pendingPerWorker).toFixed(2).replace(".", ",")} €</strong>
+                      </span>
+                    </div>
+                  </div>
+                  {canEdit && (
+                    <button
+                      onClick={() => cancelPending(p.id)}
+                      className="text-xs font-medium text-amber-900 hover:text-amber-700 dark:text-amber-200 dark:hover:text-amber-100 px-2.5 py-1 rounded border border-amber-400/60 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors"
+                    >
+                      {t("cancel")}
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {isLoading ? (
-          <div className="p-12 flex items-center justify-center text-muted-foreground">
-            <Loader2 className="h-5 w-5 animate-spin mr-2" /> {t("loading") || "Loading..."}
+          <div className="p-12 flex items-center justify-center">
+            <AnimatedLoader size={32} />
           </div>
         ) : (
           <>

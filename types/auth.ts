@@ -22,7 +22,22 @@ export interface LoginResponse {
   message: string
   data: {
     user: User
+    accessToken: string
+    refreshToken: string
+    accessExpiresIn: number
     token: string
+  }
+  isSuccess: boolean
+  statusCode: number
+  developerError: string
+}
+
+export interface RefreshResponse {
+  message: string
+  data: {
+    accessToken: string
+    refreshToken: string
+    accessExpiresIn: number
   }
   isSuccess: boolean
   statusCode: number

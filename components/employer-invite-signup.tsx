@@ -109,24 +109,25 @@ export default function EmployerInviteSignup({
     let cancelled = false
     ;(async () => {
       try {
-        // The match endpoint requires auth in our backend currently — we'll use the
-        // public verify response to surface labels. As a pragmatic fallback for the
-        // estimación box on the public page, we hard-code the seeded values:
-        //   PARTICULAR_HOME → 6 / 5 / 1
-        //   BUSINESS_STATIC → 8 / 2 / 1
-        //   BUSINESS_REMOTE → 12 / 1 / 1
-        // (Public consumers don't need the database value — only an indicative
-        // breakdown. The backend re-applies live values at acceptance time.)
-        const map: Record<string, MatchedPlan> = {
-          "INDIVIDUAL_HOME":   { monthlyFixed: 6, perWorkCenter: 5, perWorker: 1 },
-          "FREELANCER_STATIC": { monthlyFixed: 8, perWorkCenter: 2, perWorker: 1 },
-          "FREELANCER_REMOTE": { monthlyFixed: 12, perWorkCenter: 1, perWorker: 1 },
-          "COMPANY_STATIC":    { monthlyFixed: 8, perWorkCenter: 2, perWorker: 1 },
-          "COMPANY_REMOTE":    { monthlyFixed: 12, perWorkCenter: 1, perWorker: 1 },
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_BASE_URL}/rate-plans/match?subTypeId=${subTypeId}&typeId=${typeId}`,
+        )
+        if (!res.ok) {
+          if (!cancelled) setMatchedPlan(null)
+          return
         }
-        const tariffKey = allFees.find((f) => f.id === typeId)?.key
-        const k = `${form.class}_${tariffKey}`
-        if (!cancelled) setMatchedPlan(map[k] || null)
+        const json = await res.json()
+        if (cancelled) return
+        const data = json?.data
+        if (!data) {
+          setMatchedPlan(null)
+          return
+        }
+        setMatchedPlan({
+          monthlyFixed: Number(data.monthlyFixed),
+          perWorkCenter: Number(data.perWorkCenter),
+          perWorker: Number(data.perWorker),
+        })
       } catch {
         if (!cancelled) setMatchedPlan(null)
       }

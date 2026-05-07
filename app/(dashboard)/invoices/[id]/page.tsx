@@ -10,6 +10,7 @@ import { useTranslation } from "@/hooks/use-translation"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { AnimatedLoader } from "@/components/animated-loader"
+import { apiFetch, apiFetchRaw } from "@/lib/api"
 
 interface InvoiceSnapshotRow {
   id?: number
@@ -85,34 +86,11 @@ export default function InvoiceDetailPage() {
     if (!session?.accessToken) return
     setIsLoading(true)
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/invoices/${publicId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${session.accessToken}`,
-            "Content-Type": "application/json",
-          },
-        },
-      )
-      if (!res.ok) throw new Error("Failed to load invoice")
-      const json = await res.json()
-      const data: InvoiceDetail = json.data
-      setInvoice(data)
-
+      const json = await apiFetch<{ data: InvoiceDetail }>(`/invoices/${publicId}`)
+      setInvoice(json.data)
       try {
-        const eRes = await fetch(
-          `${process.env.NEXT_PUBLIC_API_BASE_URL}/employers/${data.employerId}`,
-          {
-            headers: {
-              Authorization: `Bearer ${session.accessToken}`,
-              "Content-Type": "application/json",
-            },
-          },
-        )
-        if (eRes.ok) {
-          const eJson = await eRes.json()
-          if (eJson?.data?.name) setEmployerName(eJson.data.name)
-        }
+        const eJson = await apiFetch<{ data: any }>(`/employers/${json.data.employerId}`)
+        if (eJson?.data?.name) setEmployerName(eJson.data.name)
       } catch {
         /* ignore */
       }
@@ -132,17 +110,7 @@ export default function InvoiceDetailPage() {
     if (!invoice || !session?.accessToken) return
     setIsActing(true)
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/invoices/${invoice.publicId}/mark-paid`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${session.accessToken}`,
-            "Content-Type": "application/json",
-          },
-        },
-      )
-      if (!res.ok) throw new Error("Failed to mark paid")
+      await apiFetch(`/invoices/${invoice.publicId}/mark-paid`, { method: "POST" })
       toast({ title: t("markedAsPaid") || "Marked as paid", variant: "success" as any })
       fetchInvoice()
     } catch (e: any) {
@@ -157,17 +125,7 @@ export default function InvoiceDetailPage() {
     if (!confirm(t("confirmCancelInvoice") || "Cancel this invoice?")) return
     setIsActing(true)
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/invoices/${invoice.publicId}/cancel`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${session.accessToken}`,
-            "Content-Type": "application/json",
-          },
-        },
-      )
-      if (!res.ok) throw new Error("Failed to cancel invoice")
+      await apiFetch(`/invoices/${invoice.publicId}/cancel`, { method: "POST" })
       toast({ title: t("invoiceCancelled") || "Invoice cancelled", variant: "success" as any })
       fetchInvoice()
     } catch (e: any) {
@@ -180,17 +138,11 @@ export default function InvoiceDetailPage() {
   const downloadPdf = async () => {
     if (!invoice || !session?.accessToken) return
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/invoices/${invoice.publicId}/pdf`,
-        {
-          headers: { Authorization: `Bearer ${session.accessToken}` },
-        },
-      )
+      const res = await apiFetchRaw(`/invoices/${invoice.publicId}/pdf`)
       if (!res.ok) throw new Error("Failed to load PDF")
       const blob = await res.blob()
       const objectUrl = URL.createObjectURL(blob)
       window.open(objectUrl, "_blank")
-      // Revoke later to free memory; the new tab keeps a snapshot.
       setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000)
     } catch (e: any) {
       toast({ title: e.message || "Error", variant: "destructive" })

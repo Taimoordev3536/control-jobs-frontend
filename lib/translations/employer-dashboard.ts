@@ -276,6 +276,15 @@ const employerDashboardTranslations: Record<string, Record<string, string>> = {
     addManualAttendance: "Add Manual Attendance",
     pendingAttendanceRequests: "pending attendance request(s)",
     reviewNow: "Review Now",
+
+    // Rate change banner
+    upcomingRateChange: "Your tariff is changing",
+    upcomingRateChangeBody: "From",
+    fixedFee: "Fixed fee",
+    perWorkCenter: "Per work center",
+    perWorker: "Per worker",
+    viewBilling: "View billing",
+    cancel: "Cancel",
   },
   es: {
     // Header viewAttendance 
@@ -555,6 +564,15 @@ const employerDashboardTranslations: Record<string, Record<string, string>> = {
     addManualAttendance: "Añadir asistencia manual",
     pendingAttendanceRequests: "solicitud(es) de asistencia pendiente(s)",
     reviewNow: "Revisar ahora",
+
+    // Aviso de cambio de tarifa
+    upcomingRateChange: "Tu tarifa va a cambiar",
+    upcomingRateChangeBody: "Desde el",
+    fixedFee: "Cuota fija",
+    perWorkCenter: "Por centro de trabajo",
+    perWorker: "Por trabajador",
+    viewBilling: "Ver facturación",
+    cancel: "Cancelar",
   },
 }
 

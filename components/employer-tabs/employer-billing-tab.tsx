@@ -24,6 +24,7 @@ import DataListTemplate, {
 } from "@/components/ui/data-list-template"
 import { Filter } from "lucide-react"
 import { exportToCSV, exportToXLSX, exportToPDF } from "@/lib/export"
+import { apiFetch } from "@/lib/api"
 
 interface BillingPreview {
   employerId: number
@@ -57,10 +58,18 @@ interface BillingPreview {
   }
   billingStatus: string
   trialEndsAt: string | null
+  pendingChange: {
+    effectiveAt: string
+    monthlyFixed: number
+    perWorkCenter: number
+    perWorker: number
+  } | null
 }
 
 interface Props {
   employerId: string
+  /** Optional slot rendered between the stat-card strip and the current-month calculation card. */
+  slotAfterRateCards?: React.ReactNode
 }
 
 const fmt = (n: number) => `${n.toFixed(2).replace(".", ",")} €`
@@ -84,7 +93,7 @@ interface InvoiceHistoryRow {
   status: string
 }
 
-export default function EmployerBillingTab({ employerId }: Props) {
+export default function EmployerBillingTab({ employerId, slotAfterRateCards }: Props) {
   const { t, tEnum } = useTranslation()
   const { session } = useAuth()
   const router = useRouter()
@@ -98,35 +107,17 @@ export default function EmployerBillingTab({ employerId }: Props) {
     setIsLoading(true)
     setError(null)
     try {
-      const [previewRes, historyRes] = await Promise.all([
-        fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/billing/preview`, {
+      const [previewJson, historyJson] = await Promise.all([
+        apiFetch<{ data: BillingPreview }>("/billing/preview", {
           method: "POST",
-          headers: {
-            Authorization: `Bearer ${session.accessToken}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ employerId }),
+          body: { employerId },
         }),
-        fetch(
-          `${process.env.NEXT_PUBLIC_API_BASE_URL}/invoices?employerId=${encodeURIComponent(employerId)}&pageSize=12`,
-          {
-            headers: {
-              Authorization: `Bearer ${session.accessToken}`,
-              "Content-Type": "application/json",
-            },
-          },
-        ),
+        apiFetch<{ data: InvoiceHistoryRow[] }>(
+          `/invoices?employerId=${encodeURIComponent(employerId)}&pageSize=12`,
+        ).catch(() => ({ data: [] as InvoiceHistoryRow[] })),
       ])
-      if (!previewRes.ok) throw new Error("Failed to load billing preview")
-      const previewJson = await previewRes.json()
       setPreview(previewJson.data)
-
-      if (historyRes.ok) {
-        const historyJson = await historyRes.json()
-        setHistory(historyJson.data || [])
-      } else {
-        setHistory([])
-      }
+      setHistory(historyJson.data || [])
     } catch (e: any) {
       setError(e.message || "Error")
     } finally {
@@ -178,6 +169,21 @@ export default function EmployerBillingTab({ employerId }: Props) {
 
   return (
     <div className="w-full">
+      {preview.pendingChange && (
+        <div className="mx-2 mt-2 rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/30 p-3 text-sm">
+          <div className="font-medium text-amber-900 dark:text-amber-200">
+            {t("upcomingRateChange") || "Your tariff is changing"}
+          </div>
+          <p className="mt-1 text-xs text-amber-900/90 dark:text-amber-200/90">
+            {t("upcomingRateChangeBody") || "From"}{" "}
+            <strong>{fmtDate(preview.pendingChange.effectiveAt)}</strong>: {t("fixedFee")}{" "}
+            <strong>{fmt(preview.pendingChange.monthlyFixed)}</strong>, {t("perWorkCenter")}{" "}
+            <strong>{fmt(preview.pendingChange.perWorkCenter)}</strong>, {t("perWorker")}{" "}
+            <strong>{fmt(preview.pendingChange.perWorker)}</strong>.
+          </p>
+        </div>
+      )}
+
       {/* Compact Stats Grid — copy of employer-dashboard.tsx pattern.
           Wrapped in `p-2` to align with the calculation card and the
           DataListTemplate below (both also use a p-2 outer indent). */}
@@ -231,6 +237,8 @@ export default function EmployerBillingTab({ employerId }: Props) {
           })}
         </div>
       </div>
+
+      {slotAfterRateCards}
 
       {/* Current month calculation — compact. Wrapped in a `p-2` outer
           div so the visible card edges line up with DataListTemplate's

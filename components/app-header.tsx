@@ -16,6 +16,7 @@ import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useNotifications } from "@/components/providers/notification-provider"
 import { X } from "lucide-react"
+import { formatLocalDateTime } from "@/lib/datetime"
 import { ClientTodayMergedQrDisplay } from "./dashboards/client-dashboard/client-today-merged-qr-display"
 
 interface AppHeaderProps {
@@ -47,6 +48,8 @@ export function AppHeader({ collapsed, toggleSidebar, style }: AppHeaderProps) {
       case "MANUAL_ATTENDANCE_APPROVED": return t("manualAttendanceApproved") || "Manual attendance approved"
       case "MANUAL_ATTENDANCE_REJECTED": return t("manualAttendanceRejected") || "Manual attendance rejected"
       case "MANUAL_ATTENDANCE_CANCELLED": return t("manualAttendanceCancelled") || "Manual attendance cancelled"
+      case "RATE_CHANGE_SCHEDULED": return t("rateChangeScheduledTitle") || "Tariff change scheduled"
+      case "RATE_CHANGE_CANCELLED": return t("rateChangeCancelledTitle") || "Tariff change cancelled"
       default: return t("notification")
     }
   }
@@ -55,6 +58,13 @@ export function AppHeader({ collapsed, toggleSidebar, style }: AppHeaderProps) {
     if (MANUAL_ATTENDANCE_TYPES.has(type)) {
       setNotifOpen(false)
       router.push("/jobs/manual-requests")
+      return
+    }
+    if (type === "RATE_CHANGE_SCHEDULED" || type === "RATE_CHANGE_CANCELLED") {
+      setNotifOpen(false)
+      // Partners see the live rate plans on /rates; employers manage their
+      // own subscription on /billing. Both pages surface the pending change.
+      router.push(userRole === "partner" ? "/rates" : "/billing")
     }
   }
   const [todayQrOpen, setTodayQrOpen] = useState(false)
@@ -153,7 +163,7 @@ export function AppHeader({ collapsed, toggleSidebar, style }: AppHeaderProps) {
                       </button>
                       <div className="font-semibold">{getNotifTitle(a.type)}</div>
                       <div className="text-muted-foreground">{a.message}</div>
-                      <div className="text-[11px] text-muted-foreground mt-1">{new Date(a.createdAt).toLocaleString()}</div>
+                      <div className="text-[11px] text-muted-foreground mt-1">{formatLocalDateTime(a.createdAt)}</div>
                     </div>
                     )
                   })}

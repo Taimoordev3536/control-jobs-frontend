@@ -17,8 +17,6 @@ import { useToast } from "@/hooks/use-toast"
 import GoogleAddressInput from "@/components/GoogleAddressInput"
 import ContreolJobs from "../../../icons/Logos/ControlJobs.svg"
 
-const trialOptions = Array.from({ length: 16 }, (_, i) => i) // 0..15
-
 export default function RegisterPage() {
   const router = useRouter()
   const { data: session } = useSession()
@@ -52,7 +50,6 @@ export default function RegisterPage() {
     email: "",
     class: "" as "INDIVIDUAL" | "COMPANY" | "FREELANCER" | "",
     fee: "",
-    trialDays: "15",
     responsible: "",
     password: "",
     confirmPassword: "",
@@ -130,29 +127,21 @@ export default function RegisterPage() {
         landline: form.landline,
         typeId: Number(form.fee),
         subTypeId,
-        trialDays: Number(form.trialDays),
         email: form.email,
         password: form.password,
         responsible: form.responsible,
         website: form.website, // honeypot
       }
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/employer-invitations/self-register`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        },
-      )
-      if (!res.ok) {
-        const errJson = await res.json().catch(() => null)
-        throw new Error(errJson?.message || "Registration failed")
-      }
+      const { apiFetch } = await import("@/lib/api")
+      await apiFetch("/employer-invitations/self-register", {
+        method: "POST",
+        body,
+        unauthenticated: true,
+      })
       toast({
         title: t("accountCreated") || "Account created!",
         variant: "success" as any,
       })
-      // Auto-login with the credentials they just chose
       await login(form.email, form.password)
     } catch (e: any) {
       toast({ title: e.message, variant: "destructive" })
@@ -324,24 +313,6 @@ export default function RegisterPage() {
                 </Select>
               </div>
 
-              <div>
-                <Label className="text-xs">{t("probationPeriod")}</Label>
-                <div className="flex items-center gap-2 mt-1">
-                  <Select value={form.trialDays} onValueChange={(v) => update("trialDays", v)}>
-                    <SelectTrigger className="w-20 h-9 text-xs">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-60">
-                      {trialOptions.map((n) => (
-                        <SelectItem key={n} value={String(n)}>
-                          {n}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <span className="text-xs text-muted-foreground">{t("days")}</span>
-                </div>
-              </div>
             </>
           )}
 

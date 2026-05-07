@@ -97,6 +97,18 @@ export function useAuth() {
 
   const logout = async () => {
     try {
+      const refreshToken = session?.refreshToken
+      if (refreshToken) {
+        try {
+          await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/logout`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ refreshToken }),
+          })
+        } catch {
+          /* best-effort; signOut still wipes the local session */
+        }
+      }
       await signOut({ redirect: false })
       toast({
         title: t("logoutTitle"),

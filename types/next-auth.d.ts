@@ -13,6 +13,8 @@ declare module "next-auth" {
       lastName: string | null
     } & DefaultSession["user"]
     accessToken: string
+    refreshToken: string
+    error?: "RefreshFailed"
   }
 
   interface User extends DefaultUser {
@@ -22,17 +24,22 @@ declare module "next-auth" {
     firstName: string | null
     lastName: string | null
     accessToken: string
+    refreshToken: string
+    accessExpiresAt: number
   }
 }
 
 declare module "next-auth/jwt" {
   interface JWT {
     accessToken: string
+    refreshToken: string
+    accessExpiresAt: number
     publicId: string
     roleId: number
     partnerId: number | null
     role: User["role"]
     firstName: string | null
     lastName: string | null
+    error?: "RefreshFailed"
   }
 }

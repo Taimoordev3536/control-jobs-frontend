@@ -9,6 +9,7 @@ import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { exportToCSV, exportToXLSX, exportToPDF } from "@/lib/export"
 import { AnimatedLoader } from "@/components/animated-loader"
+import { apiFetch } from "@/lib/api"
 
 interface InvoiceRow {
   id: number
@@ -50,26 +51,7 @@ export default function InvoicesPage() {
       if (!session?.accessToken) return
       setIsLoading(true)
       try {
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_BASE_URL}/invoices?pageSize=100`,
-          {
-            headers: {
-              Authorization: `Bearer ${session.accessToken}`,
-              "Content-Type": "application/json",
-            },
-          },
-        )
-        if (!res.ok) {
-          let msg = "Failed to load invoices"
-          try {
-            const errJson = await res.json()
-            if (errJson?.message) msg = errJson.message
-          } catch {
-            /* ignore parse error */
-          }
-          throw new Error(msg)
-        }
-        const json = await res.json()
+        const json = await apiFetch<{ data: any[] }>("/invoices?pageSize=100")
         const list: InvoiceRow[] = (json.data || []).map((i: any) => ({
           id: i.id,
           publicId: i.publicId,
@@ -83,28 +65,16 @@ export default function InvoicesPage() {
         }))
         setInvoices(list)
 
-        // Fetch employer names only when admin/partner viewing multiple employers.
         if (showEmployerColumn && list.length > 0) {
           try {
-            const eRes = await fetch(
-              `${process.env.NEXT_PUBLIC_API_BASE_URL}/employers`,
-              {
-                headers: {
-                  Authorization: `Bearer ${session.accessToken}`,
-                  "Content-Type": "application/json",
-                },
-              },
-            )
-            if (eRes.ok) {
-              const eJson = await eRes.json()
-              const map: Record<number, string> = {}
-              for (const e of eJson.data || []) {
-                map[e.id] = e.name
-              }
-              setEmployerNames(map)
+            const eJson = await apiFetch<{ data: any[] }>("/employers")
+            const map: Record<number, string> = {}
+            for (const e of eJson.data || []) {
+              map[e.id] = e.name
             }
+            setEmployerNames(map)
           } catch {
-            /* swallow — fall back to id */
+            /* fall back to id */
           }
         }
       } catch (e: any) {

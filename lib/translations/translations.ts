@@ -804,6 +804,36 @@ surveyMonitoringValueTips: "Set a limit. If responses are under this value, an a
     readOnlyForRole: "Read-only",
     myInvoices: "My invoices",
 
+    // Rate change notice (admin /rates page)
+    pendingRateChange: "Scheduled rate change",
+    effectiveFrom: "Effective from",
+    rateChangeNotice:
+      "Changes saved here take effect 30 days after submission. Affected employers see a notice on their billing page.",
+    confirmCancelPending: "Cancel the scheduled rate change?",
+    pendingCancelled: "Scheduled change cancelled",
+    pendingChangeFor: "Pending change for",
+    newPrices: "New prices",
+
+    // Upcoming rate change (employer billing tab)
+    upcomingRateChange: "Your tariff is changing",
+    upcomingRateChangeBody: "From",
+
+    // Subscription cancellation
+    cancelSubscription: "Cancel subscription",
+    cancelSubscriptionExplain:
+      "Stop future billing. Past invoices remain unchanged.",
+    cancelling: "Cancelling...",
+    confirmCancelSubscription:
+      "Cancel your subscription? You'll keep access until the end of the current billing period.",
+    subscriptionCancelled: "Subscription cancelled",
+    subscriptionCancelledNotice:
+      "Your subscription is cancelled. No further invoices will be issued.",
+    billingViewedFromEmployerDetail:
+      "Open an employer to view their billing.",
+    rateChangeScheduledTitle: "Tariff change scheduled",
+    rateChangeCancelledTitle: "Tariff change cancelled",
+    viewBilling: "View billing",
+
     // Invitation flow (Method 2 — bulk reusable links)
     inviteEmployer: "Bulk invitations",
     inviteEmployerSubtitle: "Generate a single shareable link with locked Partner / Discount / Trial.",
@@ -1733,6 +1763,36 @@ surveyMonitoringValueTips: "Set a limit. If responses are under this value, an a
     saved: "Guardado",
     readOnlyForRole: "Solo lectura",
     myInvoices: "Mis facturas",
+
+    // Aviso de cambio de tarifa (página /rates de admin)
+    pendingRateChange: "Cambio de tarifa programado",
+    effectiveFrom: "Efectivo desde",
+    rateChangeNotice:
+      "Los cambios guardados aquí entran en vigor 30 días después de su envío. Los empleadores afectados verán un aviso en su página de facturación.",
+    confirmCancelPending: "¿Cancelar el cambio de tarifa programado?",
+    pendingCancelled: "Cambio programado cancelado",
+    pendingChangeFor: "Cambio pendiente para",
+    newPrices: "Nuevos precios",
+
+    // Aviso de cambio próximo (pestaña Facturación del empleador)
+    upcomingRateChange: "Tu tarifa va a cambiar",
+    upcomingRateChangeBody: "Desde el",
+
+    // Cancelación de suscripción
+    cancelSubscription: "Cancelar suscripción",
+    cancelSubscriptionExplain:
+      "Detiene la facturación futura. Las facturas anteriores no se modifican.",
+    cancelling: "Cancelando...",
+    confirmCancelSubscription:
+      "¿Cancelar tu suscripción? Mantendrás el acceso hasta el final del período de facturación actual.",
+    subscriptionCancelled: "Suscripción cancelada",
+    subscriptionCancelledNotice:
+      "Tu suscripción está cancelada. No se emitirán más facturas.",
+    billingViewedFromEmployerDetail:
+      "Abre un empleador para ver su facturación.",
+    rateChangeScheduledTitle: "Cambio de tarifa programado",
+    rateChangeCancelledTitle: "Cambio de tarifa cancelado",
+    viewBilling: "Ver facturación",
 
     // Invitation flow (Method 2 — enlaces reutilizables masivos)
     inviteEmployer: "Invitaciones masivas",

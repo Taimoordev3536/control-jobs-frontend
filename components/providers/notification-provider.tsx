@@ -11,9 +11,12 @@ type AlertType =
   | "MANUAL_ATTENDANCE_APPROVED"
   | "MANUAL_ATTENDANCE_REJECTED"
   | "MANUAL_ATTENDANCE_CANCELLED"
+  | "RATE_CHANGE_SCHEDULED"
+  | "RATE_CHANGE_CANCELLED"
 
 type AlertItem = {
   id?: number
+  publicId?: string
   localId?: string
   type: AlertType
   jobId: number
@@ -51,6 +54,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
           const json = await res.json()
           const list: AlertItem[] = (json?.data || []).map((n: any) => ({
             id: n.id,
+            publicId: n.publicId,
             localId: `db-${n.id}`,
             type: n.type as AlertType,
             jobId: n.meta?.jobId || 0,
@@ -82,6 +86,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         MANUAL_ATTENDANCE_APPROVED: "Manual attendance approved",
         MANUAL_ATTENDANCE_REJECTED: "Manual attendance rejected",
         MANUAL_ATTENDANCE_CANCELLED: "Manual attendance cancelled",
+        RATE_CHANGE_SCHEDULED: "Tariff change scheduled",
+        RATE_CHANGE_CANCELLED: "Tariff change cancelled",
       }
       const variantMap: Record<string, "default" | "success" | "destructive"> = {
         CHECK_IN: "success",
@@ -90,6 +96,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         MANUAL_ATTENDANCE_APPROVED: "success",
         MANUAL_ATTENDANCE_REJECTED: "destructive",
         MANUAL_ATTENDANCE_CANCELLED: "default",
+        RATE_CHANGE_SCHEDULED: "default",
+        RATE_CHANGE_CANCELLED: "default",
       }
       toast({
         title: titleMap[alert.type] || "New notification",
@@ -110,8 +118,27 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     unreadCount: unread,
     items,
     markAllRead: () => setUnread(0),
-    dismiss: (localId: string) => setItems((prev) => prev.filter((a) => a.localId !== localId)),
-  }), [unread, items])
+    dismiss: (localId: string) => {
+      const target = items.find((a) => a.localId === localId)
+      // Drop locally first so the click feels instant.
+      setItems((prev) => prev.filter((a) => a.localId !== localId))
+      // Persist the dismissal so it doesn't reappear on refresh. Live (WS-
+      // pushed) alerts that haven't been refetched yet won't have a publicId
+      // — those will resurface on next /alerts fetch with their real id and
+      // can be dismissed again then.
+      if (target?.publicId && session?.accessToken) {
+        fetch(
+          `${process.env.NEXT_PUBLIC_API_BASE_URL}/alerts/${target.publicId}`,
+          {
+            method: "DELETE",
+            headers: { Authorization: `Bearer ${session.accessToken}` },
+          },
+        ).catch(() => {
+          /* swallow — local dismissal still wins UX-wise */
+        })
+      }
+    },
+  }), [unread, items, session?.accessToken])
 
   return <NotificationCtx.Provider value={value}>{children}</NotificationCtx.Provider>
 }

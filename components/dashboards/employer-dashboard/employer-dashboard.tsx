@@ -197,20 +197,44 @@ export default function EmployerDashboard() {
   const [billingStatus, setBillingStatus] = useState<string | null>(null)
   const [currentPaymentMethodId, setCurrentPaymentMethodId] = useState<number | null>(null)
   const [showPaymentMethodModal, setShowPaymentMethodModal] = useState(false)
+  const [pendingRateChange, setPendingRateChange] = useState<{
+    effectiveAt: string
+    monthlyFixed: number
+    perWorkCenter: number
+    perWorker: number
+  } | null>(null)
 
   useEffect(() => {
     if (!session?.accessToken) return
     let cancelled = false
     const load = async () => {
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/employers/me`, {
+        const meRes = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/employers/me`, {
           headers: { Authorization: `Bearer ${session.accessToken}` },
         })
-        if (!res.ok) return
-        const json = await res.json()
-        if (!cancelled) {
-          setBillingStatus(json?.data?.billingStatus ?? null)
-          setCurrentPaymentMethodId(json?.data?.paymentMethodId ?? null)
+        if (!meRes.ok) return
+        const meJson = await meRes.json()
+        if (cancelled) return
+        const employerId = meJson?.data?.id
+        setBillingStatus(meJson?.data?.billingStatus ?? null)
+        setCurrentPaymentMethodId(meJson?.data?.paymentMethodId ?? null)
+
+        if (employerId) {
+          const previewRes = await fetch(
+            `${process.env.NEXT_PUBLIC_API_BASE_URL}/billing/preview`,
+            {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${session.accessToken}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ employerId }),
+            },
+          )
+          if (previewRes.ok && !cancelled) {
+            const previewJson = await previewRes.json()
+            setPendingRateChange(previewJson?.data?.pendingChange ?? null)
+          }
         }
       } catch {
         /* swallow — banner just won't render */
@@ -763,8 +787,8 @@ export default function EmployerDashboard() {
             <Card className="border-l-4 border-l-amber-500 border border-amber-200 bg-gradient-to-r from-amber-50 to-amber-50/40 dark:from-amber-950/40 dark:to-amber-950/10 shadow-sm">
               <CardContent className="p-4 flex items-center justify-between gap-4 flex-wrap">
                 <div className="flex items-start gap-3 min-w-0 flex-1">
-                  <div className="h-10 w-10 rounded-full bg-amber-500 flex items-center justify-center shrink-0 shadow-sm">
-                    <AlertCircle className="w-5 h-5 text-white" />
+                  <div className="p-1.5 rounded-lg bg-amber-500 flex items-center justify-center shrink-0">
+                    <AlertCircle className="w-4 h-4 text-white" />
                   </div>
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">
@@ -782,6 +806,70 @@ export default function EmployerDashboard() {
                   {cta}
                   <span aria-hidden>→</span>
                 </Button>
+              </CardContent>
+            </Card>
+          )
+        })()}
+
+        {pendingRateChange && (() => {
+          const effDate = (() => {
+            const m = pendingRateChange.effectiveAt.match(/^(\d{4})-(\d{2})-(\d{2})/)
+            return m ? `${m[3]}/${m[2]}/${m[1]}` : pendingRateChange.effectiveAt
+          })()
+          const fmt = (n: number) => `${n.toFixed(2).replace(".", ",")} €`
+          return (
+            <Card className="border-l-4 border-l-amber-500 border border-amber-200 bg-gradient-to-r from-amber-50 to-amber-50/40 dark:from-amber-950/40 dark:to-amber-950/10 shadow-sm">
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between gap-4 flex-wrap">
+                  <div className="flex items-start gap-3 min-w-0 flex-1">
+                    <div className="p-1.5 rounded-lg bg-amber-500 flex items-center justify-center shrink-0">
+                      <AlertCircle className="w-4 h-4 text-white" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">
+                          {t("upcomingRateChange")}
+                        </p>
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-amber-200/60 dark:bg-amber-900/50 text-amber-900 dark:text-amber-200">
+                          {t("upcomingRateChangeBody")} {effDate}
+                        </span>
+                      </div>
+                      <div className="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-x-6 gap-y-1 text-xs text-amber-900/90 dark:text-amber-200/90">
+                        <div className="flex justify-between sm:block">
+                          <span className="text-amber-800/70 dark:text-amber-300/70">
+                            {t("fixedFee")}
+                          </span>
+                          <strong className="ml-2 sm:ml-0 sm:block sm:mt-0.5 text-sm">
+                            {fmt(pendingRateChange.monthlyFixed)}
+                          </strong>
+                        </div>
+                        <div className="flex justify-between sm:block">
+                          <span className="text-amber-800/70 dark:text-amber-300/70">
+                            {t("perWorkCenter")}
+                          </span>
+                          <strong className="ml-2 sm:ml-0 sm:block sm:mt-0.5 text-sm">
+                            {fmt(pendingRateChange.perWorkCenter)}
+                          </strong>
+                        </div>
+                        <div className="flex justify-between sm:block">
+                          <span className="text-amber-800/70 dark:text-amber-300/70">
+                            {t("perWorker")}
+                          </span>
+                          <strong className="ml-2 sm:ml-0 sm:block sm:mt-0.5 text-sm">
+                            {fmt(pendingRateChange.perWorker)}
+                          </strong>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={() => router.push("/billing")}
+                    className="border-amber-400 text-amber-900 dark:text-amber-200 hover:bg-amber-100 dark:hover:bg-amber-900/40 shadow-sm shrink-0"
+                  >
+                    {t("viewBilling")}
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           )

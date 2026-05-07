@@ -179,20 +179,10 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded, 
     let cancelled = false
     ;(async () => {
       try {
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_BASE_URL}/rate-plans/match?subTypeId=${subTypeId}&typeId=${typeId}`,
-          {
-            headers: {
-              Authorization: `Bearer ${session.accessToken}`,
-              "Content-Type": "application/json",
-            },
-          },
+        const { apiFetch } = await import("@/lib/api")
+        const json = await apiFetch<{ data: any }>(
+          `/rate-plans/match?subTypeId=${subTypeId}&typeId=${typeId}`,
         )
-        if (!res.ok) {
-          if (!cancelled) setMatchedPlan(null)
-          return
-        }
-        const json = await res.json()
         if (cancelled) return
         const data = json?.data
         if (!data) {
