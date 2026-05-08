@@ -1,14 +1,12 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { Copy, Plus, Filter, Pencil, Trash2, X } from "lucide-react"
+import { Copy, Trash2, Plus, Filter, Pencil, X } from "lucide-react"
 import { useTranslation } from "@/hooks/use-translation"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import RedemptionDrawer from "@/components/redemption-drawer"
-import BulkInvitationModal from "@/components/bulk-invitation-modal"
-import TargetInvitationList from "@/components/target-invitation-list"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import BulkSimpleInvitationModal from "@/components/bulk-simple-invitation-modal"
 import { AnimatedLoader } from "@/components/animated-loader"
 import DataListTemplate, {
   ExcelIcon,
@@ -17,14 +15,14 @@ import DataListTemplate, {
 } from "@/components/ui/data-list-template"
 import { exportToCSV, exportToXLSX, exportToPDF } from "@/lib/export"
 
+type Target = "worker" | "client"
+
 interface Invitation {
   id: number
   publicId: string
   description: string
-  partnerId: number
-  partner?: { id: number; name: string }
-  discountPercent: number
-  trialDays: number
+  employerId: number
+  employer?: { id: number; name: string }
   maxRedemptions: number | null
   status: "PENDING" | "ACCEPTED" | "EXPIRED" | "REVOKED"
   expiresAt: string | null
@@ -33,58 +31,35 @@ interface Invitation {
   acceptedCount?: number
 }
 
-interface PartnerOption {
-  id: number
-  name: string
+const RESOURCE_BY_TARGET: Record<Target, string> = {
+  worker: "worker-invitations",
+  client: "client-invitations",
 }
 
-export default function InvitePage() {
+const FILE_BASE_BY_TARGET: Record<Target, string> = {
+  worker: "worker-invitations",
+  client: "client-invitations",
+}
+
+export default function TargetInvitationList({ target }: { target: Target }) {
   const { t } = useTranslation()
-  const { session, hasRole, isLoading: isAuthLoading } = useAuth()
+  const { session } = useAuth()
   const { toast } = useToast()
 
-  const isAdmin = hasRole("admin")
-  const isPartner = hasRole("partner")
-  const isEmployer = hasRole("employer")
-  const canIssue = isAdmin || isPartner || isEmployer
+  const apiPath = RESOURCE_BY_TARGET[target]
 
-  // Data
-  const [partners, setPartners] = useState<PartnerOption[]>([])
   const [invitations, setInvitations] = useState<Invitation[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [drawerInvitation, setDrawerInvitation] = useState<Invitation | null>(null)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [editingInvitation, setEditingInvitation] = useState<Invitation | null>(null)
 
-  useEffect(() => {
-    if (!isAdmin || !session?.accessToken) return
-    ;(async () => {
-      try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/partners`, {
-          headers: { Authorization: `Bearer ${session.accessToken}` },
-        })
-        if (res.ok) {
-          const json = await res.json()
-          setPartners((json.data || []).map((p: any) => ({ id: p.id, name: p.name })))
-        }
-      } catch {
-        /* ignore */
-      }
-    })()
-  }, [isAdmin, session?.accessToken])
-
   const fetchInvitations = async () => {
     if (!session?.accessToken) return
-    // Employer-only users land in the worker/client tabs branch and don't
-    // need to hit the employer-invitations endpoint (they're not allowed to).
-    if (isEmployer && !isAdmin && !isPartner) {
-      setIsLoading(false)
-      return
-    }
     setIsLoading(true)
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/employer-invitations`,
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/${apiPath}`,
         { headers: { Authorization: `Bearer ${session.accessToken}` } },
       )
       if (!res.ok) throw new Error("Failed to load")
@@ -100,7 +75,7 @@ export default function InvitePage() {
   useEffect(() => {
     fetchInvitations()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session?.accessToken, isEmployer, isAdmin, isPartner])
+  }, [session?.accessToken, apiPath])
 
   const copyLink = async (link?: string) => {
     if (!link) {
@@ -128,7 +103,7 @@ export default function InvitePage() {
     if (!confirm(t("confirmRevoke") || "Revoke this invitation?")) return
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/employer-invitations/${publicId}/revoke`,
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/${apiPath}/${publicId}/revoke`,
         {
           method: "POST",
           headers: { Authorization: `Bearer ${session?.accessToken}` },
@@ -150,7 +125,7 @@ export default function InvitePage() {
       return
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/employer-invitations/${publicId}`,
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/${apiPath}/${publicId}`,
         {
           method: "DELETE",
           headers: { Authorization: `Bearer ${session?.accessToken}` },
@@ -173,37 +148,11 @@ export default function InvitePage() {
   const fmtDate = (d?: string | null) =>
     d ? new Date(d).toLocaleDateString() : "—"
 
-  const partnerName = useMemo(() => {
-    return (id: number, fallback?: string) =>
-      partners.find((p) => p.id === id)?.name || fallback || `#${id}`
-  }, [partners])
-
-  // Columns used by DataListTemplate. `render` is honoured for both display
-  // and search/sort/filter (the template extracts string text from the node
-  // when needed) so a single column definition covers the cell + the export.
   const invitationColumns = useMemo(
     () => [
       {
         key: "description",
         label: t("description") || "Descripción",
-        sortable: true,
-      },
-      {
-        key: "partner",
-        label: t("partner") || "Partner",
-        sortable: true,
-      },
-      {
-        key: "discountPercent",
-        label: "% Dto.",
-        align: "center" as const,
-        sortable: true,
-        render: (v: any) => `${Number(v)}%`,
-      },
-      {
-        key: "trialDays",
-        label: t("trial") || "Prueba",
-        align: "center" as const,
         sortable: true,
       },
       {
@@ -299,17 +248,12 @@ export default function InvitePage() {
     [t],
   )
 
-  // Each row carries flat keys for the columns plus `__raw` so handlers
-  // (e.g. opening the redemption drawer) can use the original object.
   const invitationRows = useMemo(
     () =>
       invitations.map((inv) => ({
         id: inv.id,
         publicId: inv.publicId,
         description: inv.description,
-        partner: partnerName(inv.partnerId, inv.partner?.name),
-        discountPercent: Number(inv.discountPercent),
-        trialDays: inv.trialDays,
         createdAt: inv.createdAt,
         expiresAt: inv.expiresAt,
         status: inv.status,
@@ -318,8 +262,10 @@ export default function InvitePage() {
         maxRedemptions: inv.maxRedemptions,
         __raw: inv,
       })),
-    [invitations, partnerName],
+    [invitations],
   )
+
+  const fileBase = FILE_BASE_BY_TARGET[target]
 
   const actionButtons = useMemo(
     () => [
@@ -338,72 +284,41 @@ export default function InvitePage() {
       {
         icon: ExcelIcon,
         onClick: () =>
-          exportToXLSX(invitationRows, invitationColumns, "invitations.xls"),
+          exportToXLSX(invitationRows, invitationColumns, `${fileBase}.xls`),
         title: t("exportExcel") || "Export Excel",
         type: "excel" as const,
       },
       {
         icon: CsvIcon,
         onClick: () =>
-          exportToCSV(invitationRows, invitationColumns, "invitations.csv"),
+          exportToCSV(invitationRows, invitationColumns, `${fileBase}.csv`),
         title: t("exportCsv") || "Export CSV",
         type: "csv" as const,
       },
       {
         icon: PdfIcon,
         onClick: () =>
-          exportToPDF(invitationRows, invitationColumns, "invitations.pdf"),
+          exportToPDF(invitationRows, invitationColumns, `${fileBase}.pdf`),
         title: t("exportPdf") || "Export PDF",
         type: "pdf" as const,
       },
     ],
-    [t, invitationRows, invitationColumns],
+    [t, invitationRows, invitationColumns, fileBase],
   )
 
-  if (isAuthLoading) {
-    return (
-      <div className="p-6">
-        <AnimatedLoader />
-      </div>
-    )
-  }
-
-  if (!canIssue) {
-    return (
-      <div className="p-6">
-        <p className="text-sm text-muted-foreground">
-          {t("noAccess") || "Access denied"}
-        </p>
-      </div>
-    )
-  }
-
-  if (isEmployer && !isAdmin && !isPartner) {
-    return (
-      <div className="w-full p-4">
-        <h1 className="text-xl font-semibold mb-3">
-          {t("invitationsList") || "Listado de invitaciones"}
-        </h1>
-        <Tabs defaultValue="workers" className="w-full">
-          <TabsList>
-            <TabsTrigger value="workers">{t("workers") || "Trabajadores"}</TabsTrigger>
-            <TabsTrigger value="clients">{t("clients") || "Clientes"}</TabsTrigger>
-          </TabsList>
-          <TabsContent value="workers" className="mt-4">
-            <TargetInvitationList target="worker" />
-          </TabsContent>
-          <TabsContent value="clients" className="mt-4">
-            <TargetInvitationList target="client" />
-          </TabsContent>
-        </Tabs>
-      </div>
-    )
-  }
+  const titleCreate =
+    target === "worker"
+      ? t("inviteWorkerTitle") || "Invite worker"
+      : t("inviteClientTitle") || "Invite client"
+  const titleEdit =
+    target === "worker"
+      ? t("editWorkerInvitation") || "Edit worker invitation"
+      : t("editClientInvitation") || "Edit client invitation"
 
   return (
     <>
       <DataListTemplate
-        title={t("invitationsList") || "Listado de invitaciones"}
+        title=""
         data={invitationRows}
         columns={invitationColumns}
         isLoading={isLoading}
@@ -417,27 +332,27 @@ export default function InvitePage() {
         }
       />
 
-      <BulkInvitationModal
+      <BulkSimpleInvitationModal
         open={showCreateModal}
         onOpenChange={setShowCreateModal}
         onCreated={fetchInvitations}
+        apiPath={apiPath}
+        titleCreate={titleCreate}
+        titleEdit={titleEdit}
       />
 
-      <BulkInvitationModal
+      <BulkSimpleInvitationModal
         open={!!editingInvitation}
         onOpenChange={(o) => !o && setEditingInvitation(null)}
         onCreated={fetchInvitations}
+        apiPath={apiPath}
+        titleCreate={titleCreate}
+        titleEdit={titleEdit}
         invitation={
           editingInvitation
             ? {
                 publicId: editingInvitation.publicId,
                 description: editingInvitation.description,
-                partnerId: editingInvitation.partnerId,
-                partnerName:
-                  editingInvitation.partner?.name ||
-                  partnerName(editingInvitation.partnerId),
-                discountPercent: Number(editingInvitation.discountPercent),
-                trialDays: editingInvitation.trialDays,
                 expiresAt: editingInvitation.expiresAt,
               }
             : null
@@ -447,6 +362,7 @@ export default function InvitePage() {
       <RedemptionDrawer
         invitation={drawerInvitation}
         onClose={() => setDrawerInvitation(null)}
+        target={target}
       />
     </>
   )

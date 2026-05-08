@@ -27,19 +27,35 @@ interface InvitationLite {
   maxRedemptions?: number | null
 }
 
+type RedemptionTarget = "employer" | "worker" | "client"
+
 interface Redemption {
   id: number
   redeemedEmail: string
-  redeemedEmployerId: number
   redeemedAt: string
+  redeemedEmployerId?: number
+  redeemedEmployer?: { id: number; name: string } | null
+  redeemedWorkerId?: number
+  redeemedWorker?: { id: number; code?: string } | null
+  redeemedUser?: { id: number; name?: string } | null
+  redeemedClientId?: number
+  redeemedClient?: { id: number; name: string } | null
+}
+
+const RESOURCE_BY_TARGET: Record<RedemptionTarget, string> = {
+  employer: "employer-invitations",
+  worker: "worker-invitations",
+  client: "client-invitations",
 }
 
 export default function RedemptionDrawer({
   invitation,
   onClose,
+  target = "employer",
 }: {
   invitation: InvitationLite | null
   onClose: () => void
+  target?: RedemptionTarget
 }) {
   const { session } = useAuth()
   const { toast } = useToast()
@@ -58,8 +74,9 @@ export default function RedemptionDrawer({
     setLoading(true)
     ;(async () => {
       try {
+        const resource = RESOURCE_BY_TARGET[target]
         const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_BASE_URL}/employer-invitations/${invitation.publicId}/redemptions`,
+          `${process.env.NEXT_PUBLIC_API_BASE_URL}/${resource}/${invitation.publicId}/redemptions`,
           { headers: { Authorization: `Bearer ${session.accessToken}` } },
         )
         if (!res.ok) throw new Error("Failed to load redemptions")
@@ -74,10 +91,22 @@ export default function RedemptionDrawer({
     return () => {
       cancelled = true
     }
-  }, [invitation, session?.accessToken, toast])
+  }, [invitation, session?.accessToken, target, toast])
+
+  const nameLabel =
+    target === "worker"
+      ? t("worker") || "Trabajador"
+      : target === "client"
+        ? t("client") || "Cliente"
+        : t("employer") || "Empleador"
 
   const columns = useMemo(
     () => [
+      {
+        key: "name",
+        label: nameLabel,
+        sortable: true,
+      },
       {
         key: "redeemedEmail",
         label: t("email") || "Email",
@@ -89,17 +118,28 @@ export default function RedemptionDrawer({
         sortable: true,
       },
     ],
-    [t],
+    [t, nameLabel],
   )
 
   const data = useMemo(
     () =>
-      rows.map((r) => ({
-        id: r.id,
-        redeemedEmail: r.redeemedEmail,
-        redeemedAtDisplay: new Date(r.redeemedAt).toLocaleString(),
-      })),
-    [rows],
+      rows.map((r) => {
+        const name =
+          target === "worker"
+            ? r.redeemedUser?.name ||
+              r.redeemedWorker?.code ||
+              `#${r.redeemedWorkerId ?? "?"}`
+            : target === "client"
+              ? r.redeemedClient?.name || `#${r.redeemedClientId ?? "?"}`
+              : r.redeemedEmployer?.name || `#${r.redeemedEmployerId ?? "?"}`
+        return {
+          id: r.id,
+          name,
+          redeemedEmail: r.redeemedEmail,
+          redeemedAtDisplay: new Date(r.redeemedAt).toLocaleString(),
+        }
+      }),
+    [rows, target],
   )
 
   const fileBase = (invitation?.description || "redemptions")

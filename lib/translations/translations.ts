@@ -837,6 +837,10 @@ surveyMonitoringValueTips: "Set a limit. If responses are under this value, an a
     // Invitation flow (Method 2 — bulk reusable links)
     inviteEmployer: "Bulk invitations",
     inviteEmployerSubtitle: "Generate a single shareable link with locked Partner / Discount / Trial.",
+    inviteWorkerTitle: "Invite Worker",
+    inviteClientTitle: "Invite Client",
+    invitations: "Invitations",
+    noActiveJobs: "No active jobs found",
     bulkInvitationsSubtitle: "Generate a single shareable link with locked Partner / Discount / Trial. The same link can be redeemed by many recipients.",
     createInvitation: "Create invitation",
     sendInvite: "Send invite",
@@ -1797,6 +1801,10 @@ surveyMonitoringValueTips: "Set a limit. If responses are under this value, an a
     // Invitation flow (Method 2 — enlaces reutilizables masivos)
     inviteEmployer: "Invitaciones masivas",
     inviteEmployerSubtitle: "Genera un único enlace compartible con Partner, Descuento y Período de prueba bloqueados.",
+    inviteWorkerTitle: "Invitar trabajador",
+    inviteClientTitle: "Invitar cliente",
+    invitations: "Invitaciones",
+    noActiveJobs: "No hay trabajos activos",
     bulkInvitationsSubtitle: "Genera un único enlace compartible con Partner, Descuento y Período de prueba bloqueados. El mismo enlace lo pueden canjear muchos destinatarios.",
     createInvitation: "Crear invitación",
     sendInvite: "Enviar invitación",

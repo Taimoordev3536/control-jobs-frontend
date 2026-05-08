@@ -148,6 +148,8 @@ const dashboardTranslations: Record<string, Record<string, string>> = {
     // Manual attendance buttons (worker / client job cards)
     requestManualAttendance: "Request Manual Attendance",
     addManualAttendance: "Add Manual Attendance",
+
+    noActiveJobs: "No active jobs found",
   },
   es: {
 
@@ -296,6 +298,8 @@ const dashboardTranslations: Record<string, Record<string, string>> = {
     // Manual attendance buttons (worker / client job cards)
     requestManualAttendance: "Solicitar asistencia manual",
     addManualAttendance: "Añadir asistencia manual",
+
+    noActiveJobs: "No hay trabajos activos",
   },
 }
 

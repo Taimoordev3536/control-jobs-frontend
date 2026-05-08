@@ -102,7 +102,7 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded, 
   ]
 
   const [partners, setPartners] = useState<
-    { name: string; id: string | number; commission: number }[]
+    { name: string; id: string | number; commission: number; isSystem: boolean }[]
   >([])
 
   // Pre-select partner when defaultPartnerId is provided
@@ -138,6 +138,7 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded, 
               name: p.name,
               id: p.publicId || p.id,
               commission: Number(p.commission) || 0,
+              isSystem: p.taxId === "SYSTEM",
             })),
           )
         }
@@ -148,14 +149,20 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded, 
     fetchPartners()
   }, [session?.accessToken])
 
-  // Recalculate maxDiscount whenever partner selection changes
+  // Recalculate maxDiscount whenever partner selection changes.
+  // ControlJobs (system partner) is exempt from the commission cap and
+  // accepts any discount 0–100.
   useEffect(() => {
     if (!formData.partner) {
       setMaxDiscount(null)
       return
     }
     const selected = partners.find((p) => String(p.id) === String(formData.partner))
-    setMaxDiscount(selected ? selected.commission : null)
+    if (!selected) {
+      setMaxDiscount(null)
+      return
+    }
+    setMaxDiscount(selected.isSystem ? 100 : selected.commission)
   }, [formData.partner, partners])
 
   // Map UI Clase value → subTypeId expected by the backend lookup.
@@ -751,23 +758,21 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded, 
                 <div className="flex items-center mt-1">
                   <Input
                     id="discount"
-                    type="number"
-                    min={0}
-                    max={maxDiscount ?? undefined}
+                    type="text"
+                    inputMode="numeric"
                     value={formData.discount}
                     onChange={(e) => {
-                      const raw = e.target.value
-                      if (raw === "") {
+                      const digits = e.target.value.replace(/\D/g, "").slice(0, 3)
+                      if (digits === "") {
                         updateFormData("discount", "")
                         return
                       }
-                      const num = Number(raw)
-                      if (Number.isNaN(num)) return
-                      const clamped =
-                        maxDiscount !== null && num > maxDiscount ? maxDiscount : num
-                      updateFormData("discount", String(clamped))
+                      let num = Number(digits)
+                      if (num > 100) num = 100
+                      if (maxDiscount !== null && num > maxDiscount) num = maxDiscount
+                      updateFormData("discount", String(num))
                     }}
-                    className="w-20"
+                    className="w-24"
                   />
                   <span className="ml-2 text-muted-foreground">%</span>
                 </div>

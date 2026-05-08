@@ -27,12 +27,25 @@ import { useToast } from "@/hooks/use-toast"
 interface PartnerOption {
   id: number
   name: string
+  commission: number
+  isSystem: boolean
+}
+
+interface InvitationToEdit {
+  publicId: string
+  description: string
+  partnerId: number
+  partnerName?: string
+  discountPercent: number | string
+  trialDays: number | string
+  expiresAt?: string | null
 }
 
 interface Props {
   open: boolean
   onOpenChange: (open: boolean) => void
   onCreated?: () => void
+  invitation?: InvitationToEdit | null
 }
 
 const trialOptions = Array.from({ length: 31 }, (_, i) => i)
@@ -41,14 +54,16 @@ export default function BulkInvitationModal({
   open,
   onOpenChange,
   onCreated,
+  invitation,
 }: Props) {
+  const isEditMode = !!invitation
   const { t } = useTranslation()
   const { session, hasRole } = useAuth()
   const { toast } = useToast()
   const isAdmin = hasRole("admin")
 
   const [description, setDescription] = useState("")
-  const [discountPercent, setDiscountPercent] = useState("10")
+  const [discountPercent, setDiscountPercent] = useState("0")
   const [trialDays, setTrialDays] = useState("15")
   const [partnerId, setPartnerId] = useState<string>("")
   const [expiresAt, setExpiresAt] = useState<string>("")
@@ -65,7 +80,14 @@ export default function BulkInvitationModal({
         })
         if (res.ok) {
           const json = await res.json()
-          setPartners((json.data || []).map((p: any) => ({ id: p.id, name: p.name })))
+          setPartners(
+            (json.data || []).map((p: any) => ({
+              id: p.id,
+              name: p.name,
+              commission: Number(p.commission ?? 0),
+              isSystem: p.taxId === "SYSTEM",
+            })),
+          )
         }
       } catch {
         /* ignore */
@@ -73,18 +95,30 @@ export default function BulkInvitationModal({
     })()
   }, [open, isAdmin, session?.accessToken])
 
-  // Reset whenever the dialog opens so an old draft doesn't leak in.
+  // Reset whenever the dialog opens so an old draft doesn't leak in. In edit
+  // mode, prefill from the invitation being edited.
   useEffect(() => {
-    if (open) {
+    if (!open) return
+    if (invitation) {
+      setDescription(invitation.description ?? "")
+      setDiscountPercent(String(invitation.discountPercent ?? "0"))
+      setTrialDays(String(invitation.trialDays ?? "15"))
+      setPartnerId(String(invitation.partnerId ?? ""))
+      setExpiresAt(
+        invitation.expiresAt
+          ? new Date(invitation.expiresAt).toISOString().slice(0, 10)
+          : "",
+      )
+    } else {
       setDescription("")
-      setDiscountPercent("10")
+      setDiscountPercent("0")
       setTrialDays("15")
       setPartnerId("")
       setExpiresAt("")
     }
-  }, [open])
+  }, [open, invitation])
 
-  const create = async () => {
+  const submit = async () => {
     if (!description.trim()) {
       toast({
         title: t("descriptionRequired") || "Description is required",
@@ -92,11 +126,11 @@ export default function BulkInvitationModal({
       })
       return
     }
-    if (isAdmin && !partnerId) {
+    if (!isEditMode && isAdmin && !partnerId) {
       toast({ title: t("selectPartner") || "Select a partner", variant: "destructive" })
       return
     }
-    const discountNum = Number(discountPercent)
+    const discountNum = discountPercent === "" ? 0 : Number(discountPercent)
     if (isNaN(discountNum) || discountNum < 0 || discountNum > 100) {
       toast({
         title: t("invalidDiscount") || "Discount must be 0–100",
@@ -104,46 +138,70 @@ export default function BulkInvitationModal({
       })
       return
     }
+    if (isAdmin) {
+      const selected = partners.find((p) => String(p.id) === partnerId)
+      if (selected && !selected.isSystem && discountNum > selected.commission) {
+        toast({
+          title:
+            t("discountExceedsCommission") ||
+            `Discount cannot exceed partner commission (${selected.commission}%)`,
+          variant: "destructive",
+        })
+        return
+      }
+    }
 
     setIsCreating(true)
     try {
+      const url = isEditMode
+        ? `${process.env.NEXT_PUBLIC_API_BASE_URL}/employer-invitations/${invitation!.publicId}`
+        : `${process.env.NEXT_PUBLIC_API_BASE_URL}/employer-invitations`
+      const method = isEditMode ? "PATCH" : "POST"
+
       const body: any = {
         description: description.trim(),
         discountPercent: discountNum,
-        trialDays: Number(trialDays),
+        expiresAt: expiresAt ? new Date(expiresAt).toISOString() : null,
       }
-      if (isAdmin) body.partnerId = Number(partnerId)
-      if (expiresAt) body.expiresAt = new Date(expiresAt).toISOString()
+      if (!isEditMode) {
+        body.trialDays = Number(trialDays)
+        if (isAdmin) body.partnerId = Number(partnerId)
+      }
 
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/employer-invitations`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${session?.accessToken}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(body),
+      const res = await fetch(url, {
+        method,
+        headers: {
+          Authorization: `Bearer ${session?.accessToken}`,
+          "Content-Type": "application/json",
         },
-      )
+        body: JSON.stringify(body),
+      })
       if (!res.ok) {
         const errJson = await res.json().catch(() => null)
-        throw new Error(errJson?.message || "Failed to create")
+        throw new Error(errJson?.message || (isEditMode ? "Failed to update" : "Failed to create"))
       }
-      const json = await res.json()
-      const link = json?.data?.inviteLink
-      if (link) {
-        try {
-          await navigator.clipboard.writeText(link)
-          toast({
-            title: t("linkCreatedAndCopied") || "Link created and copied",
-            variant: "success" as any,
-          })
-        } catch {
-          toast({
-            title: t("linkCreated") || "Link created",
-            variant: "success" as any,
-          })
+
+      if (isEditMode) {
+        toast({
+          title: t("invitationUpdated") || "Invitation updated",
+          variant: "success" as any,
+        })
+      } else {
+        const json = await res.json()
+        const link = json?.data?.inviteLink
+        if (link) {
+          try {
+            await navigator.clipboard.writeText(link)
+            toast({
+              title: t("linkCreatedAndCopied") || "Link created and copied",
+              variant: "success" as any,
+            })
+          } catch {
+            toast({
+              title: t("linkCreated") || "Link created",
+              variant: "success" as any,
+            })
+          }
         }
       }
       onCreated?.()
@@ -160,7 +218,9 @@ export default function BulkInvitationModal({
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="text-xl sm:text-2xl font-semibold text-foreground text-center tracking-tight">
-            {t("createInvitation") || "Create invitation"}
+            {isEditMode
+              ? t("editInvitation") || "Edit invitation"
+              : t("createInvitation") || "Create invitation"}
           </DialogTitle>
         </DialogHeader>
 
@@ -168,15 +228,24 @@ export default function BulkInvitationModal({
           {isAdmin && (
             <div>
               <Label className="text-xs font-medium text-foreground">
-                {t("partner") || "Partner"} *
+                {t("partner") || "Partner"} {!isEditMode && "*"}
               </Label>
-              <Select value={partnerId} onValueChange={setPartnerId}>
+              <Select
+                value={partnerId}
+                onValueChange={setPartnerId}
+                disabled={isEditMode}
+              >
                 <SelectTrigger className="mt-1 h-9 text-xs">
                   <SelectValue
                     placeholder={t("selectPartner") || "Select partner"}
                   />
                 </SelectTrigger>
                 <SelectContent>
+                  {isEditMode && invitation?.partnerName && (
+                    <SelectItem value={String(invitation.partnerId)}>
+                      {invitation.partnerName}
+                    </SelectItem>
+                  )}
                   {partners.map((p) => (
                     <SelectItem key={p.id} value={String(p.id)}>
                       {p.name}
@@ -189,17 +258,23 @@ export default function BulkInvitationModal({
 
           <div>
             <Label className="text-xs font-medium text-foreground">
-              {t("discount") || "Descuento"} *
+              {t("discount") || "Descuento"}
             </Label>
             <div className="flex items-center gap-1 mt-1">
               <Input
-                type="number"
-                min={0}
-                max={100}
-                step={1}
+                type="text"
+                inputMode="numeric"
                 value={discountPercent}
-                onChange={(e) => setDiscountPercent(e.target.value)}
-                className="h-9 text-xs w-full"
+                onChange={(e) => {
+                  const digits = e.target.value.replace(/\D/g, "").slice(0, 3)
+                  if (digits === "") {
+                    setDiscountPercent("")
+                    return
+                  }
+                  const n = Number(digits)
+                  setDiscountPercent(n > 100 ? "100" : digits)
+                }}
+                className="h-9 text-xs w-24"
               />
               <span className="text-xs text-muted-foreground">%</span>
             </div>
@@ -210,7 +285,11 @@ export default function BulkInvitationModal({
               {t("probationPeriod") || "Período de prueba"}
             </Label>
             <div className="flex items-center gap-1 mt-1">
-              <Select value={trialDays} onValueChange={setTrialDays}>
+              <Select
+                value={trialDays}
+                onValueChange={setTrialDays}
+                disabled={isEditMode}
+              >
                 <SelectTrigger className="h-9 text-xs w-24">
                   <SelectValue />
                 </SelectTrigger>
@@ -267,13 +346,15 @@ export default function BulkInvitationModal({
           >
             {t("cancel") || "Cancel"}
           </Button>
-          <Button onClick={create} disabled={isCreating}>
+          <Button onClick={submit} disabled={isCreating}>
             {isCreating ? (
               <Loader2 className="h-4 w-4 animate-spin mr-1" />
             ) : (
               <Plus className="h-4 w-4 mr-1" />
             )}
-            {t("create") || "Create"}
+            {isEditMode
+              ? t("save") || "Guardar"
+              : t("create") || "Create"}
           </Button>
         </div>
       </DialogContent>

@@ -292,7 +292,7 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar, styl
             icon: () => <UtilitiesIcon className="h-5 w-5" />,
             items: [
               { title: t("import"), href: "/utilities/import", iconKey: "import" },
-              // Employer role can't invite other employers — entry hidden.
+              { title: t("invitations") || "Invitaciones", href: "/utilities/invite", iconKey: "invite" },
             ],
           },
           {
@@ -521,7 +521,7 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar, styl
 
       {!collapsed && (
         <div className="sidebar-footer font-bold">
-          2025 © <span className="text-[#662D91]">ControlJobs Tech,S.L</span>
+          {new Date().getFullYear()} © <span className="text-[#662D91]">ControlJobs Tech,S.L</span>
         </div>
       )}
     </div>

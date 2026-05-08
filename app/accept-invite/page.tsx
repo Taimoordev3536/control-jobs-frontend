@@ -14,6 +14,8 @@ import { useTranslation } from "@/hooks/use-translation"
 import { acceptInvite } from "@/lib/api/sub-users"
 import ContreolJobs from "../../icons/Logos/ControlJobs.svg"
 import EmployerInviteSignup from "@/components/employer-invite-signup"
+import WorkerInviteSignup from "@/components/worker-invite-signup"
+import ClientInviteSignup from "@/components/client-invite-signup"
 
 // Decode the JWT payload (no signature check — just to read the type).
 // Backend re-verifies properly on submission.
@@ -37,6 +39,18 @@ interface VerifiedToken {
   trialDays: number
 }
 
+interface VerifiedTargetToken {
+  description: string
+  employerId: number
+  employerName: string
+}
+
+const TARGET_INVITE_TYPES = new Set([
+  "employer-invite",
+  "worker-invite",
+  "client-invite",
+])
+
 function AcceptInviteForm() {
   const params = useSearchParams()
   const router = useRouter()
@@ -47,26 +61,38 @@ function AcceptInviteForm() {
   const decoded = token ? decodeJwtPayload(token) : null
   const tokenType: string | undefined = decoded?.type
 
-  // For employer-invite tokens, verify with backend first to get partner name + trial days.
+  // For *-invite tokens, verify with backend first to get inviter name + offer details.
   const [employerVerified, setEmployerVerified] = useState<VerifiedToken | null>(null)
-  const [employerVerifyError, setEmployerVerifyError] = useState<string | null>(null)
-  const [verifying, setVerifying] = useState(tokenType === "employer-invite")
+  const [workerVerified, setWorkerVerified] = useState<VerifiedTargetToken | null>(null)
+  const [clientVerified, setClientVerified] = useState<VerifiedTargetToken | null>(null)
+  const [verifyError, setVerifyError] = useState<string | null>(null)
+  const [verifying, setVerifying] = useState(
+    tokenType ? TARGET_INVITE_TYPES.has(tokenType) : false,
+  )
 
   useEffect(() => {
-    if (tokenType !== "employer-invite") return
+    if (!tokenType || !TARGET_INVITE_TYPES.has(tokenType)) return
+    const apiPath =
+      tokenType === "employer-invite"
+        ? "employer-invitations"
+        : tokenType === "worker-invite"
+          ? "worker-invitations"
+          : "client-invitations"
     ;(async () => {
       try {
         const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_BASE_URL}/employer-invitations/verify?token=${encodeURIComponent(token)}`,
+          `${process.env.NEXT_PUBLIC_API_BASE_URL}/${apiPath}/verify?token=${encodeURIComponent(token)}`,
         )
         const json = await res.json()
         if (!res.ok || !json?.data?.valid) {
-          setEmployerVerifyError(json?.data?.reason || "invalid")
+          setVerifyError(json?.data?.reason || "invalid")
           return
         }
-        setEmployerVerified(json.data)
+        if (tokenType === "employer-invite") setEmployerVerified(json.data)
+        else if (tokenType === "worker-invite") setWorkerVerified(json.data)
+        else setClientVerified(json.data)
       } catch (e: any) {
-        setEmployerVerifyError(e.message || "network_error")
+        setVerifyError(e.message || "network_error")
       } finally {
         setVerifying(false)
       }
@@ -108,8 +134,8 @@ function AcceptInviteForm() {
     return <LoadingSpinner />
   }
 
-  // ─────────────── Employer-invite branch ───────────────
-  if (tokenType === "employer-invite") {
+  // ─────────────── *-invite branches (employer / worker / client) ───────────────
+  if (tokenType && TARGET_INVITE_TYPES.has(tokenType)) {
     if (verifying) {
       return (
         <div className="flex min-h-screen items-center justify-center bg-background">
@@ -117,13 +143,19 @@ function AcceptInviteForm() {
         </div>
       )
     }
-    if (employerVerifyError || !employerVerified) {
+    const verified =
+      tokenType === "employer-invite"
+        ? employerVerified
+        : tokenType === "worker-invite"
+          ? workerVerified
+          : clientVerified
+    if (verifyError || !verified) {
       const reasonKey =
-        employerVerifyError === "expired"
+        verifyError === "expired"
           ? "invitationExpired"
-          : employerVerifyError === "already_used"
+          : verifyError === "already_used"
             ? "invitationAlreadyUsed"
-            : employerVerifyError === "revoked"
+            : verifyError === "revoked"
               ? "invitationRevoked"
               : "invitationInvalid"
       return (
@@ -136,7 +168,7 @@ function AcceptInviteForm() {
             <CardContent>
               <p className="text-sm text-center text-muted-foreground">
                 {t("invitationInvalidDesc") ||
-                  "This invitation link is no longer valid. Please ask your partner to send a new one."}
+                  "This invitation link is no longer valid. Please ask the sender to issue a new one."}
               </p>
             </CardContent>
           </Card>
@@ -146,11 +178,19 @@ function AcceptInviteForm() {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
         <ContreolJobs className="h-16 w-40 mb-3" />
-        <EmployerInviteSignup token={token} verified={employerVerified} />
+        {tokenType === "employer-invite" && (
+          <EmployerInviteSignup token={token} verified={employerVerified!} />
+        )}
+        {tokenType === "worker-invite" && (
+          <WorkerInviteSignup token={token} verified={workerVerified!} />
+        )}
+        {tokenType === "client-invite" && (
+          <ClientInviteSignup token={token} verified={clientVerified!} />
+        )}
       </div>
     )
   }
-  // ───────────── End employer-invite branch ─────────────
+  // ───────────── End *-invite branches ─────────────
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background">

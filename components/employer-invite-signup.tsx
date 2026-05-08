@@ -29,7 +29,7 @@ const fmt = (n: number) => `${n.toFixed(2).replace(".", ",")} €`
 
 export default function EmployerInviteSignup({
   token,
-  verified,
+  verified: rawVerified,
 }: {
   token: string
   verified: VerifiedToken
@@ -41,6 +41,15 @@ export default function EmployerInviteSignup({
   const [submitting, setSubmitting] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [matchedPlan, setMatchedPlan] = useState<MatchedPlan | null>(null)
+
+  // The backend serializes numeric (decimal) columns as strings; coerce so
+  // arithmetic & comparisons don't surprise downstream code.
+  const verified = {
+    ...rawVerified,
+    discountPercent: Number(rawVerified.discountPercent) || 0,
+    trialDays: Number(rawVerified.trialDays) || 0,
+    partnerId: Number(rawVerified.partnerId) || 0,
+  }
 
   // Trial > 0 hides payment method per spec
   const trialActive = verified.trialDays > 0
@@ -230,12 +239,6 @@ export default function EmployerInviteSignup({
           {t("invitedBy") || "Invited by"}:{" "}
           <span className="font-medium text-foreground">{verified.partnerName}</span>
         </p>
-        {verified.description ? (
-          <p className="text-[11px] text-muted-foreground mt-0.5">
-            {t("offer") || "Offer"}:{" "}
-            <span className="font-medium text-foreground">{verified.description}</span>
-          </p>
-        ) : null}
       </div>
 
       {/* Step indicator */}
