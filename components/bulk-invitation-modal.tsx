@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Loader2, Plus } from "lucide-react"
+import { Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -347,10 +347,8 @@ export default function BulkInvitationModal({
             {t("cancel") || "Cancel"}
           </Button>
           <Button onClick={submit} disabled={isCreating}>
-            {isCreating ? (
+            {isCreating && (
               <Loader2 className="h-4 w-4 animate-spin mr-1" />
-            ) : (
-              <Plus className="h-4 w-4 mr-1" />
             )}
             {isEditMode
               ? t("save") || "Guardar"
