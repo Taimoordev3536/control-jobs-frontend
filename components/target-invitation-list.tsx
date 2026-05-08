@@ -308,12 +308,9 @@ export default function TargetInvitationList({ target }: { target: Target }) {
 
   const titleCreate =
     target === "worker"
-      ? t("inviteWorkerTitle") || "Invite worker"
-      : t("inviteClientTitle") || "Invite client"
-  const titleEdit =
-    target === "worker"
-      ? t("editWorkerInvitation") || "Edit worker invitation"
-      : t("editClientInvitation") || "Edit client invitation"
+      ? t("inviteWorkerTitle") || "Invite Worker"
+      : t("inviteClientTitle") || "Invite Client"
+  const titleEdit = t("editInvitation") || "Edit invitation"
 
   return (
     <>
