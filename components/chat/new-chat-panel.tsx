@@ -170,8 +170,17 @@ export function NewChatPanel({ mode, onBack, onConversationCreated }: NewChatPan
                       onClick={() => handleDirect(g.type, item.publicId)}
                       className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground disabled:opacity-50"
                     >
-                      <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[#662D91] text-xs font-semibold text-white">
-                        {initials(item.name)}
+                      <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#662D91] text-xs font-semibold text-white">
+                        {item.imageUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={item.imageUrl}
+                            alt={item.name}
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          initials(item.name)
+                        )}
                       </div>
                       <span className="min-w-0 flex-1 truncate">{item.name}</span>
                     </button>
@@ -227,9 +236,22 @@ export function NewChatPanel({ mode, onBack, onConversationCreated }: NewChatPan
 interface GroupSelectProps {
   label: string
   value: string
-  options: { id: number; name: string; publicId?: string }[]
+  options: { id: number; name: string; publicId?: string; imageUrl?: string | null }[]
   onChange: (publicId: string) => void
   placeholder?: string
+}
+
+function ContactAvatar({ name, imageUrl }: { name: string; imageUrl?: string | null }) {
+  return (
+    <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#662D91] text-[10px] font-semibold text-white">
+      {imageUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={imageUrl} alt={name} className="h-full w-full object-cover" />
+      ) : (
+        initials(name)
+      )}
+    </span>
+  )
 }
 
 function GroupSelect({ label, value, options, onChange, placeholder }: GroupSelectProps) {
@@ -243,9 +265,7 @@ function GroupSelect({ label, value, options, onChange, placeholder }: GroupSele
           <SelectValue placeholder={placeholder || "—"}>
             {selected && (
               <span className="flex items-center gap-2">
-                <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-[#662D91] text-[10px] font-semibold text-white">
-                  {initials(selected.name)}
-                </span>
+                <ContactAvatar name={selected.name} imageUrl={selected.imageUrl} />
                 <span className="truncate">{selected.name}</span>
               </span>
             )}
@@ -257,9 +277,7 @@ function GroupSelect({ label, value, options, onChange, placeholder }: GroupSele
           ) : (
             selectable.map((o) => (
               <CompactSelectItem key={o.id} value={o.publicId!}>
-                <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-[#662D91] text-[10px] font-semibold text-white">
-                  {initials(o.name)}
-                </span>
+                <ContactAvatar name={o.name} imageUrl={o.imageUrl} />
                 <span className="truncate">{o.name}</span>
               </CompactSelectItem>
             ))

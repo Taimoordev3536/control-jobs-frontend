@@ -63,7 +63,13 @@ export interface MessageDto {
 
 export interface ContactGroup {
   type: ParticipantType
-  items: { id: number; name: string; publicId?: string; isSelf?: boolean }[]
+  items: {
+    id: number
+    name: string
+    publicId?: string
+    isSelf?: boolean
+    imageUrl?: string | null
+  }[]
 }
 
 export interface SearchResultDto {
