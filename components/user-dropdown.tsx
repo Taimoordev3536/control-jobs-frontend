@@ -33,12 +33,17 @@ export function UserDropdown() {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   const endpoints = logoEndpointsFor(userRole)
-  const canUploadLogo = !!endpoints
+  // Employers carry a dedicated identity photo separate from their printed
+  // logo; every other role still uses their single image as both avatar
+  // and brand artwork.
+  const identityUploadEndpoint = endpoints?.profile ?? endpoints?.logo
+  const identityUrlField = endpoints?.profile ? "profilePhotoUrl" : "logoUrl"
+  const canUploadLogo = !!identityUploadEndpoint
 
-  // Fetch the active user's avatar (per-role: employer logo, partner logo,
-  // client logo, worker photo, admin photo) for both the navbar trigger and
-  // the dropdown header. Listens to a global event so a /mydata or +button
-  // upload reflects immediately without a page reload.
+  // Fetch the active user's avatar (employer: profilePhotoUrl, every other
+  // role: logoUrl) for both the navbar trigger and the dropdown header.
+  // Listens to a global event so a /mydata or +button upload reflects
+  // immediately without a page reload.
   useEffect(() => {
     if (!endpoints || !session?.accessToken) {
       setLogoUrl(null)
@@ -52,22 +57,22 @@ export function UserDropdown() {
         })
         if (!res.ok) return
         const result = await res.json()
-        if (!cancelled) setLogoUrl(result?.data?.logoUrl ?? null)
+        if (!cancelled) setLogoUrl(result?.data?.[identityUrlField] ?? null)
       } catch {
-        // swallow — no logo just means we render initials/placeholder
+        // swallow — no avatar just means we render initials/placeholder
       }
     }
     load()
-    const onLogoChanged = (e: Event) => {
-      const next = (e as CustomEvent<{ logoUrl: string | null }>).detail?.logoUrl ?? null
+    const onIdentityChanged = (e: Event) => {
+      const next = (e as CustomEvent<{ url: string | null }>).detail?.url ?? null
       setLogoUrl(next)
     }
-    window.addEventListener("employer-logo-changed", onLogoChanged as EventListener)
+    window.addEventListener("user-identity-changed", onIdentityChanged as EventListener)
     return () => {
       cancelled = true
-      window.removeEventListener("employer-logo-changed", onLogoChanged as EventListener)
+      window.removeEventListener("user-identity-changed", onIdentityChanged as EventListener)
     }
-  }, [endpoints?.read, session?.accessToken])
+  }, [endpoints?.read, session?.accessToken, identityUrlField])
 
   const onPickFile = (e: React.MouseEvent) => {
     // Prevent the dropdown from treating this as an item click that would
@@ -80,18 +85,18 @@ export function UserDropdown() {
   const onFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     e.target.value = ""
-    if (!file || !session?.accessToken || !endpoints) return
+    if (!file || !session?.accessToken || !identityUploadEndpoint) return
 
     if (!["image/png", "image/jpeg", "image/jpg"].includes(file.type)) {
       toast({
-        title: t("logoMustBePngOrJpeg") || "Logo must be PNG or JPEG",
+        title: t("logoMustBePngOrJpeg") || "Image must be PNG or JPEG",
         variant: "destructive",
       })
       return
     }
     if (file.size > 2 * 1024 * 1024) {
       toast({
-        title: t("logoTooLarge") || "Logo must be 2 MB or smaller",
+        title: t("logoTooLarge") || "Image must be 2 MB or smaller",
         variant: "destructive",
       })
       return
@@ -101,7 +106,7 @@ export function UserDropdown() {
     try {
       const fd = new FormData()
       fd.append("file", file)
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}${endpoints.logo}`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}${identityUploadEndpoint}`, {
         method: "POST",
         headers: { Authorization: `Bearer ${session.accessToken}` },
         body: fd,
@@ -111,12 +116,12 @@ export function UserDropdown() {
         throw new Error(err.message || `Error ${res.status}`)
       }
       const result = await res.json()
-      const newUrl = result?.data?.logoUrl ?? null
+      const newUrl = result?.data?.[identityUrlField] ?? null
       setLogoUrl(newUrl)
       window.dispatchEvent(
-        new CustomEvent("employer-logo-changed", { detail: { logoUrl: newUrl } }),
+        new CustomEvent("user-identity-changed", { detail: { url: newUrl } }),
       )
-      toast({ title: t("logoUpdated") || "Logo updated", variant: "success" })
+      toast({ title: t("updated") || "Updated", variant: "success" })
     } catch (err: any) {
       toast({ title: translateBackendError(err), variant: "destructive" })
     } finally {
@@ -250,13 +255,13 @@ export function UserDropdown() {
                   disabled={isUploading}
                   aria-label={
                     logoUrl
-                      ? (t("changeLogo") || "Change logo")
-                      : (t("addLogo") || "Add logo")
+                      ? (t("changeProfilePhoto") || "Change profile photo")
+                      : (t("addProfilePhoto") || "Add profile photo")
                   }
                   title={
                     logoUrl
-                      ? (t("changeLogo") || "Change logo")
-                      : (t("addLogo") || "Add logo")
+                      ? (t("changeProfilePhoto") || "Change profile photo")
+                      : (t("addProfilePhoto") || "Add profile photo")
                   }
                   className="absolute bottom-0 right-0 h-7 w-7 rounded-full bg-[#6B21A8] hover:bg-[#5b1d91] text-white flex items-center justify-center shadow-md ring-2 ring-white dark:ring-gray-900 transition-colors disabled:opacity-60"
                 >

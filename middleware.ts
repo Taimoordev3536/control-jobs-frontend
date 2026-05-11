@@ -27,12 +27,11 @@ export default withAuth(
 
     // Define role-based access rules
     const roleRoutes: Record<string, string[]> = {
-      admin: ["/dashboard", "/partners", "/employers", "/invoices", "/commissions", "/rates", "/information", "/utilities", "/aid", "/tasks"],
-      partner: ["/dashboard", "/employers", "/billing", "/invoices", "/commissions", "/rates", "/information", "/utilities", "/aid", "/tasks"],
-      // employer: ["/dashboard", "/jobs", "/clients", "/workers", "/surveys", "/information", "/utilities", "/aid", "/tasks"],
-      employer: ["/dashboard", "/jobs", "/clients", "/workers", "/work-centers", "/surveys", "/invoices", "/billing", "/information", "/utilities", "/aid", "/tasks", "/records"],
-      client: ["/dashboard", "/jobs", "/surveys", "/information", "/aid", "/tasks", "/records"],
-      worker: ["/dashboard", "/jobs", "/occupation", "/surveys", "/information", "/aid", "/tasks", "/records"],
+      admin: ["/dashboard", "/partners", "/employers", "/invoices", "/commissions", "/rates", "/information", "/utilities", "/aid", "/tasks", "/messages"],
+      partner: ["/dashboard", "/employers", "/billing", "/invoices", "/commissions", "/rates", "/information", "/utilities", "/aid", "/tasks", "/messages"],
+      employer: ["/dashboard", "/jobs", "/clients", "/workers", "/work-centers", "/surveys", "/invoices", "/billing", "/information", "/utilities", "/aid", "/tasks", "/records", "/messages"],
+      client: ["/dashboard", "/jobs", "/surveys", "/information", "/aid", "/tasks", "/records", "/messages"],
+      worker: ["/dashboard", "/jobs", "/occupation", "/surveys", "/information", "/aid", "/tasks", "/records", "/messages"],
     }
 
     // Check if user has access to the current route

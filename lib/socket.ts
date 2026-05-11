@@ -3,7 +3,20 @@ import { signOut } from "next-auth/react"
 
 const AUTH_ERROR_PATTERNS = ["jwt expired", "invalid token", "unauthorized"]
 
-export function createSocket(accessToken: string): Socket {
+interface CachedSocket {
+  socket: Socket
+  refCount: number
+}
+
+const cache = new Map<string, CachedSocket>()
+
+export function acquireSocket(accessToken: string): Socket {
+  const existing = cache.get(accessToken)
+  if (existing) {
+    existing.refCount += 1
+    return existing.socket
+  }
+
   const url = process.env.NEXT_PUBLIC_API_BASE_URL as string
   const socket = io(url, {
     transports: ["websocket"],
@@ -18,5 +31,20 @@ export function createSocket(accessToken: string): Socket {
     }
   })
 
+  cache.set(accessToken, { socket, refCount: 1 })
   return socket
+}
+
+export function releaseSocket(accessToken: string): void {
+  const entry = cache.get(accessToken)
+  if (!entry) return
+  entry.refCount -= 1
+  if (entry.refCount <= 0) {
+    entry.socket.disconnect()
+    cache.delete(accessToken)
+  }
+}
+
+export function createSocket(accessToken: string): Socket {
+  return acquireSocket(accessToken)
 }

@@ -1,0 +1,271 @@
+"use client"
+
+import { useEffect, useMemo, useState } from "react"
+import { ArrowLeft, Search } from "lucide-react"
+import * as SelectPrimitive from "@radix-ui/react-select"
+import { Check } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Select, SelectContent, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { AnimatedLoader } from "@/components/animated-loader"
+import { cn } from "@/lib/utils"
+import { useChat } from "@/components/providers/chat-provider"
+import { useTranslation } from "@/hooks/use-translation"
+import type { ContactGroup, ParticipantType } from "@/lib/api/chat"
+import { participantLabel } from "./chat-utils"
+
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).slice(0, 2)
+  return parts.map((p) => p[0]?.toUpperCase() || "").join("") || "?"
+}
+
+interface CompactSelectItemProps {
+  value: string
+  className?: string
+  children: React.ReactNode
+}
+
+function CompactSelectItem({ value, className, children }: CompactSelectItemProps) {
+  return (
+    <SelectPrimitive.Item
+      value={value}
+      className={cn(
+        "relative flex cursor-default select-none items-center gap-1.5 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-sidebar-accent focus:text-sidebar-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+        className,
+      )}
+    >
+      <SelectPrimitive.ItemIndicator>
+        <Check className="h-3.5 w-3.5 flex-shrink-0 text-[#662D91]" />
+      </SelectPrimitive.ItemIndicator>
+      <SelectPrimitive.ItemText asChild>
+        <span className="flex min-w-0 items-center gap-2">{children}</span>
+      </SelectPrimitive.ItemText>
+    </SelectPrimitive.Item>
+  )
+}
+
+interface NewChatPanelProps {
+  mode: "direct" | "group"
+  onBack: () => void
+  onConversationCreated: (publicId: string) => void
+}
+
+export function NewChatPanel({ mode, onBack, onConversationCreated }: NewChatPanelProps) {
+  const { t } = useTranslation()
+  const { fetchContacts, startDirect, startGroup } = useChat()
+
+  const [contacts, setContacts] = useState<ContactGroup[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [query, setQuery] = useState("")
+  const [busy, setBusy] = useState(false)
+  const [employerId, setEmployerId] = useState("")
+  const [clientId, setClientId] = useState("")
+  const [workerId, setWorkerId] = useState("")
+
+  useEffect(() => {
+    setLoading(true)
+    setError(null)
+    fetchContacts()
+      .then((rows) => {
+        setContacts(rows)
+        const selfEmployer = rows
+          .find((g) => g.type === "EMPLOYER")
+          ?.items.find((it) => it.isSelf && it.publicId)
+        if (selfEmployer?.publicId) setEmployerId(selfEmployer.publicId)
+      })
+      .catch((err) => setError(err?.message || "Failed to load contacts"))
+      .finally(() => setLoading(false))
+  }, [fetchContacts])
+
+  const directContacts = useMemo(
+    () => contacts.map((g) => ({ ...g, items: g.items.filter((it) => !it.isSelf) })).filter((g) => g.items.length > 0),
+    [contacts],
+  )
+
+  const filteredGroups = useMemo(() => {
+    if (!query.trim()) return directContacts
+    const q = query.toLowerCase()
+    return directContacts
+      .map((g) => ({ ...g, items: g.items.filter((it) => it.name.toLowerCase().includes(q)) }))
+      .filter((g) => g.items.length > 0)
+  }, [directContacts, query])
+
+  const getGroup = (type: ParticipantType) => contacts.find((g) => g.type === type)?.items || []
+
+  async function handleDirect(type: ParticipantType, publicId?: string) {
+    if (!publicId) return
+    setBusy(true)
+    try {
+      const conv = await startDirect(type, publicId)
+      onConversationCreated(conv.publicId)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function handleCreateGroup() {
+    if (!employerId || !clientId || !workerId) return
+    setBusy(true)
+    try {
+      const conv = await startGroup({
+        employerPublicId: employerId,
+        clientPublicId: clientId,
+        workerPublicId: workerId,
+      })
+      onConversationCreated(conv.publicId)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="flex h-[54px] flex-shrink-0 items-center gap-2 border-b border-border bg-card px-3">
+        <button
+          onClick={onBack}
+          className="rounded-md p-1 text-muted-foreground hover:bg-accent"
+          aria-label="Back"
+        >
+          <ArrowLeft className="h-4 w-4" />
+        </button>
+        <span className="text-sm font-semibold">
+          {mode === "direct" ? t("newChat") : t("newGroup")}
+        </span>
+      </div>
+
+      {mode === "direct" ? (
+        <>
+          <div className="flex-shrink-0 border-b border-border bg-card px-3 py-2">
+            <div className="relative">
+              <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder={t("searchConversations")}
+                className="w-full rounded-md border border-border bg-background py-1.5 pl-7 pr-2 text-xs chat-caret focus:border-[#662D91] focus:outline-none"
+              />
+            </div>
+          </div>
+          <div className="chat-scrollbar min-h-0 flex-1 overflow-y-auto">
+            {loading ? (
+              <div className="flex h-full items-center justify-center py-6">
+                <AnimatedLoader size={24} />
+              </div>
+            ) : error ? (
+              <div className="px-4 py-6 text-center text-xs text-destructive">{error}</div>
+            ) : filteredGroups.length === 0 ? (
+              <div className="px-4 py-6 text-center text-xs text-muted-foreground">
+                {t("noContacts")}
+              </div>
+            ) : (
+              filteredGroups.map((g) => (
+                <div key={g.type}>
+                  <div className="bg-muted/60 px-3 py-1 text-[11px] font-semibold uppercase text-muted-foreground">
+                    {participantLabel(g.type)}
+                  </div>
+                  {g.items.map((item) => (
+                    <button
+                      key={`${g.type}-${item.id}`}
+                      disabled={busy || !item.publicId}
+                      onClick={() => handleDirect(g.type, item.publicId)}
+                      className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground disabled:opacity-50"
+                    >
+                      <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[#662D91] text-xs font-semibold text-white">
+                        {initials(item.name)}
+                      </div>
+                      <span className="min-w-0 flex-1 truncate">{item.name}</span>
+                    </button>
+                  ))}
+                </div>
+              ))
+            )}
+          </div>
+        </>
+      ) : (
+        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
+          {loading ? (
+            <div className="flex justify-center py-4">
+              <AnimatedLoader size={24} />
+            </div>
+          ) : error ? (
+            <div className="text-center text-xs text-destructive">{error}</div>
+          ) : (
+            <>
+              <GroupSelect
+                label={t("selectEmployer")}
+                value={employerId}
+                options={getGroup("EMPLOYER")}
+                onChange={setEmployerId}
+              />
+              <GroupSelect
+                label={t("selectClient")}
+                value={clientId}
+                options={getGroup("CLIENT")}
+                onChange={setClientId}
+              />
+              <GroupSelect
+                label={t("selectWorker")}
+                value={workerId}
+                options={getGroup("WORKER")}
+                onChange={setWorkerId}
+              />
+              <Button
+                className="w-full"
+                disabled={busy || !employerId || !clientId || !workerId}
+                onClick={handleCreateGroup}
+              >
+                {t("createGroup")}
+              </Button>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+interface GroupSelectProps {
+  label: string
+  value: string
+  options: { id: number; name: string; publicId?: string }[]
+  onChange: (publicId: string) => void
+  placeholder?: string
+}
+
+function GroupSelect({ label, value, options, onChange, placeholder }: GroupSelectProps) {
+  const selectable = options.filter((o) => !!o.publicId)
+  const selected = selectable.find((o) => o.publicId === value)
+  return (
+    <div className="space-y-1">
+      <span className="block text-xs font-medium text-muted-foreground">{label}</span>
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger className="w-full text-sm">
+          <SelectValue placeholder={placeholder || "—"}>
+            {selected && (
+              <span className="flex items-center gap-2">
+                <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-[#662D91] text-[10px] font-semibold text-white">
+                  {initials(selected.name)}
+                </span>
+                <span className="truncate">{selected.name}</span>
+              </span>
+            )}
+          </SelectValue>
+        </SelectTrigger>
+        <SelectContent className="max-h-72 w-[var(--radix-select-trigger-width)] max-w-[var(--radix-select-trigger-width)]">
+          {selectable.length === 0 ? (
+            <div className="px-3 py-2 text-xs text-muted-foreground">—</div>
+          ) : (
+            selectable.map((o) => (
+              <CompactSelectItem key={o.id} value={o.publicId!}>
+                <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-[#662D91] text-[10px] font-semibold text-white">
+                  {initials(o.name)}
+                </span>
+                <span className="truncate">{o.name}</span>
+              </CompactSelectItem>
+            ))
+          )}
+        </SelectContent>
+      </Select>
+    </div>
+  )
+}

@@ -23,6 +23,9 @@ const PartnerInvoicesTab = dynamic(() => import("@/components/partner-tabs/partn
 const PartnerWallTab = dynamic(() => import("@/components/partner-tabs/partner-wall-tab"), {
   loading: () => <AnimatedLoader size={24} className="p-6" />,
 })
+const PartnerMessagesTab = dynamic(() => import("@/components/partner-tabs/partner-messages-tab"), {
+  loading: () => <AnimatedLoader size={24} className="p-6" />,
+})
 
 export default function PartnerDetailPage() {
   const { t } = useTranslation()
@@ -39,6 +42,7 @@ export default function PartnerDetailPage() {
     { key: "employers", label: t("employers") },
     { key: "invoices", label: t("invoices") },
     { key: "wall", label: t("wall") },
+    { key: "messages", label: t("messages") },
   ]
 
   return (
@@ -94,6 +98,7 @@ export default function PartnerDetailPage() {
         {activeTab === "employers" && <PartnerEmployersTab partnerId={partnerId} />}
         {activeTab === "invoices" && <PartnerInvoicesTab />}
         {activeTab === "wall" && <PartnerWallTab />}
+        {activeTab === "messages" && <PartnerMessagesTab partnerId={partnerId} />}
       </div>
     </div>
   )

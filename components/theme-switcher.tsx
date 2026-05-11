@@ -35,7 +35,7 @@ export function ThemeSwitcher() {
       </button>
 
       {showDropdown && (
-        <div className="absolute right-0 mt-2 w-40 rounded-md shadow-lg bg-background border border-border z-50">
+        <div className="absolute right-0 mt-2 w-40 rounded-md shadow-lg bg-background border border-border z-[100]">
           <div className="py-1">
             <button
               className={`block w-full text-left px-4 py-2 text-sm ${

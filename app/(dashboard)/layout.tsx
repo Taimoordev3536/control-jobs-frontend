@@ -5,6 +5,7 @@ import { AppHeader } from "@/components/app-header"
 import { AppSidebar } from "@/components/app-sidebar"
 import { useState, useEffect } from "react"
 import { NotificationProvider } from "@/components/providers/notification-provider"
+import { ChatProvider } from "@/components/providers/chat-provider"
 import { ImpersonationBanner } from "@/components/impersonation-banner"
 import { useAuth } from "@/hooks/use-auth"
 
@@ -62,13 +63,15 @@ export default function DashboardLayout({
         style={isImpersonating ? { top: bannerOffset, height: `calc(100vh - var(--impersonation-banner-h))` } : undefined}
       />
       <NotificationProvider>
-        <AppHeader collapsed={collapsed} toggleSidebar={toggleSidebar} style={{ top: bannerOffset }} />
-        <div
-          className={`main-content ${collapsed ? "main-content-collapsed" : ""} ${isMobile ? "!ml-0" : ""}`}
-          style={{ marginTop: isImpersonating ? "calc(60px + var(--impersonation-banner-h))" : undefined }}
-        >
-          {children}
-        </div>
+        <ChatProvider>
+          <AppHeader collapsed={collapsed} toggleSidebar={toggleSidebar} style={{ top: bannerOffset }} />
+          <div
+            className={`main-content ${collapsed ? "main-content-collapsed" : ""} ${isMobile ? "!ml-0" : ""}`}
+            style={{ marginTop: isImpersonating ? "calc(60px + var(--impersonation-banner-h))" : undefined }}
+          >
+            {children}
+          </div>
+        </ChatProvider>
       </NotificationProvider>
     </div>
   )

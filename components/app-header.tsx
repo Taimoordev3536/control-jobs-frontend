@@ -15,6 +15,7 @@ import { useAuth } from "@/hooks/use-auth"
 import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useNotifications } from "@/components/providers/notification-provider"
+import { useChat } from "@/components/providers/chat-provider"
 import { X } from "lucide-react"
 import { formatLocalDateTime } from "@/lib/datetime"
 import { ClientTodayMergedQrDisplay } from "./dashboards/client-dashboard/client-today-merged-qr-display"
@@ -30,6 +31,7 @@ export function AppHeader({ collapsed, toggleSidebar, style }: AppHeaderProps) {
   const { session, getUserRole } = useAuth()
   const [mobileDropdownOpen, setMobileDropdownOpen] = useState(false)
   const { unreadCount, items, markAllRead, dismiss } = useNotifications()
+  const { unreadCount: chatUnread } = useChat()
   const router = useRouter()
   const [notifOpen, setNotifOpen] = useState(false)
 
@@ -121,7 +123,7 @@ export function AppHeader({ collapsed, toggleSidebar, style }: AppHeaderProps) {
               )}
             </button>
             {notifOpen && (
-              <div className="absolute right-0 mt-2 w-80 rounded-md shadow-lg bg-card border border-border z-50">
+              <div className="absolute right-0 mt-2 w-80 rounded-md shadow-lg bg-card border border-border z-[100]">
                 <div className="px-3 py-2 border-b border-border font-medium text-foreground">
                   {t("notification")}
                 </div>
@@ -183,9 +185,17 @@ export function AppHeader({ collapsed, toggleSidebar, style }: AppHeaderProps) {
               <span className="tooltip">{t("todayQr") || "Today's QR"}</span>
             </button>
           )}
-          <button className="header-icon-button">
+          <button
+            className="header-icon-button relative"
+            onClick={() => router.push("/messages")}
+          >
             <MessageIcon className="h-5 w-5" />
             <span className="tooltip">{t("messages")}</span>
+            {chatUnread > 0 && (
+              <span className="absolute -top-1 -right-1 h-5 min-w-5 px-1 rounded-full bg-red-600 text-white text-[10px] flex items-center justify-center">
+                {chatUnread}
+              </span>
+            )}
           </button>
           <button className="header-icon-button">
             <ContactIcon className="h-5 w-5" />
@@ -207,14 +217,25 @@ export function AppHeader({ collapsed, toggleSidebar, style }: AppHeaderProps) {
             <MoreVertical className="h-5 w-5" />
           </button>
           {mobileDropdownOpen && (
-            <div className="absolute right-0 mt-2 bg-card rounded shadow-lg p-2 z-50 border border-border">
+            <div className="absolute right-0 mt-2 bg-card rounded shadow-lg p-2 z-[100] border border-border">
               <button className="header-icon-button block w-full text-left">
                 <NotificationIcon className="h-5 w-5 inline-block mr-2" />
                 {t("notification")}
               </button>
-              <button className="header-icon-button block w-full text-left">
+              <button
+                className="header-icon-button block w-full text-left"
+                onClick={() => {
+                  setMobileDropdownOpen(false)
+                  router.push("/messages")
+                }}
+              >
                 <MessageIcon className="h-5 w-5 inline-block mr-2" />
                 {t("messages")}
+                {chatUnread > 0 && (
+                  <span className="ml-2 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] text-white">
+                    {chatUnread}
+                  </span>
+                )}
               </button>
               <button className="header-icon-button block w-full text-left">
                 <ContactIcon className="h-5 w-5 inline-block mr-2" />

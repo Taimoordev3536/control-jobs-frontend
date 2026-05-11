@@ -149,7 +149,7 @@ html body[data-scroll-locked] {
   }
 
   .sidebar-footer {
-    @apply py-3 px-4 text-xs border-t;
+    @apply flex h-12 items-center px-4 text-xs border-t;
     color: hsl(var(--sidebar-foreground) / 0.7);
     border-color: hsl(var(--sidebar-border));
   }
@@ -245,9 +245,88 @@ html body[data-scroll-locked] {
     margin-bottom: 0.25rem;
   }
 
+  .chat-caret {
+    caret-color: #662D91;
+  }
+
+  .chat-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--foreground) / 0.18) transparent;
+  }
+
+  .chat-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .chat-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .chat-scrollbar::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--foreground) / 0.18);
+    border-radius: 9999px;
+  }
+
+  .chat-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: hsl(var(--foreground) / 0.32);
+  }
+
+  .chat-list-item {
+    @apply flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left transition-all duration-200;
+    @apply focus-visible:outline-none focus-visible:ring-2;
+    color: hsl(var(--foreground));
+    border: 1px solid transparent;
+    position: relative;
+  }
+
+  .chat-list-item:hover {
+    background-color: hsl(var(--sidebar-accent));
+    color: hsl(var(--sidebar-accent-foreground));
+  }
+
+  .chat-list-item.active {
+    background-color: hsl(var(--sidebar-accent));
+    color: hsl(var(--primary));
+    border-color: hsl(var(--primary) / 0.2);
+  }
+
+  .chat-list-item.active::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background-color: hsl(var(--primary));
+    border-radius: 0 3px 3px 0;
+  }
+
+  .chat-canvas {
+    background-color: hsl(var(--muted) / 0.35);
+    background-image: radial-gradient(
+      circle,
+      hsl(var(--foreground) / 0.07) 1px,
+      transparent 1px
+    );
+    background-size: 18px 18px;
+    background-position: 0 0;
+  }
+
+  .chat-watermark-logo {
+    opacity: 0.035;
+    filter: grayscale(1);
+    transform: rotate(-8deg);
+  }
+
+  .dark .chat-watermark-logo {
+    opacity: 0.05;
+    filter: grayscale(1) invert(1);
+  }
+
   /* Header styles using theme variables */
   .header {
-    @apply h-[50px] flex items-center px-4 fixed top-0 right-0 left-0 z-30 transition-all duration-300;
+    @apply h-[50px] flex items-center px-4 fixed top-0 right-0 left-0 z-40 transition-all duration-300;
     background-color: hsl(var(--background));
     border-bottom: 1px solid hsl(var(--border));
   }

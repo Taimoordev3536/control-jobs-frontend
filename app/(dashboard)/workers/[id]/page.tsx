@@ -99,7 +99,7 @@ export default function WorkerDetailPage() {
         {activeTab === "calendar" && <WorkerCalendarTab />}
         {activeTab === "jobs" && <WorkerJobsTab />}
         {activeTab === "customers" && <WorkerClientTab />}
-        {activeTab === "messages" && <WorkerMessageTab />}
+        {activeTab === "messages" && <WorkerMessageTab workerId={params.id as string} />}
       </div>
     </div>
   )

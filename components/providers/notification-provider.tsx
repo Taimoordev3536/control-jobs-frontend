@@ -1,6 +1,6 @@
 "use client"
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react"
-import { createSocket } from "@/lib/socket"
+import { acquireSocket, releaseSocket } from "@/lib/socket"
 import { useAuth } from "@/hooks/use-auth"
 import { toast } from "@/hooks/use-toast"
 
@@ -73,7 +73,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         }
       } catch {}
     })()
-    const socket = createSocket(session.accessToken)
+    const socket = acquireSocket(session.accessToken)
 
     const onNewAlert = (alert: AlertItem) => {
       const localId = alert.id ? `db-${alert.id}` : `rt-${Date.now()}-${Math.random()}`
@@ -110,7 +110,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
     return () => {
       socket.off("alerts:new", onNewAlert)
-      socket.disconnect()
+      releaseSocket(session.accessToken)
     }
   }, [session?.accessToken])
 
