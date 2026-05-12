@@ -12,7 +12,7 @@ type View = "list" | "new-direct" | "new-group"
 
 export default function MessagesPage() {
   const { t } = useTranslation()
-  const { conversations } = useChat()
+  const { conversations, myScope } = useChat()
   const [view, setView] = useState<View>("list")
   const [activeId, setActiveId] = useState<string | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -68,15 +68,17 @@ export default function MessagesPage() {
                     >
                       {t("newChat")}
                     </button>
-                    <button
-                      onClick={() => {
-                        setMenuOpen(false)
-                        setView("new-group")
-                      }}
-                      className="block w-full whitespace-nowrap px-3 py-2 text-left text-sm transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                    >
-                      {t("newGroup")}
-                    </button>
+                    {myScope?.canCreateGroup && (
+                      <button
+                        onClick={() => {
+                          setMenuOpen(false)
+                          setView("new-group")
+                        }}
+                        className="block w-full whitespace-nowrap px-3 py-2 text-left text-sm transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                      >
+                        {t("newGroup")}
+                      </button>
+                    )}
                   </div>
                 )}
               </div>

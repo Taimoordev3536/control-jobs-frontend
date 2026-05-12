@@ -16,12 +16,14 @@ import {
   ContactGroup,
   ConversationDto,
   MessageDto,
+  MyScopeDto,
   ParticipantType,
   SearchResultDto,
   createDirectConversation,
   createGroupConversation,
   deleteMessage as apiDeleteMessage,
   editMessage as apiEditMessage,
+  getMyScope as apiGetMyScope,
   getUnreadCount,
   listContacts,
   listConversations,
@@ -33,6 +35,7 @@ import {
   removeReaction as apiRemoveReaction,
   searchMessages as apiSearchMessages,
   sendMessage as apiSendMessage,
+  sendMessageWithAttachments as apiSendMessageWithAttachments,
   unpinMessage as apiUnpinMessage,
 } from "@/lib/api/chat"
 
@@ -46,9 +49,11 @@ interface ChatContextValue {
   conversations: ConversationDto[]
   unreadCount: number
   isReady: boolean
+  myScope: MyScopeDto | null
   refreshConversations: () => Promise<void>
   fetchMessages: (publicId: string, before?: string) => Promise<MessageDto[]>
   sendMessage: (publicId: string, body: string, repliedToMessagePublicId?: string) => Promise<MessageDto>
+  sendMessageWithAttachments: (publicId: string, files: File[], body?: string, repliedToMessagePublicId?: string) => Promise<MessageDto>
   editMessage: (publicId: string, messageId: string, body: string) => Promise<MessageDto>
   deleteMessage: (publicId: string, messageId: string) => Promise<MessageDto>
   pinMessage: (publicId: string, messageId: string) => Promise<MessageDto>
@@ -57,7 +62,7 @@ interface ChatContextValue {
   addReaction: (publicId: string, messageId: string, emoji: string) => Promise<MessageDto>
   removeReaction: (publicId: string, messageId: string, emoji: string) => Promise<MessageDto>
   markRead: (publicId: string, upToMessagePublicId: string) => Promise<void>
-  startDirect: (targetType: ParticipantType, targetEntityPublicId: string) => Promise<ConversationDto>
+  startDirect: (targetType: ParticipantType, targetEntityPublicId?: string) => Promise<ConversationDto>
   startGroup: (payload: {
     employerPublicId: string
     clientPublicId: string
@@ -85,6 +90,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const [conversations, setConversations] = useState<ConversationDto[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [isReady, setIsReady] = useState(false)
+  const [myScope, setMyScope] = useState<MyScopeDto | null>(null)
 
   const messageHandlers = useRef(new Set<(msg: MessageDto) => void>())
   const updateHandlers = useRef(new Set<(msg: MessageDto) => void>())
@@ -96,9 +102,14 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
   const refreshConversations = useCallback(async () => {
     try {
-      const [list, unread] = await Promise.all([listConversations(), getUnreadCount()])
+      const [list, unread, scope] = await Promise.all([
+        listConversations(),
+        getUnreadCount(),
+        apiGetMyScope().catch(() => null),
+      ])
       setConversations(list)
       setUnreadCount(unread)
+      if (scope) setMyScope(scope)
     } catch (err) {
       console.error("[chat] refresh failed", err)
     }
@@ -138,6 +149,9 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
             senderUserId: msg.senderUserId,
             createdAt: msg.createdAt,
             deletedAt: msg.deletedAt,
+            attachmentCount: msg.attachments?.length || 0,
+            firstAttachmentKind: msg.attachments?.[0]?.kind || null,
+            firstAttachmentName: msg.attachments?.[0]?.originalName || null,
           },
           lastMessageAt: msg.createdAt,
         }
@@ -219,6 +233,10 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     return apiSendMessage(publicId, body, repliedToMessagePublicId)
   }, [])
 
+  const sendMessageWithAttachments = useCallback(async (publicId: string, files: File[], body?: string, repliedToMessagePublicId?: string) => {
+    return apiSendMessageWithAttachments(publicId, files, body, repliedToMessagePublicId)
+  }, [])
+
   const pinMessage = useCallback(async (publicId: string, messageId: string) => {
     return apiPinMessage(publicId, messageId)
   }, [])
@@ -251,7 +269,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     await apiMarkRead(publicId, upToMessagePublicId)
   }, [])
 
-  const startDirect = useCallback(async (targetType: ParticipantType, targetEntityPublicId: string) => {
+  const startDirect = useCallback(async (targetType: ParticipantType, targetEntityPublicId?: string) => {
     const conv = await createDirectConversation(targetType, targetEntityPublicId)
     await refreshConversations()
     return conv
@@ -328,9 +346,11 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       conversations,
       unreadCount,
       isReady,
+      myScope,
       refreshConversations,
       fetchMessages,
       sendMessage,
+      sendMessageWithAttachments,
       editMessage,
       deleteMessage,
       pinMessage,
@@ -354,9 +374,11 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       conversations,
       unreadCount,
       isReady,
+      myScope,
       refreshConversations,
       fetchMessages,
       sendMessage,
+      sendMessageWithAttachments,
       editMessage,
       deleteMessage,
       pinMessage,

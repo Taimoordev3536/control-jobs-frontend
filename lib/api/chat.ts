@@ -24,10 +24,26 @@ export interface ConversationDto {
     senderUserId: number
     createdAt: string
     deletedAt: string | null
+    attachmentCount: number
+    firstAttachmentKind: AttachmentKind | null
+    firstAttachmentName: string | null
   } | null
   lastMessageAt: string | null
   unreadCount: number
   createdAt: string
+}
+
+export type AttachmentKind = "IMAGE" | "PDF"
+
+export interface AttachmentDto {
+  publicId: string
+  kind: AttachmentKind
+  url: string
+  mimeType: string | null
+  sizeBytes: number | null
+  width: number | null
+  height: number | null
+  originalName: string | null
 }
 
 export interface RepliedToDto {
@@ -36,6 +52,7 @@ export interface RepliedToDto {
   senderUserName: string | null
   body: string | null
   deletedAt: string | null
+  attachments: AttachmentDto[]
 }
 
 export interface ReactionDto {
@@ -57,6 +74,7 @@ export interface MessageDto {
   pinnedAt: string | null
   repliedTo: RepliedToDto | null
   reactions: ReactionDto[]
+  attachments: AttachmentDto[]
   createdAt: string
   readBy: { userId: number; readAt: string }[]
 }
@@ -70,6 +88,16 @@ export interface ContactGroup {
     isSelf?: boolean
     imageUrl?: string | null
   }[]
+}
+
+export type PartnerTierName = "Gold" | "Silver" | "Bronze" | "Affiliate"
+
+export interface MyScopeDto {
+  participantType: ParticipantType
+  participantEntityPublicId: string | null
+  displayName: string
+  partnerTier: PartnerTierName | null
+  canCreateGroup: boolean
 }
 
 export interface SearchResultDto {
@@ -101,6 +129,11 @@ async function authedFetch(path: string, init: RequestInit = {}) {
   return res.json()
 }
 
+export async function getMyScope(): Promise<MyScopeDto> {
+  const json = await authedFetch(`/chat/me`)
+  return json?.data
+}
+
 export async function listConversations(): Promise<ConversationDto[]> {
   const json = await authedFetch(`/chat/conversations`)
   return json?.data || []
@@ -122,11 +155,13 @@ export async function listMessages(
 
 export async function createDirectConversation(
   targetType: ParticipantType,
-  targetEntityPublicId: string,
+  targetEntityPublicId?: string,
 ): Promise<ConversationDto> {
+  const payload: Record<string, unknown> = { targetType }
+  if (targetEntityPublicId) payload.targetEntityPublicId = targetEntityPublicId
   const json = await authedFetch(`/chat/conversations/direct`, {
     method: "POST",
-    body: JSON.stringify({ targetType, targetEntityPublicId }),
+    body: JSON.stringify(payload),
   })
   return json?.data
 }
@@ -152,6 +187,32 @@ export async function sendMessage(
     method: "POST",
     body: JSON.stringify({ body, repliedToMessagePublicId }),
   })
+  return json?.data
+}
+
+export async function sendMessageWithAttachments(
+  conversationPublicId: string,
+  files: File[],
+  body?: string,
+  repliedToMessagePublicId?: string,
+): Promise<MessageDto> {
+  const session = await getSession()
+  const token = (session as any)?.accessToken
+  const form = new FormData()
+  files.forEach((f) => form.append("files", f, f.name))
+  if (body) form.append("body", body)
+  if (repliedToMessagePublicId) form.append("repliedToMessagePublicId", repliedToMessagePublicId)
+
+  const res = await fetch(`${API_BASE}/chat/conversations/${conversationPublicId}/messages/upload`, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    body: form,
+  })
+  if (!res.ok) {
+    const text = await res.text().catch(() => "")
+    throw new Error(text || `Upload failed: ${res.status}`)
+  }
+  const json = await res.json()
   return json?.data
 }
 

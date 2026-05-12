@@ -150,10 +150,13 @@ export default function PartnerDataTab({ partnerId, onNameChange }: PartnerDataT
             landline: d.landline || "",
             mobile: d.mobile || "",
             email: d.email || "",
-            typeOfPartner: d.typeOfPartner || "",
+            typeOfPartner: (d.typeOfPartner || "").toUpperCase(),
             commission: d.commission ?? "",
             retention: d.retention ?? "",
-            paymentMethod: d.paymentMethod || "",
+            paymentMethod: (d.paymentMethod || "")
+              .toUpperCase()
+              .replace(/\s+/g, "_")
+              .replace(/^DIRECT_DEBIT$/, "DIRECT_DEBIT"),
             accountIban: d.accountIban || "",
             bicSwift: d.bicSwift || "",
             partnerTierId: d.partnerTier?.id ?? d.partnerTierId ?? 0,

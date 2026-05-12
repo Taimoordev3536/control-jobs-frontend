@@ -302,6 +302,33 @@ html body[data-scroll-locked] {
     border-radius: 0 3px 3px 0;
   }
 
+  .chat-crop-host {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 0;
+    min-width: 0;
+  }
+  .chat-crop-host .ReactCrop {
+    max-height: 100%;
+    max-width: 100%;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+  }
+  .chat-crop-host .ReactCrop__child-wrapper {
+    max-height: 100%;
+    max-width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .chat-crop-host .ReactCrop__image {
+    max-height: 100% !important;
+    max-width: 100% !important;
+    object-fit: contain;
+  }
+
   .chat-canvas {
     background-color: hsl(var(--muted) / 0.35);
     background-image: radial-gradient(

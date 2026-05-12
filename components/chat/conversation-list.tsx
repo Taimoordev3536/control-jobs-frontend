@@ -80,7 +80,15 @@ export function ConversationList({ conversations, activePublicId, onSelect }: Co
               const isActive = c.publicId === activePublicId
               const preview = c.lastMessage?.deletedAt
                 ? t("messageDeleted")
-                : c.lastMessage?.body || ""
+                : c.lastMessage?.body
+                  ? c.lastMessage.body
+                  : c.lastMessage?.firstAttachmentKind === "IMAGE"
+                    ? (c.lastMessage.attachmentCount > 1
+                        ? `📷 ${c.lastMessage.attachmentCount} ${t("photos") || "fotos"}`
+                        : `📷 ${t("photo") || "Foto"}`)
+                    : c.lastMessage?.firstAttachmentKind === "PDF"
+                      ? `📎 ${c.lastMessage.firstAttachmentName || "documento.pdf"}`
+                      : ""
               return (
                 <button
                   key={c.publicId}

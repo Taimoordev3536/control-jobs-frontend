@@ -6,8 +6,11 @@ import {
   ChevronDown,
   Copy,
   CornerUpLeft,
+  FileText,
   Forward,
+  Image as ImageIcon,
   Info,
+  Paperclip,
   Pencil,
   Pin,
   PinOff,
@@ -18,10 +21,16 @@ import {
   Users,
   X,
 } from "lucide-react"
+import imageCompression from "browser-image-compression"
+import { PhotoEditor } from "./photo-editor"
+import { AttachmentCaption } from "./attachment-caption"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { AnimatedLoader } from "@/components/animated-loader"
 import { MessageInfoDialog } from "./message-info-dialog"
 import { ForwardDialog } from "./forward-dialog"
+import { MessageAttachments } from "./message-attachments"
+import { ImageLightbox } from "./image-lightbox"
+import type { AttachmentDto } from "@/lib/api/chat"
 import { toast } from "@/hooks/use-toast"
 
 const QUICK_REACTIONS = ["👍", "❤️", "😂", "😮", "😢", "🙏"]
@@ -67,6 +76,7 @@ export function ChatPanel({ conversationPublicId }: ChatPanelProps) {
     conversations,
     fetchMessages,
     sendMessage,
+    sendMessageWithAttachments,
     editMessage,
     deleteMessage,
     pinMessage,
@@ -100,6 +110,60 @@ export function ChatPanel({ conversationPublicId }: ChatPanelProps) {
   const [replyTo, setReplyTo] = useState<MessageDto | null>(null)
   const [infoMessage, setInfoMessage] = useState<MessageDto | null>(null)
   const [forwardMessage, setForwardMessage] = useState<MessageDto | null>(null)
+  const [attachMenuOpen, setAttachMenuOpen] = useState(false)
+  const [editorFiles, setEditorFiles] = useState<File[] | null>(null)
+  const [captionFiles, setCaptionFiles] = useState<{ files: File[]; mode: "image" | "pdf" } | null>(null)
+  const [lightbox, setLightbox] = useState<{ images: AttachmentDto[]; index: number } | null>(null)
+  const imageInputRef = useRef<HTMLInputElement | null>(null)
+  const pdfInputRef = useRef<HTMLInputElement | null>(null)
+  const attachMenuRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    if (!attachMenuOpen) return
+    const onDocClick = (e: MouseEvent) => {
+      if (attachMenuRef.current && !attachMenuRef.current.contains(e.target as Node)) setAttachMenuOpen(false)
+    }
+    document.addEventListener("mousedown", onDocClick)
+    return () => document.removeEventListener("mousedown", onDocClick)
+  }, [attachMenuOpen])
+
+  const handleImagePicked = useCallback(async (raw: FileList | null) => {
+    if (!raw || raw.length === 0) return
+    const list = Array.from(raw).slice(0, 10)
+    const compressed = await Promise.all(
+      list.map((f) =>
+        imageCompression(f, {
+          maxSizeMB: 2,
+          maxWidthOrHeight: 2048,
+          useWebWorker: true,
+          initialQuality: 0.85,
+        }).catch(() => f),
+      ),
+    )
+    setEditorFiles(compressed)
+  }, [])
+
+  const handlePdfPicked = useCallback((raw: FileList | null) => {
+    if (!raw || raw.length === 0) return
+    const list = Array.from(raw).slice(0, 10)
+    setCaptionFiles({ files: list, mode: "pdf" })
+  }, [])
+
+  const handleSendAttachments = useCallback(async (caption: string) => {
+    if (!captionFiles) return
+    try {
+      await sendMessageWithAttachments(
+        conversationPublicId,
+        captionFiles.files,
+        caption || undefined,
+        replyTo?.publicId,
+      )
+      setCaptionFiles(null)
+      setReplyTo(null)
+    } catch (err) {
+      console.error(err)
+    }
+  }, [captionFiles, conversationPublicId, replyTo, sendMessageWithAttachments])
 
   const scrollRef = useRef<HTMLDivElement | null>(null)
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -299,7 +363,7 @@ export function ChatPanel({ conversationPublicId }: ChatPanelProps) {
   const showSenderLabels = conversation?.kind === "GROUP"
 
   return (
-    <div className="flex h-full min-h-0 w-full min-w-0 flex-col bg-background">
+    <div className="relative flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden bg-background">
       <div className="flex h-[54px] flex-shrink-0 items-center justify-between border-b border-border bg-card px-4">
         <div className="flex min-w-0 flex-1 items-center gap-2.5">
           {conversation?.displayName && (
@@ -428,12 +492,12 @@ export function ChatPanel({ conversationPublicId }: ChatPanelProps) {
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <button
-                                className={`absolute right-1 top-1 rounded-full p-0.5 opacity-0 transition-opacity group-hover:opacity-100 ${
-                                  isMine ? "bg-black/15 text-white hover:bg-black/25" : "bg-muted text-foreground hover:bg-muted/80"
+                                className={`absolute right-0.5 top-0.5 flex h-7 w-7 items-center justify-center rounded-full opacity-0 transition-opacity group-hover:opacity-100 ${
+                                  isMine ? "bg-black/20 text-white hover:bg-black/35" : "bg-muted text-foreground hover:bg-muted/80"
                                 }`}
                                 aria-label="message actions"
                               >
-                                <ChevronDown className="h-3.5 w-3.5" />
+                                <ChevronDown className="h-4 w-4" />
                               </button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="min-w-[7.5rem] p-1">
@@ -513,7 +577,20 @@ export function ChatPanel({ conversationPublicId }: ChatPanelProps) {
                         {m.deletedAt ? (
                           <span className="italic opacity-70">{t("messageDeleted")}</span>
                         ) : (
-                          <div className={`whitespace-pre-wrap break-words ${isEditing ? "opacity-60" : ""}`}>{m.body}</div>
+                          <>
+                            {m.attachments && m.attachments.length > 0 && (
+                              <div className="mb-1">
+                                <MessageAttachments
+                                  attachments={m.attachments}
+                                  isMine={isMine}
+                                  onOpenLightbox={(images, idx) => setLightbox({ images, index: idx })}
+                                />
+                              </div>
+                            )}
+                            {m.body && (
+                              <div className={`whitespace-pre-wrap break-words ${isEditing ? "opacity-60" : ""}`}>{m.body}</div>
+                            )}
+                          </>
                         )}
                         <div className={`mt-0.5 flex items-center gap-1 text-[10px] ${isMine ? "text-white/80" : "text-muted-foreground"}`}>
                           <span>{formatTime(new Date(m.createdAt))}</span>
@@ -622,6 +699,63 @@ export function ChatPanel({ conversationPublicId }: ChatPanelProps) {
       )}
 
       <div className="flex min-h-12 flex-shrink-0 items-end gap-2 bg-card px-3 py-2 shadow-[0_-4px_10px_-2px_rgba(0,0,0,0.08)]">
+        <div className="relative" ref={attachMenuRef}>
+          <button
+            onClick={() => setAttachMenuOpen((v) => !v)}
+            className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-accent"
+            aria-label="attach"
+            disabled={!!editingId}
+          >
+            <Paperclip className="h-4 w-4" />
+          </button>
+          {attachMenuOpen && (
+            <div className="absolute bottom-10 left-0 z-20 overflow-hidden rounded-md border border-border bg-card shadow-lg">
+              <button
+                onClick={() => {
+                  setAttachMenuOpen(false)
+                  imageInputRef.current?.click()
+                }}
+                className="flex w-full items-center gap-2 whitespace-nowrap px-3 py-2 text-left text-xs transition-colors hover:bg-sidebar-accent"
+              >
+                <ImageIcon className="h-4 w-4 text-[#662D91]" />
+                Foto / Imagen
+              </button>
+              <button
+                onClick={() => {
+                  setAttachMenuOpen(false)
+                  pdfInputRef.current?.click()
+                }}
+                className="flex w-full items-center gap-2 whitespace-nowrap px-3 py-2 text-left text-xs transition-colors hover:bg-sidebar-accent"
+              >
+                <FileText className="h-4 w-4 text-[#662D91]" />
+                Documento (PDF)
+              </button>
+            </div>
+          )}
+          <input
+            ref={imageInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            capture="environment"
+            className="hidden"
+            onChange={(e) => {
+              handleImagePicked(e.target.files)
+              e.target.value = ""
+            }}
+          />
+          <input
+            ref={pdfInputRef}
+            type="file"
+            accept="application/pdf"
+            multiple
+            className="hidden"
+            onChange={(e) => {
+              handlePdfPicked(e.target.files)
+              e.target.value = ""
+            }}
+          />
+        </div>
         <textarea
           rows={1}
           value={draft}
@@ -650,6 +784,31 @@ export function ChatPanel({ conversationPublicId }: ChatPanelProps) {
         </Button>
       </div>
 
+      {editorFiles && (
+        <PhotoEditor
+          files={editorFiles}
+          onCancel={() => setEditorFiles(null)}
+          onDone={(edited) => {
+            setEditorFiles(null)
+            setCaptionFiles({ files: edited, mode: "image" })
+          }}
+        />
+      )}
+
+      {captionFiles && (
+        <AttachmentCaption
+          files={captionFiles.files}
+          mode={captionFiles.mode}
+          onBack={() => {
+            if (captionFiles.mode === "image") {
+              setEditorFiles(captionFiles.files)
+            }
+            setCaptionFiles(null)
+          }}
+          onSend={handleSendAttachments}
+        />
+      )}
+
       <MessageInfoDialog
         open={!!infoMessage}
         onOpenChange={(o) => !o && setInfoMessage(null)}
@@ -660,6 +819,14 @@ export function ChatPanel({ conversationPublicId }: ChatPanelProps) {
         onOpenChange={(o) => !o && setForwardMessage(null)}
         message={forwardMessage}
       />
+
+      {lightbox && (
+        <ImageLightbox
+          images={lightbox.images}
+          initialIndex={lightbox.index}
+          onClose={() => setLightbox(null)}
+        />
+      )}
     </div>
   )
 }

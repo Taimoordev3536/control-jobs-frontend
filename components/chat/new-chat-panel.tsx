@@ -93,7 +93,7 @@ export function NewChatPanel({ mode, onBack, onConversationCreated }: NewChatPan
   const getGroup = (type: ParticipantType) => contacts.find((g) => g.type === type)?.items || []
 
   async function handleDirect(type: ParticipantType, publicId?: string) {
-    if (!publicId) return
+    if (type !== "ADMIN" && !publicId) return
     setBusy(true)
     try {
       const conv = await startDirect(type, publicId)
@@ -166,7 +166,7 @@ export function NewChatPanel({ mode, onBack, onConversationCreated }: NewChatPan
                   {g.items.map((item) => (
                     <button
                       key={`${g.type}-${item.id}`}
-                      disabled={busy || !item.publicId}
+                      disabled={busy || (g.type !== "ADMIN" && !item.publicId)}
                       onClick={() => handleDirect(g.type, item.publicId)}
                       className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground disabled:opacity-50"
                     >
