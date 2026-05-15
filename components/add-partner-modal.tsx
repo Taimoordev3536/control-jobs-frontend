@@ -46,6 +46,7 @@ export default function AddPartnerModal({ open, onOpenChange, onPartnerAdded }: 
   const { t, tEnum } = useTranslation()
   const translateBackendError = useBackendError()
   const { session, getUserRole } = useAuth()
+  const [addressDisplay, setAddressDisplay] = useState("")
   const [formData, setFormData] = useState({
     name: "",
     address: "",
@@ -248,6 +249,7 @@ export default function AddPartnerModal({ open, onOpenChange, onPartnerAdded }: 
           responsible: "",
           accessAccountStatus: "postpone",
         })
+        setAddressDisplay("")
         setValidationErrors({
           name: false,
           address: false,
@@ -375,8 +377,10 @@ export default function AddPartnerModal({ open, onOpenChange, onPartnerAdded }: 
                   </TooltipProvider>
                 </Label>
                 <GoogleAddressInput
-                  value={formData.address}
+                  value={addressDisplay}
+                  useFullAddress
                   onChange={(value, placeId, components) => {
+                    setAddressDisplay(value)
                     if (components) {
                       const parts = [components.street, components.streetNumber].filter(Boolean)
                       let addressOnly: string

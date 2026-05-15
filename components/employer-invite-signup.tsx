@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import { signOut } from "next-auth/react"
 import { Loader2, Eye, EyeOff, Lock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -82,6 +83,7 @@ export default function EmployerInviteSignup({
   })
 
   const update = (k: string, v: any) => setForm((p) => ({ ...p, [k]: v }))
+  const [addressDisplay, setAddressDisplay] = useState("")
 
   // Tarifa options conditional on Clase (same rules as the admin modal)
   const allFees = [
@@ -220,6 +222,7 @@ export default function EmployerInviteSignup({
         throw new Error(errJson?.message || "Failed to create account")
       }
       toast({ title: t("accountCreated") || "Account created!", variant: "success" as any })
+      await signOut({ redirect: false })
       router.push("/login")
     } catch (e: any) {
       toast({ title: e.message, variant: "destructive" })
@@ -292,8 +295,10 @@ export default function EmployerInviteSignup({
             <div>
               <Label className="text-xs">{t("address")} *</Label>
               <GoogleAddressInput
-                value={form.address}
+                value={addressDisplay}
+                useFullAddress
                 onChange={(value, _placeId, components) => {
+                  setAddressDisplay(value)
                   if (components) {
                     const parts = [components.street, components.streetNumber].filter(Boolean)
                     const addressOnly = parts.length > 0 ? parts.join(", ") : value

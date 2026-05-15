@@ -143,8 +143,21 @@ export default function BulkInvitationModal({
       if (selected && !selected.isSystem && discountNum > selected.commission) {
         toast({
           title:
-            t("discountExceedsCommission") ||
-            `Discount cannot exceed partner commission (${selected.commission}%)`,
+            t("discountExceedsCommission", { cap: selected.commission }) ||
+            `El descuento no puede exceder la comisión del ${selected.commission}%`,
+          variant: "destructive",
+        })
+        return
+      }
+    }
+    if (expiresAt) {
+      const picked = new Date(expiresAt)
+      picked.setHours(23, 59, 59, 999)
+      if (picked.getTime() <= Date.now()) {
+        toast({
+          title:
+            t("expiryMustBeFuture") ||
+            "La fecha de caducidad debe ser posterior a la fecha actual",
           variant: "destructive",
         })
         return
@@ -316,7 +329,6 @@ export default function BulkInvitationModal({
                 value={expiresAt}
                 onChange={(e) => setExpiresAt(e.target.value)}
                 className="h-9 text-xs"
-                allowPastDates
               />
             </div>
           </div>

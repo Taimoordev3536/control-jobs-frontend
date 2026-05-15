@@ -6,6 +6,7 @@ import type { ConversationDto } from "@/lib/api/chat"
 import { useChat } from "@/components/providers/chat-provider"
 import { useTranslation } from "@/hooks/use-translation"
 import { AnimatedLoader } from "@/components/animated-loader"
+import { groupInitials } from "./chat-utils"
 
 interface ConversationListProps {
   conversations: ConversationDto[]
@@ -104,6 +105,8 @@ export function ConversationList({ conversations, activePublicId, onSelect }: Co
                           alt={c.displayName}
                           className="h-full w-full object-cover"
                         />
+                      ) : c.kind === "GROUP" ? (
+                        groupInitials(c.displayName)
                       ) : (
                         initials(c.displayName)
                       )}

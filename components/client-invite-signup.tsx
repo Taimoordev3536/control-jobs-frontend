@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { signOut } from "next-auth/react"
 import { Loader2, Eye, EyeOff, Lock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -19,6 +20,7 @@ import GoogleAddressInput from "@/components/GoogleAddressInput"
 
 interface VerifiedToken {
   description: string
+  type?: "company" | "particular"
   employerId: number
   employerName: string
 }
@@ -39,7 +41,7 @@ export default function ClientInviteSignup({
 
   const [form, setForm] = useState({
     name: "",
-    type: "" as "company" | "particular" | "",
+    type: (verified.type ?? "") as "company" | "particular" | "",
     code: "",
     taxId: "",
     address: "",
@@ -62,6 +64,7 @@ export default function ClientInviteSignup({
   })
 
   const update = (k: string, v: any) => setForm((p) => ({ ...p, [k]: v }))
+  const [addressDisplay, setAddressDisplay] = useState("")
 
   const next = () => {
     if (step === 1) {
@@ -80,8 +83,6 @@ export default function ClientInviteSignup({
       setStep(2)
     } else if (step === 2) {
       if (!form.type)
-        return toast({ title: t("thisFieldIsRequired"), variant: "destructive" })
-      if (!form.code)
         return toast({ title: t("thisFieldIsRequired"), variant: "destructive" })
       if (!form.taxId)
         return toast({ title: t("thisFieldIsRequired"), variant: "destructive" })
@@ -110,7 +111,6 @@ export default function ClientInviteSignup({
         name: form.name,
         email: form.email,
         type: form.type,
-        code: form.code,
         taxId: form.taxId,
         address: form.address,
         street: form.street,
@@ -143,6 +143,7 @@ export default function ClientInviteSignup({
         title: t("accountCreated") || "Account created!",
         variant: "success" as any,
       })
+      await signOut({ redirect: false })
       router.push("/login")
     } catch (e: any) {
       toast({ title: e.message, variant: "destructive" })
@@ -200,8 +201,10 @@ export default function ClientInviteSignup({
             <div>
               <Label className="text-xs">{t("address")} *</Label>
               <GoogleAddressInput
-                value={form.address}
+                value={addressDisplay}
+                useFullAddress
                 onChange={(value, _placeId, components) => {
+                  setAddressDisplay(value)
                   if (components) {
                     const parts = [components.street, components.streetNumber].filter(Boolean)
                     const addressOnly = parts.length > 0 ? parts.join(", ") : value
@@ -257,8 +260,8 @@ export default function ClientInviteSignup({
           <>
             <div>
               <Label className="text-xs">{t("type") || "Tipo"} *</Label>
-              <Select value={form.type} onValueChange={(v) => update("type", v)}>
-                <SelectTrigger className="mt-1 h-9 text-xs">
+              <Select value={form.type} disabled>
+                <SelectTrigger className="mt-1 h-9 text-xs bg-muted cursor-not-allowed">
                   <SelectValue placeholder={t("selectType") || "Seleccionar tipo"} />
                 </SelectTrigger>
                 <SelectContent>
@@ -270,14 +273,6 @@ export default function ClientInviteSignup({
                   </SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-            <div>
-              <Label className="text-xs">{t("code") || "Código"} *</Label>
-              <Input
-                value={form.code}
-                onChange={(e) => update("code", e.target.value)}
-                className="mt-1 h-9 text-xs"
-              />
             </div>
             <div>
               <Label className="text-xs">{t("nif") || "NIF/CIF"} *</Label>
@@ -311,6 +306,7 @@ export default function ClientInviteSignup({
                   value={form.password}
                   onChange={(e) => update("password", e.target.value)}
                   className="h-9 text-xs pl-9 pr-9"
+                  autoComplete="new-password"
                 />
                 <button
                   type="button"
@@ -330,6 +326,7 @@ export default function ClientInviteSignup({
                 value={form.confirmPassword}
                 onChange={(e) => update("confirmPassword", e.target.value)}
                 className="h-9 text-xs mt-1"
+                autoComplete="new-password"
               />
             </div>
           </>

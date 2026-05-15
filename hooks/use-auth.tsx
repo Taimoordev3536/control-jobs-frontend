@@ -22,24 +22,17 @@ export function useAuth() {
   const [subUser, setSubUser] = useState<SubUserContext>({ isSubUser: false })
   const { language, setLanguage, t } = useTranslation("login") // Explicitly set namespace to "login"
 
-  // Check for tab-scoped impersonation session.
-  // We use a "checked" flag so that on the very first client render we detect
-  // the impersonation session BEFORE returning any data to consumers.
-  // This prevents the dashboard from briefly rendering the wrong role.
-  const [impersonationChecked, setImpersonationChecked] = useState(false)
-  const [impersonating, setImpersonating] = useState(false)
-  const [impersonationUser, setImpersonationUser] = useState<any>(null)
-  const [impersonationCtx, setImpersonationCtx] = useState<ImpersonationContext>({ isImpersonating: false })
-
-  useEffect(() => {
-    if (typeof window === "undefined") return
-    if (isImpersonationSession()) {
-      setImpersonating(true)
-      setImpersonationUser(getStoredImpersonationUser())
-      setImpersonationCtx(getStoredImpersonationContext() || { isImpersonating: false })
-    }
-    setImpersonationChecked(true)
-  }, [])
+  const [impersonating] = useState<boolean>(() =>
+    typeof window === "undefined" ? false : isImpersonationSession(),
+  )
+  const [impersonationUser] = useState<any>(() =>
+    typeof window === "undefined" ? null : getStoredImpersonationUser(),
+  )
+  const [impersonationCtx] = useState<ImpersonationContext>(() =>
+    typeof window === "undefined"
+      ? { isImpersonating: false }
+      : getStoredImpersonationContext() || { isImpersonating: false },
+  )
 
   useEffect(() => {
     // Skip sub-user context fetch for impersonation sessions
@@ -189,9 +182,7 @@ export function useAuth() {
     user: session?.user,
     session,
     isAuthenticated: status === "authenticated",
-    // Stay in loading state until the impersonation check has run.
-    // This prevents the dashboard from rendering the wrong role for one frame.
-    isLoading: status === "loading" || isLoading || !impersonationChecked,
+    isLoading: status === "loading" || isLoading,
     login,
     logout,
     getUserRole,

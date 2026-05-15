@@ -178,7 +178,8 @@ export function PhotoEditor({ files, onCancel, onDone }: PhotoEditorProps) {
     startClientY: number
     moved: boolean
   } | null>(null)
-  const drawAreaRef = useRef<HTMLDivElement | null>(null)
+  const imageWrapperRef = useRef<HTMLDivElement | null>(null)
+  const [wrapperWidth, setWrapperWidth] = useState(800)
 
   useEffect(() => {
     let cancelled = false
@@ -221,6 +222,19 @@ export function PhotoEditor({ files, onCancel, onDone }: PhotoEditorProps) {
     }
   }, [active])
 
+  useEffect(() => {
+    const el = imageWrapperRef.current
+    if (!el) return
+    const update = () => {
+      const w = el.getBoundingClientRect().width
+      setWrapperWidth((prev) => (Math.abs(prev - w) > 0.5 ? w : prev))
+    }
+    update()
+    const observer = new ResizeObserver(update)
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [displaySrc, tool])
+
   const updateActive = useCallback(
     (patch: Partial<EditState>) => {
       setStates((prev) => {
@@ -248,8 +262,9 @@ export function PhotoEditor({ files, onCancel, onDone }: PhotoEditorProps) {
     if (tool !== "text") return
     const target = e.target as HTMLElement
     if (target.closest("[data-text-label='true']") || target.closest("input")) return
-    if (!drawAreaRef.current) return
-    const rect = drawAreaRef.current.getBoundingClientRect()
+    if (!imageWrapperRef.current) return
+    e.preventDefault()
+    const rect = imageWrapperRef.current.getBoundingClientRect()
     const id = `t-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
     updateTexts((prev) => [
       ...prev,
@@ -268,8 +283,8 @@ export function PhotoEditor({ files, onCancel, onDone }: PhotoEditorProps) {
   const handleTextDragStart = (e: PointerEvent<HTMLDivElement>, label: TextLabel) => {
     if (editingTextId === label.id) return
     e.stopPropagation()
-    if (!drawAreaRef.current) return
-    const rect = drawAreaRef.current.getBoundingClientRect()
+    if (!imageWrapperRef.current) return
+    const rect = imageWrapperRef.current.getBoundingClientRect()
     draggingRef.current = {
       id: label.id,
       offsetX: e.clientX - (rect.left + label.x * rect.width),
@@ -279,7 +294,7 @@ export function PhotoEditor({ files, onCancel, onDone }: PhotoEditorProps) {
       startClientY: e.clientY,
       moved: false,
     }
-    ;(e.target as Element).setPointerCapture?.(e.pointerId)
+    ;(e.currentTarget as Element).setPointerCapture?.(e.pointerId)
   }
 
   const handleTextDragMove = (e: PointerEvent<HTMLDivElement>) => {
@@ -341,15 +356,15 @@ export function PhotoEditor({ files, onCancel, onDone }: PhotoEditorProps) {
   }
 
   const handlePointerDown = (e: PointerEvent<HTMLDivElement>) => {
-    if (tool !== "draw" || !active || !drawAreaRef.current) return
-    const rect = drawAreaRef.current.getBoundingClientRect()
+    if (tool !== "draw" || !active || !imageWrapperRef.current) return
+    const rect = imageWrapperRef.current.getBoundingClientRect()
     drawingRef.current.rect = rect
     drawingRef.current.stroke = {
       color,
       size: brushSize,
       points: [{ x: (e.clientX - rect.left) / rect.width, y: (e.clientY - rect.top) / rect.height }],
     }
-    ;(e.target as Element).setPointerCapture?.(e.pointerId)
+    ;(e.currentTarget as Element).setPointerCapture?.(e.pointerId)
   }
 
   const handlePointerMove = (e: PointerEvent<HTMLDivElement>) => {
@@ -450,25 +465,7 @@ export function PhotoEditor({ files, onCancel, onDone }: PhotoEditorProps) {
       </div>
 
       <div
-        ref={drawAreaRef}
         className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden p-4"
-        onPointerDown={(e) => {
-          if (tool === "draw") startStroke(e)
-          if (tool === "text") handleAddText(e)
-        }}
-        onPointerMove={(e) => {
-          if (tool === "draw") handlePointerMove(e)
-          if (draggingRef.current) handleTextDragMove(e)
-        }}
-        onPointerUp={() => {
-          if (tool === "draw") handlePointerUp()
-          if (draggingRef.current) handleTextDragEnd()
-        }}
-        onPointerCancel={() => {
-          if (tool === "draw") handlePointerUp()
-          if (draggingRef.current) handleTextDragEnd()
-        }}
-        style={{ touchAction: tool === "draw" || tool === "text" ? "none" : "auto" }}
       >
         {tool === "crop" ? (
           <ReactCrop
@@ -490,15 +487,47 @@ export function PhotoEditor({ files, onCancel, onDone }: PhotoEditorProps) {
             />
           </ReactCrop>
         ) : (
-          <div className="relative inline-block max-w-full">
+          <div
+            ref={imageWrapperRef}
+            className="relative inline-block max-w-full select-none"
+            draggable={false}
+            onDragStart={(e) => e.preventDefault()}
+            onPointerDown={(e) => {
+              if (tool === "draw") {
+                e.preventDefault()
+                startStroke(e)
+              }
+              if (tool === "text") handleAddText(e)
+            }}
+            onPointerMove={(e) => {
+              if (tool === "draw") handlePointerMove(e)
+              if (draggingRef.current) handleTextDragMove(e)
+            }}
+            onPointerUp={() => {
+              if (tool === "draw") handlePointerUp()
+              if (draggingRef.current) handleTextDragEnd()
+            }}
+            onPointerCancel={() => {
+              if (tool === "draw") handlePointerUp()
+              if (draggingRef.current) handleTextDragEnd()
+            }}
+            style={{
+              touchAction: tool === "draw" || tool === "text" ? "none" : "auto",
+              userSelect: "none",
+              WebkitUserSelect: "none",
+            }}
+          >
             <img
               src={displaySrc}
               alt=""
+              draggable={false}
+              onDragStart={(e) => e.preventDefault()}
               className="block select-none"
               style={{
                 maxHeight: "calc(100dvh - 240px)",
                 maxWidth: "100%",
                 objectFit: "contain",
+                pointerEvents: "none",
               }}
             />
             <svg
@@ -520,14 +549,14 @@ export function PhotoEditor({ files, onCancel, onDone }: PhotoEditorProps) {
             </svg>
             {(active.texts || []).map((label) => {
               const isEditing = editingTextId === label.id
-              const maxWidthPct = Math.max(20, (1 - label.x) * 100 - 1)
+              const displayFontSize = (label.fontSize * wrapperWidth) / 800
               const style: React.CSSProperties = {
                 left: `${label.x * 100}%`,
                 top: `${label.y * 100}%`,
                 color: label.color,
-                fontSize: `${label.fontSize}px`,
+                fontSize: `${displayFontSize}px`,
                 textShadow: "0 1px 3px rgba(0,0,0,0.6)",
-                maxWidth: `${maxWidthPct}%`,
+                whiteSpace: "nowrap",
               }
               return (
                 <div
@@ -538,20 +567,36 @@ export function PhotoEditor({ files, onCancel, onDone }: PhotoEditorProps) {
                   onPointerDown={(e) => handleTextDragStart(e, label)}
                 >
                   {isEditing ? (
-                    <div className="flex max-w-full items-center gap-1 rounded-md bg-black/60 px-1 py-0.5 backdrop-blur-sm">
+                    <div
+                      className="flex max-w-full items-center gap-1 rounded-md bg-black/60 px-1 py-0.5 backdrop-blur-sm"
+                      onPointerDown={(e) => e.stopPropagation()}
+                    >
                       <input
+                        ref={(el) => {
+                          if (el && document.activeElement !== el) {
+                            requestAnimationFrame(() => el.focus())
+                          }
+                        }}
                         autoFocus
                         value={label.text}
                         onChange={(e) => handleTextChange(label.id, e.target.value)}
                         onBlur={() => handleTextBlur(label.id)}
+                        onPointerDown={(e) => e.stopPropagation()}
                         onKeyDown={(e) => {
+                          e.stopPropagation()
                           if (e.key === "Enter") {
                             e.preventDefault()
                             ;(e.target as HTMLInputElement).blur()
                           }
                         }}
-                        style={{ color: label.color, fontSize: `${label.fontSize}px` }}
-                        className="w-32 min-w-0 max-w-full bg-transparent outline-none placeholder:text-white/60"
+                        style={{
+                          color: label.color,
+                          fontSize: `${displayFontSize}px`,
+                          userSelect: "text",
+                          WebkitUserSelect: "text",
+                        }}
+                        className="min-w-0 bg-transparent outline-none placeholder:text-white/60"
+                        size={Math.max(4, label.text.length + 2)}
                         placeholder="Texto"
                       />
                       <button

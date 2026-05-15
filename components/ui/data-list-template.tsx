@@ -23,6 +23,7 @@ interface Column {
   label: string
   sortable?: boolean
   align?: "left" | "center" | "right"
+  width?: string
   render?: (value: any, row: any) => React.ReactNode
 }
 
@@ -507,7 +508,11 @@ export default function DataListTemplate({
               <table
                 ref={tableRef}
                 className="w-full"
-                style={columnWidths ? { tableLayout: "fixed" } : undefined}
+                style={
+                  columnWidths || localColumns.some((c) => c.width)
+                    ? { tableLayout: "fixed" }
+                    : undefined
+                }
               >
                 <thead>
                   <Droppable droppableId="columns" direction="horizontal">
@@ -527,9 +532,11 @@ export default function DataListTemplate({
                                   {...provided.dragHandleProps}
                                   style={{
                                     ...(provided.draggableProps as any).style,
-                                    ...(columnWidths && columnWidths[index] != null
-                                      ? { width: `${columnWidths[index]}px` }
-                                      : {}),
+                                    ...(column.width
+                                      ? { width: column.width }
+                                      : columnWidths && columnWidths[index] != null
+                                        ? { width: `${columnWidths[index]}px` }
+                                        : {}),
                                   }}
                                   className={`px-4 py-[7px] text-xs font-semibold text-foreground transition-colors cursor-move ${
                                     snapshot.isDragging ? "bg-purple-200 dark:bg-purple-800" : ""

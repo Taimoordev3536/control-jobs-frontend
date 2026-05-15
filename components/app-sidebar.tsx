@@ -292,7 +292,7 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar, styl
             icon: () => <UtilitiesIcon className="h-5 w-5" />,
             items: [
               { title: t("import"), href: "/utilities/import", iconKey: "import" },
-              { title: t("invitations") || "Invitaciones", href: "/utilities/invite", iconKey: "invite" },
+              { title: t("invitations") || "Invitar", href: "/utilities/invite", iconKey: "invite" },
             ],
           },
           {
@@ -343,7 +343,7 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar, styl
             icon: () => <UtilitiesIcon className="h-5 w-5" />,
             items: [
               { title: t("import"), href: "/utilities/import", iconKey: "import" },
-              { title: t("inviteEmployer"), href: "/utilities/invite", iconKey: "invite" },
+              { title: t("invitations") || "Invitar", href: "/utilities/invite", iconKey: "invite" },
             ],
           },
           {
@@ -400,7 +400,7 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar, styl
               { title: t("payments"), href: "/utilities/payments", iconKey: "payments" },
               { title: t("pages"), href: "/utilities/payments", iconKey: "payments" },
               { title: t("import"), href: "/utilities/import", iconKey: "import" },
-              { title: t("inviteEmployer"), href: "/utilities/invite", iconKey: "invite" },
+              { title: t("invitations") || "Invitar", href: "/utilities/invite", iconKey: "invite" },
             ],
           },
           {

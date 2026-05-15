@@ -21,6 +21,7 @@ import {
   SearchResultDto,
   createDirectConversation,
   createGroupConversation,
+  deleteGroupImage as apiDeleteGroupImage,
   deleteMessage as apiDeleteMessage,
   editMessage as apiEditMessage,
   getMyScope as apiGetMyScope,
@@ -33,10 +34,12 @@ import {
   pinMessage as apiPinMessage,
   addReaction as apiAddReaction,
   removeReaction as apiRemoveReaction,
+  renameGroupConversation as apiRenameGroup,
   searchMessages as apiSearchMessages,
   sendMessage as apiSendMessage,
   sendMessageWithAttachments as apiSendMessageWithAttachments,
   unpinMessage as apiUnpinMessage,
+  uploadGroupImage as apiUploadGroupImage,
 } from "@/lib/api/chat"
 
 interface TypingState {
@@ -65,9 +68,14 @@ interface ChatContextValue {
   startDirect: (targetType: ParticipantType, targetEntityPublicId?: string) => Promise<ConversationDto>
   startGroup: (payload: {
     employerPublicId: string
-    clientPublicId: string
-    workerPublicId: string
+    adminPublicId?: string
+    clientPublicId?: string
+    workerPublicId?: string
+    name?: string
   }) => Promise<ConversationDto>
+  renameGroup: (conversationPublicId: string, name: string | null) => Promise<ConversationDto>
+  uploadGroupImage: (conversationPublicId: string, file: File) => Promise<ConversationDto>
+  deleteGroupImage: (conversationPublicId: string) => Promise<ConversationDto>
   fetchContacts: () => Promise<ContactGroup[]>
   search: (q: string, conversationPublicId?: string) => Promise<SearchResultDto[]>
   subscribeToConversation: (publicId: string) => () => void
@@ -277,10 +285,30 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
   const startGroup = useCallback(async (payload: {
     employerPublicId: string
-    clientPublicId: string
-    workerPublicId: string
+    adminPublicId?: string
+    clientPublicId?: string
+    workerPublicId?: string
+    name?: string
   }) => {
     const conv = await createGroupConversation(payload)
+    await refreshConversations()
+    return conv
+  }, [refreshConversations])
+
+  const renameGroup = useCallback(async (conversationPublicId: string, name: string | null) => {
+    const conv = await apiRenameGroup(conversationPublicId, name)
+    await refreshConversations()
+    return conv
+  }, [refreshConversations])
+
+  const uploadGroupImage = useCallback(async (conversationPublicId: string, file: File) => {
+    const conv = await apiUploadGroupImage(conversationPublicId, file)
+    await refreshConversations()
+    return conv
+  }, [refreshConversations])
+
+  const deleteGroupImage = useCallback(async (conversationPublicId: string) => {
+    const conv = await apiDeleteGroupImage(conversationPublicId)
     await refreshConversations()
     return conv
   }, [refreshConversations])
@@ -361,6 +389,9 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       markRead,
       startDirect,
       startGroup,
+      renameGroup,
+      uploadGroupImage,
+      deleteGroupImage,
       fetchContacts,
       search,
       subscribeToConversation,
@@ -389,6 +420,9 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       markRead,
       startDirect,
       startGroup,
+      renameGroup,
+      uploadGroupImage,
+      deleteGroupImage,
       fetchContacts,
       search,
       subscribeToConversation,

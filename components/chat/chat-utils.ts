@@ -71,3 +71,10 @@ export function participantLabel(type: ParticipantType): string {
       return "Trabajador"
   }
 }
+
+export function groupInitials(name: string | null | undefined): string {
+  const tokens = (name || "").trim().toLowerCase().match(/[a-z]+|[0-9]+/g) || []
+  if (tokens.length >= 2) return tokens[0][0] + tokens[1][0]
+  if (tokens.length === 1) return tokens[0].slice(0, 2)
+  return "?"
+}

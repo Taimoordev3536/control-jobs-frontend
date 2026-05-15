@@ -29,6 +29,8 @@ interface Invitation {
   createdAt: string
   inviteLink?: string
   acceptedCount?: number
+  occupation?: string
+  type?: "company" | "particular"
 }
 
 const RESOURCE_BY_TARGET: Record<Target, string> = {
@@ -73,6 +75,7 @@ export default function TargetInvitationList({ target }: { target: Target }) {
   }
 
   useEffect(() => {
+    setInvitations([])
     fetchInvitations()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.accessToken, apiPath])
@@ -109,7 +112,14 @@ export default function TargetInvitationList({ target }: { target: Target }) {
           headers: { Authorization: `Bearer ${session?.accessToken}` },
         },
       )
-      if (!res.ok) throw new Error("Failed to revoke")
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => null)
+        throw new Error(
+          errJson?.message ||
+            t("revokeFailed") ||
+            "Fallo al intentar revocar",
+        )
+      }
       toast({
         title: t("invitationRevoked") || "Invitation revoked",
         variant: "success" as any,
@@ -133,7 +143,11 @@ export default function TargetInvitationList({ target }: { target: Target }) {
       )
       if (!res.ok) {
         const errJson = await res.json().catch(() => null)
-        throw new Error(errJson?.message || "Failed to delete")
+        throw new Error(
+          errJson?.message ||
+            t("deleteFailed") ||
+            "Fallo al intentar eliminar",
+        )
       }
       toast({
         title: t("invitationDeleted") || "Invitation deleted",
@@ -155,15 +169,38 @@ export default function TargetInvitationList({ target }: { target: Target }) {
         label: t("description") || "Descripción",
         sortable: true,
       },
+      target === "worker"
+        ? {
+            key: "occupation",
+            label: t("occupation") || "Ocupación",
+            align: "center" as const,
+            width: "140px",
+            sortable: true,
+          }
+        : {
+            key: "type",
+            label: t("type") || "Tipo",
+            align: "center" as const,
+            width: "120px",
+            sortable: true,
+            render: (v: any) =>
+              v === "particular"
+                ? t("particular") || "Particular"
+                : t("company") || "Empresa",
+          },
       {
         key: "createdAt",
         label: t("created") || "Creación",
+        align: "center" as const,
+        width: "110px",
         sortable: true,
         render: (v: any) => fmtDate(v),
       },
       {
         key: "expiresAt",
         label: t("expires") || "Caduca",
+        align: "center" as const,
+        width: "110px",
         sortable: true,
         render: (v: any) => fmtDate(v),
       },
@@ -171,6 +208,7 @@ export default function TargetInvitationList({ target }: { target: Target }) {
         key: "inviteLink",
         label: t("link") || "Enlace",
         align: "center" as const,
+        width: "80px",
         render: (link: any) =>
           link ? (
             <button
@@ -188,6 +226,7 @@ export default function TargetInvitationList({ target }: { target: Target }) {
         key: "acceptedCount",
         label: t("accepted") || "Aceptadas",
         align: "center" as const,
+        width: "100px",
         sortable: true,
         render: (_v: any, row: any) => (
           <button
@@ -203,13 +242,14 @@ export default function TargetInvitationList({ target }: { target: Target }) {
       {
         key: "actions",
         label: t("actions") || "Acciones",
-        align: "right" as const,
+        align: "center" as const,
+        width: "110px",
         render: (_v: any, row: any) => {
           const inv = row.__raw as Invitation
           const isPending = inv.status === "PENDING"
           const canDelete = (inv.acceptedCount ?? 0) === 0
           return (
-            <div className="flex items-center justify-end gap-1">
+            <div className="flex items-center justify-center gap-1">
               {isPending && (
                 <button
                   onClick={() => setEditingInvitation(inv)}
@@ -245,7 +285,7 @@ export default function TargetInvitationList({ target }: { target: Target }) {
       },
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [t],
+    [t, target],
   )
 
   const invitationRows = useMemo(
@@ -254,6 +294,8 @@ export default function TargetInvitationList({ target }: { target: Target }) {
         id: inv.id,
         publicId: inv.publicId,
         description: inv.description,
+        occupation: inv.occupation ?? "",
+        type: inv.type ?? "",
         createdAt: inv.createdAt,
         expiresAt: inv.expiresAt,
         status: inv.status,
@@ -334,6 +376,7 @@ export default function TargetInvitationList({ target }: { target: Target }) {
         onOpenChange={setShowCreateModal}
         onCreated={fetchInvitations}
         apiPath={apiPath}
+        target={target}
         titleCreate={titleCreate}
         titleEdit={titleEdit}
       />
@@ -343,6 +386,7 @@ export default function TargetInvitationList({ target }: { target: Target }) {
         onOpenChange={(o) => !o && setEditingInvitation(null)}
         onCreated={fetchInvitations}
         apiPath={apiPath}
+        target={target}
         titleCreate={titleCreate}
         titleEdit={titleEdit}
         invitation={
@@ -351,6 +395,8 @@ export default function TargetInvitationList({ target }: { target: Target }) {
                 publicId: editingInvitation.publicId,
                 description: editingInvitation.description,
                 expiresAt: editingInvitation.expiresAt,
+                occupation: editingInvitation.occupation,
+                type: editingInvitation.type,
               }
             : null
         }

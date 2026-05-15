@@ -98,6 +98,7 @@ export default function InvitePage() {
   }
 
   useEffect(() => {
+    setInvitations([])
     fetchInvitations()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.accessToken, isEmployer, isAdmin, isPartner])
@@ -134,7 +135,14 @@ export default function InvitePage() {
           headers: { Authorization: `Bearer ${session?.accessToken}` },
         },
       )
-      if (!res.ok) throw new Error("Failed to revoke")
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => null)
+        throw new Error(
+          errJson?.message ||
+            t("revokeFailed") ||
+            "Fallo al intentar revocar",
+        )
+      }
       toast({
         title: t("invitationRevoked") || "Invitation revoked",
         variant: "success" as any,
@@ -158,7 +166,11 @@ export default function InvitePage() {
       )
       if (!res.ok) {
         const errJson = await res.json().catch(() => null)
-        throw new Error(errJson?.message || "Failed to delete")
+        throw new Error(
+          errJson?.message ||
+            t("deleteFailed") ||
+            "Fallo al intentar eliminar",
+        )
       }
       toast({
         title: t("invitationDeleted") || "Invitation deleted",
@@ -188,11 +200,15 @@ export default function InvitePage() {
         label: t("description") || "Descripción",
         sortable: true,
       },
-      {
-        key: "partner",
-        label: t("partner") || "Partner",
-        sortable: true,
-      },
+      ...(isAdmin
+        ? [
+            {
+              key: "partner",
+              label: t("partner") || "Partner",
+              sortable: true,
+            },
+          ]
+        : []),
       {
         key: "discountPercent",
         label: "% Dto.",
@@ -296,7 +312,7 @@ export default function InvitePage() {
       },
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [t],
+    [t, isAdmin],
   )
 
   // Each row carries flat keys for the columns plus `__raw` so handlers
@@ -403,7 +419,7 @@ export default function InvitePage() {
   return (
     <>
       <DataListTemplate
-        title={t("invitationsList") || "Listado de invitaciones"}
+        title={t("employerInvitations") || "Invitaciones a Empleadores"}
         data={invitationRows}
         columns={invitationColumns}
         isLoading={isLoading}

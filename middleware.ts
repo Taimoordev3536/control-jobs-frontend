@@ -1,13 +1,37 @@
 import { withAuth } from "next-auth/middleware"
 import { NextResponse } from "next/server"
+import { jwtVerify } from "jose"
+
+const IMP_COOKIE = "cj-imp-token"
+
+const roleRoutes: Record<string, string[]> = {
+  admin: ["/dashboard", "/partners", "/employers", "/invoices", "/commissions", "/rates", "/information", "/utilities", "/aid", "/tasks", "/messages"],
+  partner: ["/dashboard", "/employers", "/billing", "/invoices", "/commissions", "/rates", "/information", "/utilities", "/aid", "/tasks", "/messages"],
+  employer: ["/dashboard", "/jobs", "/clients", "/workers", "/work-centers", "/surveys", "/invoices", "/billing", "/information", "/utilities", "/aid", "/tasks", "/records", "/messages"],
+  client: ["/dashboard", "/jobs", "/surveys", "/information", "/aid", "/tasks", "/records", "/messages"],
+  worker: ["/dashboard", "/jobs", "/occupation", "/surveys", "/information", "/aid", "/tasks", "/records", "/messages"],
+}
+
+async function readImpersonatedRole(impToken: string): Promise<string | null> {
+  const secret = process.env.JWT_SECRET
+  if (!secret) return null
+  try {
+    const { payload } = await jwtVerify(
+      impToken,
+      new TextEncoder().encode(secret),
+    )
+    if (!payload.isImpersonating) return null
+    const role = (payload as any).role?.name
+    return typeof role === "string" ? role.toLowerCase() : null
+  } catch {
+    return null
+  }
+}
 
 export default withAuth(
-  function middleware(req) {
-    const token = req.nextauth.token
+  async function middleware(req) {
     const { pathname } = req.nextUrl
 
-    // Allow access to auth pages without authentication.
-    // /register is the public self-signup page (Method 3).
     if (
       pathname.startsWith("/login") ||
       pathname.startsWith("/register") ||
@@ -17,24 +41,16 @@ export default withAuth(
       return NextResponse.next()
     }
 
-    // Redirect to login if no token
+    const token = req.nextauth.token
     if (!token) {
       return NextResponse.redirect(new URL("/login", req.url))
     }
 
-    // Role-based route protection
-    const userRole = token.role?.name?.toLowerCase()
+    const impToken = req.cookies.get(IMP_COOKIE)?.value
+    const impersonatedRole = impToken ? await readImpersonatedRole(impToken) : null
+    const userRole =
+      impersonatedRole || token.role?.name?.toLowerCase()
 
-    // Define role-based access rules
-    const roleRoutes: Record<string, string[]> = {
-      admin: ["/dashboard", "/partners", "/employers", "/invoices", "/commissions", "/rates", "/information", "/utilities", "/aid", "/tasks", "/messages"],
-      partner: ["/dashboard", "/employers", "/billing", "/invoices", "/commissions", "/rates", "/information", "/utilities", "/aid", "/tasks", "/messages"],
-      employer: ["/dashboard", "/jobs", "/clients", "/workers", "/work-centers", "/surveys", "/invoices", "/billing", "/information", "/utilities", "/aid", "/tasks", "/records", "/messages"],
-      client: ["/dashboard", "/jobs", "/surveys", "/information", "/aid", "/tasks", "/records", "/messages"],
-      worker: ["/dashboard", "/jobs", "/occupation", "/surveys", "/information", "/aid", "/tasks", "/records", "/messages"],
-    }
-
-    // Check if user has access to the current route
     if (userRole && roleRoutes[userRole]) {
       const allowedRoutes = roleRoutes[userRole]
       const hasAccess = allowedRoutes.some((route) => pathname.startsWith(route))
@@ -47,7 +63,6 @@ export default withAuth(
         !pathname.startsWith("/users") &&
         !pathname.startsWith("/wages")
       ) {
-        // Redirect to dashboard as default route for all roles
         return NextResponse.redirect(new URL("/dashboard", req.url))
       }
     }
@@ -58,8 +73,6 @@ export default withAuth(
     callbacks: {
       authorized: ({ token, req }) => {
         const { pathname } = req.nextUrl
-
-        // Allow access to auth pages
         if (
           pathname.startsWith("/login") ||
           pathname.startsWith("/register") ||
@@ -68,8 +81,6 @@ export default withAuth(
         ) {
           return true
         }
-
-        // Require authentication for all other pages
         return !!token
       },
     },
@@ -78,13 +89,6 @@ export default withAuth(
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - api (API routes)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     */
     "/((?!api|_next/static|_next/image|favicon.ico).*)",
   ],
 }

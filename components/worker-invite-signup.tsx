@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { signOut } from "next-auth/react"
 import { Loader2, Eye, EyeOff, Lock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -13,6 +14,7 @@ import DateInput from "@/components/ui/date-input"
 
 interface VerifiedToken {
   description: string
+  occupation?: string
   employerId: number
   employerName: string
 }
@@ -49,13 +51,14 @@ export default function WorkerInviteSignup({
     email: "",
     nif: "",
     naf: "",
-    occupation: "",
+    occupation: verified.occupation ?? "",
     birthday: "",
     password: "",
     confirmPassword: "",
   })
 
   const update = (k: string, v: any) => setForm((p) => ({ ...p, [k]: v }))
+  const [addressDisplay, setAddressDisplay] = useState("")
 
   const next = () => {
     if (step === 1) {
@@ -71,7 +74,7 @@ export default function WorkerInviteSignup({
       }
       setStep(2)
     } else if (step === 2) {
-      if (!form.code)
+      if (!form.birthday)
         return toast({ title: t("thisFieldIsRequired"), variant: "destructive" })
       setStep(3)
     }
@@ -97,7 +100,6 @@ export default function WorkerInviteSignup({
         password: form.password,
         name: form.name,
         email: form.email,
-        code: form.code,
         address: form.address,
         street: form.street,
         streetNumber: form.streetNumber,
@@ -131,6 +133,7 @@ export default function WorkerInviteSignup({
         title: t("accountCreated") || "Account created!",
         variant: "success" as any,
       })
+      await signOut({ redirect: false })
       router.push("/login")
     } catch (e: any) {
       toast({ title: e.message, variant: "destructive" })
@@ -188,8 +191,10 @@ export default function WorkerInviteSignup({
             <div>
               <Label className="text-xs">{t("address")}</Label>
               <GoogleAddressInput
-                value={form.address}
+                value={addressDisplay}
+                useFullAddress
                 onChange={(value, _placeId, components) => {
+                  setAddressDisplay(value)
                   if (components) {
                     const parts = [components.street, components.streetNumber].filter(Boolean)
                     const addressOnly = parts.length > 0 ? parts.join(", ") : value
@@ -244,14 +249,6 @@ export default function WorkerInviteSignup({
         {step === 2 && (
           <>
             <div>
-              <Label className="text-xs">{t("code") || "Código"} *</Label>
-              <Input
-                value={form.code}
-                onChange={(e) => update("code", e.target.value)}
-                className="mt-1 h-9 text-xs"
-              />
-            </div>
-            <div>
               <Label className="text-xs">{t("nif")}</Label>
               <Input
                 value={form.nif}
@@ -273,12 +270,15 @@ export default function WorkerInviteSignup({
               </Label>
               <Input
                 value={form.occupation}
-                onChange={(e) => update("occupation", e.target.value)}
-                className="mt-1 h-9 text-xs"
+                readOnly
+                disabled
+                className="mt-1 h-9 text-xs bg-muted cursor-not-allowed"
               />
             </div>
             <div>
-              <Label className="text-xs">{t("birthday") || "Fecha de nacimiento"}</Label>
+              <Label className="text-xs">
+                {t("birthday") || "Fecha de nacimiento"} *
+              </Label>
               <div className="mt-1">
                 <DateInput
                   value={form.birthday}
@@ -304,6 +304,7 @@ export default function WorkerInviteSignup({
                   value={form.password}
                   onChange={(e) => update("password", e.target.value)}
                   className="h-9 text-xs pl-9 pr-9"
+                  autoComplete="new-password"
                 />
                 <button
                   type="button"
@@ -323,6 +324,7 @@ export default function WorkerInviteSignup({
                 value={form.confirmPassword}
                 onChange={(e) => update("confirmPassword", e.target.value)}
                 className="h-9 text-xs mt-1"
+                autoComplete="new-password"
               />
             </div>
           </>

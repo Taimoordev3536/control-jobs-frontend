@@ -13,9 +13,8 @@ export interface ConversationParticipantDto {
 export interface ConversationDto {
   publicId: string
   kind: ConversationKind
+  createdByUserId: number | null
   displayName: string
-  // For 1:1 conversations: the other participant's identity image. For
-  // group conversations: null (UI renders a group icon instead).
   displayImageUrl: string | null
   participants: ConversationParticipantDto[]
   lastMessage: {
@@ -168,12 +167,53 @@ export async function createDirectConversation(
 
 export async function createGroupConversation(payload: {
   employerPublicId: string
-  clientPublicId: string
-  workerPublicId: string
+  adminPublicId?: string
+  clientPublicId?: string
+  workerPublicId?: string
+  name?: string
 }): Promise<ConversationDto> {
   const json = await authedFetch(`/chat/conversations/group`, {
     method: "POST",
     body: JSON.stringify(payload),
+  })
+  return json?.data
+}
+
+export async function renameGroupConversation(
+  conversationPublicId: string,
+  name: string | null,
+): Promise<ConversationDto> {
+  const json = await authedFetch(`/chat/conversations/${conversationPublicId}/name`, {
+    method: "PATCH",
+    body: JSON.stringify({ name }),
+  })
+  return json?.data
+}
+
+export async function uploadGroupImage(
+  conversationPublicId: string,
+  file: File,
+): Promise<ConversationDto> {
+  const session = await getSession()
+  const token = (session as any)?.accessToken
+  const form = new FormData()
+  form.append("file", file, file.name)
+  const res = await fetch(`${API_BASE}/chat/conversations/${conversationPublicId}/image`, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    body: form,
+  })
+  if (!res.ok) {
+    const text = await res.text().catch(() => "")
+    throw new Error(text || `Upload failed: ${res.status}`)
+  }
+  const json = await res.json()
+  return json?.data
+}
+
+export async function deleteGroupImage(conversationPublicId: string): Promise<ConversationDto> {
+  const json = await authedFetch(`/chat/conversations/${conversationPublicId}/image`, {
+    method: "DELETE",
   })
   return json?.data
 }

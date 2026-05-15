@@ -85,6 +85,8 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded, 
     responsible: false,
   })
 
+  const [addressDisplay, setAddressDisplay] = useState("")
+
   // Create a ref for the scrollable container
   const scrollContainerRef = useRef<HTMLDivElement>(null)
 
@@ -425,6 +427,7 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded, 
       class: false,
       responsible: false,
     })
+    setAddressDisplay("")
   }
 
   const updateFormData = (field: string, value: any) => {
@@ -549,8 +552,10 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded, 
                   </TooltipProvider>
                 </Label>
                 <GoogleAddressInput
-                  value={formData.address}
+                  value={addressDisplay}
+                  useFullAddress
                   onChange={(value, placeId, components) => {
+                    setAddressDisplay(value)
                     if (components) {
                       const parts = [components.street, components.streetNumber].filter(Boolean)
                       let addressOnly: string

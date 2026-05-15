@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import {
@@ -11,15 +12,26 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import DateInput from "@/components/ui/date-input"
 import { useTranslation } from "@/hooks/use-translation"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 
+type ClientType = "company" | "particular"
+
 interface InvitationToEdit {
   publicId: string
   description: string
   expiresAt?: string | null
+  occupation?: string
+  type?: ClientType
 }
 
 interface Props {
@@ -29,6 +41,8 @@ interface Props {
   invitation?: InvitationToEdit | null
   /** Backend resource path, e.g. "worker-invitations" or "client-invitations". */
   apiPath: string
+  /** Which flow this dialog is serving — controls the extra first field. */
+  target: "worker" | "client"
   /** Localized title shown in the dialog header (Create / Edit). */
   titleCreate: string
   titleEdit: string
@@ -40,6 +54,7 @@ export default function BulkSimpleInvitationModal({
   onCreated,
   invitation,
   apiPath,
+  target,
   titleCreate,
   titleEdit,
 }: Props) {
@@ -50,6 +65,8 @@ export default function BulkSimpleInvitationModal({
 
   const [description, setDescription] = useState("")
   const [expiresAt, setExpiresAt] = useState<string>("")
+  const [occupation, setOccupation] = useState("")
+  const [clientType, setClientType] = useState<ClientType | "">("")
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => {
@@ -61,13 +78,44 @@ export default function BulkSimpleInvitationModal({
           ? new Date(invitation.expiresAt).toISOString().slice(0, 10)
           : "",
       )
+      setOccupation(invitation.occupation ?? "")
+      setClientType(invitation.type ?? "")
     } else {
       setDescription("")
       setExpiresAt("")
+      setOccupation("")
+      setClientType("")
     }
   }, [open, invitation])
 
   const submit = async () => {
+    if (target === "worker" && !occupation.trim()) {
+      toast({
+        title: t("occupationRequired") || "Occupation is required",
+        variant: "destructive",
+      })
+      return
+    }
+    if (target === "client" && !clientType) {
+      toast({
+        title: t("typeRequired") || "Type is required",
+        variant: "destructive",
+      })
+      return
+    }
+    if (expiresAt) {
+      const picked = new Date(expiresAt)
+      picked.setHours(23, 59, 59, 999)
+      if (picked.getTime() <= Date.now()) {
+        toast({
+          title:
+            t("expiryMustBeFuture") ||
+            "La fecha de caducidad debe ser posterior a la fecha actual",
+          variant: "destructive",
+        })
+        return
+      }
+    }
     if (!description.trim()) {
       toast({
         title: t("descriptionRequired") || "Description is required",
@@ -86,6 +134,8 @@ export default function BulkSimpleInvitationModal({
         description: description.trim(),
         expiresAt: expiresAt ? new Date(expiresAt).toISOString() : null,
       }
+      if (target === "worker") body.occupation = occupation.trim()
+      if (target === "client") body.type = clientType
 
       const res = await fetch(url, {
         method,
@@ -145,6 +195,49 @@ export default function BulkSimpleInvitationModal({
         </DialogHeader>
 
         <div className="space-y-3">
+          {target === "worker" && (
+            <div>
+              <Label className="text-xs font-medium text-foreground">
+                {t("occupation") || "Ocupación"} *
+              </Label>
+              <Input
+                value={occupation}
+                onChange={(e) => setOccupation(e.target.value)}
+                placeholder={
+                  t("occupationPlaceholder") || "e.g. Limpiador, Electricista"
+                }
+                className="mt-1 h-9 text-xs"
+                maxLength={120}
+              />
+            </div>
+          )}
+
+          {target === "client" && (
+            <div>
+              <Label className="text-xs font-medium text-foreground">
+                {t("type") || "Tipo"} *
+              </Label>
+              <Select
+                value={clientType}
+                onValueChange={(v) => setClientType(v as ClientType)}
+              >
+                <SelectTrigger className="mt-1 h-9 text-xs">
+                  <SelectValue
+                    placeholder={t("selectType") || "Select type"}
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="company">
+                    {t("company") || "Empresa"}
+                  </SelectItem>
+                  <SelectItem value="particular">
+                    {t("particular") || "Particular"}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           <div>
             <Label className="text-xs font-medium text-foreground">
               {t("expiry") || "Caducidad"}
@@ -154,7 +247,6 @@ export default function BulkSimpleInvitationModal({
                 value={expiresAt}
                 onChange={(e) => setExpiresAt(e.target.value)}
                 className="h-9 text-xs"
-                allowPastDates
               />
             </div>
           </div>

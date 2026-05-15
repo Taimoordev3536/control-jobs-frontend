@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useState } from "react"
 import { ArrowLeft, FileText, Plus, Send } from "lucide-react"
 import { useTranslation } from "@/hooks/use-translation"
 
@@ -24,14 +24,17 @@ export function AttachmentCaption({ files, mode, onBack, onSend, onAddMore }: At
   const [sending, setSending] = useState(false)
   const [active, setActive] = useState(0)
 
-  const previews = useMemo(() => {
-    if (mode !== "image") return [] as string[]
-    return files.map((f) => URL.createObjectURL(f))
-  }, [files, mode])
+  const [previews, setPreviews] = useState<string[]>([])
 
   useEffect(() => {
-    return () => previews.forEach((p) => URL.revokeObjectURL(p))
-  }, [previews])
+    if (mode !== "image") {
+      setPreviews([])
+      return
+    }
+    const urls = files.map((f) => URL.createObjectURL(f))
+    setPreviews(urls)
+    return () => urls.forEach((p) => URL.revokeObjectURL(p))
+  }, [files, mode])
 
   const handleSend = async () => {
     if (sending) return
@@ -63,13 +66,16 @@ export function AttachmentCaption({ files, mode, onBack, onSend, onAddMore }: At
         </span>
       </div>
 
-      <div className="flex flex-1 items-center justify-center overflow-hidden p-4">
+      <div className="flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden p-4">
         {mode === "image" ? (
-          <img
-            src={previews[active]}
-            alt=""
-            className="max-h-full max-w-full select-none rounded-md object-contain"
-          />
+          previews[active] ? (
+            <img
+              key={previews[active]}
+              src={previews[active]}
+              alt=""
+              className="block max-h-full max-w-full select-none rounded-md object-contain"
+            />
+          ) : null
         ) : activeFile ? (
           <div className="flex w-full max-w-md flex-col items-center gap-3 rounded-lg border border-border bg-muted/40 p-6">
             <FileText className="h-16 w-16 text-[#662D91]" />

@@ -29,6 +29,7 @@ export default function AddClientModal({ open, onOpenChange, onClientAdded }: Ad
   const { t } = useTranslation()
   const translateBackendError = useBackendError()
   const { session, getUserRole } = useAuth()
+  const [addressDisplay, setAddressDisplay] = useState("")
 
   const [formData, setFormData] = useState({
     name: "",
@@ -239,6 +240,7 @@ export default function AddClientModal({ open, onOpenChange, onClientAdded }: Ad
           accessAccountStatus: "postpone",
           accessEmail: null,
         })
+        setAddressDisplay("")
         setValidationErrors({
           name: false,
           address: false,
@@ -383,8 +385,10 @@ export default function AddClientModal({ open, onOpenChange, onClientAdded }: Ad
                   </TooltipProvider>
                 </Label>
                 <GoogleAddressInput
-                  value={formData.address}
+                  value={addressDisplay}
+                  useFullAddress
                   onChange={(value, placeId, components) => {
+                    setAddressDisplay(value)
                     if (components) {
                       // Store only street + number in address field; other parts go to their own fields
                       const parts = [components.street, components.streetNumber].filter(Boolean)

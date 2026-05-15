@@ -80,23 +80,46 @@ export async function getImpersonationContext(accessToken: string): Promise<Impe
   return body.data || { isImpersonating: false }
 }
 
-// --- sessionStorage helpers (tab-scoped impersonation state) ---
-
 const KEYS = {
   token: "impersonation_token",
   user: "impersonation_user",
   context: "impersonation_context",
 } as const
 
+const IMP_COOKIE = "cj-imp-token"
+const IMP_COOKIE_MAX_AGE = 60 * 60
+
+function setImpCookie(token: string) {
+  if (typeof document === "undefined") return
+  const secure = location.protocol === "https:" ? "; Secure" : ""
+  document.cookie = `${IMP_COOKIE}=${encodeURIComponent(
+    token,
+  )}; path=/; SameSite=Strict; Max-Age=${IMP_COOKIE_MAX_AGE}${secure}`
+}
+
+function clearImpCookie() {
+  if (typeof document === "undefined") return
+  document.cookie = `${IMP_COOKIE}=; path=/; SameSite=Strict; Max-Age=0`
+}
+
+function readImpCookie(): string | null {
+  if (typeof document === "undefined") return null
+  const match = document.cookie.match(
+    new RegExp("(?:^|; )" + IMP_COOKIE + "=([^;]*)"),
+  )
+  return match ? decodeURIComponent(match[1]) : null
+}
+
 export function storeImpersonationSession(token: string, user: any, context: ImpersonationContext) {
   sessionStorage.setItem(KEYS.token, token)
   sessionStorage.setItem(KEYS.user, JSON.stringify(user))
   sessionStorage.setItem(KEYS.context, JSON.stringify(context))
+  setImpCookie(token)
 }
 
 export function getStoredImpersonationToken(): string | null {
   if (typeof window === "undefined") return null
-  return sessionStorage.getItem(KEYS.token)
+  return sessionStorage.getItem(KEYS.token) || readImpCookie()
 }
 
 export function getStoredImpersonationUser(): any | null {
@@ -115,9 +138,12 @@ export function clearImpersonationSession() {
   sessionStorage.removeItem(KEYS.token)
   sessionStorage.removeItem(KEYS.user)
   sessionStorage.removeItem(KEYS.context)
+  clearImpCookie()
 }
 
 export function isImpersonationSession(): boolean {
   if (typeof window === "undefined") return false
-  return sessionStorage.getItem(KEYS.token) !== null
+  return (
+    sessionStorage.getItem(KEYS.token) !== null || readImpCookie() !== null
+  )
 }

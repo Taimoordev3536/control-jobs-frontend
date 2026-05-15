@@ -22,6 +22,7 @@ import {
   X,
 } from "lucide-react"
 import imageCompression from "browser-image-compression"
+import { EditGroupDialog } from "./edit-group-dialog"
 import { PhotoEditor } from "./photo-editor"
 import { AttachmentCaption } from "./attachment-caption"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -49,6 +50,7 @@ import {
 import {
   formatTime,
   groupByDay,
+  groupInitials,
   isAllReadByOthers,
 } from "./chat-utils"
 
@@ -91,12 +93,35 @@ export function ChatPanel({ conversationPublicId }: ChatPanelProps) {
     onReadReceipt,
     onTyping,
     search,
+    myScope,
   } = useChat()
 
   const conversation: ConversationDto | null = useMemo(
     () => conversations.find((c) => c.publicId === conversationPublicId) || null,
     [conversations, conversationPublicId],
   )
+
+  const { canEditGroupName, canEditGroupImage } = useMemo(() => {
+    if (!conversation || conversation.kind !== "GROUP") {
+      return { canEditGroupName: false, canEditGroupImage: false }
+    }
+    const isCreator = myUserId !== undefined && conversation.createdByUserId === myUserId
+    const isPartnerGroup = conversation.participants.some((p) => p.type === "PARTNER")
+    const myScopeType = myScope?.participantType
+    const myEntityId = conversation.participants.find(
+      (p) => p.type === myScopeType,
+    )?.entityId
+
+    const canEditImage =
+      isCreator ||
+      (isPartnerGroup && myScopeType === "ADMIN") ||
+      (!isPartnerGroup &&
+        myScopeType === "CLIENT" &&
+        conversation.participants.some(
+          (p) => p.type === "CLIENT" && p.entityId === myEntityId,
+        ))
+    return { canEditGroupName: isCreator, canEditGroupImage: canEditImage }
+  }, [conversation, myUserId, myScope?.participantType])
 
   const [messages, setMessages] = useState<MessageDto[]>([])
   const [loading, setLoading] = useState(true)
@@ -113,6 +138,7 @@ export function ChatPanel({ conversationPublicId }: ChatPanelProps) {
   const [attachMenuOpen, setAttachMenuOpen] = useState(false)
   const [editorFiles, setEditorFiles] = useState<File[] | null>(null)
   const [captionFiles, setCaptionFiles] = useState<{ files: File[]; mode: "image" | "pdf" } | null>(null)
+  const [editGroupOpen, setEditGroupOpen] = useState(false)
   const [lightbox, setLightbox] = useState<{ images: AttachmentDto[]; index: number } | null>(null)
   const imageInputRef = useRef<HTMLInputElement | null>(null)
   const pdfInputRef = useRef<HTMLInputElement | null>(null)
@@ -376,6 +402,8 @@ export function ChatPanel({ conversationPublicId }: ChatPanelProps) {
                     alt={conversation.displayName}
                     className="h-full w-full object-cover"
                   />
+                ) : conversation.kind === "GROUP" ? (
+                  groupInitials(conversation.displayName)
                 ) : (
                   headerInitials(conversation.displayName)
                 )}
@@ -388,8 +416,17 @@ export function ChatPanel({ conversationPublicId }: ChatPanelProps) {
             </div>
           )}
           <div className="min-w-0 flex-1">
-            <div className="truncate text-sm font-semibold text-foreground">
-              {conversation?.displayName || ""}
+            <div className="flex items-center gap-1 truncate text-sm font-semibold text-foreground">
+              <span className="truncate">{conversation?.displayName || ""}</span>
+              {(canEditGroupName || canEditGroupImage) && (
+                <button
+                  onClick={() => setEditGroupOpen(true)}
+                  className="flex-shrink-0 rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+                  aria-label={t("editGroup")}
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
+              )}
             </div>
             {conversation?.kind === "GROUP" && (
               <div className="truncate text-[11px] text-muted-foreground">
@@ -406,6 +443,15 @@ export function ChatPanel({ conversationPublicId }: ChatPanelProps) {
           <Search className="h-4 w-4" />
         </button>
       </div>
+
+      {editGroupOpen && conversation && (
+        <EditGroupDialog
+          conversation={conversation}
+          canEditName={canEditGroupName}
+          canEditImage={canEditGroupImage}
+          onClose={() => setEditGroupOpen(false)}
+        />
+      )}
 
       {searchOpen && (
         <div className="flex items-center gap-2 border-b border-border bg-card px-4 py-2">

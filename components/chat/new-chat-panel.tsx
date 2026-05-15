@@ -1,7 +1,7 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
-import { ArrowLeft, Search } from "lucide-react"
+import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react"
+import { ArrowLeft, Camera, Search, X } from "lucide-react"
 import * as SelectPrimitive from "@radix-ui/react-select"
 import { Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -11,7 +11,10 @@ import { cn } from "@/lib/utils"
 import { useChat } from "@/components/providers/chat-provider"
 import { useTranslation } from "@/hooks/use-translation"
 import type { ContactGroup, ParticipantType } from "@/lib/api/chat"
-import { participantLabel } from "./chat-utils"
+import { groupInitials, participantLabel } from "./chat-utils"
+
+const MAX_GROUP_IMAGE_BYTES = 2 * 1024 * 1024
+const ACCEPTED_GROUP_IMAGE_MIME = ["image/png", "image/jpeg", "image/jpg"]
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).slice(0, 2)
@@ -51,7 +54,8 @@ interface NewChatPanelProps {
 
 export function NewChatPanel({ mode, onBack, onConversationCreated }: NewChatPanelProps) {
   const { t } = useTranslation()
-  const { fetchContacts, startDirect, startGroup } = useChat()
+  const { fetchContacts, startDirect, startGroup, uploadGroupImage, myScope } = useChat()
+  const isPartner = myScope?.participantType === "PARTNER"
 
   const [contacts, setContacts] = useState<ContactGroup[]>([])
   const [loading, setLoading] = useState(true)
@@ -59,8 +63,24 @@ export function NewChatPanel({ mode, onBack, onConversationCreated }: NewChatPan
   const [query, setQuery] = useState("")
   const [busy, setBusy] = useState(false)
   const [employerId, setEmployerId] = useState("")
+  const [adminId, setAdminId] = useState("")
   const [clientId, setClientId] = useState("")
   const [workerId, setWorkerId] = useState("")
+  const [groupName, setGroupName] = useState("")
+  const [groupImage, setGroupImage] = useState<File | null>(null)
+  const [groupImagePreview, setGroupImagePreview] = useState<string | null>(null)
+  const [imageError, setImageError] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+
+  useEffect(() => {
+    if (!groupImage) {
+      setGroupImagePreview(null)
+      return
+    }
+    const url = URL.createObjectURL(groupImage)
+    setGroupImagePreview(url)
+    return () => URL.revokeObjectURL(url)
+  }, [groupImage])
 
   useEffect(() => {
     setLoading(true)
@@ -72,6 +92,8 @@ export function NewChatPanel({ mode, onBack, onConversationCreated }: NewChatPan
           .find((g) => g.type === "EMPLOYER")
           ?.items.find((it) => it.isSelf && it.publicId)
         if (selfEmployer?.publicId) setEmployerId(selfEmployer.publicId)
+        const admins = rows.find((g) => g.type === "ADMIN")?.items || []
+        if (admins.length === 1 && admins[0].publicId) setAdminId(admins[0].publicId)
       })
       .catch((err) => setError(err?.message || "Failed to load contacts"))
       .finally(() => setLoading(false))
@@ -103,15 +125,50 @@ export function NewChatPanel({ mode, onBack, onConversationCreated }: NewChatPan
     }
   }
 
+  function handlePickImage(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ""
+    if (!file) return
+    if (!ACCEPTED_GROUP_IMAGE_MIME.includes(file.type)) {
+      setImageError(t("groupImage") + ": PNG/JPEG")
+      return
+    }
+    if (file.size > MAX_GROUP_IMAGE_BYTES) {
+      setImageError(t("groupImage") + ": 2MB")
+      return
+    }
+    setImageError(null)
+    setGroupImage(file)
+  }
+
   async function handleCreateGroup() {
-    if (!employerId || !clientId || !workerId) return
+    if (!employerId) return
+    if (isPartner && !adminId) return
+    if (!isPartner && (!clientId || !workerId)) return
     setBusy(true)
     try {
-      const conv = await startGroup({
-        employerPublicId: employerId,
-        clientPublicId: clientId,
-        workerPublicId: workerId,
-      })
+      const trimmedName = groupName.trim()
+      const conv = await startGroup(
+        isPartner
+          ? {
+              employerPublicId: employerId,
+              adminPublicId: adminId,
+              name: trimmedName || undefined,
+            }
+          : {
+              employerPublicId: employerId,
+              clientPublicId: clientId,
+              workerPublicId: workerId,
+              name: trimmedName || undefined,
+            },
+      )
+      if (groupImage) {
+        try {
+          await uploadGroupImage(conv.publicId, groupImage)
+        } catch {
+          // Avatar upload failure is non-fatal; the group is created.
+        }
+      }
       onConversationCreated(conv.publicId)
     } finally {
       setBusy(false)
@@ -200,27 +257,93 @@ export function NewChatPanel({ mode, onBack, onConversationCreated }: NewChatPan
             <div className="text-center text-xs text-destructive">{error}</div>
           ) : (
             <>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="relative flex h-14 w-14 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#662D91] text-sm font-semibold uppercase text-white"
+                  aria-label={t("addGroupImage")}
+                >
+                  {groupImagePreview ? (
+                    <img src={groupImagePreview} alt="" className="h-full w-full object-cover" />
+                  ) : groupName.trim() ? (
+                    <span>{groupInitials(groupName)}</span>
+                  ) : (
+                    <Camera className="h-5 w-5" />
+                  )}
+                  {groupImagePreview && (
+                    <span
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setGroupImage(null)
+                      }}
+                      className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-background text-foreground shadow ring-1 ring-border"
+                    >
+                      <X className="h-3 w-3" />
+                    </span>
+                  )}
+                </button>
+                <div className="flex-1 space-y-1">
+                  <label className="block text-xs font-medium text-muted-foreground">
+                    {t("groupName")}
+                  </label>
+                  <input
+                    value={groupName}
+                    onChange={(e) => setGroupName(e.target.value)}
+                    maxLength={120}
+                    placeholder={t("groupNamePlaceholder")}
+                    className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:border-[#662D91] focus:outline-none"
+                  />
+                </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg"
+                  className="hidden"
+                  onChange={handlePickImage}
+                />
+              </div>
+              {imageError && (
+                <div className="text-xs text-destructive">{imageError}</div>
+              )}
               <GroupSelect
                 label={t("selectEmployer")}
                 value={employerId}
                 options={getGroup("EMPLOYER")}
                 onChange={setEmployerId}
               />
-              <GroupSelect
-                label={t("selectClient")}
-                value={clientId}
-                options={getGroup("CLIENT")}
-                onChange={setClientId}
-              />
-              <GroupSelect
-                label={t("selectWorker")}
-                value={workerId}
-                options={getGroup("WORKER")}
-                onChange={setWorkerId}
-              />
+              {isPartner && (
+                <GroupSelect
+                  label={t("selectAdmin")}
+                  value={adminId}
+                  options={getGroup("ADMIN")}
+                  onChange={setAdminId}
+                />
+              )}
+              {!isPartner && (
+                <>
+                  <GroupSelect
+                    label={t("selectClient")}
+                    value={clientId}
+                    options={getGroup("CLIENT")}
+                    onChange={setClientId}
+                  />
+                  <GroupSelect
+                    label={t("selectWorker")}
+                    value={workerId}
+                    options={getGroup("WORKER")}
+                    onChange={setWorkerId}
+                  />
+                </>
+              )}
               <Button
                 className="w-full"
-                disabled={busy || !employerId || !clientId || !workerId}
+                disabled={
+                  busy ||
+                  !employerId ||
+                  (isPartner && !adminId) ||
+                  (!isPartner && (!clientId || !workerId))
+                }
                 onClick={handleCreateGroup}
               >
                 {t("createGroup")}
