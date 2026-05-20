@@ -15,7 +15,7 @@ interface Employer {
   id: number
   name: string
   class: string
-  fee: string
+  type: string
   lack: string
   partner: string
   billing: string
@@ -52,7 +52,6 @@ export default function EmployersPage() {
           name: e.name,
           class: e.class,
           type: e.type,
-          fee: e.fee,
           lack: e.createdAt ? new Date(e.createdAt).toLocaleDateString() : "-",
           partner: e.partnerName || "-",
           billing: e.billing || "0 €",

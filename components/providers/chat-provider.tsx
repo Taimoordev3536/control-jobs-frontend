@@ -69,6 +69,7 @@ interface ChatContextValue {
   startGroup: (payload: {
     employerPublicId: string
     adminPublicId?: string
+    partnerPublicId?: string
     clientPublicId?: string
     workerPublicId?: string
     name?: string
@@ -286,6 +287,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const startGroup = useCallback(async (payload: {
     employerPublicId: string
     adminPublicId?: string
+    partnerPublicId?: string
     clientPublicId?: string
     workerPublicId?: string
     name?: string

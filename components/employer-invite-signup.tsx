@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useTranslation } from "@/hooks/use-translation"
 import { useToast } from "@/hooks/use-toast"
 import GoogleAddressInput from "@/components/GoogleAddressInput"
+import { usePaymentMethods } from "@/hooks/use-payment-methods"
 
 interface VerifiedToken {
   description: string
@@ -41,7 +42,9 @@ export default function EmployerInviteSignup({
   const [step, setStep] = useState<1 | 2 | 3>(1)
   const [submitting, setSubmitting] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [matchedPlan, setMatchedPlan] = useState<MatchedPlan | null>(null)
+  const { methods: paymentMethods } = usePaymentMethods({ selfServiceOnly: true })
 
   // The backend serializes numeric (decimal) columns as strings; coerce so
   // arithmetic & comparisons don't surprise downstream code.
@@ -74,7 +77,7 @@ export default function EmployerInviteSignup({
     class: "" as "INDIVIDUAL" | "COMPANY" | "FREELANCER" | "",
     fee: "",                               // tarifa typeId
     discount: String(verified.discountPercent || 0),  // locked display, value comes from token server-side
-    paymentMethod: "1",
+    paymentMethod: "2",
     accountIban: "",
     bicSwift: "",
     responsible: "",
@@ -171,6 +174,9 @@ export default function EmployerInviteSignup({
 
   const submit = async () => {
     if (!form.responsible) return toast({ title: t("thisFieldIsRequired"), variant: "destructive" })
+    if (!trialActive && !form.paymentMethod) {
+      return toast({ title: t("thisFieldIsRequired"), variant: "destructive" })
+    }
     if (form.password.length < 8) {
       return toast({ title: t("passwordTooShort") || "Password must be 8+ chars", variant: "destructive" })
     }
@@ -201,7 +207,6 @@ export default function EmployerInviteSignup({
         landline: form.landline,
         typeId: Number(form.fee),
         subTypeId,
-        fee: 0,
         discount: Number(form.discount) || 0,
         paymentMethodId: trialActive ? 5 : Number(form.paymentMethod),
         accountIban: form.accountIban || "",
@@ -305,7 +310,7 @@ export default function EmployerInviteSignup({
                     update("address", addressOnly || value)
                     update("street", components.street || "")
                     update("streetNumber", components.streetNumber || "")
-                    update("floorDoor", components.floorDoor || "")
+                    update("floorDoor", (components.floorDoor || "").toUpperCase())
                     update("city", components.city || "")
                     update("province", components.province || "")
                     update("country", components.country || "")
@@ -313,7 +318,18 @@ export default function EmployerInviteSignup({
                     update("latitude", components.latitude || null)
                     update("longitude", components.longitude || null)
                   } else {
-                    update("address", value)
+                    // Manual typing path: split by commas in the placeholder
+                    // order — Dirección, Nº, Piso, Código Postal, Localidad,
+                    // Provincia, País — so structured fields stay in sync.
+                    const parts = value.split(",").map((p) => p.trim())
+                    update("address", parts.slice(0, 2).filter(Boolean).join(", ") || value)
+                    update("street", parts[0] || "")
+                    update("streetNumber", parts[1] || "")
+                    update("floorDoor", (parts[2] || "").toUpperCase())
+                    update("postalCode", parts[3] || "")
+                    update("city", parts[4] || "")
+                    update("province", parts[5] || "")
+                    update("country", parts[6] || "")
                   }
                 }}
                 placeholder={t("addressPlaceholder")}
@@ -422,20 +438,20 @@ export default function EmployerInviteSignup({
               </div>
             )}
 
-            {/* Método de pago — hidden if trial active (per Image #14 spec) */}
+            {/* Método de pago — required when trial is 0 days; deferred when trial > 0. */}
             {!trialActive && (
               <div>
-                <Label className="text-xs">{t("paymentMethod")}</Label>
+                <Label className="text-xs">{t("paymentMethod")} *</Label>
                 <Select value={form.paymentMethod} onValueChange={(v) => update("paymentMethod", v)}>
                   <SelectTrigger className="mt-1 h-9 text-xs">
-                    <SelectValue />
+                    <SelectValue placeholder={t("selectPaymentMethod") || "—"} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="1">{tEnum("paymentMethod", "TRANSFER")}</SelectItem>
-                    <SelectItem value="2">{tEnum("paymentMethod", "DIRECT_DEBIT")}</SelectItem>
-                    <SelectItem value="3">{tEnum("paymentMethod", "CARD")}</SelectItem>
-                    <SelectItem value="4">{tEnum("paymentMethod", "PAYPAL")}</SelectItem>
-                    <SelectItem value="5">{tEnum("paymentMethod", "OTHERS")}</SelectItem>
+                    {paymentMethods.map((m) => (
+                      <SelectItem key={m.id} value={String(m.id)}>
+                        {tEnum("paymentMethod", m.name)}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -452,6 +468,7 @@ export default function EmployerInviteSignup({
                 onChange={(e) => update("responsible", e.target.value)}
                 placeholder={t("namePlaceholder")}
                 className="mt-1 h-9 text-xs"
+                autoComplete="off"
               />
             </div>
 
@@ -483,25 +500,39 @@ export default function EmployerInviteSignup({
                   value={form.password}
                   onChange={(e) => update("password", e.target.value)}
                   className="h-9 text-xs pl-9 pr-9"
+                  autoComplete="new-password"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
                   className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground"
                 >
-                  {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                  {showPassword ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
                 </button>
               </div>
             </div>
 
             <div>
               <Label className="text-xs">{t("confirmPassword") || "Confirm password"} *</Label>
-              <Input
-                type={showPassword ? "text" : "password"}
-                value={form.confirmPassword}
-                onChange={(e) => update("confirmPassword", e.target.value)}
-                className="h-9 text-xs mt-1"
-              />
+              <div className="relative mt-1">
+                <span className="absolute inset-y-0 left-0 flex items-center pl-3">
+                  <Lock className="h-3.5 w-3.5 text-muted-foreground" />
+                </span>
+                <Input
+                  type={showConfirmPassword ? "text" : "password"}
+                  value={form.confirmPassword}
+                  onChange={(e) => update("confirmPassword", e.target.value)}
+                  className="h-9 text-xs pl-9 pr-9"
+                  autoComplete="new-password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword((v) => !v)}
+                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground"
+                >
+                  {showConfirmPassword ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+                </button>
+              </div>
             </div>
           </>
         )}

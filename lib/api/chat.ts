@@ -168,6 +168,7 @@ export async function createDirectConversation(
 export async function createGroupConversation(payload: {
   employerPublicId: string
   adminPublicId?: string
+  partnerPublicId?: string
   clientPublicId?: string
   workerPublicId?: string
   name?: string

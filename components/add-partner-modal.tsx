@@ -396,7 +396,7 @@ export default function AddPartnerModal({ open, onOpenChange, onPartnerAdded }: 
                       updateFormData("address", addressOnly || value)
                       updateFormData("street", components.street || "")
                       updateFormData("streetNumber", components.streetNumber || "")
-                      updateFormData("floorDoor", components.floorDoor || "")
+                      updateFormData("floorDoor", (components.floorDoor || "").toUpperCase())
                       updateFormData("city", components.city || "")
                       updateFormData("province", components.province || "")
                       updateFormData("country", components.country || "")
@@ -404,10 +404,18 @@ export default function AddPartnerModal({ open, onOpenChange, onPartnerAdded }: 
                       updateFormData("latitude", components.latitude || null)
                       updateFormData("longitude", components.longitude || null)
                     } else {
-                      updateFormData("address", value)
+                      const parts = value.split(",").map((p) => p.trim())
+                      updateFormData("address", parts.slice(0, 2).filter(Boolean).join(", ") || value)
+                      updateFormData("street", parts[0] || "")
+                      updateFormData("streetNumber", parts[1] || "")
+                      updateFormData("floorDoor", (parts[2] || "").toUpperCase())
+                      updateFormData("postalCode", parts[3] || "")
+                      updateFormData("city", parts[4] || "")
+                      updateFormData("province", parts[5] || "")
+                      updateFormData("country", parts[6] || "")
                     }
                   }}
-                  placeholder="Calle, Número, Ciudad..."
+                  placeholder={t("addressPlaceholder")}
                   className={`mt-1 border p-2 w-full rounded text-sm ${validationErrors.address ? "border-red-500" : ""}`}
                 />
                 {validationErrors.address && <p className="mt-1 text-sm text-red-500">{t("thisFieldIsRequired")}</p>}

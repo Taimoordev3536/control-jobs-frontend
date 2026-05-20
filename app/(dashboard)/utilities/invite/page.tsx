@@ -40,7 +40,7 @@ interface PartnerOption {
 
 export default function InvitePage() {
   const { t } = useTranslation()
-  const { session, hasRole, isLoading: isAuthLoading } = useAuth()
+  const { session, hasRole, isLoading: isAuthLoading, logout } = useAuth()
   const { toast } = useToast()
 
   const isAdmin = hasRole("admin")
@@ -125,6 +125,17 @@ export default function InvitePage() {
     }
   }
 
+  const handleSessionExpired = async () => {
+    toast({
+      title: t("sessionExpired") || "Session expired",
+      description:
+        t("pleaseLogInAgain") ||
+        "Your session has expired. Please log in again.",
+      variant: "destructive",
+    })
+    await logout()
+  }
+
   const revoke = async (publicId: string) => {
     if (!confirm(t("confirmRevoke") || "Revoke this invitation?")) return
     try {
@@ -135,6 +146,10 @@ export default function InvitePage() {
           headers: { Authorization: `Bearer ${session?.accessToken}` },
         },
       )
+      if (res.status === 401) {
+        await handleSessionExpired()
+        return
+      }
       if (!res.ok) {
         const errJson = await res.json().catch(() => null)
         throw new Error(
@@ -164,6 +179,10 @@ export default function InvitePage() {
           headers: { Authorization: `Bearer ${session?.accessToken}` },
         },
       )
+      if (res.status === 401) {
+        await handleSessionExpired()
+        return
+      }
       if (!res.ok) {
         const errJson = await res.json().catch(() => null)
         throw new Error(
@@ -182,8 +201,14 @@ export default function InvitePage() {
     }
   }
 
-  const fmtDate = (d?: string | null) =>
-    d ? new Date(d).toLocaleDateString() : "—"
+  const fmtDate = (d?: string | null) => {
+    if (!d) return "—"
+    const dt = new Date(d)
+    const dd = String(dt.getDate()).padStart(2, "0")
+    const mm = String(dt.getMonth() + 1).padStart(2, "0")
+    const yyyy = dt.getFullYear()
+    return `${dd}/${mm}/${yyyy}`
+  }
 
   const partnerName = useMemo(() => {
     return (id: number, fallback?: string) =>
@@ -213,6 +238,7 @@ export default function InvitePage() {
         key: "discountPercent",
         label: "% Dto.",
         align: "center" as const,
+        width: "80px",
         sortable: true,
         render: (v: any) => `${Number(v)}%`,
       },
@@ -220,17 +246,22 @@ export default function InvitePage() {
         key: "trialDays",
         label: t("trial") || "Prueba",
         align: "center" as const,
+        width: "80px",
         sortable: true,
       },
       {
         key: "createdAt",
         label: t("created") || "Creación",
+        align: "center" as const,
+        width: "110px",
         sortable: true,
         render: (v: any) => fmtDate(v),
       },
       {
         key: "expiresAt",
         label: t("expires") || "Caduca",
+        align: "center" as const,
+        width: "110px",
         sortable: true,
         render: (v: any) => fmtDate(v),
       },
@@ -238,6 +269,7 @@ export default function InvitePage() {
         key: "inviteLink",
         label: t("link") || "Enlace",
         align: "center" as const,
+        width: "80px",
         render: (link: any) =>
           link ? (
             <button
@@ -255,6 +287,7 @@ export default function InvitePage() {
         key: "acceptedCount",
         label: t("accepted") || "Aceptadas",
         align: "center" as const,
+        width: "100px",
         sortable: true,
         render: (_v: any, row: any) => (
           <button
@@ -270,42 +303,50 @@ export default function InvitePage() {
       {
         key: "actions",
         label: t("actions") || "Acciones",
-        align: "right" as const,
+        align: "center" as const,
+        width: "110px",
         render: (_v: any, row: any) => {
           const inv = row.__raw as Invitation
           const isPending = inv.status === "PENDING"
           const canDelete = (inv.acceptedCount ?? 0) === 0
+          const slot = "inline-flex h-6 w-6 items-center justify-center"
           return (
-            <div className="flex items-center justify-end gap-1">
-              {isPending && (
-                <button
-                  onClick={() => setEditingInvitation(inv)}
-                  title={t("edit") || "Edit"}
-                  className="p-1 text-muted-foreground hover:text-[#662D91] transition-colors"
-                >
-                  <Pencil className="h-3.5 w-3.5" />
-                </button>
-              )}
-              {isPending && (
-                <button
-                  onClick={() => revoke(inv.publicId)}
-                  title={t("revoke") || "Revoke"}
-                  className="p-1 text-foreground hover:text-amber-600 transition-colors"
-                >
-                  <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-current">
-                    <X className="h-2.5 w-2.5 text-background" strokeWidth={3} />
-                  </span>
-                </button>
-              )}
-              {canDelete && (
-                <button
-                  onClick={() => removeInvitation(inv.publicId)}
-                  title={t("delete") || "Delete"}
-                  className="p-1 text-muted-foreground hover:text-red-600 transition-colors"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-              )}
+            <div className="flex items-center justify-center gap-1">
+              <span className={slot}>
+                {isPending ? (
+                  <button
+                    onClick={() => setEditingInvitation(inv)}
+                    title={t("edit") || "Edit"}
+                    className="p-1 text-muted-foreground hover:text-[#662D91] transition-colors"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                ) : null}
+              </span>
+              <span className={slot}>
+                {isPending ? (
+                  <button
+                    onClick={() => revoke(inv.publicId)}
+                    title={t("revoke") || "Revoke"}
+                    className="p-1 text-foreground hover:text-amber-600 transition-colors"
+                  >
+                    <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-current">
+                      <X className="h-2.5 w-2.5 text-background" strokeWidth={3} />
+                    </span>
+                  </button>
+                ) : null}
+              </span>
+              <span className={slot}>
+                {canDelete ? (
+                  <button
+                    onClick={() => removeInvitation(inv.publicId)}
+                    title={t("delete") || "Delete"}
+                    className="p-1 text-muted-foreground hover:text-red-600 transition-colors"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                ) : null}
+              </span>
             </div>
           )
         },

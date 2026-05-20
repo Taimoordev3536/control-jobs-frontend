@@ -59,7 +59,6 @@ export default function PartnerEmployersTab({ partnerId }: PartnerEmployersTabPr
           name: e.name || "-",
           class: e.class || "-",
           type: e.type || "-",
-          fee: e.fee || "-",
           discount: e.discount || "0",
           highDate: e.createdAt ? new Date(e.createdAt).toLocaleDateString() : "-",
           partner: e.partnerName || "-",

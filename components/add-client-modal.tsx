@@ -406,7 +406,7 @@ export default function AddClientModal({ open, onOpenChange, onClientAdded }: Ad
                       updateFormData("address", addressOnly || value)
                       if (components.street) updateFormData("street", components.street)
                       if (components.streetNumber) updateFormData("streetNumber", components.streetNumber)
-                      if (components.floorDoor) updateFormData("floorDoor", components.floorDoor)
+                      if (components.floorDoor) updateFormData("floorDoor", components.floorDoor.toUpperCase())
                       if (components.city) updateFormData("city", components.city)
                       if (components.province) updateFormData("province", components.province)
                       if (components.country) updateFormData("country", components.country)
@@ -414,11 +414,20 @@ export default function AddClientModal({ open, onOpenChange, onClientAdded }: Ad
                       if (components.latitude) updateFormData("latitude", components.latitude)
                       if (components.longitude) updateFormData("longitude", components.longitude)
                     } else {
-                      // Manual typing (no Google selection)
-                      updateFormData("address", value)
+                      // Manual typing — parse the comma-separated entry per
+                      // the placeholder so structured fields stay populated.
+                      const parts = value.split(",").map((p) => p.trim())
+                      updateFormData("address", parts.slice(0, 2).filter(Boolean).join(", ") || value)
+                      updateFormData("street", parts[0] || "")
+                      updateFormData("streetNumber", parts[1] || "")
+                      updateFormData("floorDoor", (parts[2] || "").toUpperCase())
+                      updateFormData("postalCode", parts[3] || "")
+                      updateFormData("city", parts[4] || "")
+                      updateFormData("province", parts[5] || "")
+                      updateFormData("country", parts[6] || "")
                     }
                   }}
-                  placeholder="Calle, Número, Ciudad..."
+                  placeholder={t("addressPlaceholder")}
                   className={`mt-1 border p-2 w-full rounded text-sm ${validationErrors.address ? "border-red-500" : ""}`}
                 />
                 {validationErrors.address && (

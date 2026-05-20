@@ -174,12 +174,10 @@ export default function BulkInvitationModal({
       const body: any = {
         description: description.trim(),
         discountPercent: discountNum,
+        trialDays: Number(trialDays),
         expiresAt: expiresAt ? new Date(expiresAt).toISOString() : null,
       }
-      if (!isEditMode) {
-        body.trialDays = Number(trialDays)
-        if (isAdmin) body.partnerId = Number(partnerId)
-      }
+      if (!isEditMode && isAdmin) body.partnerId = Number(partnerId)
 
       const res = await fetch(url, {
         method,
@@ -254,16 +252,19 @@ export default function BulkInvitationModal({
                   />
                 </SelectTrigger>
                 <SelectContent>
-                  {isEditMode && invitation?.partnerName && (
-                    <SelectItem value={String(invitation.partnerId)}>
-                      {invitation.partnerName}
-                    </SelectItem>
-                  )}
-                  {partners.map((p) => (
-                    <SelectItem key={p.id} value={String(p.id)}>
-                      {p.name}
-                    </SelectItem>
-                  ))}
+                  {isEditMode
+                    ? invitation?.partnerName
+                      ? (
+                          <SelectItem value={String(invitation.partnerId)}>
+                            {invitation.partnerName}
+                          </SelectItem>
+                        )
+                      : null
+                    : partners.map((p) => (
+                        <SelectItem key={p.id} value={String(p.id)}>
+                          {p.name}
+                        </SelectItem>
+                      ))}
                 </SelectContent>
               </Select>
             </div>
@@ -301,7 +302,6 @@ export default function BulkInvitationModal({
               <Select
                 value={trialDays}
                 onValueChange={setTrialDays}
-                disabled={isEditMode}
               >
                 <SelectTrigger className="h-9 text-xs w-24">
                   <SelectValue />

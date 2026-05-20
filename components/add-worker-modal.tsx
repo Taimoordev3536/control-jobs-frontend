@@ -395,10 +395,18 @@ export default function AddWorkerModal({ open, onOpenChange, onWorkerAdded }: Ad
                       if (components.latitude) updateFormData("latitude", components.latitude)
                       if (components.longitude) updateFormData("longitude", components.longitude)
                     } else {
-                      updateFormData("address", value)
+                      // Manual typing — parse the comma-separated entry per
+                      // the placeholder. Worker form only stores city/province/
+                      // country/postalCode separately; the rest stays in address.
+                      const parts = value.split(",").map((p) => p.trim())
+                      updateFormData("address", parts.slice(0, 2).filter(Boolean).join(", ") || value)
+                      updateFormData("postalCode", parts[3] || "")
+                      updateFormData("city", parts[4] || "")
+                      updateFormData("province", parts[5] || "")
+                      updateFormData("country", parts[6] || "")
                     }
                   }}
-                  placeholder="Calle, Número, Ciudad..."
+                  placeholder={t("addressPlaceholder")}
                   className={`mt-1 border p-2 w-full rounded text-sm ${validationErrors.address ? "border-red-500" : ""}`}
                 />
                 {validationErrors.address && (

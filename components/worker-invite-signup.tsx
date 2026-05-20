@@ -32,6 +32,7 @@ export default function WorkerInviteSignup({
   const [step, setStep] = useState<1 | 2 | 3>(1)
   const [submitting, setSubmitting] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
   const [form, setForm] = useState({
     name: "",
@@ -201,7 +202,7 @@ export default function WorkerInviteSignup({
                     update("address", addressOnly || value)
                     update("street", components.street || "")
                     update("streetNumber", components.streetNumber || "")
-                    update("floorDoor", components.floorDoor || "")
+                    update("floorDoor", (components.floorDoor || "").toUpperCase())
                     update("city", components.city || "")
                     update("province", components.province || "")
                     update("country", components.country || "")
@@ -209,7 +210,15 @@ export default function WorkerInviteSignup({
                     update("latitude", components.latitude || null)
                     update("longitude", components.longitude || null)
                   } else {
-                    update("address", value)
+                    const parts = value.split(",").map((p) => p.trim())
+                    update("address", parts.slice(0, 2).filter(Boolean).join(", ") || value)
+                    update("street", parts[0] || "")
+                    update("streetNumber", parts[1] || "")
+                    update("floorDoor", (parts[2] || "").toUpperCase())
+                    update("postalCode", parts[3] || "")
+                    update("city", parts[4] || "")
+                    update("province", parts[5] || "")
+                    update("country", parts[6] || "")
                   }
                 }}
                 placeholder={t("addressPlaceholder")}
@@ -311,7 +320,7 @@ export default function WorkerInviteSignup({
                   onClick={() => setShowPassword((v) => !v)}
                   className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground"
                 >
-                  {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                  {showPassword ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
                 </button>
               </div>
             </div>
@@ -319,13 +328,25 @@ export default function WorkerInviteSignup({
               <Label className="text-xs">
                 {t("confirmPassword") || "Confirm password"} *
               </Label>
-              <Input
-                type={showPassword ? "text" : "password"}
-                value={form.confirmPassword}
-                onChange={(e) => update("confirmPassword", e.target.value)}
-                className="h-9 text-xs mt-1"
-                autoComplete="new-password"
-              />
+              <div className="relative mt-1">
+                <span className="absolute inset-y-0 left-0 flex items-center pl-3">
+                  <Lock className="h-3.5 w-3.5 text-muted-foreground" />
+                </span>
+                <Input
+                  type={showConfirmPassword ? "text" : "password"}
+                  value={form.confirmPassword}
+                  onChange={(e) => update("confirmPassword", e.target.value)}
+                  className="h-9 text-xs pl-9 pr-9"
+                  autoComplete="new-password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword((v) => !v)}
+                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground"
+                >
+                  {showConfirmPassword ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+                </button>
+              </div>
             </div>
           </>
         )}

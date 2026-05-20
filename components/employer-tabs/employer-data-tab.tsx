@@ -21,6 +21,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AnimatedLoader } from "@/components/animated-loader"
 import GoogleAddressInput from "@/components/GoogleAddressInput"
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip"
+import { usePaymentMethods } from "@/hooks/use-payment-methods"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -54,7 +55,6 @@ interface EmployerData {
   landline: string
   typeId: number
   subTypeId: number
-  fee: string
   discount: string
   paymentMethodId: number
   accountIban: string
@@ -192,13 +192,12 @@ export default function EmployerDataTab({ employerId, selfServiceLogo = false }:
     { id: 3, name: tEnum("employerSubType", "COMPANY") },
   ]
 
-  const paymentMethods = [
-    { id: 1, name: tEnum("paymentMethod", "TRANSFER") },
-    { id: 2, name: tEnum("paymentMethod", "DIRECT_DEBIT") },
-    { id: 3, name: tEnum("paymentMethod", "CARD") },
-    { id: 4, name: tEnum("paymentMethod", "PAYPAL") },
-    { id: 5, name: tEnum("paymentMethod", "OTHERS") },
-  ]
+  const { methods: paymentMethodOptions } = usePaymentMethods({ selfServiceOnly: true })
+
+  const paymentMethods = paymentMethodOptions.map((m) => ({
+    id: m.id,
+    name: tEnum("paymentMethod", m.name) || m.name,
+  }))
 
   // Fetch employer data
   useEffect(() => {
@@ -273,6 +272,17 @@ export default function EmployerDataTab({ employerId, selfServiceLogo = false }:
   const handleSave = async () => {
     if (!employerData || !session?.accessToken) return
 
+    const billingChanged =
+      employerData.typeId !== originalData?.typeId ||
+      employerData.subTypeId !== originalData?.subTypeId
+    if (billingChanged) {
+      const confirmed = window.confirm(
+        t("confirmBillingPlanChange") ||
+          "Cambiar la Clase o Tarifa actualizará el plan de facturación del empleador. ¿Continuar?",
+      )
+      if (!confirmed) return
+    }
+
     setIsSaving(true)
     setError(null)
 
@@ -296,7 +306,6 @@ export default function EmployerDataTab({ employerId, selfServiceLogo = false }:
         landline: employerData.landline,
         typeId: employerData.typeId,
         subTypeId: employerData.subTypeId,
-        fee: employerData.fee ? Number(employerData.fee) : undefined,
         discount: employerData.discount ? Number(employerData.discount) : undefined,
         paymentMethodId: employerData.paymentMethodId,
         accountIban: employerData.accountIban,
@@ -768,12 +777,20 @@ export default function EmployerDataTab({ employerId, selfServiceLogo = false }:
           </Select>
         </div>
         <div className="space-y-1 min-w-0" style={{ flex: "0 0 10%" }}>
-          <Label className="text-xs font-medium text-foreground">{t("Fee")} <span className="text-red-500">*</span></Label>
-          <Input
-            value={employerData.fee || ""}
-            onChange={(e) => handleInputChange("fee", e.target.value)}
-            className="h-9 text-xs bg-muted/30 border-input text-foreground"
-          />
+          <Label className="text-xs font-medium text-foreground">{t("fee")} <span className="text-red-500">*</span></Label>
+          <Select
+            value={employerData.typeId?.toString() || ""}
+            onValueChange={(value) => handleInputChange("typeId", Number(value))}
+          >
+            <SelectTrigger className="h-9 text-xs bg-muted/30 border-input text-foreground">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="1">{tEnum("employerType", "HOME")}</SelectItem>
+              <SelectItem value="2">{tEnum("employerType", "STATIC")}</SelectItem>
+              <SelectItem value="3">{tEnum("employerType", "REMOTE")}</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         <div className="space-y-1 min-w-0" style={{ flex: "0 0 10%" }}>
           <Label className="text-xs font-medium text-foreground">{t("discount")}</Label>

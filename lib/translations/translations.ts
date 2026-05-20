@@ -3,7 +3,7 @@ import { loadBindings } from "next/dist/build/swc"
 const translations: Record<string, Record<string, any>> = {
   en: {
     //Add modal json
-    addressPlaceholder: "Address",
+    addressPlaceholder: "Address, Nº, Floor/Door, Postal code, City, Province, Country",
     selectType: "Select type",
     activateAccessAccount: "Activate access account",
     postpone: "Postpone",
@@ -1024,7 +1024,7 @@ surveyMonitoringValueTips: "Set a limit. If responses are under this value, an a
   },
   es: {
       // add modal json
-    addressPlaceholder: "Dirección",
+    addressPlaceholder: "Dirección, Nº, Piso, Código Postal, Localidad, Provincia, País",
     selectType: "Seleccionar tipo",
     activateAccessAccount: "Activar cuenta de acceso",
     postpone: "Posponer",
@@ -1275,7 +1275,7 @@ surveyMonitoringValueTips: "Set a limit. If responses are under this value, an a
     // Clients page translations former
     clientList: "Listado de Clientes",
     name: "Nombre",
-    city: "Población",
+    city: "Localidad",
     Type: "Tipo",
     responsible: "Responsable",
     telephones: "Teléfonos",
@@ -1298,7 +1298,7 @@ surveyMonitoringValueTips: "Set a limit. If responses are under this value, an a
     // Workers page translations
     listOfWorkers: "Listado de Trabajadores",
     namePseudonym: "Nombre/Pseudónimo",
-    population: "Población",
+    population: "Localidad",
     postalCode: "Código Postal",
     addWorker: "Añadir Trabajador",
     filterWorkers: "Filtrar trabajadores",

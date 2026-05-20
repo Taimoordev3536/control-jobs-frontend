@@ -115,6 +115,7 @@ export default function RedemptionDrawer({
       {
         key: "redeemedAtDisplay",
         label: t("date") || "Fecha",
+        align: "center" as const,
         sortable: true,
       },
     ],
@@ -132,11 +133,14 @@ export default function RedemptionDrawer({
             : target === "client"
               ? r.redeemedClient?.name || `#${r.redeemedClientId ?? "?"}`
               : r.redeemedEmployer?.name || `#${r.redeemedEmployerId ?? "?"}`
+        const d = new Date(r.redeemedAt)
+        const datePart = d.toLocaleDateString()
+        const timePart = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
         return {
           id: r.id,
           name,
           redeemedEmail: r.redeemedEmail,
-          redeemedAtDisplay: new Date(r.redeemedAt).toLocaleString(),
+          redeemedAtDisplay: `${datePart} ${timePart}`,
         }
       }),
     [rows, target],

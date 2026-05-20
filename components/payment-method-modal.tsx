@@ -22,17 +22,7 @@ import { useTranslation } from "@/hooks/use-translation"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { useBackendError } from "@/lib/backend-error"
-
-// Static payment-method lookup. Mirrors the seed data in `cjobs_payment_methods`
-// — same ids/labels add-employer-modal already uses, so we don't need a
-// separate `/payment-methods` endpoint just for this modal.
-const PAYMENT_METHOD_IDS = [
-  { id: 1, key: "TRANSFER" },
-  { id: 2, key: "DIRECT_DEBIT" },
-  { id: 3, key: "CARD" },
-  { id: 4, key: "PAYPAL" },
-  { id: 5, key: "OTHERS" },
-] as const
+import { usePaymentMethods } from "@/hooks/use-payment-methods"
 
 interface PaymentMethodModalProps {
   open: boolean
@@ -59,6 +49,10 @@ export function PaymentMethodModal({
 
   const [selectedId, setSelectedId] = useState<string>("")
   const [isSaving, setIsSaving] = useState(false)
+  const { methods: paymentMethods } = usePaymentMethods({
+    selfServiceOnly: true,
+    enabled: open,
+  })
 
   // Re-seed the dropdown when the modal opens or the existing value changes.
   useEffect(() => {
@@ -143,9 +137,9 @@ export function PaymentMethodModal({
               />
             </SelectTrigger>
             <SelectContent>
-              {PAYMENT_METHOD_IDS.map((m) => (
+              {paymentMethods.map((m) => (
                 <SelectItem key={m.id} value={String(m.id)}>
-                  {tEnum("paymentMethod", m.key) || m.key}
+                  {tEnum("paymentMethod", m.name) || m.name}
                 </SelectItem>
               ))}
             </SelectContent>

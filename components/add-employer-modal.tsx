@@ -14,6 +14,7 @@ import { useBackendError } from "@/lib/backend-error"
 import { useAuth } from "@/hooks/use-auth"
 import GoogleAddressInput from "@/components/GoogleAddressInput"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { usePaymentMethods } from "@/hooks/use-payment-methods"
 
 interface AddEmployerModalProps {
   open: boolean
@@ -241,13 +242,14 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded, 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formData.class])
 
-  const paymentMethods = [
-    { name: tEnum("paymentMethod", "TRANSFER"), id: 1 },
-    { name: tEnum("paymentMethod", "DIRECT_DEBIT"), id: 2 },
-    { name: tEnum("paymentMethod", "CARD"), id: 3 },
-    { name: tEnum("paymentMethod", "PAYPAL"), id: 4 },
-    { name: tEnum("paymentMethod", "OTHERS"), id: 5 },
-  ]
+  const { methods: paymentMethodOptions } = usePaymentMethods({
+    selfServiceOnly: true,
+    enabled: open,
+  })
+  const paymentMethods = paymentMethodOptions.map((m) => ({
+    id: m.id,
+    name: tEnum("paymentMethod", m.name) || m.name,
+  }))
 
   const handleNext = () => {
     if (currentStep === 1) {
@@ -312,7 +314,6 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded, 
         typeId: Number.parseInt(formData.fee),
         subTypeId:
           formData.class === "COMPANY" ? 3 : formData.class === "FREELANCER" ? 2 : 1,
-        fee: Number.parseFloat(formData.fee) || 0,
         discount: Number.parseFloat(formData.discount) || 0,
         paymentMethodId: Number.parseInt(formData.paymentMethod),
         accountIban: formData.accountIban || "",
@@ -571,7 +572,7 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded, 
                       updateFormData("address", addressOnly || value)
                       updateFormData("street", components.street || "")
                       updateFormData("streetNumber", components.streetNumber || "")
-                      updateFormData("floorDoor", components.floorDoor || "")
+                      updateFormData("floorDoor", (components.floorDoor || "").toUpperCase())
                       updateFormData("city", components.city || "")
                       updateFormData("province", components.province || "")
                       updateFormData("country", components.country || "")
@@ -579,10 +580,18 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded, 
                       updateFormData("latitude", components.latitude || null)
                       updateFormData("longitude", components.longitude || null)
                     } else {
-                      updateFormData("address", value)
+                      const parts = value.split(",").map((p) => p.trim())
+                      updateFormData("address", parts.slice(0, 2).filter(Boolean).join(", ") || value)
+                      updateFormData("street", parts[0] || "")
+                      updateFormData("streetNumber", parts[1] || "")
+                      updateFormData("floorDoor", (parts[2] || "").toUpperCase())
+                      updateFormData("postalCode", parts[3] || "")
+                      updateFormData("city", parts[4] || "")
+                      updateFormData("province", parts[5] || "")
+                      updateFormData("country", parts[6] || "")
                     }
                   }}
-                  placeholder="Calle, Número, Ciudad..."
+                  placeholder={t("addressPlaceholder")}
                   className={`mt-1 border p-2 w-full rounded text-sm ${validationErrors.address ? "border-destructive" : ""}`}
                 />
                 {validationErrors.address && <p className="mt-1 text-sm text-destructive">{t("thisFieldIsRequired")}</p>}

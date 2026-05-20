@@ -56,6 +56,7 @@ export function NewChatPanel({ mode, onBack, onConversationCreated }: NewChatPan
   const { t } = useTranslation()
   const { fetchContacts, startDirect, startGroup, uploadGroupImage, myScope } = useChat()
   const isPartner = myScope?.participantType === "PARTNER"
+  const isAdmin = myScope?.participantType === "ADMIN"
 
   const [contacts, setContacts] = useState<ContactGroup[]>([])
   const [loading, setLoading] = useState(true)
@@ -64,6 +65,7 @@ export function NewChatPanel({ mode, onBack, onConversationCreated }: NewChatPan
   const [busy, setBusy] = useState(false)
   const [employerId, setEmployerId] = useState("")
   const [adminId, setAdminId] = useState("")
+  const [partnerId, setPartnerId] = useState("")
   const [clientId, setClientId] = useState("")
   const [workerId, setWorkerId] = useState("")
   const [groupName, setGroupName] = useState("")
@@ -144,7 +146,8 @@ export function NewChatPanel({ mode, onBack, onConversationCreated }: NewChatPan
   async function handleCreateGroup() {
     if (!employerId) return
     if (isPartner && !adminId) return
-    if (!isPartner && (!clientId || !workerId)) return
+    if (isAdmin && !partnerId) return
+    if (!isPartner && !isAdmin && (!clientId || !workerId)) return
     setBusy(true)
     try {
       const trimmedName = groupName.trim()
@@ -155,12 +158,18 @@ export function NewChatPanel({ mode, onBack, onConversationCreated }: NewChatPan
               adminPublicId: adminId,
               name: trimmedName || undefined,
             }
-          : {
-              employerPublicId: employerId,
-              clientPublicId: clientId,
-              workerPublicId: workerId,
-              name: trimmedName || undefined,
-            },
+          : isAdmin
+            ? {
+                employerPublicId: employerId,
+                partnerPublicId: partnerId,
+                name: trimmedName || undefined,
+              }
+            : {
+                employerPublicId: employerId,
+                clientPublicId: clientId,
+                workerPublicId: workerId,
+                name: trimmedName || undefined,
+              },
       )
       if (groupImage) {
         try {
@@ -320,7 +329,15 @@ export function NewChatPanel({ mode, onBack, onConversationCreated }: NewChatPan
                   onChange={setAdminId}
                 />
               )}
-              {!isPartner && (
+              {isAdmin && (
+                <GroupSelect
+                  label={t("selectPartner")}
+                  value={partnerId}
+                  options={getGroup("PARTNER")}
+                  onChange={setPartnerId}
+                />
+              )}
+              {!isPartner && !isAdmin && (
                 <>
                   <GroupSelect
                     label={t("selectClient")}
@@ -342,7 +359,8 @@ export function NewChatPanel({ mode, onBack, onConversationCreated }: NewChatPan
                   busy ||
                   !employerId ||
                   (isPartner && !adminId) ||
-                  (!isPartner && (!clientId || !workerId))
+                  (isAdmin && !partnerId) ||
+                  (!isPartner && !isAdmin && (!clientId || !workerId))
                 }
                 onClick={handleCreateGroup}
               >

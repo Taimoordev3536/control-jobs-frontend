@@ -25,7 +25,6 @@ interface Employer {
   landline: string
   typeId: number
   subTypeId: number
-  fee: string
   discount: string
   paymentMethodId: number
   accountIban: string
