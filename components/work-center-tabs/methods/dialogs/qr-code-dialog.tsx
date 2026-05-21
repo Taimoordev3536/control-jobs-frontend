@@ -588,11 +588,11 @@ export function QrCodeDialog({ open, onOpenChange, workCenterId, qrData, onUpdat
                       className="p-1.5 text-[#662D91] hover:bg-purple-50 dark:hover:bg-purple-950 rounded-md transition-colors disabled:opacity-60"
                     >
                       {isDownloadingPdf ? (
-                        <RefreshCw className="w-5 h-5 animate-spin" />
+                        <RefreshCw className="w-6 h-6 animate-spin" />
                       ) : pdfHovered ? (
-                        <PdfIcon2 className="w-5 h-5" />
+                        <PdfIcon2 className="w-6 h-6" />
                       ) : (
-                        <PdfIcon1 className="w-5 h-5" />
+                        <PdfIcon1 className="w-6 h-6" />
                       )}
                     </button>
                     <button
@@ -602,7 +602,7 @@ export function QrCodeDialog({ open, onOpenChange, workCenterId, qrData, onUpdat
                       title="Enviar QR por email"
                       className="p-1.5 text-[#662D91] hover:bg-purple-50 dark:hover:bg-purple-950 rounded-md transition-colors"
                     >
-                      <Mail className="w-5 h-5" />
+                      <Mail className="w-6 h-6" />
                     </button>
                     <button
                       type="button"
@@ -612,7 +612,7 @@ export function QrCodeDialog({ open, onOpenChange, workCenterId, qrData, onUpdat
                       title="Regenerar QR (el anterior quedará inválido)"
                       className="p-1.5 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950 rounded-md transition-colors disabled:opacity-60"
                     >
-                      <RefreshCw className={`w-5 h-5 ${isRegenerating ? 'animate-spin' : ''}`} />
+                      <RefreshCw className={`w-6 h-6 ${isRegenerating ? 'animate-spin' : ''}`} />
                     </button>
                   </>
                 )}
