@@ -17,6 +17,8 @@ export default function MessagesPage() {
   const [activeId, setActiveId] = useState<string | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement | null>(null)
+  const canStartChat =
+    myScope?.participantType !== "WORKER" && myScope?.participantType !== "CLIENT"
 
   useEffect(() => {
     if (!menuOpen) return
@@ -49,39 +51,41 @@ export default function MessagesPage() {
           <>
             <div className="flex h-[54px] flex-shrink-0 items-center justify-between border-b border-border px-3">
               <span className="text-sm font-semibold text-foreground">{t("messages")}</span>
-              <div className="relative" ref={menuRef}>
-                <button
-                  onClick={() => setMenuOpen((v) => !v)}
-                  className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent"
-                  aria-label={t("newChat")}
-                >
-                  <Plus className="h-4 w-4" />
-                </button>
-                {menuOpen && (
-                  <div className="absolute right-0 z-20 mt-1 overflow-hidden rounded-md border border-border bg-card shadow-lg">
-                    <button
-                      onClick={() => {
-                        setMenuOpen(false)
-                        setView("new-direct")
-                      }}
-                      className="block w-full whitespace-nowrap px-3 py-2 text-left text-sm transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                    >
-                      {t("newChat")}
-                    </button>
-                    {myScope?.canCreateGroup && (
+              {canStartChat && (
+                <div className="relative" ref={menuRef}>
+                  <button
+                    onClick={() => setMenuOpen((v) => !v)}
+                    className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent"
+                    aria-label={t("newChat")}
+                  >
+                    <Plus className="h-4 w-4" />
+                  </button>
+                  {menuOpen && (
+                    <div className="absolute right-0 z-20 mt-1 overflow-hidden rounded-md border border-border bg-card shadow-lg">
                       <button
                         onClick={() => {
                           setMenuOpen(false)
-                          setView("new-group")
+                          setView("new-direct")
                         }}
                         className="block w-full whitespace-nowrap px-3 py-2 text-left text-sm transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                       >
-                        {t("newGroup")}
+                        {t("newChat")}
                       </button>
-                    )}
-                  </div>
-                )}
-              </div>
+                      {myScope?.canCreateGroup && (
+                        <button
+                          onClick={() => {
+                            setMenuOpen(false)
+                            setView("new-group")
+                          }}
+                          className="block w-full whitespace-nowrap px-3 py-2 text-left text-sm transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                        >
+                          {t("newGroup")}
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
             <div className="min-h-0 flex-1">
               <ConversationList

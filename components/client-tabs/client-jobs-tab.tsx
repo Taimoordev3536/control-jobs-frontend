@@ -16,7 +16,7 @@ interface ClientJobRow {
   jobName: string
   workCenters?: Array<{ id: number; publicId: string; name: string }>
   workCenterNames?: string
-  workers?: Array<{ id: number; publicId?: string; name: string | null }>
+  workers?: Array<{ id: number; publicId?: string; code?: string | null; name: string | null }>
   // Presentation-only fields consumed by TabTableTemplate columns:
   denomination: string
   workCentersLabel: string
@@ -73,7 +73,10 @@ export function ClientJobsTab({ clientId }: ClientJobsTabProps) {
               // still works while the column render below shows one item per line.
               workCentersLabel:
                 j.workCenterNames || workCenters.map((w) => w?.name || "").filter(Boolean).join("\n"),
-              workersLabel: workers.map((w) => w?.name || "").filter(Boolean).join("\n"),
+              workersLabel: workers
+                .map((w: any) => w?.name || (w?.code ? `Worker ${w.code}` : ""))
+                .filter(Boolean)
+                .join("\n"),
             }
           }),
         )
@@ -140,7 +143,9 @@ export function ClientJobsTab({ clientId }: ClientJobsTabProps) {
       sortable: true,
       width: "30%",
       render: (_value, row: ClientJobRow) =>
-        renderLines((row.workers || []).map((w) => w?.name || null)),
+        renderLines(
+          (row.workers || []).map((w) => w?.name || (w?.code ? `Worker ${w.code}` : null)),
+        ),
     },
   ]
 

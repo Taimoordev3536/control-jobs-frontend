@@ -90,7 +90,10 @@ const GoogleAddressInput: React.FC<GoogleAddressInputProps> = ({
         } else if (types.includes("street_number")) {
           components.streetNumber = component.long_name
         } else if (types.includes("subpremise")) {
+          // Restore the Spanish ordinal "º" that Google's API strips.
           components.floorDoor = component.long_name
+            .replace(/^(\d{1,2})\s*[oO°]\b/, "$1º")
+            .toUpperCase()
         } else if (types.includes("locality")) {
           components.city = component.long_name
         } else if (types.includes("administrative_area_level_1")) {

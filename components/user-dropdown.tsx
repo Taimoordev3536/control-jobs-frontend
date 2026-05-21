@@ -19,12 +19,11 @@ import { useToast } from "@/hooks/use-toast"
 import { useBackendError } from "@/lib/backend-error"
 import { logoEndpointsFor } from "@/lib/logo-endpoints"
 import { LogOut, CreditCard, DollarSign, Plus, Loader2 } from "lucide-react"
-import Image from "next/image"
 import Link from "next/link"
 
 export function UserDropdown() {
   const { t } = useTranslation()
-  const { user, session, logout, getUserRole, isSubUser } = useAuth()
+  const { user, session, logout, getUserRole, isSubUser, isImpersonating, impersonationContext } = useAuth()
   const { toast } = useToast()
   const translateBackendError = useBackendError()
   const userRole = getUserRole()
@@ -38,7 +37,10 @@ export function UserDropdown() {
   // and brand artwork.
   const identityUploadEndpoint = endpoints?.profile ?? endpoints?.logo
   const identityUrlField = endpoints?.profile ? "profilePhotoUrl" : "logoUrl"
-  const canUploadLogo = !!identityUploadEndpoint
+  const canUploadLogo = !!identityUploadEndpoint && !isImpersonating
+  const displayLogoUrl = isImpersonating
+    ? impersonationContext?.impersonatorLogoUrl ?? null
+    : logoUrl
 
   // Fetch the active user's avatar (employer: profilePhotoUrl, every other
   // role: logoUrl) for both the navbar trigger and the dropdown header.
@@ -210,7 +212,7 @@ export function UserDropdown() {
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-8 w-8 rounded-full">
           <Avatar className="h-8 w-8">
-            {logoUrl ? <AvatarImage src={logoUrl} alt={getDisplayName()} className="object-contain" /> : null}
+            {displayLogoUrl ? <AvatarImage src={displayLogoUrl} alt={getDisplayName()} className="object-contain" /> : null}
             <AvatarFallback>{getInitials()}</AvatarFallback>
           </Avatar>
         </Button>
@@ -223,21 +225,17 @@ export function UserDropdown() {
             <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center">
               {isUploading ? (
                 <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
-              ) : logoUrl ? (
+              ) : displayLogoUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={logoUrl}
+                  src={displayLogoUrl}
                   alt={getDisplayName()}
                   className="w-full h-full object-contain p-2"
                 />
               ) : (
-                <Image
-                  src="/placeholder.svg"
-                  alt={getDisplayName()}
-                  width={80}
-                  height={80}
-                  className="w-full h-full object-cover"
-                />
+                <span className="text-2xl font-semibold text-muted-foreground select-none">
+                  {getInitials()}
+                </span>
               )}
             </div>
             {canUploadLogo && (

@@ -208,7 +208,7 @@ export default function EmployerInviteSignup({
         typeId: Number(form.fee),
         subTypeId,
         discount: Number(form.discount) || 0,
-        paymentMethodId: trialActive ? 5 : Number(form.paymentMethod),
+        paymentMethodId: trialActive ? null : Number(form.paymentMethod),
         accountIban: form.accountIban || "",
         bicSwift: form.bicSwift || "",
         responsible: form.responsible,
@@ -228,7 +228,7 @@ export default function EmployerInviteSignup({
       }
       toast({ title: t("accountCreated") || "Account created!", variant: "success" as any })
       await signOut({ redirect: false })
-      router.push("/login")
+      router.push(`/check-your-email?email=${encodeURIComponent(form.email)}`)
     } catch (e: any) {
       toast({ title: e.message, variant: "destructive" })
     } finally {
@@ -310,7 +310,7 @@ export default function EmployerInviteSignup({
                     update("address", addressOnly || value)
                     update("street", components.street || "")
                     update("streetNumber", components.streetNumber || "")
-                    update("floorDoor", (components.floorDoor || "").toUpperCase())
+                    update("floorDoor", components.floorDoor || "")
                     update("city", components.city || "")
                     update("province", components.province || "")
                     update("country", components.country || "")

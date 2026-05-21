@@ -216,8 +216,7 @@ export function ClientDataTab({ clientId }: ClientDataTabProps) {
     setError(null)
 
     try {
-      // Send only updateable fields, exclude id/userId/publicId/email (non-DTO / read-only fields)
-      const { id, userId, publicId, email, ...updatePayload } = clientData as any
+      const { id, userId, publicId, email, logoPublicId, logoUrl, createdAt, updatedAt, ...updatePayload } = clientData as any
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/client/${clientId}`, {
         method: "PUT",
         headers: {

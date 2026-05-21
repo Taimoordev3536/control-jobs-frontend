@@ -971,6 +971,10 @@ surveyMonitoringValueTips: "Set a limit. If responses are under this value, an a
         COMPANY: "Company",
         FREELANCER: "Freelancer",
       },
+      clientType: {
+        company: "Company",
+        particular: "Particular",
+      },
       paymentMethod: {
         TRANSFER: "Transfer",
         DIRECT_DEBIT: "Direct Debit",
@@ -1993,6 +1997,10 @@ surveyMonitoringValueTips: "Set a limit. If responses are under this value, an a
         INDIVIDUAL: "Particular",
         COMPANY: "Empresa",
         FREELANCER: "Autónomo",
+      },
+      clientType: {
+        company: "Empresa",
+        particular: "Particular",
       },
       paymentMethod: {
         TRANSFER: "Transferencia",

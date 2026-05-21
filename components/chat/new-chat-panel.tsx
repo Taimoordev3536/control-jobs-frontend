@@ -57,6 +57,7 @@ export function NewChatPanel({ mode, onBack, onConversationCreated }: NewChatPan
   const { fetchContacts, startDirect, startGroup, uploadGroupImage, myScope } = useChat()
   const isPartner = myScope?.participantType === "PARTNER"
   const isAdmin = myScope?.participantType === "ADMIN"
+  const isEmployer = myScope?.participantType === "EMPLOYER"
 
   const [contacts, setContacts] = useState<ContactGroup[]>([])
   const [loading, setLoading] = useState(true)
@@ -315,12 +316,14 @@ export function NewChatPanel({ mode, onBack, onConversationCreated }: NewChatPan
               {imageError && (
                 <div className="text-xs text-destructive">{imageError}</div>
               )}
-              <GroupSelect
-                label={t("selectEmployer")}
-                value={employerId}
-                options={getGroup("EMPLOYER")}
-                onChange={setEmployerId}
-              />
+              {!isEmployer && (
+                <GroupSelect
+                  label={t("selectEmployer")}
+                  value={employerId}
+                  options={getGroup("EMPLOYER")}
+                  onChange={setEmployerId}
+                />
+              )}
               {isPartner && (
                 <GroupSelect
                   label={t("selectAdmin")}

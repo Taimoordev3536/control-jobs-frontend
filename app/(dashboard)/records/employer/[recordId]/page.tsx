@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useParams } from "next/navigation"
-import { useSession } from "next-auth/react"
+import { useAuth } from "@/hooks/use-auth"
 import {
   Calendar,
   User,
@@ -22,7 +22,7 @@ import { Button } from "@/components/ui/button"
 
 export default function EmployerRecordDetailPage() {
   const params = useParams()
-  const { data: session } = useSession()
+  const { session } = useAuth() as any
   const [activeTab, setActiveTab] = useState("fichajes")
   const [record, setRecord] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)

@@ -465,6 +465,8 @@ export default function InvitePage() {
         columns={invitationColumns}
         isLoading={isLoading}
         actionButtons={actionButtons}
+        defaultSortColumn="description"
+        defaultSortDirection="asc"
         emptyMessage={
           isLoading ? (
             <AnimatedLoader size={32} />

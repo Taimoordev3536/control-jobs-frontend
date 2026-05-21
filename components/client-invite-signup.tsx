@@ -145,7 +145,7 @@ export default function ClientInviteSignup({
         variant: "success" as any,
       })
       await signOut({ redirect: false })
-      router.push("/login")
+      router.push(`/check-your-email?email=${encodeURIComponent(form.email)}`)
     } catch (e: any) {
       toast({ title: e.message, variant: "destructive" })
     } finally {
@@ -306,6 +306,12 @@ export default function ClientInviteSignup({
         {step === 3 && (
           <>
             <div>
+              <Label className="text-xs">{t("email")}</Label>
+              <div className="mt-1 px-3 py-2 rounded-md border border-input bg-muted text-xs text-muted-foreground select-none pointer-events-none">
+                {form.email}
+              </div>
+            </div>
+            <div>
               <Label className="text-xs">{t("password") || "Password"} *</Label>
               <div className="relative mt-1">
                 <span className="absolute inset-y-0 left-0 flex items-center pl-3">
@@ -323,7 +329,7 @@ export default function ClientInviteSignup({
                   onClick={() => setShowPassword((v) => !v)}
                   className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground"
                 >
-                  {showPassword ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+                  {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                 </button>
               </div>
             </div>
@@ -347,7 +353,7 @@ export default function ClientInviteSignup({
                   onClick={() => setShowConfirmPassword((v) => !v)}
                   className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground"
                 >
-                  {showConfirmPassword ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+                  {showConfirmPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                 </button>
               </div>
             </div>

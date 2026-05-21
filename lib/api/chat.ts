@@ -1,4 +1,4 @@
-import { getSession } from "next-auth/react"
+import { getAccessToken } from "../api"
 
 export type ParticipantType = "ADMIN" | "PARTNER" | "EMPLOYER" | "CLIENT" | "WORKER"
 export type ConversationKind = "DIRECT" | "GROUP"
@@ -110,8 +110,7 @@ export interface SearchResultDto {
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL
 
 async function authedFetch(path: string, init: RequestInit = {}) {
-  const session = await getSession()
-  const token = (session as any)?.accessToken
+  const token = await getAccessToken()
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
     headers: {
@@ -195,8 +194,7 @@ export async function uploadGroupImage(
   conversationPublicId: string,
   file: File,
 ): Promise<ConversationDto> {
-  const session = await getSession()
-  const token = (session as any)?.accessToken
+  const token = await getAccessToken()
   const form = new FormData()
   form.append("file", file, file.name)
   const res = await fetch(`${API_BASE}/chat/conversations/${conversationPublicId}/image`, {
@@ -237,8 +235,7 @@ export async function sendMessageWithAttachments(
   body?: string,
   repliedToMessagePublicId?: string,
 ): Promise<MessageDto> {
-  const session = await getSession()
-  const token = (session as any)?.accessToken
+  const token = await getAccessToken()
   const form = new FormData()
   files.forEach((f) => form.append("files", f, f.name))
   if (body) form.append("body", body)

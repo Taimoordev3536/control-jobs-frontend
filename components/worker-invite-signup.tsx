@@ -3,10 +3,23 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { signOut } from "next-auth/react"
-import { Loader2, Eye, EyeOff, Lock } from "lucide-react"
+import { Loader2, Eye, EyeOff, Lock, Info } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { useTranslation } from "@/hooks/use-translation"
 import { useToast } from "@/hooks/use-toast"
 import GoogleAddressInput from "@/components/GoogleAddressInput"
@@ -26,7 +39,7 @@ export default function WorkerInviteSignup({
   token: string
   verified: VerifiedToken
 }) {
-  const { t } = useTranslation()
+  const { t, tEnum } = useTranslation()
   const { toast } = useToast()
   const router = useRouter()
   const [step, setStep] = useState<1 | 2 | 3>(1)
@@ -53,6 +66,7 @@ export default function WorkerInviteSignup({
     nif: "",
     naf: "",
     occupation: verified.occupation ?? "",
+    gender: "",
     birthday: "",
     password: "",
     confirmPassword: "",
@@ -75,6 +89,10 @@ export default function WorkerInviteSignup({
       }
       setStep(2)
     } else if (step === 2) {
+      if (!form.nif)
+        return toast({ title: t("thisFieldIsRequired"), variant: "destructive" })
+      if (!form.gender)
+        return toast({ title: t("thisFieldIsRequired"), variant: "destructive" })
       if (!form.birthday)
         return toast({ title: t("thisFieldIsRequired"), variant: "destructive" })
       setStep(3)
@@ -116,6 +134,7 @@ export default function WorkerInviteSignup({
         nif: form.nif,
         naf: form.naf,
         occupation: form.occupation,
+        gender: form.gender,
         birthday: form.birthday || undefined,
       }
       const res = await fetch(
@@ -135,7 +154,7 @@ export default function WorkerInviteSignup({
         variant: "success" as any,
       })
       await signOut({ redirect: false })
-      router.push("/login")
+      router.push(`/check-your-email?email=${encodeURIComponent(form.email)}`)
     } catch (e: any) {
       toast({ title: e.message, variant: "destructive" })
     } finally {
@@ -202,7 +221,7 @@ export default function WorkerInviteSignup({
                     update("address", addressOnly || value)
                     update("street", components.street || "")
                     update("streetNumber", components.streetNumber || "")
-                    update("floorDoor", (components.floorDoor || "").toUpperCase())
+                    update("floorDoor", components.floorDoor || "")
                     update("city", components.city || "")
                     update("province", components.province || "")
                     update("country", components.country || "")
@@ -258,7 +277,7 @@ export default function WorkerInviteSignup({
         {step === 2 && (
           <>
             <div>
-              <Label className="text-xs">{t("nif")}</Label>
+              <Label className="text-xs">{t("nif")} *</Label>
               <Input
                 value={form.nif}
                 onChange={(e) => update("nif", e.target.value)}
@@ -266,7 +285,26 @@ export default function WorkerInviteSignup({
               />
             </div>
             <div>
-              <Label className="text-xs">{t("naf") || "NAF"}</Label>
+              <Label className="text-xs flex items-center gap-1">
+                <span>{t("naf") || "NAF"}</span>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        tabIndex={-1}
+                        aria-label="Nº Afiliación Seguridad Social"
+                        className="inline-flex text-muted-foreground hover:text-foreground"
+                      >
+                        <Info className="h-3 w-3" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent className="text-xs">
+                      Nº Afiliación Seguridad Social
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </Label>
               <Input
                 value={form.naf}
                 onChange={(e) => update("naf", e.target.value)}
@@ -283,6 +321,24 @@ export default function WorkerInviteSignup({
                 disabled
                 className="mt-1 h-9 text-xs bg-muted cursor-not-allowed"
               />
+            </div>
+            <div>
+              <Label className="text-xs">{t("sex") || "Sexo"} *</Label>
+              <Select
+                value={form.gender}
+                onValueChange={(v) => update("gender", v)}
+              >
+                <SelectTrigger className="mt-1 h-9 text-xs">
+                  <SelectValue
+                    placeholder={t("selectGender") || "Seleccionar género"}
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">{tEnum("gender", "MALE")}</SelectItem>
+                  <SelectItem value="2">{tEnum("gender", "FEMALE")}</SelectItem>
+                  <SelectItem value="3">{tEnum("gender", "OTHER")}</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <Label className="text-xs">
@@ -320,7 +376,7 @@ export default function WorkerInviteSignup({
                   onClick={() => setShowPassword((v) => !v)}
                   className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground"
                 >
-                  {showPassword ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+                  {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                 </button>
               </div>
             </div>
@@ -344,7 +400,7 @@ export default function WorkerInviteSignup({
                   onClick={() => setShowConfirmPassword((v) => !v)}
                   className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground"
                 >
-                  {showConfirmPassword ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+                  {showConfirmPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                 </button>
               </div>
             </div>

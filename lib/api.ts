@@ -1,4 +1,5 @@
 import { getSession, signOut } from "next-auth/react"
+import { getStoredImpersonationToken } from "./api/impersonate"
 
 export class ApiError extends Error {
   constructor(public status: number, message: string, public body?: unknown) {
@@ -60,8 +61,12 @@ async function readError(res: Response): Promise<ApiError> {
   return new ApiError(res.status, message, body)
 }
 
-async function getAccessToken(unauthenticated?: boolean): Promise<string | null> {
+export async function getAccessToken(unauthenticated?: boolean): Promise<string | null> {
   if (unauthenticated) return null
+  if (typeof window !== "undefined") {
+    const impToken = getStoredImpersonationToken()
+    if (impToken) return impToken
+  }
   const session = await getSession()
   if (session?.error === "RefreshFailed") {
     await signOut({ callbackUrl: "/login" })

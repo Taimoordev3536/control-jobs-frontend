@@ -1,4 +1,4 @@
-import { getSession } from "next-auth/react"
+import { getAccessToken } from "../api"
 
 export type SubUserPermission = "EDIT" | "VIEW_ONLY"
 export type SubUserStatus = "active" | "pending" | "inactive"
@@ -29,8 +29,7 @@ export interface SubUserContext {
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL
 
 async function authedFetch(path: string, init: RequestInit = {}) {
-  const session = await getSession()
-  const token = (session as any)?.accessToken
+  const token = await getAccessToken()
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
     headers: {

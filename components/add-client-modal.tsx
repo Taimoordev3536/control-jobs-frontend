@@ -406,7 +406,7 @@ export default function AddClientModal({ open, onOpenChange, onClientAdded }: Ad
                       updateFormData("address", addressOnly || value)
                       if (components.street) updateFormData("street", components.street)
                       if (components.streetNumber) updateFormData("streetNumber", components.streetNumber)
-                      if (components.floorDoor) updateFormData("floorDoor", components.floorDoor.toUpperCase())
+                      if (components.floorDoor) updateFormData("floorDoor", components.floorDoor)
                       if (components.city) updateFormData("city", components.city)
                       if (components.province) updateFormData("province", components.province)
                       if (components.country) updateFormData("country", components.country)

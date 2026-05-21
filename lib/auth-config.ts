@@ -55,7 +55,19 @@ export const authOptions: NextAuthOptions = {
             }),
           })
 
-          if (!response.ok) return null
+          if (!response.ok) {
+            try {
+              const err = await response.json()
+              const msg = String(err?.message || "")
+              if (response.status === 403 && msg.startsWith("EMAIL_NOT_VERIFIED:")) {
+                const email = msg.slice("EMAIL_NOT_VERIFIED:".length) || credentials.email
+                throw new Error(`EMAIL_NOT_VERIFIED:${email}`)
+              }
+            } catch (parseErr: any) {
+              if (parseErr?.message?.startsWith?.("EMAIL_NOT_VERIFIED:")) throw parseErr
+            }
+            return null
+          }
 
           const data: LoginResponse = await response.json()
 

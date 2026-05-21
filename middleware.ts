@@ -1,6 +1,6 @@
 import { withAuth } from "next-auth/middleware"
 import { NextResponse } from "next/server"
-import { jwtVerify } from "jose"
+import { decodeJwt } from "jose"
 
 const IMP_COOKIE = "cj-imp-token"
 
@@ -12,14 +12,9 @@ const roleRoutes: Record<string, string[]> = {
   worker: ["/dashboard", "/jobs", "/occupation", "/surveys", "/information", "/aid", "/tasks", "/records", "/messages"],
 }
 
-async function readImpersonatedRole(impToken: string): Promise<string | null> {
-  const secret = process.env.JWT_SECRET
-  if (!secret) return null
+function readImpersonatedRole(impToken: string): string | null {
   try {
-    const { payload } = await jwtVerify(
-      impToken,
-      new TextEncoder().encode(secret),
-    )
+    const payload = decodeJwt(impToken)
     if (!payload.isImpersonating) return null
     const role = (payload as any).role?.name
     return typeof role === "string" ? role.toLowerCase() : null
@@ -36,6 +31,8 @@ export default withAuth(
       pathname.startsWith("/login") ||
       pathname.startsWith("/register") ||
       pathname.startsWith("/accept-invite") ||
+      pathname.startsWith("/verify-email") ||
+      pathname.startsWith("/check-your-email") ||
       pathname.startsWith("/impersonate")
     ) {
       return NextResponse.next()
@@ -47,7 +44,7 @@ export default withAuth(
     }
 
     const impToken = req.cookies.get(IMP_COOKIE)?.value
-    const impersonatedRole = impToken ? await readImpersonatedRole(impToken) : null
+    const impersonatedRole = impToken ? readImpersonatedRole(impToken) : null
     const userRole =
       impersonatedRole || token.role?.name?.toLowerCase()
 
@@ -77,6 +74,8 @@ export default withAuth(
           pathname.startsWith("/login") ||
           pathname.startsWith("/register") ||
           pathname.startsWith("/accept-invite") ||
+          pathname.startsWith("/verify-email") ||
+          pathname.startsWith("/check-your-email") ||
           pathname.startsWith("/impersonate")
         ) {
           return true

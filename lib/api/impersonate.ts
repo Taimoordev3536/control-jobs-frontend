@@ -28,6 +28,7 @@ export interface ImpersonationContext {
   isImpersonating: boolean
   impersonatorUserId?: number | null
   impersonatorRole?: string | null
+  impersonatorLogoUrl?: string | null
 }
 
 /**

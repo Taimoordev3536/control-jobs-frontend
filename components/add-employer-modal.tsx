@@ -572,7 +572,7 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded, 
                       updateFormData("address", addressOnly || value)
                       updateFormData("street", components.street || "")
                       updateFormData("streetNumber", components.streetNumber || "")
-                      updateFormData("floorDoor", (components.floorDoor || "").toUpperCase())
+                      updateFormData("floorDoor", components.floorDoor || "")
                       updateFormData("city", components.city || "")
                       updateFormData("province", components.province || "")
                       updateFormData("country", components.country || "")

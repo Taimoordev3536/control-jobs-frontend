@@ -359,19 +359,19 @@ html body[data-scroll-locked] {
   }
 
   .header-collapsed {
-    left: 48px;
+    left: 64px;
   }
 
   .header-expanded {
-    left: 192px;
+    left: 208px;
   }
 
   .main-content {
-    @apply mt-[60px] ml-[216px] transition-all duration-300;
+    @apply mt-[60px] ml-[208px] transition-all duration-300;
   }
 
   .main-content-collapsed {
-    @apply ml-[72px];
+    @apply ml-[64px];
   }
 
   /* Logo styles */

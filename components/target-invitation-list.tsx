@@ -159,8 +159,14 @@ export default function TargetInvitationList({ target }: { target: Target }) {
     }
   }
 
-  const fmtDate = (d?: string | null) =>
-    d ? new Date(d).toLocaleDateString() : "—"
+  const fmtDate = (d?: string | null) => {
+    if (!d) return "—"
+    const dt = new Date(d)
+    const dd = String(dt.getDate()).padStart(2, "0")
+    const mm = String(dt.getMonth() + 1).padStart(2, "0")
+    const yyyy = dt.getFullYear()
+    return `${dd}/${mm}/${yyyy}`
+  }
 
   const invitationColumns = useMemo(
     () => [
@@ -173,14 +179,14 @@ export default function TargetInvitationList({ target }: { target: Target }) {
         ? {
             key: "occupation",
             label: t("occupation") || "Ocupación",
-            align: "center" as const,
+            align: "left" as const,
             width: "140px",
             sortable: true,
           }
         : {
             key: "type",
             label: t("type") || "Tipo",
-            align: "center" as const,
+            align: "left" as const,
             width: "120px",
             sortable: true,
             render: (v: any) =>
@@ -248,37 +254,44 @@ export default function TargetInvitationList({ target }: { target: Target }) {
           const inv = row.__raw as Invitation
           const isPending = inv.status === "PENDING"
           const canDelete = (inv.acceptedCount ?? 0) === 0
+          const slot = "inline-flex h-6 w-6 items-center justify-center"
           return (
             <div className="flex items-center justify-center gap-1">
-              {isPending && (
-                <button
-                  onClick={() => setEditingInvitation(inv)}
-                  title={t("edit") || "Edit"}
-                  className="p-1 text-muted-foreground hover:text-[#662D91] transition-colors"
-                >
-                  <Pencil className="h-3.5 w-3.5" />
-                </button>
-              )}
-              {isPending && (
-                <button
-                  onClick={() => revoke(inv.publicId)}
-                  title={t("revoke") || "Revoke"}
-                  className="p-1 text-foreground hover:text-amber-600 transition-colors"
-                >
-                  <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-current">
-                    <X className="h-2.5 w-2.5 text-background" strokeWidth={3} />
-                  </span>
-                </button>
-              )}
-              {canDelete && (
-                <button
-                  onClick={() => removeInvitation(inv.publicId)}
-                  title={t("delete") || "Delete"}
-                  className="p-1 text-muted-foreground hover:text-red-600 transition-colors"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-              )}
+              <span className={slot}>
+                {isPending ? (
+                  <button
+                    onClick={() => setEditingInvitation(inv)}
+                    title={t("edit") || "Edit"}
+                    className="p-1 text-muted-foreground hover:text-[#662D91] transition-colors"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                ) : null}
+              </span>
+              <span className={slot}>
+                {isPending ? (
+                  <button
+                    onClick={() => revoke(inv.publicId)}
+                    title={t("revoke") || "Revoke"}
+                    className="p-1 text-foreground hover:text-amber-600 transition-colors"
+                  >
+                    <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-current">
+                      <X className="h-2.5 w-2.5 text-background" strokeWidth={3} />
+                    </span>
+                  </button>
+                ) : null}
+              </span>
+              <span className={slot}>
+                {canDelete ? (
+                  <button
+                    onClick={() => removeInvitation(inv.publicId)}
+                    title={t("delete") || "Delete"}
+                    className="p-1 text-muted-foreground hover:text-red-600 transition-colors"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                ) : null}
+              </span>
             </div>
           )
         },
@@ -362,6 +375,8 @@ export default function TargetInvitationList({ target }: { target: Target }) {
         columns={invitationColumns}
         isLoading={isLoading}
         actionButtons={actionButtons}
+        defaultSortColumn="description"
+        defaultSortDirection="asc"
         emptyMessage={
           isLoading ? (
             <AnimatedLoader size={32} />

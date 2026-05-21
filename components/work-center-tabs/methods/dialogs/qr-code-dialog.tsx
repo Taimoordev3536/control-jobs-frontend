@@ -81,6 +81,7 @@ export function QrCodeDialog({ open, onOpenChange, workCenterId, qrData, onUpdat
   const [workCenterData, setWorkCenterData] = useState<WorkCenterData | null>(null)
   const [isLoadingWorkCenter, setIsLoadingWorkCenter] = useState(false)
   const [progressPercent, setProgressPercent] = useState(100)
+  const [refreshKey, setRefreshKey] = useState(0)
 
   const selectedQr = qrType === "STATIC" ? staticQr : dynamicQr
   // Check both isSelected and isActive for backward compatibility with old data
@@ -171,7 +172,10 @@ export function QrCodeDialog({ open, onOpenChange, workCenterId, qrData, onUpdat
         setProgressPercent(0)
         if (!didRefetch) {
           didRefetch = true
-          refetchTimer = setTimeout(() => fetchQrCodes(), 350)
+          refetchTimer = setTimeout(async () => {
+            await fetchQrCodes()
+            setRefreshKey((k) => k + 1)
+          }, 350)
         }
         return
       }
@@ -188,7 +192,7 @@ export function QrCodeDialog({ open, onOpenChange, workCenterId, qrData, onUpdat
       clearInterval(interval)
       if (refetchTimer) clearTimeout(refetchTimer)
     }
-  }, [dynamicQr?.expiresAt, dynamicQr?.isSelected])
+  }, [dynamicQr?.expiresAt, dynamicQr?.isSelected, refreshKey])
 
   const fetchQrCodes = async () => {
     setIsLoading(true)

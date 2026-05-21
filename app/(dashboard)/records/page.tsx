@@ -2,26 +2,24 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/hooks/use-auth";
 
 export default function RecordsRedirectPage() {
   const router = useRouter();
-  const { data: session } = useSession();
+  const { getUserRole, isLoading } = useAuth();
 
   useEffect(() => {
-    async function detectRoleAndRedirect() {
-      if (!session) return;
-      const role = session?.user?.role;
-      if (role === "employer") {
-        router.replace("/app/(dashboard)/records/employer");
-      } else if (role === "client") {
-        router.replace("/app/(dashboard)/records/client");
-      } else {
-        router.replace("/app/(dashboard)/records/worker");
-      }
+    if (isLoading) return;
+    const role = getUserRole();
+    if (!role) return;
+    if (role === "employer") {
+      router.replace("/records/employer");
+    } else if (role === "client") {
+      router.replace("/records/client");
+    } else {
+      router.replace("/records/worker");
     }
-    detectRoleAndRedirect();
-  }, [router, session]);
+  }, [router, isLoading, getUserRole]);
 
   return <div>Redirecting to your records...</div>;
 }

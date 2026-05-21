@@ -11,7 +11,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useAuth } from "@/hooks/use-auth"
 import { useTranslation } from "@/hooks/use-translation"
 import { useToast } from "@/hooks/use-toast"
 import GoogleAddressInput from "@/components/GoogleAddressInput"
@@ -21,7 +20,6 @@ export default function RegisterPage() {
   const router = useRouter()
   const { data: session } = useSession()
   const { t, tEnum, language, setLanguage } = useTranslation()
-  const { login } = useAuth()
   const { toast } = useToast()
   const [step, setStep] = useState<1 | 2 | 3>(1)
   const [submitting, setSubmitting] = useState(false)
@@ -144,7 +142,7 @@ export default function RegisterPage() {
         title: t("accountCreated") || "Account created!",
         variant: "success" as any,
       })
-      await login(form.email, form.password)
+      router.push(`/check-your-email?email=${encodeURIComponent(form.email)}`)
     } catch (e: any) {
       toast({ title: e.message, variant: "destructive" })
     } finally {
@@ -228,7 +226,7 @@ export default function RegisterPage() {
                       update("address", addressOnly || value)
                       update("street", components.street || "")
                       update("streetNumber", components.streetNumber || "")
-                      update("floorDoor", (components.floorDoor || "").toUpperCase())
+                      update("floorDoor", components.floorDoor || "")
                       update("city", components.city || "")
                       update("province", components.province || "")
                       update("country", components.country || "")

@@ -134,13 +134,16 @@ export default function RedemptionDrawer({
               ? r.redeemedClient?.name || `#${r.redeemedClientId ?? "?"}`
               : r.redeemedEmployer?.name || `#${r.redeemedEmployerId ?? "?"}`
         const d = new Date(r.redeemedAt)
-        const datePart = d.toLocaleDateString()
-        const timePart = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+        const dd = String(d.getDate()).padStart(2, "0")
+        const mm = String(d.getMonth() + 1).padStart(2, "0")
+        const yyyy = d.getFullYear()
+        const hh = String(d.getHours()).padStart(2, "0")
+        const mi = String(d.getMinutes()).padStart(2, "0")
         return {
           id: r.id,
           name,
           redeemedEmail: r.redeemedEmail,
-          redeemedAtDisplay: `${datePart} ${timePart}`,
+          redeemedAtDisplay: `${dd}/${mm}/${yyyy} ${hh}:${mi}`,
         }
       }),
     [rows, target],
@@ -210,6 +213,8 @@ export default function RedemptionDrawer({
             columns={columns}
             isLoading={loading}
             actionButtons={actionButtons}
+            defaultSortColumn="name"
+            defaultSortDirection="asc"
             emptyMessage={
               loading ? (
                 <AnimatedLoader size={32} />

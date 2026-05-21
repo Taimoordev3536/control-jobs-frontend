@@ -52,7 +52,23 @@ export default function TabTableTemplate({
   onFiltersChange: onFiltersChangeProp,
 }: TabTableTemplateProps) {
   const { t } = useTranslation()
-  const [localColumns, setLocalColumns] = useState(columns)
+  const [columnOrder, setColumnOrder] = useState<string[]>(() => columns.map((c) => c.key))
+  useEffect(() => {
+    setColumnOrder((prev) => {
+      const propKeys = columns.map((c) => c.key)
+      const kept = prev.filter((k) => propKeys.includes(k))
+      const added = propKeys.filter((k) => !prev.includes(k))
+      const next = [...kept, ...added]
+      const same = next.length === prev.length && next.every((k, i) => k === prev[i])
+      return same ? prev : next
+    })
+  }, [columns])
+  const localColumns = useMemo(() => {
+    const byKey = new Map(columns.map((c) => [c.key, c]))
+    return columnOrder
+      .map((k) => byKey.get(k))
+      .filter((c): c is TabTableColumn => !!c)
+  }, [columns, columnOrder])
   const [sortColumn, setSortColumn] = useState<string | null>(null)
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc")
   const [currentPage, setCurrentPage] = useState(1)
@@ -236,10 +252,10 @@ export default function TabTableTemplate({
         <DragDropContext
           onDragEnd={(result: DropResult) => {
             if (!result.destination) return
-            const reordered = [...localColumns]
+            const reordered = [...columnOrder]
             const [removed] = reordered.splice(result.source.index, 1)
             reordered.splice(result.destination.index, 0, removed)
-            setLocalColumns(reordered)
+            setColumnOrder(reordered)
             setColumnWidths(null)
           }}
         >
@@ -353,7 +369,9 @@ export default function TabTableTemplate({
                               : "text-muted-foreground"
                           } ${getAlignmentClass(column, row[column.key])} border border-gray-300 dark:border-gray-700`}
                         >
-                          {renderValue(row[column.key], column.key) || "-"}
+                          {column.render
+                            ? column.render(row[column.key], row)
+                            : (renderValue(row[column.key], column.key) || "-")}
                         </td>
                       ))}
                     </tr>

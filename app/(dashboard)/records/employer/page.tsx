@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { useSession } from "next-auth/react"
+import { useAuth } from "@/hooks/use-auth"
 import { useTranslation } from "@/hooks/use-translation"
 import { AnimatedLoader } from "@/components/animated-loader"
 
@@ -12,7 +12,7 @@ import { exportToCSV, exportToXLSX, exportToPDF } from "@/lib/export"
 
 export default function EmployerRecordsPage() {
   const router = useRouter()
-  const { data: session, status } = useSession()
+  const { session, isLoading: authLoading } = useAuth() as any
   const { t } = useTranslation("employer-dashboard")
   const [jobIdParam, setJobIdParam] = useState<string | null>(null)
   const [paramsLoaded, setParamsLoaded] = useState(false)
@@ -38,7 +38,7 @@ export default function EmployerRecordsPage() {
   useEffect(() => {
     const fetchRecords = async () => {
       // Wait for session to be authenticated and params to be loaded
-      if (status === 'loading' || !paramsLoaded) {
+      if (authLoading || !paramsLoaded) {
         return
       }
 
@@ -80,7 +80,7 @@ export default function EmployerRecordsPage() {
     }
 
     fetchRecords()
-  }, [jobIdParam, session?.accessToken, status, paramsLoaded])
+  }, [jobIdParam, session?.accessToken, authLoading, paramsLoaded])
 
   const columns = [
     { key: "fecha", label: t("checkInCheckOut"), sortable: true },

@@ -22,17 +22,17 @@ export function useAuth() {
   const [subUser, setSubUser] = useState<SubUserContext>({ isSubUser: false })
   const { language, setLanguage, t } = useTranslation("login") // Explicitly set namespace to "login"
 
-  const [impersonating] = useState<boolean>(() =>
-    typeof window === "undefined" ? false : isImpersonationSession(),
-  )
-  const [impersonationUser] = useState<any>(() =>
-    typeof window === "undefined" ? null : getStoredImpersonationUser(),
-  )
-  const [impersonationCtx] = useState<ImpersonationContext>(() =>
-    typeof window === "undefined"
-      ? { isImpersonating: false }
-      : getStoredImpersonationContext() || { isImpersonating: false },
-  )
+  const [hydrated, setHydrated] = useState(false)
+  const [impersonating, setImpersonating] = useState(false)
+  const [impersonationUser, setImpersonationUser] = useState<any>(null)
+  const [impersonationCtx, setImpersonationCtx] = useState<ImpersonationContext>({ isImpersonating: false })
+
+  useEffect(() => {
+    setImpersonating(isImpersonationSession())
+    setImpersonationUser(getStoredImpersonationUser())
+    setImpersonationCtx(getStoredImpersonationContext() || { isImpersonating: false })
+    setHydrated(true)
+  }, [])
 
   useEffect(() => {
     // Skip sub-user context fetch for impersonation sessions
@@ -59,6 +59,11 @@ export function useAuth() {
       })
 
       if (result?.error) {
+        if (result.error.startsWith("EMAIL_NOT_VERIFIED:")) {
+          const targetEmail = result.error.slice("EMAIL_NOT_VERIFIED:".length) || email
+          router.push(`/check-your-email?email=${encodeURIComponent(targetEmail)}`)
+          return false
+        }
         toast({
           title: t("loginErrorTitle"),
           description: t("loginErrorDescription"),
@@ -144,7 +149,26 @@ export function useAuth() {
     window.close()
   }
 
-  // If this tab is an impersonation session, override session data
+  if (!hydrated) {
+    return {
+      user: undefined,
+      session: undefined,
+      isAuthenticated: false,
+      isLoading: true,
+      login,
+      logout: () => {},
+      getUserRole: () => null,
+      hasRole: () => false,
+      hasAnyRole: () => false,
+      subUser: { isSubUser: false } as SubUserContext,
+      isSubUser: false,
+      canEdit: () => false,
+      isImpersonating: false,
+      impersonationContext: { isImpersonating: false } as ImpersonationContext,
+      exitImpersonation: () => {},
+    }
+  }
+
   if (impersonating && impersonationUser) {
     const impSession = {
       user: impersonationUser,
@@ -182,7 +206,7 @@ export function useAuth() {
     user: session?.user,
     session,
     isAuthenticated: status === "authenticated",
-    isLoading: status === "loading" || isLoading,
+    isLoading: !hydrated || status === "loading" || isLoading,
     login,
     logout,
     getUserRole,
