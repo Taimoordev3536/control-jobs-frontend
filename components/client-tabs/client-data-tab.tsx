@@ -18,6 +18,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AnimatedLoader } from "@/components/animated-loader"
 import { useToast } from "@/hooks/use-toast"
 import GoogleAddressInput from "@/components/GoogleAddressInput"
+import { normalizeFloorDoor } from "@/lib/utils/normalize-floor-door"
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip"
 import {
   AlertDialog,
@@ -499,7 +500,7 @@ export function ClientDataTab({ clientId }: ClientDataTabProps) {
                 handleInputChange("address", addressOnly || value)
                 if (components.street) handleInputChange("street", components.street)
                 if (components.streetNumber) handleInputChange("streetNumber", components.streetNumber)
-                if (components.floorDoor) handleInputChange("floorDoor", components.floorDoor)
+                if (components.floorDoor) handleInputChange("floorDoor", normalizeFloorDoor(components.floorDoor))
                 if (components.city) handleInputChange("city", components.city)
                 if (components.province) handleInputChange("province", components.province)
                 if (components.country) handleInputChange("country", components.country)
@@ -522,6 +523,7 @@ export function ClientDataTab({ clientId }: ClientDataTabProps) {
             id="floorDoor"
             value={clientData.floorDoor || ""}
             onChange={(e) => handleInputChange("floorDoor", e.target.value)}
+            onBlur={(e) => handleInputChange("floorDoor", normalizeFloorDoor(e.target.value))}
             className="h-9 text-xs bg-muted/30 border-input text-foreground"
           />
         </div>

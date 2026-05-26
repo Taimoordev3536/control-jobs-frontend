@@ -1,12 +1,14 @@
 
 "use client"
 
-import { useState, useEffect } from "react"
+import { useCallback, useState, useEffect } from "react"
 import { Plus, Filter } from "lucide-react"
 import { useRouter } from "next/navigation"
 import DataListTemplate, { ExcelIcon, CsvIcon, PdfIcon } from "@/components/ui/data-list-template"
 import { exportToCSV, exportToXLSX, exportToPDF } from "@/lib/export"
 import AddEmployerModal from "@/components/add-employer-modal"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import PendingEmployersTab, { type PendingItem } from "@/components/employers/pending-employers-tab"
 import { useTranslation } from "@/hooks/use-translation"
 import { useAuth } from "@/hooks/use-auth"
 import { AnimatedLoader } from "@/components/animated-loader"
@@ -28,6 +30,37 @@ export default function EmployersPage() {
   const [employers, setEmployers] = useState<Employer[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [showAddModal, setShowAddModal] = useState(false)
+  const [pendingItems, setPendingItems] = useState<PendingItem[]>([])
+  const [pendingLoading, setPendingLoading] = useState(true)
+  const isAdmin =
+    String(session?.user?.role?.name || "").toLowerCase() === "admin"
+
+  const loadPending = useCallback(async () => {
+    if (!session?.accessToken) return
+    setPendingLoading(true)
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/employers/pending`,
+        {
+          headers: {
+            Authorization: `Bearer ${session.accessToken}`,
+            "Content-Type": "application/json",
+          },
+        },
+      )
+      if (!res.ok) throw new Error("Failed to fetch pending employers")
+      const payload = await res.json()
+      setPendingItems(payload?.data || [])
+    } catch {
+      setPendingItems([])
+    } finally {
+      setPendingLoading(false)
+    }
+  }, [session?.accessToken])
+
+  useEffect(() => {
+    loadPending()
+  }, [loadPending])
 
   useEffect(() => {
     const fetchEmployers = async () => {
@@ -54,6 +87,9 @@ export default function EmployersPage() {
           type: e.type,
           lack: e.createdAt ? new Date(e.createdAt).toLocaleDateString() : "-",
           partner: e.partnerName || "-",
+          trial: typeof e.trialDaysRemaining === "number" && e.trialDaysRemaining > 0
+            ? e.trialDaysRemaining
+            : "—",
           billing: e.billing || "0 €",
         }))
         setEmployers(mapped)
@@ -101,10 +137,18 @@ export default function EmployersPage() {
       sortable: true,
     },
     {
+      key: "trial",
+      label: t("trial"),
+      sortable: true,
+      align: "center" as const,
+      width: "90px",
+    },
+    {
       key: "billing",
       label: t("billing"),
       sortable: true,
       align: "right" as const,
+      width: "110px",
     },
   ]
 
@@ -144,15 +188,42 @@ export default function EmployersPage() {
 
   return (
     <>
-      <DataListTemplate
-        title={t("listOfEmployers")}
-        data={employers}
-        columns={columns}
-        isLoading={isLoading}
-        onRowClick={handleRowClick}
-        actionButtons={actionButtons}
-        emptyMessage={isLoading ? <AnimatedLoader size={32} /> : t("noEmployersFound")}
-      />
+      <Tabs defaultValue="active" className="w-full">
+        <div className="px-2 pt-2">
+          <TabsList>
+            <TabsTrigger value="active">{t("active")}</TabsTrigger>
+            <TabsTrigger value="pending">
+              {t("pending")}
+              {pendingItems.length > 0 && (
+                <span className="ml-2 inline-flex items-center justify-center rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200 px-2 text-xs font-medium min-w-[1.5rem] h-5">
+                  {pendingItems.length}
+                </span>
+              )}
+            </TabsTrigger>
+          </TabsList>
+        </div>
+
+        <TabsContent value="active" className="mt-0">
+          <DataListTemplate
+            title={t("listOfEmployers")}
+            data={employers}
+            columns={columns}
+            isLoading={isLoading}
+            onRowClick={handleRowClick}
+            actionButtons={actionButtons}
+            emptyMessage={isLoading ? <AnimatedLoader size={32} /> : t("noEmployersFound")}
+          />
+        </TabsContent>
+
+        <TabsContent value="pending" className="mt-0">
+          <PendingEmployersTab
+            data={pendingItems}
+            isLoading={pendingLoading}
+            onRefresh={loadPending}
+            isAdmin={isAdmin}
+          />
+        </TabsContent>
+      </Tabs>
 
       <AddEmployerModal open={showAddModal} onOpenChange={setShowAddModal} onEmployerAdded={handleEmployerAdded} />
     </>

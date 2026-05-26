@@ -20,6 +20,7 @@ import { Info } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AnimatedLoader } from "@/components/animated-loader"
 import GoogleAddressInput from "@/components/GoogleAddressInput"
+import { normalizeFloorDoor } from "@/lib/utils/normalize-floor-door"
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip"
 import { usePaymentMethods } from "@/hooks/use-payment-methods"
 import {
@@ -60,6 +61,7 @@ interface EmployerData {
   accountIban: string
   bicSwift: string
   probationPeriod: string
+  trialDaysRemaining?: number
   responsible: string
   accessAccountStatus: string
   email: string | null
@@ -80,6 +82,7 @@ interface EmployerDataTabProps {
 export default function EmployerDataTab({ employerId, selfServiceLogo = false }: EmployerDataTabProps) {
   const { t, language, tEnum } = useTranslation()
   const { session, isImpersonating, isSubUser, hasRole, hasAnyRole, canEdit } = useAuth()
+  const isAdmin = String(session?.user?.role?.name || "").toLowerCase() === "admin"
   const ti = (key: string) => (impersonationTranslations as any)[language]?.[key] || key
   const router = useRouter()
   const { toast } = useToast()
@@ -183,7 +186,9 @@ export default function EmployerDataTab({ employerId, selfServiceLogo = false }:
   }
 
   // Dropdown data
-  const [partners, setPartners] = useState<{ id: string | number; name: string }[]>([])
+  const [partners, setPartners] = useState<
+    { id: string | number; name: string; commission: number; isSystem: boolean }[]
+  >([])
   const [employerTypes, setEmployerTypes] = useState<{ id: number; name: string }[]>([])
 
   const subTypeOptions = [
@@ -198,6 +203,26 @@ export default function EmployerDataTab({ employerId, selfServiceLogo = false }:
     id: m.id,
     name: tEnum("paymentMethod", m.name) || m.name,
   }))
+
+  const selectedPartner = partners.find(
+    (p) => String(p.id) === String(employerData?.partnerId),
+  )
+  const maxDiscount = selectedPartner
+    ? selectedPartner.isSystem
+      ? 100
+      : selectedPartner.commission
+    : null
+  const discountValue = Number(employerData?.discount || 0)
+  const discountExceedsCap =
+    maxDiscount !== null && discountValue > maxDiscount
+
+  const allowedFeeIds =
+    Number(employerData?.subTypeId) === 1 ? [1] : [2, 3]
+  const feeOptions = [
+    { id: 1, key: "HOME" },
+    { id: 2, key: "STATIC" },
+    { id: 3, key: "REMOTE" },
+  ].filter((f) => allowedFeeIds.includes(f.id))
 
   // Fetch employer data
   useEffect(() => {
@@ -225,8 +250,15 @@ export default function EmployerDataTab({ employerId, selfServiceLogo = false }:
 
         const result = await response.json()
         if (result.isSuccess && result.data) {
-          setEmployerData(result.data)
-          setOriginalData(result.data)
+          const normalized = {
+            ...result.data,
+            probationPeriod:
+              typeof result.data.trialDaysRemaining === "number"
+                ? String(result.data.trialDaysRemaining)
+                : result.data.probationPeriod || "0",
+          }
+          setEmployerData(normalized)
+          setOriginalData(normalized)
         } else {
           throw new Error(result.message || "Failed to fetch employer data")
         }
@@ -254,7 +286,14 @@ export default function EmployerDataTab({ employerId, selfServiceLogo = false }:
         })
         if (res.ok) {
           const data = await res.json()
-          setPartners((data.data || []).map((p: any) => ({ id: p.publicId || p.id, name: p.name })))
+          setPartners(
+            (data.data || []).map((p: any) => ({
+              id: p.publicId || p.id,
+              name: p.name,
+              commission: Number(p.commission ?? 0),
+              isSystem: Boolean(p.isSystem),
+            })),
+          )
         }
       } catch {
         setPartners([])
@@ -541,7 +580,7 @@ export default function EmployerDataTab({ employerId, selfServiceLogo = false }:
                 handleInputChange("address", addressOnly || value)
                 handleInputChange("street", components.street || "")
                 handleInputChange("streetNumber", components.streetNumber || "")
-                handleInputChange("floorDoor", components.floorDoor || "")
+                handleInputChange("floorDoor", normalizeFloorDoor(components.floorDoor))
                 handleInputChange("city", components.city || "")
                 handleInputChange("province", components.province || "")
                 handleInputChange("country", components.country || "")
@@ -563,6 +602,7 @@ export default function EmployerDataTab({ employerId, selfServiceLogo = false }:
             id="floorDoor"
             value={employerData.floorDoor || ""}
             onChange={(e) => handleInputChange("floorDoor", e.target.value)}
+            onBlur={(e) => handleInputChange("floorDoor", normalizeFloorDoor(e.target.value))}
             className="h-9 text-xs bg-muted/30 border-input text-foreground"
           />
         </div>
@@ -681,19 +721,8 @@ export default function EmployerDataTab({ employerId, selfServiceLogo = false }:
         )}
       </div>
 
-      {/* Row 5: Observaciones 50%, Profile image minimized */}
-      <div className="flex gap-3 items-end">
-        <div className="space-y-1 min-w-0" style={{ flex: "0 0 50%" }}>
-          <Label htmlFor="observations" className="text-xs font-medium text-foreground">
-            {t("observations")}
-          </Label>
-          <Textarea
-            id="observations"
-            value={employerData.probationPeriod || ""}
-            onChange={(e) => handleInputChange("probationPeriod", e.target.value)}
-            className="min-h-[40px] w-full bg-muted/30 border-input text-foreground resize-none text-xs py-1.5"
-          />
-        </div>
+      {/* Row 5: Profile image */}
+      <div className="flex gap-3 items-end justify-end">
         <div className="flex flex-col items-center justify-center shrink-0">
           <div className="relative w-16 h-16 rounded-full border-2 border-muted flex items-center justify-center bg-muted/20 overflow-hidden">
             {isUploadingLogo ? (
@@ -762,7 +791,22 @@ export default function EmployerDataTab({ employerId, selfServiceLogo = false }:
           <Label className="text-xs font-medium text-foreground">{t("class")} <span className="text-red-500">*</span></Label>
           <Select
             value={employerData.subTypeId?.toString() || ""}
-            onValueChange={(value) => handleInputChange("subTypeId", Number(value))}
+            onValueChange={(value) => {
+              const newSubType = Number(value)
+              const newAllowed = newSubType === 1 ? [1] : [2, 3]
+              setEmployerData((prev) =>
+                prev
+                  ? {
+                      ...prev,
+                      subTypeId: newSubType,
+                      typeId: newAllowed.includes(Number(prev.typeId))
+                        ? prev.typeId
+                        : (undefined as any),
+                    }
+                  : prev,
+              )
+              setHasChanges(true)
+            }}
           >
             <SelectTrigger className="h-9 text-xs bg-muted/30 border-input text-foreground">
               <SelectValue />
@@ -786,21 +830,46 @@ export default function EmployerDataTab({ employerId, selfServiceLogo = false }:
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="1">{tEnum("employerType", "HOME")}</SelectItem>
-              <SelectItem value="2">{tEnum("employerType", "STATIC")}</SelectItem>
-              <SelectItem value="3">{tEnum("employerType", "REMOTE")}</SelectItem>
+              {feeOptions.map((f) => (
+                <SelectItem key={f.id} value={f.id.toString()}>
+                  {tEnum("employerType", f.key)}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
         <div className="space-y-1 min-w-0" style={{ flex: "0 0 10%" }}>
-          <Label className="text-xs font-medium text-foreground">{t("discount")}</Label>
+          <Label className="text-xs font-medium text-foreground">
+            {t("discount")}
+            {maxDiscount !== null && (
+              <span className="ml-1 text-[10px] text-muted-foreground">(max {maxDiscount}%)</span>
+            )}
+          </Label>
           <Input
             value={employerData.discount || ""}
             onChange={(e) => handleInputChange("discount", e.target.value)}
-            className="h-9 text-xs bg-muted/30 border-input text-foreground"
+            className={`h-9 text-xs bg-muted/30 border-input text-foreground ${discountExceedsCap ? "border-destructive" : ""}`}
             type="number"
             min="0"
             max="100"
+          />
+          {discountExceedsCap && (
+            <p className="text-[10px] text-destructive">
+              {t("discountExceedsCommission")}
+            </p>
+          )}
+        </div>
+        <div className="space-y-1 min-w-0" style={{ flex: "0 0 10%" }}>
+          <Label className="text-xs font-medium text-foreground">{t("trial")}</Label>
+          <Input
+            value={employerData.probationPeriod ?? ""}
+            onChange={(e) => handleInputChange("probationPeriod", e.target.value)}
+            className="h-9 text-xs bg-muted/30 border-input text-foreground"
+            type="number"
+            min="0"
+            max="365"
+            readOnly={!isAdmin}
+            disabled={!isAdmin}
           />
         </div>
         <div className="space-y-1 min-w-0" style={{ flex: "0 0 15%" }}>

@@ -13,6 +13,7 @@ import { useTranslation } from "@/hooks/use-translation"
 import { useBackendError } from "@/lib/backend-error"
 import { useAuth } from "@/hooks/use-auth"
 import GoogleAddressInput from "@/components/GoogleAddressInput"
+import { normalizeFloorDoor } from "@/lib/utils/normalize-floor-door"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { usePaymentMethods } from "@/hooks/use-payment-methods"
 
@@ -572,7 +573,7 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded, 
                       updateFormData("address", addressOnly || value)
                       updateFormData("street", components.street || "")
                       updateFormData("streetNumber", components.streetNumber || "")
-                      updateFormData("floorDoor", components.floorDoor || "")
+                      updateFormData("floorDoor", normalizeFloorDoor(components.floorDoor))
                       updateFormData("city", components.city || "")
                       updateFormData("province", components.province || "")
                       updateFormData("country", components.country || "")
@@ -584,7 +585,7 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded, 
                       updateFormData("address", parts.slice(0, 2).filter(Boolean).join(", ") || value)
                       updateFormData("street", parts[0] || "")
                       updateFormData("streetNumber", parts[1] || "")
-                      updateFormData("floorDoor", (parts[2] || "").toUpperCase())
+                      updateFormData("floorDoor", normalizeFloorDoor(parts[2]))
                       updateFormData("postalCode", parts[3] || "")
                       updateFormData("city", parts[4] || "")
                       updateFormData("province", parts[5] || "")
@@ -793,6 +794,31 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded, 
               </div>
 
               <div>
+                <Label htmlFor="probationPeriod" className="text-sm font-medium text-foreground">
+                  {t("trial")}
+                </Label>
+                <div className="flex items-center gap-2 mt-1">
+                  <Select
+                    value={formData.probationPeriod}
+                    onValueChange={(value) => updateFormData("probationPeriod", value)}
+                    disabled={isPartnerRole}
+                  >
+                    <SelectTrigger className="w-24">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-60">
+                      {Array.from({ length: 31 }, (_, i) => i).map((n) => (
+                        <SelectItem key={n} value={String(n)}>
+                          {n}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <span className="text-sm text-muted-foreground">{t("days")}</span>
+                </div>
+              </div>
+
+              <div>
                 <Label htmlFor="paymentMethod" className="text-sm font-medium text-foreground">
                   {t("paymentMethod")}
                 </Label>
@@ -886,30 +912,6 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded, 
                   className="mt-1 px-3 py-2 rounded-md border border-input bg-muted text-sm text-muted-foreground select-none pointer-events-none"
                 >
                   {formData.email || "—"}
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="probationPeriod" className="text-sm font-medium text-foreground">
-                  {t("probationPeriod")}
-                </Label>
-                <div className="flex items-center gap-2 mt-1">
-                  <Select
-                    value={formData.probationPeriod}
-                    onValueChange={(value) => updateFormData("probationPeriod", value)}
-                  >
-                    <SelectTrigger className="w-24">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-60">
-                      {Array.from({ length: 31 }, (_, i) => i).map((n) => (
-                        <SelectItem key={n} value={String(n)}>
-                          {n}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <span className="text-sm text-muted-foreground">{t("days")}</span>
                 </div>
               </div>
 

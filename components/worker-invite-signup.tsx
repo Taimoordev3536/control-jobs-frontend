@@ -23,6 +23,7 @@ import {
 import { useTranslation } from "@/hooks/use-translation"
 import { useToast } from "@/hooks/use-toast"
 import GoogleAddressInput from "@/components/GoogleAddressInput"
+import { normalizeFloorDoor } from "@/lib/utils/normalize-floor-door"
 import DateInput from "@/components/ui/date-input"
 
 interface VerifiedToken {
@@ -221,7 +222,7 @@ export default function WorkerInviteSignup({
                     update("address", addressOnly || value)
                     update("street", components.street || "")
                     update("streetNumber", components.streetNumber || "")
-                    update("floorDoor", components.floorDoor || "")
+                    update("floorDoor", normalizeFloorDoor(components.floorDoor))
                     update("city", components.city || "")
                     update("province", components.province || "")
                     update("country", components.country || "")
@@ -233,7 +234,7 @@ export default function WorkerInviteSignup({
                     update("address", parts.slice(0, 2).filter(Boolean).join(", ") || value)
                     update("street", parts[0] || "")
                     update("streetNumber", parts[1] || "")
-                    update("floorDoor", (parts[2] || "").toUpperCase())
+                    update("floorDoor", normalizeFloorDoor(parts[2]))
                     update("postalCode", parts[3] || "")
                     update("city", parts[4] || "")
                     update("province", parts[5] || "")

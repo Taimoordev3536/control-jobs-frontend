@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { useTranslation } from "@/hooks/use-translation"
 import type { AddressComponents } from "@/components/GoogleAddressInput"
+import { normalizeFloorDoor, extractFloorDoorFromFormattedAddress } from "@/lib/utils/normalize-floor-door"
 
 declare global {
   interface Window {
@@ -67,7 +68,7 @@ export function LocationPickerDialog({
         if (types.includes("route")) comps.street = c.long_name
         else if (types.includes("street_number"))
           comps.streetNumber = c.long_name
-        else if (types.includes("subpremise")) comps.floorDoor = c.long_name
+        else if (types.includes("subpremise")) comps.floorDoor = normalizeFloorDoor(c.long_name)
         else if (types.includes("locality")) comps.city = c.long_name
         else if (types.includes("administrative_area_level_1"))
           comps.province = c.long_name
@@ -75,6 +76,15 @@ export function LocationPickerDialog({
         else if (types.includes("postal_code"))
           comps.postalCode = c.long_name
       })
+      if (!comps.floorDoor) {
+        const fallback = extractFloorDoorFromFormattedAddress(
+          result.formatted_address,
+          comps.street,
+          comps.streetNumber,
+          comps.postalCode,
+        )
+        if (fallback) comps.floorDoor = fallback
+      }
       const loc = result.geometry?.location
       if (loc) {
         comps.latitude = loc.lat()

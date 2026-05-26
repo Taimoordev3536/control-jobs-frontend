@@ -15,6 +15,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AnimatedLoader } from "@/components/animated-loader"
 import { Label } from "@/components/ui/label"
 import GoogleAddressInput from "@/components/GoogleAddressInput"
+import { normalizeFloorDoor } from "@/lib/utils/normalize-floor-door"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -406,7 +407,7 @@ export default function PartnerDataTab({ partnerId, onNameChange }: PartnerDataT
                 handleInputChange("address", addressOnly || value)
                 handleInputChange("street", components.street || "")
                 handleInputChange("streetNumber", components.streetNumber || "")
-                handleInputChange("floorDoor", components.floorDoor || "")
+                handleInputChange("floorDoor", normalizeFloorDoor(components.floorDoor))
                 handleInputChange("city", components.city || "")
                 handleInputChange("province", components.province || "")
                 handleInputChange("country", components.country || "")
@@ -428,6 +429,7 @@ export default function PartnerDataTab({ partnerId, onNameChange }: PartnerDataT
             id="floorDoor"
             value={partnerData.floorDoor || ""}
             onChange={(e) => handleInputChange("floorDoor", e.target.value)}
+            onBlur={(e) => handleInputChange("floorDoor", normalizeFloorDoor(e.target.value))}
             className="h-9 text-xs bg-muted/30 border-input text-foreground"
           />
         </div>

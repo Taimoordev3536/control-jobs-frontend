@@ -508,11 +508,15 @@ export default function DataListTemplate({
               <table
                 ref={tableRef}
                 className="w-full"
-                style={
-                  columnWidths || localColumns.some((c) => c.width)
-                    ? { tableLayout: "fixed" }
-                    : undefined
-                }
+                style={{
+                  minWidth: `${localColumns.reduce(
+                    (sum, c) => sum + (c.width ? parseInt(c.width, 10) || 150 : 150),
+                    0,
+                  )}px`,
+                  ...(columnWidths || localColumns.some((c) => c.width)
+                    ? { tableLayout: "fixed" as const }
+                    : {}),
+                }}
               >
                 <thead>
                   <Droppable droppableId="columns" direction="horizontal">

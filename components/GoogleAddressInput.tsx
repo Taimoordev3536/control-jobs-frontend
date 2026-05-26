@@ -1,5 +1,6 @@
 "use client"
 import React, { useEffect, useRef, useState, useCallback } from "react"
+import { normalizeFloorDoor, extractFloorDoorFromFormattedAddress } from "@/lib/utils/normalize-floor-door"
 
 export interface AddressComponents {
   street?: string
@@ -90,10 +91,7 @@ const GoogleAddressInput: React.FC<GoogleAddressInputProps> = ({
         } else if (types.includes("street_number")) {
           components.streetNumber = component.long_name
         } else if (types.includes("subpremise")) {
-          // Restore the Spanish ordinal "º" that Google's API strips.
-          components.floorDoor = component.long_name
-            .replace(/^(\d{1,2})\s*[oO°]\b/, "$1º")
-            .toUpperCase()
+          components.floorDoor = normalizeFloorDoor(component.long_name)
         } else if (types.includes("locality")) {
           components.city = component.long_name
         } else if (types.includes("administrative_area_level_1")) {
@@ -104,6 +102,19 @@ const GoogleAddressInput: React.FC<GoogleAddressInputProps> = ({
           components.postalCode = component.long_name
         }
       })
+
+      // Google sometimes leaves the floor/door in `formatted_address` without
+      // emitting a `subpremise` component. Pull it out of the gap between the
+      // street number and the postal code as a fallback.
+      if (!components.floorDoor) {
+        const fallback = extractFloorDoorFromFormattedAddress(
+          place.formatted_address,
+          components.street,
+          components.streetNumber,
+          components.postalCode,
+        )
+        if (fallback) components.floorDoor = fallback
+      }
 
       // Extract GPS coordinates from Google Place geometry
       if (place.geometry?.location) {

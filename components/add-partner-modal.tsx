@@ -14,6 +14,7 @@ import { useTranslation } from "@/hooks/use-translation"
 import { useBackendError } from "@/lib/backend-error"
 import { useAuth } from "@/hooks/use-auth"
 import GoogleAddressInput from "@/components/GoogleAddressInput"
+import { normalizeFloorDoor } from "@/lib/utils/normalize-floor-door"
 
 interface AddPartnerModalProps {
   open: boolean
@@ -396,7 +397,7 @@ export default function AddPartnerModal({ open, onOpenChange, onPartnerAdded }: 
                       updateFormData("address", addressOnly || value)
                       updateFormData("street", components.street || "")
                       updateFormData("streetNumber", components.streetNumber || "")
-                      updateFormData("floorDoor", components.floorDoor || "")
+                      updateFormData("floorDoor", normalizeFloorDoor(components.floorDoor))
                       updateFormData("city", components.city || "")
                       updateFormData("province", components.province || "")
                       updateFormData("country", components.country || "")
@@ -408,7 +409,7 @@ export default function AddPartnerModal({ open, onOpenChange, onPartnerAdded }: 
                       updateFormData("address", parts.slice(0, 2).filter(Boolean).join(", ") || value)
                       updateFormData("street", parts[0] || "")
                       updateFormData("streetNumber", parts[1] || "")
-                      updateFormData("floorDoor", (parts[2] || "").toUpperCase())
+                      updateFormData("floorDoor", normalizeFloorDoor(parts[2]))
                       updateFormData("postalCode", parts[3] || "")
                       updateFormData("city", parts[4] || "")
                       updateFormData("province", parts[5] || "")

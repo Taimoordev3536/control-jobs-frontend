@@ -3,17 +3,21 @@
 import { Suspense, useState } from "react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
+import { useSession } from "next-auth/react"
 import { Mail, Loader2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { LoadingSpinner } from "@/components/loading-spinner"
 import { toast } from "@/hooks/use-toast"
+import { useTranslation } from "@/hooks/use-translation"
 import ContreolJobs from "../../../icons/Logos/ControlJobs.svg"
 
 function CheckYourEmailInner() {
   const params = useSearchParams()
   const email = params.get("email") || ""
+  const { data: session } = useSession()
+  const { t } = useTranslation()
   const [resending, setResending] = useState(false)
   const [sent, setSent] = useState(false)
 
@@ -27,9 +31,9 @@ function CheckYourEmailInner() {
         body: JSON.stringify({ email }),
       })
       setSent(true)
-      toast({ title: "Email sent", description: `Sent a new link to ${email}`, variant: "success" })
+      toast({ title: t("checkEmailToastSentTitle"), description: `${t("checkEmailToastSentDesc")} ${email}`, variant: "success" })
     } catch (e: any) {
-      toast({ title: "Failed to send", description: e?.message, variant: "destructive" })
+      toast({ title: t("checkEmailToastFailedTitle"), description: e?.message, variant: "destructive" })
     } finally {
       setResending(false)
     }
@@ -38,19 +42,24 @@ function CheckYourEmailInner() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
       <ContreolJobs className="h-20 w-48 mb-4" />
+      {session?.user && (
+        <p className="w-full max-w-md mb-3 text-center text-xs text-muted-foreground">
+          {t("partnerSessionWarning")}
+        </p>
+      )}
       <Card className="w-full max-w-md border border-border bg-card">
         <CardHeader className="text-center">
           <Mail className="h-12 w-12 mx-auto text-primary mb-2" />
-          <CardTitle className="text-lg">Check your email</CardTitle>
+          <CardTitle className="text-lg">{t("checkEmailTitle")}</CardTitle>
         </CardHeader>
         <CardContent className="text-center space-y-4">
           <p className="text-sm text-muted-foreground">
-            We sent a confirmation link to{" "}
-            <span className="font-medium text-foreground">{email || "your email address"}</span>.
-            Click the link in that email to activate your account.
+            {t("checkEmailDescBefore")}{" "}
+            <span className="font-medium text-foreground">{email || t("checkEmailYourAddress")}</span>
+            {t("checkEmailDescAfter")}
           </p>
           <p className="text-xs text-muted-foreground">
-            The link is valid for 24 hours. Didn't get it? Check your spam folder, then try resending.
+            {t("checkEmailValidity")}
           </p>
           <Button
             onClick={resend}
@@ -59,10 +68,10 @@ function CheckYourEmailInner() {
             className="w-full"
           >
             {resending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-            {sent ? "Email sent" : "Resend verification email"}
+            {sent ? t("checkEmailSent") : t("checkEmailResend")}
           </Button>
           <Link href="/login" className="block text-sm text-primary hover:underline">
-            Back to login
+            {t("checkEmailBackToLogin")}
           </Link>
         </CardContent>
       </Card>
