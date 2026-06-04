@@ -2,7 +2,7 @@
 
 import { Moon, Sun } from "lucide-react"
 import { useTheme } from "next-themes"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useTranslation } from "@/hooks/use-translation"
 
 export function ThemeSwitcher() {
@@ -10,10 +10,22 @@ export function ThemeSwitcher() {
   const { setTheme, theme } = useTheme()
   const [showDropdown, setShowDropdown] = useState(false)
   const [mounted, setMounted] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     setMounted(true)
   }, [])
+
+  useEffect(() => {
+    if (!showDropdown) return
+    const handlePointerDown = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setShowDropdown(false)
+      }
+    }
+    document.addEventListener("mousedown", handlePointerDown)
+    return () => document.removeEventListener("mousedown", handlePointerDown)
+  }, [showDropdown])
 
   const toggleDropdown = () => {
     setShowDropdown(!showDropdown)
@@ -28,7 +40,7 @@ export function ThemeSwitcher() {
   const isDark = mounted && theme === "dark"
 
   return (
-    <div className="relative">
+    <div className="relative" ref={containerRef}>
       <button className="header-icon-button" onClick={toggleDropdown}>
         {isDark ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
         <span className="tooltip">{t("theme")}</span>

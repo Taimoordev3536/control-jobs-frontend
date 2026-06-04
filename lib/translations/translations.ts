@@ -260,6 +260,8 @@ surveyMonitoringValueTips: "Set a limit. If responses are under this value, an a
     users: "Users",
     wages: "Wages",
     profile: "Profile",
+    alias: "Alias",
+    aliasHint: "Shown next to your profile picture in the header. Leave it empty to show your initials.",
     settings: "Settings",
     logout: "Log out",
 
@@ -1326,6 +1328,8 @@ surveyMonitoringValueTips: "Set a limit. If responses are under this value, an a
     users: "Usuarios",
     wages: "Salarios",
     profile: "Perfil",
+    alias: "Alias",
+    aliasHint: "Se muestra junto a tu foto de perfil en la cabecera. Déjalo vacío para mostrar tus iniciales.",
     settings: "Configuración",
     logout: "Cerrar sesión",
 

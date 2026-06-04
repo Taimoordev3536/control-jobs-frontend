@@ -10,6 +10,12 @@ import { logoEndpointsFor } from "@/lib/logo-endpoints"
 import { Button } from "@/components/ui/button"
 import { AnimatedLoader } from "@/components/animated-loader"
 import { PaymentMethodModal } from "@/components/payment-method-modal"
+import EmployerDataTab from "@/components/employer-tabs/employer-data-tab"
+import PartnerDataTab from "@/components/partner-tabs/partner-data-tab"
+import { ClientDataTab } from "@/components/client-tabs/client-data-tab"
+import { WorkerDataTab } from "@/components/worker-tab/worker-data-tab"
+import { AdminProfileTab } from "@/components/admin-profile-tab"
+import { AliasField } from "@/components/alias-field"
 
 // Static lookup matching the backend `cjobs_payment_methods` seed (id 1..5).
 // Used to label the current method on the /mydata Payment-method card.
@@ -62,7 +68,7 @@ function ImageUploadCard({
   const Icon = kind === "profile" ? UserCircle2 : ImageIcon
 
   return (
-    <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden max-w-3xl">
+    <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
       <div className="p-6 border-b border-border bg-muted/20 flex items-start gap-3">
         <div className="h-9 w-9 rounded-lg bg-purple-100 dark:bg-purple-950/40 text-[#6B21A8] flex items-center justify-center shrink-0">
           <Icon className="h-5 w-5" />
@@ -396,7 +402,7 @@ export default function MyDataPage() {
       : null
 
   return (
-    <div className="w-full p-6 space-y-5">
+    <div className="w-full p-2 space-y-4">
       <div>
         <h1 className="text-2xl font-semibold mb-1">{t("mydata") || "My Data"}</h1>
         <p className="text-sm text-muted-foreground">
@@ -405,55 +411,46 @@ export default function MyDataPage() {
         </p>
       </div>
 
+      <AliasField />
+
+      <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+        <div className="p-4 border-b border-border bg-muted/20">
+          <h2 className="text-base font-semibold">{t("data") || "Data"}</h2>
+        </div>
+        <div className="p-2">
+          {role === "employer" && <EmployerDataTab employerId="" selfService />}
+          {role === "partner" && <PartnerDataTab partnerId="" selfService />}
+          {role === "client" && <ClientDataTab clientId="" selfService />}
+          {role === "worker" && <WorkerDataTab selfService />}
+          {role === "admin" && <AdminProfileTab />}
+        </div>
+      </div>
+
       {isEmployer && (
         <ImageUploadCard
-          kind="profile"
-          title={t("profilePhoto") || "Profile photo"}
-          description={
-            t("profilePhotoDescription") ||
-            "Used as your identity across the app — the nav avatar and any place that needs to show who you are."
-          }
-          currentLabel={t("profilePhotoCurrentlyActive") || "Profile photo currently active"}
-          currentHint={
-            t("profilePhotoCurrentlyActiveHint") ||
-            "Shown in the navigation avatar and other identity surfaces."
-          }
-          imageUrl={profileUpload.imageUrl}
-          isUploading={profileUpload.isUploading}
-          isDragging={profileUpload.isDragging}
-          onPick={profileUpload.onPick}
-          onDelete={profileUpload.onDelete}
-          onDragOver={profileUpload.onDragOver}
-          onDragLeave={profileUpload.onDragLeave}
-          onDrop={profileUpload.onDrop}
-          onFileChange={profileUpload.onFileChange}
-          fileInputRef={profileUpload.fileInputRef}
+          kind="logo"
+          title={logoTitle}
+          description={logoDesc}
+          currentLabel={logoCurrentLabel}
+          currentHint={logoCurrentHint}
+          imageUrl={logoUpload.imageUrl}
+          isUploading={logoUpload.isUploading}
+          isDragging={logoUpload.isDragging}
+          onPick={logoUpload.onPick}
+          onDelete={logoUpload.onDelete}
+          onDragOver={logoUpload.onDragOver}
+          onDragLeave={logoUpload.onDragLeave}
+          onDrop={logoUpload.onDrop}
+          onFileChange={logoUpload.onFileChange}
+          fileInputRef={logoUpload.fileInputRef}
         />
       )}
-
-      <ImageUploadCard
-        kind="logo"
-        title={logoTitle}
-        description={logoDesc}
-        currentLabel={logoCurrentLabel}
-        currentHint={logoCurrentHint}
-        imageUrl={logoUpload.imageUrl}
-        isUploading={logoUpload.isUploading}
-        isDragging={logoUpload.isDragging}
-        onPick={logoUpload.onPick}
-        onDelete={logoUpload.onDelete}
-        onDragOver={logoUpload.onDragOver}
-        onDragLeave={logoUpload.onDragLeave}
-        onDrop={logoUpload.onDrop}
-        onFileChange={logoUpload.onFileChange}
-        fileInputRef={logoUpload.fileInputRef}
-      />
 
       {/* Payment method — employer role only. Reachable from here for
           changing it any time, and from the dashboard banner when the
           employer is sitting in AWAITING_PAYMENT_METHOD after trial-end. */}
       {isEmployer && (
-        <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden max-w-3xl">
+        <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
           <div className="p-6 border-b border-border bg-muted/20 flex items-start gap-3">
             <div className="h-9 w-9 rounded-lg bg-purple-100 dark:bg-purple-950/40 text-[#6B21A8] flex items-center justify-center shrink-0">
               <CreditCard className="h-5 w-5" />

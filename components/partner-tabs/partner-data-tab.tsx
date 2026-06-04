@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { impersonateUser } from "@/lib/api/impersonate"
 import impersonationTranslations from "@/lib/translations/impersonation"
+import { InlineImageUploader } from "@/components/inline-image-uploader"
 
 interface PartnerData {
   id: number
@@ -54,11 +55,13 @@ interface PartnerData {
   accountIban: string
   bicSwift: string
   partnerTierId: number
+  logoUrl?: string | null
 }
 
 interface PartnerDataTabProps {
   partnerId: string
   onNameChange?: (name: string) => void
+  selfService?: boolean
 }
 
 const partnerTypeKeys: Array<{ value: string; tierId: number }> = [
@@ -75,7 +78,8 @@ const getTierId = (typeOfPartner: string): number => {
   return found?.tierId ?? 0
 }
 
-export default function PartnerDataTab({ partnerId, onNameChange }: PartnerDataTabProps) {
+export default function PartnerDataTab({ partnerId, onNameChange, selfService = false }: PartnerDataTabProps) {
+  const meMode = selfService
   const { t, language, tEnum } = useTranslation()
   const { session, isImpersonating, isSubUser, hasRole, canEdit } = useAuth()
   const ti = (key: string) => (impersonationTranslations as any)[language]?.[key] || key
@@ -115,7 +119,7 @@ export default function PartnerDataTab({ partnerId, onNameChange }: PartnerDataT
   // Fetch partner data
   useEffect(() => {
     const fetchPartnerData = async () => {
-      if (!session?.accessToken || !partnerId) {
+      if (!session?.accessToken || (!partnerId && !meMode)) {
         setError("Invalid partner ID or no authentication")
         setIsLoading(false)
         return
@@ -123,7 +127,7 @@ export default function PartnerDataTab({ partnerId, onNameChange }: PartnerDataT
       setIsLoading(true)
       setError(null)
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/partners/${partnerId}`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/partners/${meMode ? "me" : partnerId}`, {
           headers: {
             Authorization: `Bearer ${session.accessToken}`,
             "Content-Type": "application/json",
@@ -161,6 +165,7 @@ export default function PartnerDataTab({ partnerId, onNameChange }: PartnerDataT
             accountIban: d.accountIban || "",
             bicSwift: d.bicSwift || "",
             partnerTierId: d.partnerTier?.id ?? d.partnerTierId ?? 0,
+            logoUrl: d.logoUrl ?? null,
           }
           setPartnerData(mapped)
           setOriginalData(mapped)
@@ -222,7 +227,12 @@ export default function PartnerDataTab({ partnerId, onNameChange }: PartnerDataT
       Object.keys(updatePayload).forEach((key) => {
         if (updatePayload[key] === undefined) delete updatePayload[key]
       })
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/partners/${partnerId}`, {
+      if (meMode) {
+        for (const k of ["typeOfPartner", "commission", "retention", "partnerTierId"]) {
+          delete updatePayload[k]
+        }
+      }
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/partners/${meMode ? "me" : partnerId}`, {
         method: "PATCH",
         headers: {
           Authorization: `Bearer ${session.accessToken}`,
@@ -284,7 +294,7 @@ export default function PartnerDataTab({ partnerId, onNameChange }: PartnerDataT
       setHasChanges(false)
       setResetKey((k) => k + 1)
     }
-    router.push("/partners")
+    if (!meMode) router.push("/partners")
   }
 
   const handleRetry = () => {
@@ -546,14 +556,23 @@ export default function PartnerDataTab({ partnerId, onNameChange }: PartnerDataT
             </Button>
           </div>
         )}
-        <div className="flex flex-col items-center justify-center shrink-0">
-          <div className="w-16 h-16 rounded-full border-2 border-muted flex items-center justify-center bg-muted/20">
-            <Camera className="w-4 h-4 text-muted-foreground" />
+        {meMode ? (
+          <InlineImageUploader
+            initialUrl={partnerData.logoUrl ?? null}
+            uploadPath="/partners/me/logo"
+            accessToken={session?.accessToken}
+            label={t("profile")}
+          />
+        ) : (
+          <div className="flex flex-col items-center justify-center shrink-0">
+            <div className="w-16 h-16 rounded-full border-2 border-muted flex items-center justify-center bg-muted/20">
+              <Camera className="w-4 h-4 text-muted-foreground" />
+            </div>
+            <Button variant="outline" className="text-[10px] px-2 py-0 h-6 bg-transparent mt-1">
+              {t("chooseFile") || "Choose file"}
+            </Button>
           </div>
-          <Button variant="outline" className="text-[10px] px-2 py-0 h-6 bg-transparent mt-1">
-            {t("chooseFile") || "Choose file"}
-          </Button>
-        </div>
+        )}
       </div>
 
       {/* Separator line */}
@@ -563,7 +582,7 @@ export default function PartnerDataTab({ partnerId, onNameChange }: PartnerDataT
       <div className="flex gap-3 items-end">
         <div className="space-y-1 min-w-0" style={{ flex: "0 0 12%" }}>
           <Label className="text-xs font-medium text-foreground">{t("type")}</Label>
-          <Select value={partnerData.typeOfPartner} onValueChange={handleTypeChange}>
+          <Select value={partnerData.typeOfPartner} onValueChange={handleTypeChange} disabled={meMode}>
             <SelectTrigger className="h-9 text-xs bg-muted/30 border-input text-foreground">
               <SelectValue placeholder={t("selectType")} />
             </SelectTrigger>
@@ -586,6 +605,7 @@ export default function PartnerDataTab({ partnerId, onNameChange }: PartnerDataT
               className="h-9 text-xs bg-muted/30 border-input text-foreground"
               min="0"
               max="100"
+              disabled={meMode}
             />
             <span className="text-muted-foreground text-xs">%</span>
           </div>
@@ -600,6 +620,7 @@ export default function PartnerDataTab({ partnerId, onNameChange }: PartnerDataT
               className="h-9 text-xs bg-muted/30 border-input text-foreground"
               min="0"
               max="100"
+              disabled={meMode}
             />
             <span className="text-muted-foreground text-xs">%</span>
           </div>
@@ -660,15 +681,17 @@ export default function PartnerDataTab({ partnerId, onNameChange }: PartnerDataT
             {t("cancel")}
           </Button>
         </div>
-        <Button
-          type="button"
-          onClick={() => setShowDeleteDialog(true)}
-          disabled={isDeleting}
-          className="h-9 bg-yellow-500 hover:bg-yellow-600 text-white px-5 text-xs"
-        >
-          {isDeleting ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
-          {t("delete")}
-        </Button>
+        {!meMode && (
+          <Button
+            type="button"
+            onClick={() => setShowDeleteDialog(true)}
+            disabled={isDeleting}
+            className="h-9 bg-yellow-500 hover:bg-yellow-600 text-white px-5 text-xs"
+          >
+            {isDeleting ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+            {t("delete")}
+          </Button>
+        )}
       </div>
 
       {/* Delete Confirmation Dialog */}

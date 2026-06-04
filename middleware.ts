@@ -45,11 +45,14 @@ export default withAuth(
 
     const impToken = req.cookies.get(IMP_COOKIE)?.value
     const impersonatedRole = impToken ? readImpersonatedRole(impToken) : null
-    const userRole =
-      impersonatedRole || token.role?.name?.toLowerCase()
+    const realRole = token.role?.name?.toLowerCase()
 
-    if (userRole && roleRoutes[userRole]) {
-      const allowedRoutes = roleRoutes[userRole]
+    const allowedRoutes = [
+      ...(realRole && roleRoutes[realRole] ? roleRoutes[realRole] : []),
+      ...(impersonatedRole && roleRoutes[impersonatedRole] ? roleRoutes[impersonatedRole] : []),
+    ]
+
+    if (allowedRoutes.length > 0) {
       const hasAccess = allowedRoutes.some((route) => pathname.startsWith(route))
 
       if (

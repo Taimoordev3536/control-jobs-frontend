@@ -4,6 +4,8 @@ const jobAttendanceDetailTranslations: Record<string, Record<string, string>> = 
     noTasksForThisDay: "No tasks for this day",
     backToDashboard: "Back to Dashboard",
     jobAttendanceDetails: "Job Attendance Details",
+    alerts: "Alerts",
+    loadingJobAttendance: "Loading job attendance data...",
 
     // Time History Filters
     timeHistoryFilters: "Time History Filters",
@@ -90,6 +92,8 @@ const jobAttendanceDetailTranslations: Record<string, Record<string, string>> = 
     noTasksForThisDay: "No hay tareas para este día",
     backToDashboard: "Volver al Panel",
     jobAttendanceDetails: "Detalles de Asistencia del Trabajo",
+    alerts: "Alertas",
+    loadingJobAttendance: "Cargando datos de asistencia...",
 
     // Time History Filters
     timeHistoryFilters: "Filtros de Historial de Tiempo",

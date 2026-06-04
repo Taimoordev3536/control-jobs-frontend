@@ -2,11 +2,23 @@
 
 import { useTranslation } from "@/hooks/use-translation"
 import { Languages } from "lucide-react"
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 
 export function LanguageSwitcher() {
   const { language, setLanguage, t } = useTranslation()
   const [showDropdown, setShowDropdown] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!showDropdown) return
+    const handlePointerDown = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setShowDropdown(false)
+      }
+    }
+    document.addEventListener("mousedown", handlePointerDown)
+    return () => document.removeEventListener("mousedown", handlePointerDown)
+  }, [showDropdown])
 
   // Labels that change depending on the current language
   const languageLabels: Record<string, { en: string; es: string }> = {
@@ -28,7 +40,7 @@ export function LanguageSwitcher() {
   }
 
   return (
-    <div className="relative">
+    <div className="relative" ref={containerRef}>
       <button
         className="header-icon-button flex items-center gap-2"
         onClick={toggleDropdown}

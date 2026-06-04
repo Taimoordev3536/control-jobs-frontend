@@ -11,10 +11,12 @@ import {
   LogOut,
   ChevronDown,
   ChevronUp,
+  ChevronRight,
   Timer,
   PlayCircle,
   Search,
-  Loader2,
+  ClipboardList,
+  Bell,
 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
@@ -22,6 +24,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { AnimatedLoader } from "@/components/animated-loader"
 import { useAuth } from "@/hooks/use-auth"
 import { useTranslation } from "@/hooks/use-translation"
 
@@ -154,16 +157,54 @@ interface JobHistoryData {
     completed: boolean
     completedByWorkerId: number
   }>
+  scheduledMinutes?: number
+  scheduledTaskCount?: number
+  alertCount?: number
+}
+
+const computeRange = (range: string): { start?: string; end?: string } => {
+  const fmt = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  switch (range) {
+    case "today":
+      return { start: fmt(today), end: fmt(today) }
+    case "yesterday": {
+      const y = new Date(today)
+      y.setDate(y.getDate() - 1)
+      return { start: fmt(y), end: fmt(y) }
+    }
+    case "thisWeek": {
+      const s = new Date(today)
+      s.setDate(s.getDate() - 6)
+      return { start: fmt(s), end: fmt(today) }
+    }
+    case "lastWeek": {
+      const s = new Date(today)
+      s.setDate(s.getDate() - 13)
+      const e = new Date(today)
+      e.setDate(e.getDate() - 7)
+      return { start: fmt(s), end: fmt(e) }
+    }
+    case "thisMonth": {
+      const s = new Date(today.getFullYear(), today.getMonth(), 1)
+      return { start: fmt(s), end: fmt(today) }
+    }
+    default:
+      return {}
+  }
 }
 
 export function JobAttendanceDetail({ job, jobId, jobData, onBack }: JobAttendanceDetailProps) {
+  const jobTitle = job?.title || (jobData as any)?.jobName || (jobData as any)?.title || ""
   const router = useRouter()
   const { session } = useAuth()
   const { t } = useTranslation("job-attendance-detail")
   const [currentTime, setCurrentTime] = useState(new Date())
   const [expandedHistoryCards, setExpandedHistoryCards] = useState<{ [key: string]: boolean }>({})
   const [historyFilters, setHistoryFilters] = useState({
-    dateRange: "all",
+    dateRange: "thisMonth",
     activityType: "all",
     worker: "all",
     searchTerm: "",
@@ -172,9 +213,13 @@ export function JobAttendanceDetail({ job, jobId, jobData, onBack }: JobAttendan
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [taskHistoryByDate, setTaskHistoryByDate] = useState<Record<string, { id: number; name: string; completed: boolean; completedByWorkerId: number }[]>>({})
+  const [selectedDate, setSelectedDate] = useState<string | null>(null)
 
-  // Handle back button click with fallback to router.back()
   const handleBack = () => {
+    if (selectedDate) {
+      setSelectedDate(null)
+      return
+    }
     if (onBack) {
       onBack()
     } else {
@@ -196,7 +241,7 @@ export function JobAttendanceDetail({ job, jobId, jobData, onBack }: JobAttendan
         setError(null)
 
         // Use the same pattern as employer dashboard - direct API call with session token
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/${job.publicId || job.id}/scan-history`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/${job?.publicId || job?.id}/scan-history`, {
           method: "GET",
           headers: {
             Authorization: `Bearer ${session.accessToken}`,
@@ -338,14 +383,16 @@ export function JobAttendanceDetail({ job, jobId, jobData, onBack }: JobAttendan
           setLoading(true)
           setError(null)
           
-          const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/${jobId}/scan-history`, {
+          const { start: apiStart, end: apiEnd } = computeRange(historyFilters.dateRange)
+          const dateQuery = apiStart && apiEnd ? `?startDate=${apiStart}&endDate=${apiEnd}` : ""
+          const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/${jobId}/scan-history${dateQuery}`, {
             method: "GET",
             headers: {
               Authorization: `Bearer ${session.accessToken}`,
               "Content-Type": "application/json",
             },
           })
-          
+
           // Rest of fetch logic remains the same
           if (!response.ok) {
             if (response.status === 401) {
@@ -383,7 +430,7 @@ export function JobAttendanceDetail({ job, jobId, jobData, onBack }: JobAttendan
       
       fetchJobScanHistoryById()
     }
-  }, [job?.id, jobId, session?.accessToken])
+  }, [job?.id, jobId, session?.accessToken, historyFilters.dateRange])
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -418,6 +465,21 @@ export function JobAttendanceDetail({ job, jobId, jobData, onBack }: JobAttendan
     })
   }
 
+  const formatShortDate = (dateString: string) => {
+    const d = new Date(dateString + "T00:00:00")
+    return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`
+  }
+
+  const formatWeekday = (dateString: string) =>
+    new Date(dateString + "T00:00:00").toLocaleDateString("en-US", { weekday: "long" })
+
+  const formatDuration = (minutes: number) => {
+    const m = Math.max(0, Math.round(minutes))
+    const h = Math.floor(m / 60)
+    const mm = m % 60
+    return h > 0 ? `${h} h ${mm} m` : `${mm} m`
+  }
+
   const getActivityIcon = (scanType: string) => {
     switch (scanType) {
       case "check-in":
@@ -429,7 +491,7 @@ export function JobAttendanceDetail({ job, jobId, jobData, onBack }: JobAttendan
       case "break-end":
         return <PlayCircle className="w-4 h-4 text-blue-500" />
       default:
-        return <Clock className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+        return <Clock className="w-4 h-4 text-muted-foreground" />
     }
   }
 
@@ -526,59 +588,9 @@ export function JobAttendanceDetail({ job, jobId, jobData, onBack }: JobAttendan
     let filtered = [...jobHistoryData]
 
     // Date range filter
-    if (historyFilters.dateRange !== "all") {
-      const today = new Date()
-      // Get today's date in YYYY-MM-DD format in local timezone
-      const todayStr =
-        today.getFullYear() +
-        "-" +
-        String(today.getMonth() + 1).padStart(2, "0") +
-        "-" +
-        String(today.getDate()).padStart(2, "0")
-
-      switch (historyFilters.dateRange) {
-        case "today":
-          filtered = filtered.filter((dayData) => dayData.date === todayStr)
-          break
-        case "yesterday":
-          const yesterday = new Date(today)
-          yesterday.setDate(yesterday.getDate() - 1)
-          const yesterdayStr =
-            yesterday.getFullYear() +
-            "-" +
-            String(yesterday.getMonth() + 1).padStart(2, "0") +
-            "-" +
-            String(yesterday.getDate()).padStart(2, "0")
-          filtered = filtered.filter((dayData) => dayData.date === yesterdayStr)
-          break
-        case "thisWeek":
-          const weekAgo = new Date(today)
-          weekAgo.setDate(weekAgo.getDate() - 7)
-          filtered = filtered.filter((dayData) => {
-            const dataDate = new Date(dayData.date + "T00:00:00")
-            return dataDate >= weekAgo
-          })
-          break
-        case "lastWeek":
-          const twoWeeksAgo = new Date(today)
-          twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14)
-          const oneWeekAgo = new Date(today)
-          oneWeekAgo.setDate(oneWeekAgo.getDate() - 7)
-          filtered = filtered.filter((dayData) => {
-            const dataDate = new Date(dayData.date + "T00:00:00")
-            return dataDate >= twoWeeksAgo && dataDate < oneWeekAgo
-          })
-          break
-        case "thisMonth":
-          const monthAgo = new Date(today)
-          monthAgo.setMonth(monthAgo.getMonth() - 1)
-          filtered = filtered.filter((dayData) => {
-            const dataDate = new Date(dayData.date + "T00:00:00")
-            return dataDate >= monthAgo
-          })
-          break
-      }
-    }
+    const { start: rangeStart, end: rangeEnd } = computeRange(historyFilters.dateRange)
+    if (rangeStart) filtered = filtered.filter((dayData) => dayData.date >= rangeStart)
+    if (rangeEnd) filtered = filtered.filter((dayData) => dayData.date <= rangeEnd)
 
     // Activity type filter
     if (historyFilters.activityType !== "all") {
@@ -611,6 +623,7 @@ export function JobAttendanceDetail({ job, jobId, jobData, onBack }: JobAttendan
       )
     }
 
+    filtered.sort((a, b) => b.date.localeCompare(a.date))
     return filtered
   }
 
@@ -653,23 +666,22 @@ export function JobAttendanceDetail({ job, jobId, jobData, onBack }: JobAttendan
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+      <div className="min-h-screen bg-background">
         <div className="max-w-7xl mx-auto p-4 space-y-6">
           <div className="flex items-center gap-4 mb-6">
             <button
               onClick={handleBack}
               aria-label="Back"
-              className="p-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-900 dark:text-gray-100"
+              className="p-1 rounded-md hover:bg-muted text-foreground"
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Job Attendance Details</h1>
+            <h1 className="text-2xl font-bold text-foreground">Job Attendance Details</h1>
           </div>
 
-          <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900">
+          <Card className="border border-border shadow-sm bg-card">
             <CardContent className="p-12 text-center">
-              <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-purple-600" />
-              <p className="text-gray-600 dark:text-gray-400">Loading job attendance data...</p>
+              <AnimatedLoader size={32} />
             </CardContent>
           </Card>
         </div>
@@ -679,31 +691,31 @@ export function JobAttendanceDetail({ job, jobId, jobData, onBack }: JobAttendan
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+      <div className="min-h-screen bg-background">
         <div className="max-w-7xl mx-auto p-4 space-y-6">
           <div className="flex items-center gap-4 mb-6">
             <button
               onClick={handleBack}
               aria-label="Back"
-              className="p-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-900 dark:text-gray-100"
+              className="p-1 rounded-md hover:bg-muted text-foreground"
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Job Attendance Details</h1>
+            <h1 className="text-2xl font-bold text-foreground">Job Attendance Details</h1>
           </div>
 
-          <Card className="border border-red-200 dark:border-red-800 shadow-sm bg-white dark:bg-gray-900">
+          <Card className="border border-red-200 dark:border-red-800 shadow-sm bg-card">
             <CardContent className="p-12 text-center">
               <div className="w-12 h-12 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Clock className="w-6 h-6 text-red-600 dark:text-red-400" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Failed to Load Data</h3>
-              <p className="text-gray-600 dark:text-gray-400 mb-4">{error}</p>
+              <h3 className="text-lg font-semibold text-foreground mb-2">Failed to Load Data</h3>
+              <p className="text-muted-foreground mb-4">{error}</p>
               <div className="space-y-2">
                 <Button onClick={handleRetry} className="bg-purple-600 hover:bg-purple-700 text-white">
                   Try Again
                 </Button>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
+                <p className="text-xs text-muted-foreground">
                   Job ID: {job?.publicId || job?.id} | API URL: {process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/{job?.publicId || job?.id}/scan-history
                 </p>
               </div>
@@ -715,27 +727,29 @@ export function JobAttendanceDetail({ job, jobId, jobData, onBack }: JobAttendan
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+    <div className="min-h-screen bg-background">
       <div className="max-w-7xl mx-auto p-4 space-y-6">
         {/* Header with Back Button */}
         <div className="flex items-center gap-4 mb-6">
           <button
             onClick={handleBack}
             aria-label={t("backToDashboard") || "Back"}
-            className="p-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-900 dark:text-gray-100"
+            className="p-1 rounded-md hover:bg-muted text-foreground"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t("jobAttendanceDetails")}</h1>
+          <h1 className="text-2xl font-bold text-foreground">
+            {selectedDate ? `${formatShortDate(selectedDate)} ${formatWeekday(selectedDate)}` : t("jobAttendanceDetails")}
+          </h1>
         </div>
 
-        {/* Time History Filters */}
-        <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900">
+        {!selectedDate && (
+        <Card className="border border-border shadow-sm bg-card">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
                 <Clock className="h-5 w-5 text-purple-600" />
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{t("timeHistoryFilters")}</h3>
+                <h3 className="text-lg font-semibold text-foreground">{t("timeHistoryFilters")}</h3>
               </div>
               <Badge
                 variant="secondary"
@@ -748,7 +762,7 @@ export function JobAttendanceDetail({ job, jobId, jobData, onBack }: JobAttendan
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
-                <label className="text-sm font-medium mb-2 block text-gray-700 dark:text-gray-300">
+                <label className="text-sm font-medium mb-2 block text-muted-foreground">
                   {t("dateRange")}
                 </label>
                 <Select
@@ -770,7 +784,7 @@ export function JobAttendanceDetail({ job, jobId, jobData, onBack }: JobAttendan
               </div>
 
               <div>
-                <label className="text-sm font-medium mb-2 block text-gray-700 dark:text-gray-300">
+                <label className="text-sm font-medium mb-2 block text-muted-foreground">
                   {t("activityType")}
                 </label>
                 <Select
@@ -791,7 +805,7 @@ export function JobAttendanceDetail({ job, jobId, jobData, onBack }: JobAttendan
               </div>
 
               <div>
-                <label className="text-sm font-medium mb-2 block text-gray-700 dark:text-gray-300">{t("worker")}</label>
+                <label className="text-sm font-medium mb-2 block text-muted-foreground">{t("worker")}</label>
                 <Select
                   value={historyFilters.worker}
                   onValueChange={(value) => setHistoryFilters((prev) => ({ ...prev, worker: value }))}
@@ -811,7 +825,7 @@ export function JobAttendanceDetail({ job, jobId, jobData, onBack }: JobAttendan
               </div>
 
               <div>
-                <label className="text-sm font-medium mb-2 block text-gray-700 dark:text-gray-300">{t("search")}</label>
+                <label className="text-sm font-medium mb-2 block text-muted-foreground">{t("search")}</label>
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <Input
@@ -825,14 +839,15 @@ export function JobAttendanceDetail({ job, jobId, jobData, onBack }: JobAttendan
             </div>
           </CardContent>
         </Card>
+        )}
 
         {/* Time History */}
-        <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900">
+        <Card className="border border-border shadow-sm bg-card">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
                 <Timer className="h-5 w-5 text-purple-600" />
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{t("timeHistory")}</h3>
+                <h3 className="text-lg font-semibold text-foreground">{t("timeHistory")}</h3>
               </div>
               <Badge
                 variant="secondary"
@@ -845,156 +860,154 @@ export function JobAttendanceDetail({ job, jobId, jobData, onBack }: JobAttendan
           <CardContent>
             {filteredJobHistory.length === 0 ? (
               <div className="text-center py-12">
-                <Calendar className="mx-auto text-gray-300 dark:text-gray-600 mb-4" size={64} />
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">{t("noDataFound")}</h3>
-                <p className="text-gray-500 dark:text-gray-400">
+                <Calendar className="mx-auto text-muted-foreground mb-4" size={64} />
+                <h3 className="text-lg font-semibold text-foreground mb-2">{t("noDataFound")}</h3>
+                <p className="text-muted-foreground">
                   {jobHistoryData.length === 0 ? t("noAttendanceData") : t("noDataMatchesFilters")}
                 </p>
               </div>
             ) : (
               <div className="space-y-4">
-                {filteredJobHistory.map((dayData) => {
+                {(selectedDate ? filteredJobHistory.filter((d) => d.date === selectedDate) : filteredJobHistory).map((dayData) => {
                   const { totalWork, totalBreaks } = calculateDayTotals(dayData)
                   const workerInfo = getWorkerInfo(dayData)
-                  const isExpanded = expandedHistoryCards[dayData.date]
+                  const isExpanded = selectedDate === dayData.date
                   const dayOverviewScans = getDayOverviewScans(dayData)
+                  const taskCount = dayData.scheduledTaskCount ?? (taskHistoryByDate[dayData.date] || []).length
+                  const alertCount = dayData.alertCount ?? 0
+                  const scheduled = dayData.scheduledMinutes ?? 0
+                  const under = scheduled > 0 && totalWork < scheduled
 
                   return (
                     <div
                       key={dayData.date}
                       className="bg-card rounded-xl shadow-sm border border-border overflow-hidden"
                     >
-                      {/* Header */}
-                      <div className="bg-gradient-to-r from-purple-600 to-purple-700 text-white p-4">
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center">
-                            <Calendar className="w-5 h-5 mr-2" />
-                            <h3 className="text-lg font-semibold">{formatDate(dayData.date)}</h3>
-                          </div>
-                          <div className="flex items-center text-sm bg-white/20 px-2 py-1 rounded-full">
-                            <Clock className="w-4 h-4 mr-1" />
-                            {dayData.scans.length + dayData.sessions.length} {t("activities")}
-                          </div>
-                        </div>
-
-                        {workerInfo && (
-                          <div className="flex items-center text-purple-200 text-sm space-x-4">
-                            <div className="flex items-center">
-                              <User className="w-4 h-4 mr-1" />
-                              {workerInfo.name}
+                      <button
+                        type="button"
+                        onClick={() => setSelectedDate(dayData.date)}
+                        className="w-full flex items-center px-4 py-3 text-left hover:bg-muted/40 transition-colors"
+                      >
+                        <div className="w-1/2 min-w-0 flex items-start gap-2">
+                          <Calendar className="w-4 h-4 text-[#662D91] mt-0.5 shrink-0" />
+                          <div className="min-w-0">
+                            <div className="text-sm font-medium text-foreground">
+                              {formatShortDate(dayData.date)}{" "}
+                              <span className="text-muted-foreground">{formatWeekday(dayData.date)}</span>
                             </div>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Summary Stats */}
-                      <div className="p-4 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700">
-                        <div className="grid grid-cols-3 gap-4">
-                          <div className="text-center">
-                            <div className="text-xl font-bold text-green-600">
-                              {totalWork}
-                              {t("minutes")}
-                            </div>
-                            <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                              {t("workTime")}
-                            </div>
-                          </div>
-                          <div className="text-center">
-                            <div className="text-xl font-bold text-orange-600">
-                              {totalBreaks}
-                              {t("minutes")}
-                            </div>
-                            <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                              {t("breakTime")}
-                            </div>
-                          </div>
-                          <div className="text-center">
-                            <div className="text-xl font-bold text-blue-600">{dayData.breaks.length}</div>
-                            <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                              {t("totalBreaks")}
-                            </div>
+                            {jobTitle && <div className="text-xs text-[#662D91] truncate">{jobTitle}</div>}
                           </div>
                         </div>
-                      </div>
 
-                      {/* Daily Tasks Section (real task history) */}
-                      <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-                        <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-3">{t("dailyTasks")}</h4>
-                        <div className="flex flex-wrap gap-2">
-                          {(taskHistoryByDate[dayData.date] || []).map((task) => (
-                            <span
-                              key={`${dayData.date}-${task.id}`}
-                              className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${
-                                task.completed
-                                  ? "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400 border-green-200 dark:border-green-800"
-                                  : "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400 border-red-200 dark:border-red-800"
-                              }`}
-                            >
-                              {task.completed ? (
-                                <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                </svg>
-                              ) : (
-                                <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                                </svg>
-                              )}
-                              {task.name}
+                        <div className="w-1/2 flex items-center justify-between gap-3 pl-[10%]">
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <Clock className="w-5 h-5 text-[#662D91]" />
+                            <span className={`text-lg font-bold ${under ? "text-red-600" : "text-green-600"}`}>
+                              {formatDuration(totalWork)}
                             </span>
-                          ))}
-                          {!(taskHistoryByDate[dayData.date]?.length) && (
-                            <span className="text-xs text-gray-500 dark:text-gray-400">{t("noTasksForThisDay")}</span>
-                          )}
-                        </div>
-                      </div>
+                          </div>
 
-                      {/* Quick Overview */}
-                      <div className="p-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1">
-                            <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
-                              {t("dayOverview")}
-                            </h4>
+                          <div className="flex flex-col items-end gap-1 shrink-0">
+                            <span className="flex items-center gap-1.5 text-[#662D91]" title={t("dailyTasks")}>
+                              <span className="text-sm font-semibold">{taskCount}</span>
+                              <ClipboardList className="w-4 h-4" />
+                            </span>
+                            <span className="flex items-center gap-1.5 text-red-600" title={t("alerts") || "Alerts"}>
+                              <span className="text-sm font-semibold">{alertCount}</span>
+                              <Bell className="w-4 h-4" />
+                            </span>
+                          </div>
+                        </div>
+                      </button>
+
+                      {isExpanded && (
+                        <div className="border-t border-border">
+                          {/* Summary Stats */}
+                          <div className="p-4 bg-muted/30 border-b border-border">
+                            {workerInfo && (
+                              <div className="flex items-center text-sm text-muted-foreground mb-3">
+                                <User className="w-4 h-4 mr-1" />
+                                {workerInfo.name}
+                              </div>
+                            )}
+                            <div className="grid grid-cols-3 gap-4">
+                              <div className="text-center">
+                                <div className="text-xl font-bold text-green-600">
+                                  {totalWork}
+                                  {t("minutes")}
+                                </div>
+                                <div className="text-xs text-muted-foreground uppercase tracking-wide">
+                                  {t("workTime")}
+                                </div>
+                              </div>
+                              <div className="text-center">
+                                <div className="text-xl font-bold text-orange-600">
+                                  {totalBreaks}
+                                  {t("minutes")}
+                                </div>
+                                <div className="text-xs text-muted-foreground uppercase tracking-wide">
+                                  {t("breakTime")}
+                                </div>
+                              </div>
+                              <div className="text-center">
+                                <div className="text-xl font-bold text-blue-600">{dayData.breaks.length}</div>
+                                <div className="text-xs text-muted-foreground uppercase tracking-wide">
+                                  {t("totalBreaks")}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Daily Tasks */}
+                          <div className="p-4 border-b border-border">
+                            <h4 className="text-sm font-medium text-foreground mb-3">{t("dailyTasks")}</h4>
                             <div className="flex flex-wrap gap-2">
-                              {dayOverviewScans.map((scan) => (
+                              {(taskHistoryByDate[dayData.date] || []).map((task) => (
                                 <span
-                                  key={scan.id}
-                                  className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getActivityColor(scan.scanType)}`}
+                                  key={`${dayData.date}-${task.id}`}
+                                  className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${
+                                    task.completed
+                                      ? "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400 border-green-200 dark:border-green-800"
+                                      : "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400 border-red-200 dark:border-red-800"
+                                  }`}
                                 >
-                                  {getActivityIcon(scan.scanType)}
-                                  <span className="ml-1">{getActivityName(scan.scanType)}</span>
-                                  <span className="ml-1">{formatTime(scan.scanTime)}</span>
+                                  {task.name}
                                 </span>
                               ))}
+                              {!(taskHistoryByDate[dayData.date]?.length) && (
+                                <span className="text-xs text-muted-foreground">{t("noTasksForThisDay")}</span>
+                              )}
                             </div>
                           </div>
 
-                          <Button
-                            onClick={() => toggleHistoryCard(dayData.date)}
-                            variant="ghost"
-                            size="sm"
-                            className="ml-4 text-purple-600 hover:text-purple-800 dark:text-purple-400 dark:hover:text-purple-300"
-                          >
-                            {isExpanded ? (
-                              <>
-                                {t("hideDetails")} <ChevronUp className="w-4 h-4 ml-1" />
-                              </>
-                            ) : (
-                              <>
-                                {t("viewDetails")} <ChevronDown className="w-4 h-4 ml-1" />
-                              </>
-                            )}
-                          </Button>
+                          {/* Day Overview */}
+                          {dayOverviewScans.length > 0 && (
+                            <div className="p-4 border-b border-border">
+                              <h4 className="text-sm font-medium text-foreground mb-2">{t("dayOverview")}</h4>
+                              <div className="flex flex-wrap gap-2">
+                                {dayOverviewScans.map((scan) => (
+                                  <span
+                                    key={scan.id}
+                                    className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getActivityColor(scan.scanType)}`}
+                                  >
+                                    {getActivityIcon(scan.scanType)}
+                                    <span className="ml-1">{getActivityName(scan.scanType)}</span>
+                                    <span className="ml-1">{formatTime(scan.scanTime)}</span>
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                         </div>
-                      </div>
+                      )}
 
                       {/* Expanded Details */}
                       {isExpanded && (
-                        <div className="px-4 pb-4 border-t bg-gray-50 dark:bg-gray-800/30">
+                        <div className="px-4 pb-4 border-t bg-muted/20">
                           {/* Sessions */}
                           {dayData.sessions.length > 0 && (
                             <div className="mb-4 pt-4">
-                              <h5 className="text-sm font-medium text-gray-900 dark:text-white mb-3 flex items-center">
+                              <h5 className="text-sm font-medium text-foreground mb-3 flex items-center">
                                 <Timer className="w-4 h-4 mr-1" />
                                 {t("workSessions")}
                               </h5>
@@ -1020,15 +1033,15 @@ export function JobAttendanceDetail({ job, jobId, jobData, onBack }: JobAttendan
                                   return (
                                     <div
                                       key={session.id}
-                                      className={`bg-white dark:bg-gray-900 p-3 rounded-lg border ${
+                                      className={`bg-card p-3 rounded-lg border ${
                                         isMultiDay 
                                           ? 'border-purple-300 dark:border-purple-700 bg-purple-50/30 dark:bg-purple-900/10' 
-                                          : 'border-gray-200 dark:border-gray-700'
+                                          : 'border-border'
                                       }`}
                                     >
                                       <div className="flex justify-between items-start">
                                         <div className="flex-1">
-                                          <div className="text-sm font-medium text-gray-900 dark:text-white mb-1">
+                                          <div className="text-sm font-medium text-foreground mb-1">
                                             {session.isCheckInDay && (
                                               <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 mr-2">
                                                 ✓ Check In
@@ -1044,7 +1057,7 @@ export function JobAttendanceDetail({ job, jobId, jobData, onBack }: JobAttendan
                                                 ⊚ Working
                                               </span>
                                             )}
-                                            <span className="text-gray-900 dark:text-white">
+                                            <span className="text-foreground">
                                               {formatTime(session.checkInTime)} - {isOngoing ? "Ongoing" : formatTime(session.checkOutTime)}
                                             </span>
                                           </div>
@@ -1058,7 +1071,7 @@ export function JobAttendanceDetail({ job, jobId, jobData, onBack }: JobAttendan
                                             </div>
                                           )}
                                           
-                                          <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                          <div className="text-xs text-muted-foreground mt-1">
                                             {t("work")}: {sessionWorkTime}
                                             {t("minutes")} | {t("breaks")}: {session.totalBreakMinutes || 0}
                                             {t("minutes")}
@@ -1093,7 +1106,7 @@ export function JobAttendanceDetail({ job, jobId, jobData, onBack }: JobAttendan
                           {/* Break Details */}
                           {dayData.breaks.length > 0 && (
                             <div className="mb-4">
-                              <h5 className="text-sm font-medium text-gray-900 dark:text-white mb-3 flex items-center">
+                              <h5 className="text-sm font-medium text-foreground mb-3 flex items-center">
                                 <Coffee className="w-4 h-4 mr-1" />
                                 {t("breakDetails")}
                               </h5>
@@ -1101,15 +1114,15 @@ export function JobAttendanceDetail({ job, jobId, jobData, onBack }: JobAttendan
                                 {dayData.breaks.map((breakItem, index) => (
                                   <div
                                     key={index}
-                                    className="bg-white dark:bg-gray-900 p-3 rounded-lg border border-orange-200 dark:border-orange-800"
+                                    className="bg-card p-3 rounded-lg border border-orange-200 dark:border-orange-800"
                                   >
                                     <div className="flex justify-between items-center">
                                       <div>
-                                        <div className="text-sm font-medium text-gray-900 dark:text-white">
+                                        <div className="text-sm font-medium text-foreground">
                                           {formatTime(breakItem.breakStart.scanTime)} -{" "}
                                           {formatTime(breakItem.breakEnd.scanTime)}
                                         </div>
-                                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                                        <div className="text-xs text-muted-foreground">
                                           {breakItem.breakStart.notes}
                                         </div>
                                       </div>
@@ -1126,7 +1139,7 @@ export function JobAttendanceDetail({ job, jobId, jobData, onBack }: JobAttendan
 
                           {/* All Scans Timeline */}
                           <div>
-                            <h5 className="text-sm font-medium text-gray-900 dark:text-white mb-3 flex items-center">
+                            <h5 className="text-sm font-medium text-foreground mb-3 flex items-center">
                               <Clock className="w-4 h-4 mr-1" />
                               {t("activityTimeline")}
                             </h5>
@@ -1134,7 +1147,7 @@ export function JobAttendanceDetail({ job, jobId, jobData, onBack }: JobAttendan
                               {dayData.scans.map((scan) => (
                                 <div
                                   key={scan.id}
-                                  className={`p-3 rounded-lg border ${getActivityColor(scan.scanType)} bg-white dark:bg-gray-900`}
+                                  className={`p-3 rounded-lg border ${getActivityColor(scan.scanType)} bg-card`}
                                 >
                                   <div className="flex items-center justify-between">
                                     <div className="flex items-center">
@@ -1144,7 +1157,7 @@ export function JobAttendanceDetail({ job, jobId, jobData, onBack }: JobAttendan
                                     <span className="text-sm font-semibold">{formatTime(scan.scanTime)}</span>
                                   </div>
                                   {scan.location && (
-                                    <div className="text-xs text-gray-600 dark:text-gray-400 mt-2 ml-6">
+                                    <div className="text-xs text-muted-foreground mt-2 ml-6">
                                       {(() => {
                                         try {
                                           const locationData = JSON.parse(scan.location)
@@ -1181,7 +1194,7 @@ export function JobAttendanceDetail({ job, jobId, jobData, onBack }: JobAttendan
                                     </div>
                                   )}
                                   {scan.notes && (
-                                    <p className="text-xs text-gray-600 dark:text-gray-400 mt-2 ml-6">{scan.notes}</p>
+                                    <p className="text-xs text-muted-foreground mt-2 ml-6">{scan.notes}</p>
                                   )}
                                 </div>
                               ))}

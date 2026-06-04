@@ -35,6 +35,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { impersonateUser } from "@/lib/api/impersonate"
 import impersonationTranslations from "@/lib/translations/impersonation"
+import { InlineImageUploader } from "@/components/inline-image-uploader"
 
 interface EmployerData {
   id: number
@@ -67,6 +68,7 @@ interface EmployerData {
   email: string | null
   logoUrl?: string | null
   logoPublicId?: string | null
+  profilePhotoUrl?: string | null
   createdAt: string
   updatedAt: string
 }
@@ -77,9 +79,12 @@ interface EmployerDataTabProps {
   // user can manage their own brand from "Mis Datos" without admin/partner
   // privileges. Defaults to the admin/partner :id-scoped endpoint.
   selfServiceLogo?: boolean
+  selfService?: boolean
 }
 
-export default function EmployerDataTab({ employerId, selfServiceLogo = false }: EmployerDataTabProps) {
+export default function EmployerDataTab({ employerId, selfServiceLogo = false, selfService = false }: EmployerDataTabProps) {
+  const meMode = selfService
+  const useMeForLogo = selfServiceLogo || selfService
   const { t, language, tEnum } = useTranslation()
   const { session, isImpersonating, isSubUser, hasRole, hasAnyRole, canEdit } = useAuth()
   const isAdmin = String(session?.user?.role?.name || "").toLowerCase() === "admin"
@@ -121,7 +126,7 @@ export default function EmployerDataTab({ employerId, selfServiceLogo = false }:
     try {
       const fd = new FormData()
       fd.append("file", file)
-      const path = selfServiceLogo ? "me/logo" : `${employerId}/logo`
+      const path = useMeForLogo ? "me/logo" : `${employerId}/logo`
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/employers/${path}`, {
         method: "POST",
         headers: { Authorization: `Bearer ${session.accessToken}` },
@@ -149,7 +154,7 @@ export default function EmployerDataTab({ employerId, selfServiceLogo = false }:
     if (!session?.accessToken || !employerData?.logoUrl) return
     setIsUploadingLogo(true)
     try {
-      const path = selfServiceLogo ? "me/logo" : `${employerId}/logo`
+      const path = useMeForLogo ? "me/logo" : `${employerId}/logo`
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/employers/${path}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${session.accessToken}` },
@@ -227,7 +232,7 @@ export default function EmployerDataTab({ employerId, selfServiceLogo = false }:
   // Fetch employer data
   useEffect(() => {
     const fetchEmployerData = async () => {
-      if (!session?.accessToken || !employerId) {
+      if (!session?.accessToken || (!employerId && !meMode)) {
         setError("Invalid employer ID or no authentication")
         setIsLoading(false)
         return
@@ -237,7 +242,7 @@ export default function EmployerDataTab({ employerId, selfServiceLogo = false }:
       setError(null)
 
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/employers/${employerId}`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/employers/${meMode ? "me" : employerId}`, {
           headers: {
             Authorization: `Bearer ${session.accessToken}`,
             "Content-Type": "application/json",
@@ -276,7 +281,7 @@ export default function EmployerDataTab({ employerId, selfServiceLogo = false }:
   // Fetch partners for dropdown
   useEffect(() => {
     const fetchPartners = async () => {
-      if (!session?.accessToken) return
+      if (!session?.accessToken || meMode) return
       try {
         const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/partners`, {
           headers: {
@@ -361,7 +366,13 @@ export default function EmployerDataTab({ employerId, selfServiceLogo = false }:
         if (updatePayload[key] === undefined) delete updatePayload[key]
       })
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/employers/${employerId}`, {
+      if (meMode) {
+        for (const k of ["partnerId", "typeId", "subTypeId", "discount", "paymentMethodId", "probationPeriod"]) {
+          delete updatePayload[k]
+        }
+      }
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/employers/${meMode ? "me" : employerId}`, {
         method: "PATCH",
         headers: {
           Authorization: `Bearer ${session.accessToken}`,
@@ -723,6 +734,15 @@ export default function EmployerDataTab({ employerId, selfServiceLogo = false }:
 
       {/* Row 5: Profile image */}
       <div className="flex gap-3 items-end justify-end">
+        {meMode ? (
+          <InlineImageUploader
+            initialUrl={employerData.profilePhotoUrl ?? null}
+            uploadPath="/employers/me/profile-photo"
+            urlField="profilePhotoUrl"
+            accessToken={session?.accessToken}
+            label={t("profile")}
+          />
+        ) : (
         <div className="flex flex-col items-center justify-center shrink-0">
           <div className="relative w-16 h-16 rounded-full border-2 border-muted flex items-center justify-center bg-muted/20 overflow-hidden">
             {isUploadingLogo ? (
@@ -762,6 +782,7 @@ export default function EmployerDataTab({ employerId, selfServiceLogo = false }:
             {employerData.logoUrl ? (t("changeLogo") || "Change") : (t("chooseFile") || "Choose file")}
           </Button>
         </div>
+        )}
       </div>
 
       {/* Separator line */}
@@ -774,6 +795,7 @@ export default function EmployerDataTab({ employerId, selfServiceLogo = false }:
           <Select
             value={employerData.partnerId?.toString() || ""}
             onValueChange={(value) => handleInputChange("partnerId", value)}
+            disabled={meMode}
           >
             <SelectTrigger className="h-9 text-xs bg-muted/30 border-input text-foreground">
               <SelectValue placeholder={t("selectPartner")} />
@@ -791,6 +813,7 @@ export default function EmployerDataTab({ employerId, selfServiceLogo = false }:
           <Label className="text-xs font-medium text-foreground">{t("class")} <span className="text-red-500">*</span></Label>
           <Select
             value={employerData.subTypeId?.toString() || ""}
+            disabled={meMode}
             onValueChange={(value) => {
               const newSubType = Number(value)
               const newAllowed = newSubType === 1 ? [1] : [2, 3]
@@ -825,6 +848,7 @@ export default function EmployerDataTab({ employerId, selfServiceLogo = false }:
           <Select
             value={employerData.typeId?.toString() || ""}
             onValueChange={(value) => handleInputChange("typeId", Number(value))}
+            disabled={meMode}
           >
             <SelectTrigger className="h-9 text-xs bg-muted/30 border-input text-foreground">
               <SelectValue />
@@ -852,6 +876,7 @@ export default function EmployerDataTab({ employerId, selfServiceLogo = false }:
             type="number"
             min="0"
             max="100"
+            disabled={meMode}
           />
           {discountExceedsCap && (
             <p className="text-[10px] text-destructive">
@@ -877,6 +902,7 @@ export default function EmployerDataTab({ employerId, selfServiceLogo = false }:
           <Select
             value={employerData.paymentMethodId?.toString() || ""}
             onValueChange={(value) => handleInputChange("paymentMethodId", Number(value))}
+            disabled={meMode}
           >
             <SelectTrigger className="h-9 text-xs bg-muted/30 border-input text-foreground">
               <SelectValue />
@@ -923,15 +949,17 @@ export default function EmployerDataTab({ employerId, selfServiceLogo = false }:
             {t("cancel")}
           </Button>
         </div>
-        <Button
-          type="button"
-          onClick={handleDelete}
-          disabled={isDeleting}
-          className="h-9 bg-yellow-500 hover:bg-yellow-600 text-white px-5 text-xs"
-        >
-          {isDeleting ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
-          {t("delete")}
-        </Button>
+        {!meMode && (
+          <Button
+            type="button"
+            onClick={handleDelete}
+            disabled={isDeleting}
+            className="h-9 bg-yellow-500 hover:bg-yellow-600 text-white px-5 text-xs"
+          >
+            {isDeleting ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+            {t("delete")}
+          </Button>
+        )}
       </div>
 
       {/* Delete Confirmation Dialog */}

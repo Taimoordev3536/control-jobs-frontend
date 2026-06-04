@@ -29,6 +29,7 @@ import { useState, useEffect } from "react"
 import { useToast } from "@/hooks/use-toast"
 import { impersonateUser } from "@/lib/api/impersonate"
 import impersonationTranslations from "@/lib/translations/impersonation"
+import { InlineImageUploader } from "@/components/inline-image-uploader"
 
 interface WorkerData {
   id: number
@@ -55,9 +56,11 @@ interface WorkerData {
   birthday: string
   active: boolean
   observation: string
+  logoUrl?: string
 }
 
-export function WorkerDataTab() {
+export function WorkerDataTab({ selfService = false }: { selfService?: boolean } = {}) {
+  const meMode = selfService
   const { t, language, tEnum } = useTranslation()
   const { session, isImpersonating, isSubUser, hasRole, canEdit } = useAuth()
   const ti = (key: string) => (impersonationTranslations as any)[language]?.[key] || key
@@ -122,13 +125,13 @@ export function WorkerDataTab() {
 
   useEffect(() => {
     const fetchWorkerData = async () => {
-      if (!session?.accessToken || !workerId) return
+      if (!session?.accessToken || (!workerId && !meMode)) return
 
       setIsLoading(true)
       setError(null)
 
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/worker/${workerId}`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/worker/${meMode ? "me" : workerId}`, {
           headers: {
             Authorization: `Bearer ${session.accessToken}`,
             "Content-Type": "application/json",
@@ -168,6 +171,7 @@ export function WorkerDataTab() {
             birthday: apiData.birthday ? apiData.birthday.split("T")[0] : "",
             active: apiData.active !== undefined ? apiData.active : true,
             observation: apiData.observation || "",
+            logoUrl: apiData.logoUrl || "",
           }
 
           setWorkerData(mappedData)
@@ -195,7 +199,7 @@ export function WorkerDataTab() {
   }
 
   const handleSave = async () => {
-    if (!session?.accessToken || !workerId) return
+    if (!session?.accessToken || (!workerId && !meMode)) return
 
     // Validate required fields
     const missing: string[] = []
@@ -218,17 +222,21 @@ export function WorkerDataTab() {
 
     try {
       // Send only updateable fields, exclude id
-      const { id, ...rest } = workerData
+      const { id, logoUrl: _logoUrl, ...rest } = workerData
       const updatePayload: Record<string, any> = {
         ...rest,
         latitude: rest.latitude ? parseFloat(rest.latitude) : null,
         longitude: rest.longitude ? parseFloat(rest.longitude) : null,
       }
+      if (meMode) {
+        delete updatePayload.code
+        delete updatePayload.active
+      }
       // Remove empty strings for fields with strict validation
       if (!updatePayload.email) delete updatePayload.email
       if (!updatePayload.accessEmail) delete updatePayload.accessEmail
       if (!updatePayload.birthday) delete updatePayload.birthday
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/worker/${workerId}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/worker/${meMode ? "me" : workerId}`, {
         method: "PUT",
         headers: {
           Authorization: `Bearer ${session.accessToken}`,
@@ -362,6 +370,7 @@ export function WorkerDataTab() {
               value={workerData.code}
               onChange={(e) => handleInputChange("code", e.target.value)}
               className="h-9 text-xs bg-muted/30 border-input text-foreground"
+              disabled={meMode}
             />
           </div>
           <div className="space-y-1 min-w-0" style={{ flex: "1 1 0%" }}>
@@ -416,6 +425,7 @@ export function WorkerDataTab() {
           <Select
             value={workerData.active ? "yeah" : "no"}
             onValueChange={(value) => handleInputChange("active", value === "yeah")}
+            disabled={meMode}
           >
             <SelectTrigger className="h-9 text-xs bg-muted/30 border-input text-foreground">
               <SelectValue />
@@ -618,6 +628,14 @@ export function WorkerDataTab() {
             allowPastDates
           />
         </div>
+        {meMode && (
+          <InlineImageUploader
+            initialUrl={workerData.logoUrl ?? null}
+            uploadPath="/worker/me/logo"
+            accessToken={session?.accessToken}
+            label={t("profile")}
+          />
+        )}
       </div>
 
       {/* Row 5: Observaciones 60% */}
@@ -672,10 +690,12 @@ export function WorkerDataTab() {
             {t("cancel")}
           </Button>
         </div>
-        <Button onClick={handleDelete} disabled={isDeleting} className="h-9 bg-yellow-500 hover:bg-yellow-600 text-white px-5 text-xs">
-          {isDeleting ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
-          {t("delete")}
-        </Button>
+        {!meMode && (
+          <Button onClick={handleDelete} disabled={isDeleting} className="h-9 bg-yellow-500 hover:bg-yellow-600 text-white px-5 text-xs">
+            {isDeleting ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+            {t("delete")}
+          </Button>
+        )}
       </div>
     </div>
     </div>

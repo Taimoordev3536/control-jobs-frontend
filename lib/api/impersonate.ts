@@ -103,14 +103,6 @@ function clearImpCookie() {
   document.cookie = `${IMP_COOKIE}=; path=/; SameSite=Strict; Max-Age=0`
 }
 
-function readImpCookie(): string | null {
-  if (typeof document === "undefined") return null
-  const match = document.cookie.match(
-    new RegExp("(?:^|; )" + IMP_COOKIE + "=([^;]*)"),
-  )
-  return match ? decodeURIComponent(match[1]) : null
-}
-
 export function storeImpersonationSession(token: string, user: any, context: ImpersonationContext) {
   sessionStorage.setItem(KEYS.token, token)
   sessionStorage.setItem(KEYS.user, JSON.stringify(user))
@@ -120,7 +112,7 @@ export function storeImpersonationSession(token: string, user: any, context: Imp
 
 export function getStoredImpersonationToken(): string | null {
   if (typeof window === "undefined") return null
-  return sessionStorage.getItem(KEYS.token) || readImpCookie()
+  return sessionStorage.getItem(KEYS.token)
 }
 
 export function getStoredImpersonationUser(): any | null {
@@ -144,7 +136,5 @@ export function clearImpersonationSession() {
 
 export function isImpersonationSession(): boolean {
   if (typeof window === "undefined") return false
-  return (
-    sessionStorage.getItem(KEYS.token) !== null || readImpCookie() !== null
-  )
+  return sessionStorage.getItem(KEYS.token) !== null
 }

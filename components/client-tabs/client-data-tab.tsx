@@ -32,9 +32,11 @@ import {
 } from "@/components/ui/alert-dialog"
 import { impersonateUser } from "@/lib/api/impersonate"
 import impersonationTranslations from "@/lib/translations/impersonation"
+import { InlineImageUploader } from "@/components/inline-image-uploader"
 
 interface ClientDataTabProps {
   clientId: string
+  selfService?: boolean
 }
 
 interface ClientData {
@@ -70,7 +72,8 @@ interface ClientData {
   active: boolean
 }
 
-export function ClientDataTab({ clientId }: ClientDataTabProps) {
+export function ClientDataTab({ clientId, selfService = false }: ClientDataTabProps) {
+  const meMode = selfService
   const { t, language } = useTranslation()
   const { session, isImpersonating, isSubUser, hasRole, canEdit } = useAuth()
   const ti = (key: string) => (impersonationTranslations as any)[language]?.[key] || key
@@ -106,7 +109,7 @@ export function ClientDataTab({ clientId }: ClientDataTabProps) {
 
   useEffect(() => {
     const fetchClientData = async () => {
-      if (!clientId || clientId === "undefined") {
+      if ((!clientId || clientId === "undefined") && !meMode) {
         setError("Invalid client ID")
         setIsLoading(false)
         return
@@ -121,7 +124,7 @@ export function ClientDataTab({ clientId }: ClientDataTabProps) {
       setError(null)
 
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/client/${clientId}`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/client/${meMode ? "me" : clientId}`, {
           headers: {
             Authorization: `Bearer ${session.accessToken}`,
             "Content-Type": "application/json",
@@ -218,7 +221,11 @@ export function ClientDataTab({ clientId }: ClientDataTabProps) {
 
     try {
       const { id, userId, publicId, email, logoPublicId, logoUrl, createdAt, updatedAt, ...updatePayload } = clientData as any
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/client/${clientId}`, {
+      if (meMode) {
+        delete (updatePayload as any).type
+        delete (updatePayload as any).active
+      }
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/client/${meMode ? "me" : clientId}`, {
         method: "PUT",
         headers: {
           Authorization: `Bearer ${session.accessToken}`,
@@ -429,7 +436,7 @@ export function ClientDataTab({ clientId }: ClientDataTabProps) {
           <Label htmlFor="type" className="text-xs font-medium text-foreground">
             {t("type")} <span className="text-red-500">*</span>
           </Label>
-          <Select value={clientData.type || ""} onValueChange={(value) => handleInputChange("type", value)}>
+          <Select value={clientData.type || ""} onValueChange={(value) => handleInputChange("type", value)} disabled={meMode}>
             <SelectTrigger className="h-9 text-xs bg-muted/30 border-input text-foreground">
               <SelectValue />
             </SelectTrigger>
@@ -457,6 +464,7 @@ export function ClientDataTab({ clientId }: ClientDataTabProps) {
           <Select
             value={clientData.active ? "yeah" : "no"}
             onValueChange={(value) => handleInputChange("active", value === "yeah")}
+            disabled={meMode}
           >
             <SelectTrigger className="h-9 text-xs bg-muted/30 border-input text-foreground">
               <SelectValue />
@@ -651,6 +659,14 @@ export function ClientDataTab({ clientId }: ClientDataTabProps) {
             </Button>
           </div>
         )}
+        {meMode && (
+          <InlineImageUploader
+            initialUrl={(clientData as any).logoUrl ?? null}
+            uploadPath="/client/me/logo"
+            accessToken={session?.accessToken}
+            label={t("profile")}
+          />
+        )}
       </div>
 
       {/* Row 5: Observations 60%, Periodo Horario de Verano default */}
@@ -736,10 +752,12 @@ export function ClientDataTab({ clientId }: ClientDataTabProps) {
             {t("cancel")}
           </Button>
         </div>
-        <Button onClick={handleDelete} disabled={isDeleting} className="h-9 bg-yellow-500 hover:bg-yellow-600 text-white px-5 text-xs">
-          {isDeleting ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
-          {t("delete")}
-        </Button>
+        {!meMode && (
+          <Button onClick={handleDelete} disabled={isDeleting} className="h-9 bg-yellow-500 hover:bg-yellow-600 text-white px-5 text-xs">
+            {isDeleting ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+            {t("delete")}
+          </Button>
+        )}
       </div>
     </div>
     </div>
