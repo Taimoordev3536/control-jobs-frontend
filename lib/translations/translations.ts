@@ -2,6 +2,8 @@ import { loadBindings } from "next/dist/build/swc"
 
 const translations: Record<string, Record<string, any>> = {
   en: {
+    announcements: "Announcements",
+    announcement: "Announcement",
     //Add modal json
     addressPlaceholder: "Address, Nº, Floor/Door (e.g. 1º D), Postal code, City, Province, Country",
     partnerSessionWarning: "You remain logged in with the account of the partner associated with the invitation.",
@@ -1069,6 +1071,8 @@ surveyMonitoringValueTips: "Set a limit. If responses are under this value, an a
     } as any,
   },
   es: {
+    announcements: "Anuncios",
+    announcement: "Anuncio",
       // add modal json
     addressPlaceholder: "Dirección, Nº, Piso (ej. 1º D), Código Postal, Localidad, Provincia, País",
     partnerSessionWarning: "Sigues conectado con la cuenta del socio asociado a la invitación.",

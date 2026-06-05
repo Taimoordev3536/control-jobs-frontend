@@ -5,9 +5,9 @@ import { decodeJwt } from "jose"
 const IMP_COOKIE = "cj-imp-token"
 
 const roleRoutes: Record<string, string[]> = {
-  admin: ["/dashboard", "/partners", "/employers", "/invoices", "/commissions", "/rates", "/information", "/utilities", "/aid", "/tasks", "/messages"],
-  partner: ["/dashboard", "/employers", "/billing", "/invoices", "/commissions", "/rates", "/information", "/utilities", "/aid", "/tasks", "/messages"],
-  employer: ["/dashboard", "/jobs", "/clients", "/workers", "/work-centers", "/surveys", "/invoices", "/billing", "/information", "/utilities", "/aid", "/tasks", "/records", "/messages"],
+  admin: ["/dashboard", "/announcements", "/partners", "/employers", "/invoices", "/commissions", "/rates", "/information", "/utilities", "/aid", "/tasks", "/messages"],
+  partner: ["/dashboard", "/announcements", "/employers", "/billing", "/invoices", "/commissions", "/rates", "/information", "/utilities", "/aid", "/tasks", "/messages"],
+  employer: ["/dashboard", "/announcements", "/jobs", "/clients", "/workers", "/work-centers", "/surveys", "/invoices", "/billing", "/information", "/utilities", "/aid", "/tasks", "/records", "/messages"],
   client: ["/dashboard", "/jobs", "/surveys", "/information", "/aid", "/tasks", "/records", "/messages"],
   worker: ["/dashboard", "/jobs", "/occupation", "/surveys", "/information", "/aid", "/tasks", "/records", "/messages"],
 }

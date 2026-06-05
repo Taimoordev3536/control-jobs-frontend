@@ -13,6 +13,7 @@ type AlertType =
   | "MANUAL_ATTENDANCE_CANCELLED"
   | "RATE_CHANGE_SCHEDULED"
   | "RATE_CHANGE_CANCELLED"
+  | "ANNOUNCEMENT"
 
 type AlertItem = {
   id?: number
@@ -26,6 +27,7 @@ type AlertItem = {
   message: string
   createdAt: string
   meta?: Record<string, any>
+  bannerDismissed?: boolean
 }
 
 type Ctx = {
@@ -63,6 +65,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
             clientUserId: n.meta?.clientUserId || 0,
             message: n.message,
             createdAt: n.createdAt,
+            meta: n.meta,
+            bannerDismissed: n.bannerDismissed,
           }))
           setItems((prev) => {
             // Merge without duplicates
@@ -99,6 +103,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         RATE_CHANGE_SCHEDULED: "default",
         RATE_CHANGE_CANCELLED: "default",
       }
+      if (alert.type === "ANNOUNCEMENT") return
       toast({
         title: titleMap[alert.type] || "New notification",
         description: alert.message,

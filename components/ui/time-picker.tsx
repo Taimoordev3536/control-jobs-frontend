@@ -115,11 +115,13 @@ export function TimePicker({ value = "", onChange, className, debug = false, dis
         leftPosition = 10
       }
       
-      // Calculate position - prefer below, but go above if not enough space
-      if (spaceBelow >= 180 || spaceBelow > spaceAbove) {
+      // Calculate position - prefer below, but go above if not enough space.
+      // Dropdown is ~132px tall; keep it tight to the clock in both directions.
+      const dropdownHeight = 138
+      if (spaceBelow >= dropdownHeight || spaceBelow > spaceAbove) {
         setDropdownStyle({
           position: "absolute",
-          top: buttonRect.bottom + window.scrollY + 2, // Small offset for better visual appearance
+          top: buttonRect.bottom + window.scrollY + 4,
           left: leftPosition,
           zIndex: 9999,
           opacity: 1 // Make visible after positioned
@@ -127,7 +129,7 @@ export function TimePicker({ value = "", onChange, className, debug = false, dis
       } else {
         setDropdownStyle({
           position: "absolute",
-          top: buttonRect.top + window.scrollY - 180, // Height of dropdown + small offset
+          top: buttonRect.top + window.scrollY - dropdownHeight,
           left: leftPosition,
           zIndex: 9999,
           opacity: 1 // Make visible after positioned
@@ -159,21 +161,21 @@ export function TimePicker({ value = "", onChange, className, debug = false, dis
     }
   }, [])
 
-  // Scroll to selected hour and minute when dropdown opens
+  // Scroll the selected hour/minute into view INSIDE its own list only.
+  // (scrollIntoView would also scroll the page — causing a visible jump.)
   useEffect(() => {
     if (isOpen && isPositioned && hourListRef.current && minuteListRef.current) {
-      // Find selected hour and minute elements
-      const hourEl = hourListRef.current.querySelector(`.bg-blue-500`);
-      const minuteEl = minuteListRef.current.querySelector(`.bg-blue-500`);
-      
-      // Scroll to them with a slight delay to ensure the dropdown is fully rendered
+      const scrollListToSelected = (list: HTMLDivElement | null) => {
+        if (!list) return;
+        const sel = list.querySelector<HTMLElement>(".bg-blue-500");
+        if (sel) {
+          list.scrollTop =
+            sel.offsetTop - list.clientHeight / 2 + sel.clientHeight / 2;
+        }
+      };
       setTimeout(() => {
-        if (hourEl) {
-          hourEl.scrollIntoView({ block: 'center', behavior: 'auto' });
-        }
-        if (minuteEl) {
-          minuteEl.scrollIntoView({ block: 'center', behavior: 'auto' });
-        }
+        scrollListToSelected(hourListRef.current);
+        scrollListToSelected(minuteListRef.current);
       }, 50);
     }
   }, [isOpen, isPositioned]);

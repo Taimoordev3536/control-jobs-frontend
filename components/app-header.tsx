@@ -163,7 +163,11 @@ export function AppHeader({ collapsed, toggleSidebar, style }: AppHeaderProps) {
                       >
                         <X className="h-4 w-4" />
                       </button>
-                      <div className="font-semibold">{getNotifTitle(a.type)}</div>
+                      <div className="font-semibold">
+                        {a.type === "ANNOUNCEMENT"
+                          ? a.meta?.subject || t("announcement")
+                          : getNotifTitle(a.type)}
+                      </div>
                       <div className="text-muted-foreground">{a.message}</div>
                       <div className="text-[11px] text-muted-foreground mt-1">{formatLocalDateTime(a.createdAt)}</div>
                     </div>

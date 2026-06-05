@@ -7,6 +7,7 @@ import { useState, useEffect } from "react"
 import { NotificationProvider } from "@/components/providers/notification-provider"
 import { ChatProvider } from "@/components/providers/chat-provider"
 import { ImpersonationBanner } from "@/components/impersonation-banner"
+import { AnnouncementBanner } from "@/components/announcements/announcement-banner"
 import { useAuth } from "@/hooks/use-auth"
 
 export default function DashboardLayout({
@@ -65,6 +66,7 @@ export default function DashboardLayout({
       <NotificationProvider>
         <ChatProvider>
           <AppHeader collapsed={collapsed} toggleSidebar={toggleSidebar} style={{ top: bannerOffset }} />
+          <AnnouncementBanner />
           <div
             className={`main-content ${collapsed ? "main-content-collapsed" : ""} ${isMobile ? "!ml-0" : ""}`}
             style={{ marginTop: isImpersonating ? "calc(60px + var(--impersonation-banner-h))" : undefined }}
