@@ -1,347 +1,170 @@
-
 "use client"
 
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
+import { useRouter } from "next/navigation"
 import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Plus, Trash2 } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import InvoiceForm from "@/components/invoice-form"
+import { AnimatedLoader } from "@/components/animated-loader"
+import { apiFetch } from "@/lib/api"
 import { useTranslation } from "@/hooks/use-translation"
-
-interface InvoiceLine {
-  id: string
-  description: string
-  amount: number
-  price: number
-  total: number
-}
+import { useToast } from "@/hooks/use-toast"
 
 interface AddInvoicesModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  onCreated?: () => void
 }
 
-export default function AddInvoicesModal({ open, onOpenChange }: AddInvoicesModalProps) {
+function monthBounds(ym: string) {
+  const [y, m] = ym.split("-").map(Number)
+  const lastDay = new Date(y, m, 0).getDate()
+  return { periodStart: `${ym}-01`, periodEnd: `${ym}-${String(lastDay).padStart(2, "0")}` }
+}
+
+export default function AddInvoicesModal({ open, onOpenChange, onCreated }: AddInvoicesModalProps) {
   const { t } = useTranslation()
-  const [selectedEmployer, setSelectedEmployer] = useState("")
-  const [invoiceLines, setInvoiceLines] = useState<InvoiceLine[]>([])
-  const [partnerDiscount, setPartnerDiscount] = useState(0)
-  const [date, setDate] = useState("")
+  const { toast } = useToast()
+  const router = useRouter()
 
-  const employers = [
-    { id: "1", name: "ANA LINARES OSÉS" },
-    { id: "2", name: "EMPLOYER 2" },
-    { id: "3", name: "EMPLOYER 3" },
-  ]
+  const [employers, setEmployers] = useState<{ id: number; name: string }[]>([])
+  const [employerId, setEmployerId] = useState("")
+  const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7))
+  const [preview, setPreview] = useState<any | null>(null)
+  const [loadingPreview, setLoadingPreview] = useState(false)
+  const [generating, setGenerating] = useState(false)
+  const [invoicedMonths, setInvoicedMonths] = useState<string[]>([])
 
-  const addNewLine = () => {
-    const newLine: InvoiceLine = {
-      id: Date.now().toString(),
-      description: "",
-      amount: 1,
-      price: 0,
-      total: 0,
+  const { periodStart, periodEnd } = useMemo(() => monthBounds(month), [month])
+  const alreadyInvoiced = invoicedMonths.includes(month)
+
+  useEffect(() => {
+    if (!open) {
+      setEmployerId("")
+      setPreview(null)
+      return
     }
-    setInvoiceLines([...invoiceLines, newLine])
-  }
+    apiFetch<{ data: any[] }>("/employers")
+      .then((j) => setEmployers((j.data || []).map((e) => ({ id: e.id, name: e.name }))))
+      .catch(() => setEmployers([]))
+  }, [open])
 
-  const removeLine = (id: string) => {
-    setInvoiceLines(invoiceLines.filter((line) => line.id !== id))
-  }
-
-  const updateLine = (id: string, field: keyof InvoiceLine, value: string | number) => {
-    setInvoiceLines(
-      invoiceLines.map((line) => {
-        if (line.id === id) {
-          const updatedLine = { ...line, [field]: value }
-          if (field === "amount" || field === "price") {
-            updatedLine.total = updatedLine.amount * updatedLine.price
-          }
-          return updatedLine
-        }
-        return line
-      }),
-    )
-  }
-
-  const calculateTotals = () => {
-    const subtotal = invoiceLines.reduce((sum, line) => sum + line.total, 0)
-    const discountAmount = subtotal * (partnerDiscount / 100)
-    const taxBase = subtotal - discountAmount
-    const vatAmount = taxBase * 0.21
-    const totalToPay = taxBase + vatAmount
-
-    return {
-      subtotal,
-      discountAmount,
-      taxBase,
-      vatAmount,
-      totalToPay,
+  useEffect(() => {
+    if (!open || !employerId) {
+      setInvoicedMonths([])
+      return
     }
-  }
+    apiFetch<{ data: string[] }>(`/invoices/invoiced-months?employerId=${employerId}`)
+      .then((j) => setInvoicedMonths(j.data || []))
+      .catch(() => setInvoicedMonths([]))
+  }, [open, employerId])
 
-  const totals = calculateTotals()
-
-  const handleKeep = () => {
-    // Handle form submission
-    console.log("Invoice data:", {
-      employer: selectedEmployer,
-      date,
-      lines: invoiceLines,
-      partnerDiscount,
-      totals,
+  useEffect(() => {
+    if (!open || !employerId || !month) {
+      setPreview(null)
+      return
+    }
+    setLoadingPreview(true)
+    apiFetch<{ data: any }>("/invoices/generate-preview", {
+      method: "POST",
+      body: { employerId: Number(employerId), periodStart, periodEnd },
     })
-    onOpenChange(false)
-  }
+      .then((j) => setPreview(j.data))
+      .catch((e) => {
+        setPreview(null)
+        toast({ title: e.message || "Error", variant: "destructive" })
+      })
+      .finally(() => setLoadingPreview(false))
+  }, [open, employerId, month, periodStart, periodEnd])
 
-  const handleCancel = () => {
-    // Reset form
-    setSelectedEmployer("")
-    setInvoiceLines([])
-    setPartnerDiscount(0)
-    setDate("")
-    onOpenChange(false)
+  const generate = async (payload: {
+    workCenterIds: number[]
+    workerIds: number[]
+    fixedFee: number
+    discountPct: number
+    chargeDate: string
+  }) => {
+    if (!employerId || alreadyInvoiced) return
+    setGenerating(true)
+    try {
+      const res = await apiFetch<{ data: any }>("/invoices/generate", {
+        method: "POST",
+        body: { employerId: Number(employerId), periodStart, periodEnd, ...payload },
+      })
+      toast({ title: t("invoiceCreated") || "Invoice created", variant: "success" as any })
+      onCreated?.()
+      onOpenChange(false)
+      if (res.data?.publicId) router.push(`/invoices/${res.data.publicId}`)
+    } catch (e: any) {
+      toast({ title: e.message || "Error", variant: "destructive" })
+    } finally {
+      setGenerating(false)
+    }
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto bg-background">
+      <DialogContent className="max-w-6xl max-h-[92vh] overflow-y-auto p-0">
         <DialogHeader className="sr-only">
-          <h2>Add Invoice</h2>
+          <h2>{t("generateInvoice") || "Generate invoice"}</h2>
         </DialogHeader>
 
-        <div className="min-h-screen bg-background">
-          <div className="max-w-full mx-auto bg-background">
-            {/* Header Section */}
-            <div className="flex items-start justify-between px-8 py-8 bg-muted/50">
-              {/* Left Side - Company Info */}
-              <div className="flex-1 max-w-md">
-                <h1 className="text-lg font-normal text-muted-foreground mb-8">{t("Bill")}</h1>
-
-                <div className="space-y-2">
-                  <div className="flex items-center">
-                    <span className="text-2xl font-normal text-foreground">Control</span>
-                    <span className="text-2xl font-normal text-primary">Jobs</span>
-                  </div>
-                  <div className="text-sm text-muted-foreground space-y-1 mt-3">
-                    <div className="font-normal text-muted-foreground italic">CONTROLJOBS TECH, S.L.U.</div>
-                    <div className="italic">B31972524</div>
-                    <div className="italic">Calvo Sotelo</div>
-                    <div className="flex gap-8 italic">
-                      <span>26003</span>
-                      <span>Logroño coño</span>
-                    </div>
-                    <div className="flex gap-8 italic">
-                      <span>La Rioja</span>
-                      <span>España</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-8 space-y-3 text-sm">
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-foreground">{t("date")}</span>
-                    <Input
-                      type="date"
-                      value={date}
-                      onChange={(e) => setDate(e.target.value)}
-                      className="w-40 h-8 text-sm"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Right Side - Employer Selection */}
-              <div className="flex flex-col items-end">
-                <div className="w-80">
-                  <Select value={selectedEmployer} onValueChange={setSelectedEmployer}>
-                    <SelectTrigger className="w-full px-4 py-3 text-sm font-normal">
-                      <SelectValue placeholder="Select an employer" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {employers.map((employer) => (
-                        <SelectItem key={employer.id} value={employer.id}>
-                          {employer.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-
-                  <div className="border-t-0 mt-0">
-                    <div className="bg-muted px-4 py-3 space-y-2 text-sm">
-                      <div className="text-muted-foreground italic">Name</div>
-                      <div className="text-muted-foreground italic">NIF</div>
-                      <div className="text-muted-foreground italic">Address</div>
-                      <div className="flex gap-20">
-                        <span className="text-muted-foreground italic">CP</span>
-                        <span className="text-muted-foreground italic">Locality</span>
-                      </div>
-                      <div className="text-muted-foreground italic">Province</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* New Line Button */}
-            <div className="px-8 py-4 flex justify-end">
-              <Button onClick={addNewLine} className="bg-primary hover:bg-primary/90 text-primary-foreground">
-                <Plus className="h-4 w-4 mr-2" />
-                New line
-              </Button>
-            </div>
-
-            {/* Billing Summary Table */}
-            <div className="px-8 py-4">
-              <div className="w-full">
-                {/* Table Header */}
-                <div className="flex mb-4 bg-purple-50 dark:bg-purple-950/50 border-b-2 border-purple-600 pb-2">
-                  <div className="w-[60%] pt-2 text-center font-semibold text-foreground">{t("billingSummary")}</div>
-                  <div className="w-[13%] pt-2 text-center font-semibold text-foreground">{t("amount")}</div>
-                  <div className="w-[13%] pt-2 text-center font-semibold text-foreground">{t("price")}</div>
-                  <div className="w-[13%] pt-2 text-center font-semibold text-foreground">{t("total")}</div>
-                  <div className="w-[1%]"></div>
-                </div>
-
-                {/* Service Rows */}
-                <div className="space-y-3 mb-8">
-                  {invoiceLines.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground">There are no lines on the invoice</div>
-                  ) : (
-                    invoiceLines.map((line) => (
-                      <div key={line.id} className="flex items-center gap-4">
-                        <div className="w-[60%]">
-                          <Input
-                            value={line.description}
-                            onChange={(e) => updateLine(line.id, "description", e.target.value)}
-                            placeholder="Service description"
-                            className="bg-muted rounded-lg px-4 py-3 font-medium"
-                          />
-                        </div>
-                        <div className="w-[13%] text-center">
-                          <Input
-                            type="number"
-                            value={line.amount}
-                            onChange={(e) => updateLine(line.id, "amount", Number.parseFloat(e.target.value) || 0)}
-                            className="w-full h-8 text-center text-sm"
-                            min="0"
-                            step="1"
-                          />
-                        </div>
-                        <div className="w-[13%] text-center">
-                          <Input
-                            type="number"
-                            value={line.price}
-                            onChange={(e) => updateLine(line.id, "price", Number.parseFloat(e.target.value) || 0)}
-                            className="w-full h-8 text-center text-sm"
-                            min="0"
-                            step="0.01"
-                          />
-                        </div>
-                        <div className="w-[13%] text-center">
-                          <div className="bg-muted/50 rounded px-3 py-2 text-foreground">{line.total.toFixed(2)}</div>
-                        </div>
-                        <div className="w-[1%]">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeLine(line.id)}
-                            className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-
-                {/* Partner Discount Section */}
-                <div className="mb-8">
-                  <div className="flex items-center gap-4">
-                    <div className="w-[60%]"></div>
-                    <div className="w-[13%] text-right">
-                      <span className="font-semibold text-foreground">Partner Dto.</span>
-                    </div>
-                    <div className="w-[13%] text-center">
-                      <div className="flex items-center justify-center gap-1">
-                        <Input
-                          type="number"
-                          value={partnerDiscount}
-                          onChange={(e) => setPartnerDiscount(Number.parseFloat(e.target.value) || 0)}
-                          className="w-16 h-8 text-center text-sm"
-                          min="0"
-                          max="100"
-                          step="0.1"
-                        />
-                        <span className="text-foreground text-sm">%</span>
-                      </div>
-                    </div>
-                    <div className="w-[13%] text-center">
-                      <div className="bg-muted/50 rounded px-3 py-2 text-foreground">
-                        {totals.discountAmount.toFixed(2)}
-                      </div>
-                    </div>
-                    <div className="w-[1%]"></div>
-                  </div>
-                </div>
-
-                {/* Tax Breakdown Section */}
-                <div className="space-y-3">
-                  {/* Tax Breakdown Header */}
-                  <div className="flex justify-center mb-4 bg-purple-50 dark:bg-purple-950/50 border-b-2 border-purple-600 pb-2">
-                    <span className=" pt-2 font-semibold text-foreground">{t("taxBreakdown")}</span>
-                  </div>
-
-                  {/* Tax Base Row */}
-                  <div className="flex items-center gap-4">
-                    <div className="w-[60%]"></div>
-                    <div className="w-[13%]"></div>
-                    <div className="w-[13%] text-center text-foreground">{t("taxBase")}</div>
-                    <div className="w-[13%] text-center">
-                      <div className="bg-muted/50 rounded px-3 py-2 text-foreground">{totals.taxBase.toFixed(2)}</div>
-                    </div>
-                    <div className="w-[1%]"></div>
-                  </div>
-
-                  {/* VAT Row */}
-                  <div className="flex items-center gap-4">
-                    <div className="w-[60%]"></div>
-                    <div className="w-[13%]"></div>
-                    <div className="w-[13%] text-center text-foreground">VAT ( 21 %)</div>
-                    <div className="w-[13%] text-center">
-                      <div className="bg-muted/50 rounded px-3 py-2 text-foreground">{totals.vatAmount.toFixed(2)}</div>
-                    </div>
-                    <div className="w-[1%]"></div>
-                  </div>
-
-                  {/* Total Row */}
-                  <div className="flex items-center gap-4">
-                    <div className="w-[60%]"></div>
-                    <div className="w-[13%]"></div>
-                    <div className="w-[13%] text-center font-bold text-foreground">{t("totalToPay")}</div>
-                    <div className="w-[13%] text-center">
-                      <div className="bg-muted/50 rounded px-3 py-2 font-bold text-foreground">
-                        {totals.totalToPay.toFixed(2)}
-                      </div>
-                    </div>
-                    <div className="w-[1%]"></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="px-8 py-6 flex gap-4">
-              <Button onClick={handleKeep} className="bg-primary hover:bg-primary/90 text-primary-foreground">
-                Keep
-              </Button>
-              <Button onClick={handleCancel} variant="secondary">
-                Cancel
-              </Button>
-            </div>
+        <div className="flex flex-wrap items-end gap-4 border-b border-border px-6 py-4">
+          <div className="flex flex-col gap-1 min-w-[240px]">
+            <label className="text-xs font-medium text-muted-foreground">{t("employer") || "Empleador"}</label>
+            <Select value={employerId} onValueChange={setEmployerId}>
+              <SelectTrigger className="h-9">
+                <SelectValue placeholder={t("selectAnEmployer") || "Select an employer"} />
+              </SelectTrigger>
+              <SelectContent>
+                {employers.map((e) => (
+                  <SelectItem key={e.id} value={String(e.id)}>{e.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-muted-foreground">{t("period") || "Periodo"}</label>
+            <Input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="h-9 w-44" />
+          </div>
+          {employerId && (
+            <div className="w-full text-xs space-y-1">
+              {alreadyInvoiced ? (
+                <p className="text-red-600 font-medium">
+                  {t("monthAlreadyInvoiced") || "This month is already invoiced for this employer."}
+                </p>
+              ) : invoicedMonths.length > 0 ? (
+                <p className="text-muted-foreground">
+                  {t("alreadyInvoicedMonths") || "Already invoiced"}: {invoicedMonths.join(", ")}
+                </p>
+              ) : null}
+              {preview && (
+                <p className="text-muted-foreground italic">
+                  {t("countsAsOfNow") ||
+                    "Worker and work-center counts reflect the employer's current active records."}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="min-h-[200px] overflow-x-auto">
+          {loadingPreview ? (
+            <div className="flex items-center justify-center py-20">
+              <AnimatedLoader />
+            </div>
+          ) : alreadyInvoiced ? (
+            <div className="py-20 text-center text-sm text-red-600">
+              {t("monthAlreadyInvoiced") || "This month is already invoiced for this employer."}
+            </div>
+          ) : preview ? (
+            <InvoiceForm mode="generate" invoice={preview} onGenerate={generate} generating={generating} onCancel={() => onOpenChange(false)} />
+          ) : (
+            <div className="py-20 text-center text-sm text-muted-foreground">
+              {t("selectEmployerToPreview") || "Select an employer and period to preview the invoice"}
+            </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>

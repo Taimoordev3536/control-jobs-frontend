@@ -35,6 +35,13 @@ interface ActionButton {
   variant?: "primary" | "secondary"
 }
 
+interface SelectionColumn {
+  key: string
+  icon: React.ComponentType<{ className?: string }>
+  title: string
+  onAction: (selectedRows: any[]) => void
+}
+
 interface DataListTemplateProps {
   title: string
   data: any[]
@@ -46,9 +53,11 @@ interface DataListTemplateProps {
   totalRecords?: number
   showPagination?: boolean
   emptyMessage?: string | React.ReactNode
-  defaultSortColumn?: string
+  defaultSortColumn?: string | null
   defaultSortDirection?: "asc" | "desc"
   pinnedRows?: any[]
+  selectionColumns?: SelectionColumn[]
+  getRowId?: (row: any) => string | number
 }
 
 export default function DataListTemplate({
@@ -65,9 +74,13 @@ export default function DataListTemplate({
   defaultSortColumn = null,
   defaultSortDirection = "asc",
   pinnedRows = [],
+  selectionColumns = [],
+  getRowId,
 }: DataListTemplateProps) {
   const { t } = useTranslation()
   const router = useRouter()
+  const [selections, setSelections] = useState<Record<string, Set<string | number>>>({})
+  const rowKey = useCallback((row: any) => (getRowId ? getRowId(row) : row.id), [getRowId])
   const [localColumns, setLocalColumns] = useState(columns)
   const [sortColumn, setSortColumn] = useState<string | null>(defaultSortColumn)
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">(defaultSortDirection)
@@ -173,6 +186,28 @@ export default function DataListTemplate({
 
     return result
   }, [sortedData, filters, filtersVisible, searchQuery, localColumns, getCellText])
+
+  const toggleCell = (colKey: string, key: string | number) => {
+    setSelections((prev) => {
+      const set = new Set(prev[colKey] ?? [])
+      set.has(key) ? set.delete(key) : set.add(key)
+      return { ...prev, [colKey]: set }
+    })
+  }
+
+  const selectionsRef = useRef(selections)
+  selectionsRef.current = selections
+  const filteredDataRef = useRef(filteredData)
+  filteredDataRef.current = filteredData
+  const rowKeyRef = useRef(rowKey)
+  rowKeyRef.current = rowKey
+
+  const runColumnAction = (col: SelectionColumn) => {
+    const set = selectionsRef.current[col.key] ?? new Set()
+    const rk = rowKeyRef.current
+    const fd = filteredDataRef.current
+    col.onAction(fd.filter((r) => set.has(rk(r))))
+  }
 
   // When filters/search reduce results so currentPage is out of range, snap back to page 1.
   // This fixes the "filters only work on page 1" bug — typing into a filter while on page 2+
@@ -416,6 +451,24 @@ export default function DataListTemplate({
                 <MobileDropdown actionButtons={actionButtons} />
               </>
             )}
+            {selectionColumns.length > 0 && (
+              <div className="flex items-center gap-1 sm:hidden">
+                {selectionColumns.map((col) => {
+                  const Icon = col.icon
+                  return (
+                    <button
+                      key={`m-act-${col.key}`}
+                      type="button"
+                      onClick={() => runColumnAction(col)}
+                      title={col.title}
+                      className="p-1.5 text-[#662D91] hover:bg-purple-50 dark:hover:bg-purple-950 rounded-md"
+                    >
+                      <Icon className="w-5 h-5" />
+                    </button>
+                  )
+                })}
+              </div>
+            )}
           </div>
         </div>
 
@@ -467,6 +520,24 @@ export default function DataListTemplate({
                     index % 2 === 0 ? "bg-background" : "bg-muted/20"
                   } ${onRowClick ? "cursor-pointer active:bg-muted/50" : ""}`}
                 >
+                  {selectionColumns.length > 0 && (
+                    <div className="flex gap-4" onClick={(e) => e.stopPropagation()}>
+                      {selectionColumns.map((col) => {
+                        const Icon = col.icon
+                        return (
+                          <label key={`m-sel-${col.key}`} className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <input
+                              type="checkbox"
+                              checked={(selections[col.key] ?? new Set()).has(rowKey(row))}
+                              onChange={() => toggleCell(col.key, rowKey(row))}
+                              className="cursor-pointer accent-[#662D91]"
+                            />
+                            <Icon className="w-4 h-4 text-[#662D91]" />
+                          </label>
+                        )
+                      })}
+                    </div>
+                  )}
                   {/* First column as title */}
                   {localColumns[0] && (
                     <div className="text-sm font-semibold text-[#662D91] dark:text-purple-300">
@@ -558,6 +629,25 @@ export default function DataListTemplate({
                             </Draggable>
                           ))}
                           {provided.placeholder}
+                          {selectionColumns.map((col) => {
+                            const Icon = col.icon
+                            return (
+                              <th
+                                key={`sel-head-${col.key}`}
+                                style={{ width: "56px" }}
+                                className="px-2 py-[7px] text-center border border-gray-300 dark:border-gray-700"
+                              >
+                                <button
+                                  type="button"
+                                  onClick={() => runColumnAction(col)}
+                                  title={col.title}
+                                  className="inline-flex items-center justify-center p-1 text-[#662D91] hover:bg-purple-100 dark:hover:bg-purple-900/50 rounded"
+                                >
+                                  <Icon className="w-5 h-5" />
+                                </button>
+                              </th>
+                            )
+                          })}
                         </tr>
 
                         {/* Filter inputs row - shown when filtersVisible */}
@@ -574,6 +664,12 @@ export default function DataListTemplate({
                                   className="w-full min-w-0 p-1 text-sm border rounded focus:outline-none focus:border-[#662D91] focus:ring-1 focus:ring-[#662D91]"
                                 />
                               </th>
+                            ))}
+                            {selectionColumns.map((col) => (
+                              <th
+                                key={`filter-sel-${col.key}`}
+                                className="border border-gray-300 dark:border-gray-700"
+                              />
                             ))}
                           </tr>
                         )}
@@ -593,12 +689,18 @@ export default function DataListTemplate({
                           key={`pinned-${row.id || index}-${column.key}`}
                           className={`px-3 py-2 text-sm ${
                             column.key === localColumns[0].key ? "text-foreground font-medium" : "text-muted-foreground"
-                          } ${getAlignmentClass(column, row[column.key])} border border-gray-300 dark:border-gray-700`}
+                          } ${getAlignmentClass(column, row[column.key])} align-middle border border-gray-300 dark:border-gray-700`}
                         >
                           {column.render
                             ? column.render(row[column.key], row)
                             : renderValue(row[column.key], column.key)}
                         </td>
+                      ))}
+                      {selectionColumns.map((col) => (
+                        <td
+                          key={`pinned-${row.id || index}-sel-${col.key}`}
+                          className="border border-gray-300 dark:border-gray-700"
+                        />
                       ))}
                     </tr>
                   ))}
@@ -615,11 +717,26 @@ export default function DataListTemplate({
                           key={`${row.id || index}-${column.key}`}
                           className={`px-3 py-2 text-sm ${
                             column.key === localColumns[0].key ? "text-foreground font-medium" : "text-muted-foreground"
-                          } ${getAlignmentClass(column, row[column.key])} border border-gray-300 dark:border-gray-700`}
+                          } ${getAlignmentClass(column, row[column.key])} align-middle border border-gray-300 dark:border-gray-700`}
                         >
                           {column.render
                             ? column.render(row[column.key], row)
                             : renderValue(row[column.key], column.key)}
+                        </td>
+                      ))}
+                      {selectionColumns.map((col) => (
+                        <td
+                          key={`${row.id || index}-sel-${col.key}`}
+                          className="px-2 text-center align-middle border border-gray-300 dark:border-gray-700"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={(selections[col.key] ?? new Set()).has(rowKey(row))}
+                            onChange={() => toggleCell(col.key, rowKey(row))}
+                            aria-label={col.title}
+                            className="cursor-pointer accent-[#662D91]"
+                          />
                         </td>
                       ))}
                     </tr>

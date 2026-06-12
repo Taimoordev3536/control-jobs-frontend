@@ -61,6 +61,8 @@ interface EmployerData {
   paymentMethodId: number
   accountIban: string
   bicSwift: string
+  cardLast4: string | null
+  paypalEmail: string | null
   probationPeriod: string
   trialDaysRemaining?: number
   responsible: string
@@ -209,6 +211,10 @@ export default function EmployerDataTab({ employerId, selfServiceLogo = false, s
     name: tEnum("paymentMethod", m.name) || m.name,
   }))
 
+  const selectedMethodCode = paymentMethodOptions.find(
+    (m) => m.id === employerData?.paymentMethodId,
+  )?.name
+
   const selectedPartner = partners.find(
     (p) => String(p.id) === String(employerData?.partnerId),
   )
@@ -354,6 +360,8 @@ export default function EmployerDataTab({ employerId, selfServiceLogo = false, s
         paymentMethodId: employerData.paymentMethodId,
         accountIban: employerData.accountIban,
         bicSwift: employerData.bicSwift,
+        cardLast4: employerData.cardLast4 || null,
+        paypalEmail: employerData.paypalEmail || null,
         probationPeriod: employerData.probationPeriod,
         responsible: employerData.responsible,
         ...(employerData.email && employerData.email !== originalData?.email
@@ -924,6 +932,31 @@ export default function EmployerDataTab({ employerId, selfServiceLogo = false, s
             className="h-9 text-xs bg-muted/30 border-input text-foreground"
           />
         </div>
+        {selectedMethodCode === "CARD" && (
+          <div className="space-y-1 min-w-0" style={{ flex: "0 0 15%" }}>
+            <Label className="text-xs font-medium text-foreground">{t("cardLast4") || "Últimos 4 dígitos"}</Label>
+            <Input
+              value={employerData.cardLast4 || ""}
+              onChange={(e) => handleInputChange("cardLast4", e.target.value.replace(/\D/g, "").slice(0, 4))}
+              inputMode="numeric"
+              maxLength={4}
+              placeholder="1234"
+              className="h-9 text-xs bg-muted/30 border-input text-foreground"
+            />
+          </div>
+        )}
+        {selectedMethodCode === "PAYPAL" && (
+          <div className="space-y-1 min-w-0" style={{ flex: "0 0 22%" }}>
+            <Label className="text-xs font-medium text-foreground">{t("paypalEmail") || "Email de PayPal"}</Label>
+            <Input
+              type="email"
+              value={employerData.paypalEmail || ""}
+              onChange={(e) => handleInputChange("paypalEmail", e.target.value)}
+              placeholder="correo@ejemplo.com"
+              className="h-9 text-xs bg-muted/30 border-input text-foreground"
+            />
+          </div>
+        )}
       </div>
 
       {/* Separator line */}

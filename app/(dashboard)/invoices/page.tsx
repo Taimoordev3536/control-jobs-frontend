@@ -1,15 +1,16 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { Filter } from "lucide-react"
+import { Filter, Plus, Printer, Landmark } from "lucide-react"
 import DataListTemplate, { ExcelIcon, CsvIcon, PdfIcon } from "@/components/ui/data-list-template"
+import AddInvoicesModal from "@/components/add-invoices-modal"
 import { useRouter } from "next/navigation"
 import { useTranslation } from "@/hooks/use-translation"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { exportToCSV, exportToXLSX, exportToPDF } from "@/lib/export"
 import { AnimatedLoader } from "@/components/animated-loader"
-import { apiFetch } from "@/lib/api"
+import { apiFetch, apiFetchRaw } from "@/lib/api"
 
 interface InvoiceRow {
   id: number
@@ -41,10 +42,13 @@ export default function InvoicesPage() {
   const [invoices, setInvoices] = useState<InvoiceRow[]>([])
   const [employerNames, setEmployerNames] = useState<Record<number, string>>({})
   const [isLoading, setIsLoading] = useState(true)
+  const [addOpen, setAddOpen] = useState(false)
+  const [refreshKey, setRefreshKey] = useState(0)
 
   // Employer-role users only ever see their own invoices, so the employer
   // column is redundant — hide it.
   const showEmployerColumn = !hasRole("employer")
+  const canCreate = hasRole("admin")
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -85,7 +89,7 @@ export default function InvoicesPage() {
       }
     }
     fetchAll()
-  }, [session?.accessToken, showEmployerColumn])
+  }, [session?.accessToken, showEmployerColumn, refreshKey])
 
   const rows = useMemo(
     () =>
@@ -102,20 +106,21 @@ export default function InvoicesPage() {
   )
 
   const baseColumns: any[] = [
-    { key: "date", label: t("date"), sortable: true },
-    { key: "invoiceNo", label: t("invoiceNo"), sortable: true },
+    { key: "date", label: t("date"), sortable: true, align: "center" as const, width: "120px" },
+    { key: "invoiceNo", label: t("invoiceNo"), sortable: true, align: "center" as const, width: "180px" },
   ]
   if (showEmployerColumn) {
-    baseColumns.push({ key: "employer", label: t("employer"), sortable: true })
+    baseColumns.push({ key: "employer", label: t("employer"), sortable: true, align: "center" as const, width: "320px" })
   }
   const columns = [
     ...baseColumns,
-    { key: "total", label: t("total"), sortable: true, align: "right" as const },
+    { key: "total", label: t("total"), sortable: true, align: "center" as const, width: "120px" },
     {
       key: "status",
       label: t("status") || "Status",
       sortable: true,
       align: "center" as const,
+      width: "130px",
       render: (value: string) => {
         const color =
           value === "PAID"
@@ -135,6 +140,9 @@ export default function InvoicesPage() {
   ]
 
   const actionButtons = [
+    ...(canCreate
+      ? [{ icon: Plus, onClick: () => setAddOpen(true), title: t("add") || "Add", type: "add" as any }]
+      : []),
     { icon: Filter, onClick: () => {}, title: t("filter"), type: "filter" as any },
     {
       icon: ExcelIcon,
@@ -160,17 +168,68 @@ export default function InvoicesPage() {
     router.push(`/invoices/${row.publicId}`)
   }
 
+  const downloadBulkPdf = async (path: string, filename: string, invoiceRows: any[]) => {
+    if (invoiceRows.length === 0) {
+      toast({ title: t("selectAtLeastOneInvoice") || "Select at least one invoice", variant: "destructive" })
+      return
+    }
+    try {
+      const res = await apiFetchRaw(path, {
+        method: "POST",
+        body: { publicIds: invoiceRows.map((r) => r.publicId) },
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+    } catch (e: any) {
+      toast({ title: e.message || "Error", variant: "destructive" })
+    }
+  }
+
+  const selectionColumns = [
+    {
+      key: "print",
+      icon: Printer,
+      title: t("printSelected") || "Print selected",
+      onAction: (sel: any[]) => downloadBulkPdf("/invoices/bulk-pdf", "invoices.pdf", sel),
+    },
+    {
+      key: "receipts",
+      icon: Landmark,
+      title: t("issueReceipts") || "Issue receipts",
+      onAction: (sel: any[]) => downloadBulkPdf("/invoices/bulk-receipts", "receipts.pdf", sel),
+    },
+  ]
+
   return (
-    <DataListTemplate
-      title={t("listOfInvoices")}
-      data={rows}
-      columns={columns}
-      actionButtons={actionButtons}
-      isLoading={isLoading}
-      emptyMessage={
-        isLoading ? <AnimatedLoader size={32} /> : t("noInvoicesAvailable")
-      }
-      onRowClick={handleRowClick}
-    />
+    <>
+      <DataListTemplate
+        title={t("listOfInvoices")}
+        data={rows}
+        columns={columns}
+        actionButtons={actionButtons}
+        isLoading={isLoading}
+        emptyMessage={
+          isLoading ? <AnimatedLoader size={32} /> : t("noInvoicesAvailable")
+        }
+        onRowClick={handleRowClick}
+        getRowId={(r) => r.publicId}
+        selectionColumns={selectionColumns}
+      />
+      {canCreate && (
+        <AddInvoicesModal
+          open={addOpen}
+          onOpenChange={setAddOpen}
+          onCreated={() => setRefreshKey((k) => k + 1)}
+        />
+      )}
+    </>
   )
 }
