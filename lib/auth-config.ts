@@ -92,7 +92,8 @@ export const authOptions: NextAuthOptions = {
           }
 
           return null
-        } catch (error) {
+        } catch (error: any) {
+          if (error?.message?.startsWith?.("EMAIL_NOT_VERIFIED:")) throw error
           console.error("Authentication error:", error)
           return null
         }

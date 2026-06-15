@@ -1,7 +1,9 @@
 "use client"
 
-import { Info } from "lucide-react"
+import { useState } from "react"
+import { Info, UserSearch } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import FindAvailableWorkersModal from "@/components/add-job-modal/FindAvailableWorkersModal"
 import { Input } from "@/components/ui/input"
 import DateInput from "@/components/ui/date-input"
 import { Label } from "@/components/ui/label"
@@ -56,6 +58,7 @@ export default function DefinitionForm({
   toggleWorkerSelection,
 }: DefinitionFormProps) {
   const { t } = useTranslation()
+  const [findOpen, setFindOpen] = useState(false)
 
   return (
     <div className="space-y-6">
@@ -98,12 +101,12 @@ export default function DefinitionForm({
               </Tooltip>
             </TooltipProvider>
           </Label>
-          <div className="relative">
+          <div className="relative w-44">
             <DateInput
               id="startDate"
               value={formData.startDate}
               onChange={(e) => updateFormData("startDate", e.target.value)}
-              className="mt-1 w-36"
+              className="mt-1"
             />
             {errors.startDate && <div className="text-sm text-destructive mt-1">{errors.startDate}</div>}
           </div>
@@ -112,12 +115,12 @@ export default function DefinitionForm({
           <Label htmlFor="endDate" className="text-sm font-medium text-foreground">
             {t("endDate") || "End Date"}
           </Label>
-          <div className="relative">
+          <div className="relative w-44">
             <DateInput
               id="endDate"
               value={formData.endDate}
               onChange={(e) => updateFormData("endDate", e.target.value)}
-              className="mt-1 w-36"
+              className="mt-1"
             />
             {errors.endDate && <div className="text-sm text-destructive mt-1">{errors.endDate}</div>}
           </div>
@@ -240,30 +243,42 @@ export default function DefinitionForm({
       </div>
 
       <div>
-        <Label className="text-sm font-medium text-foreground flex items-center gap-1">
-          <span>
-            {t("workers") || "Workers"}
-            <span className="text-destructive ml-1">*</span>
-          </span>
-          <TooltipProvider>
-            <Tooltip open={workersTooltipOpen} onOpenChange={setWorkersTooltipOpen} delayDuration={0}>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  className="inline-flex items-center p-0"
-                  aria-label="Ayuda trabajadores"
-                  onClick={() => setWorkersTooltipOpen(!workersTooltipOpen)}
-                  tabIndex={-1}
-                >
-                  <Info tabIndex={-1} className="w-3 h-3 text-muted-foreground cursor-help" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="right" align="center" sideOffset={6} className="max-w-[12.6rem]">
-                {t("selectWorkersInfo")}
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </Label>
+        <div className="flex items-center justify-between gap-2">
+          <Label className="text-sm font-medium text-foreground flex items-center gap-1">
+            <span>
+              {t("workers") || "Workers"}
+              <span className="text-destructive ml-1">*</span>
+            </span>
+            <TooltipProvider>
+              <Tooltip open={workersTooltipOpen} onOpenChange={setWorkersTooltipOpen} delayDuration={0}>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    className="inline-flex items-center p-0"
+                    aria-label="Ayuda trabajadores"
+                    onClick={() => setWorkersTooltipOpen(!workersTooltipOpen)}
+                    tabIndex={-1}
+                  >
+                    <Info tabIndex={-1} className="w-3 h-3 text-muted-foreground cursor-help" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right" align="center" sideOffset={6} className="max-w-[12.6rem]">
+                  {t("selectWorkersInfo")}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </Label>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => setFindOpen(true)}
+            className="h-8 text-xs text-[#662D91] border-[#662D91]/40"
+          >
+            <UserSearch className="h-4 w-4 mr-1" />
+            {t("findAvailableWorkers") || "Find available workers"}
+          </Button>
+        </div>
         <div className="mt-1 border rounded-md p-3 min-h-[120px] bg-background">
           <div className="space-y-1 max-h-32 overflow-y-auto">
             {formData.workerIds.length > 0 && (
@@ -331,6 +346,15 @@ export default function DefinitionForm({
           rows={2}
         />
       </div>
+
+      <FindAvailableWorkersModal
+        open={findOpen}
+        onOpenChange={setFindOpen}
+        startDate={formData.startDate}
+        endDate={formData.endDate}
+        selectedIds={formData.workerIds}
+        onToggle={toggleWorkerSelection}
+      />
     </div>
   )
 }

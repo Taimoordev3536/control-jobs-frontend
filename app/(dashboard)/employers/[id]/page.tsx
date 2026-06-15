@@ -9,7 +9,6 @@ import { ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useTranslation } from "@/hooks/use-translation"
 import EmployerDataTab from "@/components/employer-tabs/employer-data-tab"
-import EmployerBillingTab from "@/components/employer-tabs/employer-billing-tab"
 import EmployerInvoicesTab from "@/components/employer-tabs/employer-invoices-tab"
 import EmployerMessagesTab from "@/components/employer-tabs/employer-messages-tab"
 import { useAuth } from "@/hooks/use-auth"
@@ -120,7 +119,6 @@ export default function EmployerDetailPage() {
 
   const tabs = [
     { key: "data", label: t("data") },
-    { key: "billing", label: t("billing") },
     { key: "invoices", label: t("invoices") },
     { key: "messages", label: t("messages") },
   ]
@@ -176,8 +174,7 @@ export default function EmployerDetailPage() {
         {activeTab === "data" && (
           <EmployerDataTab employerId={id} />
         )}
-        {activeTab === "billing" && <EmployerBillingTab employerId={id} />}
-        {activeTab === "invoices" && <EmployerInvoicesTab />}
+        {activeTab === "invoices" && <EmployerInvoicesTab employerId={id} />}
         {activeTab === "messages" && <EmployerMessagesTab employerId={id} />}
       </div>
     </div>

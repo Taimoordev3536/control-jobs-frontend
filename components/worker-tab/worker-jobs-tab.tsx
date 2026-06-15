@@ -1,10 +1,19 @@
 "use client"
 
+import { useEffect, useState } from "react"
+import { useSession } from "next-auth/react"
 import TabTableTemplate from "@/components/ui/tab-table-template"
 import { useTranslation } from "@/hooks/use-translation"
 
-export function WorkerJobsTab() {
+interface WorkerJobsTabProps {
+  workerId: string
+}
+
+export function WorkerJobsTab({ workerId }: WorkerJobsTabProps) {
   const { t } = useTranslation()
+  const { data: session } = useSession()
+  const [data, setData] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
 
   const columns = [
     { key: "holder", label: t("holder"), sortable: true },
@@ -12,14 +21,17 @@ export function WorkerJobsTab() {
     { key: "workCenter", label: t("workCenter"), sortable: true },
   ]
 
-  const data = [
-    {
-      id: 1,
-      holder: "CaixaBank, SA",
-      denomination: "Collections",
-      workCenter: "Branch 1",
-    },
-  ]
+  useEffect(() => {
+    if (!session?.accessToken || !workerId) return
+    setLoading(true)
+    fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/worker/${workerId}/jobs`, {
+      headers: { Authorization: `Bearer ${session.accessToken}` },
+    })
+      .then((r) => r.json())
+      .then((j) => setData(Array.isArray(j?.data) ? j.data : []))
+      .catch(() => setData([]))
+      .finally(() => setLoading(false))
+  }, [session?.accessToken, workerId])
 
-  return <TabTableTemplate columns={columns} data={data} loading={false} emptyMessage={t("noJobsAvailable")} />
+  return <TabTableTemplate columns={columns} data={data} loading={loading} emptyMessage={t("noJobsAvailable")} />
 }

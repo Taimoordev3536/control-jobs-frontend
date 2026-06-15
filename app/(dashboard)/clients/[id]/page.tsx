@@ -8,6 +8,7 @@ import { ClientWorkCenterTab } from "@/components/client-tabs/client-work-center
 import { ClientJobsTab } from "@/components/client-tabs/client-jobs-tab"
 import { ClientWorkerTab } from "@/components/client-tabs/client-worker-tab"
 import { ClientMessagesTab } from "@/components/client-tabs/client-messages-tab"
+import { ClientFilesTab } from "@/components/client-tabs/client-files-tab"
 import { useTranslation } from "@/hooks/use-translation"
 import { useAuth } from "@/hooks/use-auth"
 
@@ -46,6 +47,7 @@ export default function ClientDetailPage() {
     { key: "work-centers", label: t("workCenters") },
     { key: "jobs", label: t("jobs") },
     { key: "workers", label: t("workers") },
+    { key: "files", label: t("files") },
     { key: "messages", label: t("messages") },
   ]
 
@@ -91,6 +93,7 @@ export default function ClientDetailPage() {
         {activeTab === "work-centers" && <ClientWorkCenterTab clientId={params.id as string} />}
         {activeTab === "jobs" && <ClientJobsTab clientId={params.id as string} />}
         {activeTab === "workers" && <ClientWorkerTab clientId={params.id as string} />}
+        {activeTab === "files" && <ClientFilesTab clientId={params.id as string} />}
         {activeTab === "messages" && <ClientMessagesTab clientId={params.id as string} />}
       </div>
     </div>

@@ -1171,10 +1171,6 @@ export default function JobFormCore({
       newErrors.taskWorkCenterId = t("thisFieldIsRequired") || "This field is required";
     }
 
-    if (!formData.duration || !formData.duration.trim()) {
-      newErrors.duration = t("thisFieldIsRequired") || "This field is required";
-    }
-
     // Validate date fields based on periodicity
     if (formData.periodicity === "once") {
       if (!formData.onceDate || !formData.onceDate.trim()) {

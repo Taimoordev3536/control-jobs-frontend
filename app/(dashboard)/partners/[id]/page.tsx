@@ -96,7 +96,7 @@ export default function PartnerDetailPage() {
         {activeTab === "data" && <PartnerDataTab partnerId={partnerId} onNameChange={(n) => setPartnerName(n)} />}
         {activeTab === "commissions" && <PartnerCommissionsTab />}
         {activeTab === "employers" && <PartnerEmployersTab partnerId={partnerId} />}
-        {activeTab === "invoices" && <PartnerInvoicesTab />}
+        {activeTab === "invoices" && <PartnerInvoicesTab partnerId={partnerId} />}
         {activeTab === "wall" && <PartnerWallTab />}
         {activeTab === "messages" && <PartnerMessagesTab partnerId={partnerId} />}
       </div>

@@ -97,8 +97,8 @@ export default function WorkerDetailPage() {
       <div className="min-h-[400px] bg-card p-2">
         {activeTab === "data" && <WorkerDataTab onNameChange={setWorkerName} />}
         {activeTab === "calendar" && <WorkerCalendarTab />}
-        {activeTab === "jobs" && <WorkerJobsTab />}
-        {activeTab === "customers" && <WorkerClientTab />}
+        {activeTab === "jobs" && <WorkerJobsTab workerId={params.id as string} />}
+        {activeTab === "customers" && <WorkerClientTab workerId={params.id as string} />}
         {activeTab === "messages" && <WorkerMessageTab workerId={params.id as string} />}
       </div>
     </div>

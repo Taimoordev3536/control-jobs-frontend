@@ -334,9 +334,23 @@ export function TimePicker({ value = "", onChange, className, debug = false, dis
               {/* AM/PM Column - Simple Buttons */}
               {/* No AM/PM column in 24-hour mode */}
             </div>
-            
-            {/* Done button removed — dropdown will close after minute selection */}
-            {/* Debug text removed */}
+
+            <button
+              type="button"
+              className="w-full text-xs text-gray-600 hover:text-red-600 border-t border-gray-200 pt-1.5 mt-0.5"
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                setSelectedHour("00")
+                setSelectedMinute("00")
+                onChange?.("")
+                setIsOpen(false)
+                setIsPositioned(false)
+              }}
+              onMouseDown={(e) => e.stopPropagation()}
+            >
+              {t("clear") || "Clear"}
+            </button>
           </div>
         </div>,
         document.body
