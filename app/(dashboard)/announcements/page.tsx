@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/select"
 import { DateInput } from "@/components/ui/date-input"
 import { TimePicker } from "@/components/ui/time-picker"
+import { AnimatedLoader } from "@/components/animated-loader"
 import { formatLocalDateTime } from "@/lib/datetime"
 
 type Severity = "INFO" | "WARNING" | "CRITICAL"
@@ -51,6 +52,7 @@ export default function AnnouncementsPage() {
   const [role, setRole] = useState<string | null>(null)
 
   const [audiences, setAudiences] = useState<Audience[]>([])
+  const [audiencesLoading, setAudiencesLoading] = useState(true)
   const [selected, setSelected] = useState<string[]>([])
   const [severity, setSeverity] = useState<Severity>("INFO")
   const [subject, setSubject] = useState("")
@@ -80,12 +82,16 @@ export default function AnnouncementsPage() {
   useEffect(() => {
     if (!allowed) return
     ;(async () => {
+      setAudiencesLoading(true)
       try {
         const res = await apiFetch<{ data: Audience[] }>(
           "/announcements/audiences",
         )
         setAudiences(res.data || [])
-      } catch {}
+      } catch {
+      } finally {
+        setAudiencesLoading(false)
+      }
     })()
     loadHistory()
   }, [allowed])
@@ -224,7 +230,10 @@ export default function AnnouncementsPage() {
                 {t("audience")} {tip(t("reachesUnknown"))}
               </Label>
               <div className="flex flex-wrap gap-3">
-                {audiences.map((a) => {
+                {audiencesLoading ? (
+                  <AnimatedLoader size={24} className="py-2" />
+                ) : (
+                  audiences.map((a) => {
                   const on = selected.includes(a.segment)
                   return (
                     <label
@@ -244,8 +253,9 @@ export default function AnnouncementsPage() {
                         {a.count}
                       </Badge>
                     </label>
-                  )
-                })}
+                    )
+                  })
+                )}
               </div>
               {reach !== null && (
                 <p className="text-xs text-muted-foreground">
