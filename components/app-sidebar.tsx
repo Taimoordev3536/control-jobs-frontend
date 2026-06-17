@@ -41,7 +41,6 @@ import {
   Settings,
   FileBarChart,
   MessageSquare,
-  Megaphone,
 } from "lucide-react"
 import { useState, useEffect } from "react"
 import { usePathname } from "next/navigation"
@@ -243,12 +242,6 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar, styl
             href: "/dashboard",
           },
           {
-            id: "announcements",
-            title: t("announcements"),
-            icon: () => <Megaphone className="h-5 w-5" />,
-            href: "/announcements",
-          },
-          {
             id: "jobs",
             title: t("jobs"),
             icon: () => <JobsIcon className="h-5 w-5" />,
@@ -322,12 +315,6 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar, styl
             href: "/dashboard",
           },
           {
-            id: "announcements",
-            title: t("announcements"),
-            icon: () => <Megaphone className="h-5 w-5" />,
-            href: "/announcements",
-          },
-          {
             id: "employers",
             title: t("employers"),
             icon: () => <EmployerIcon className="h-5 w-5" />,
@@ -377,12 +364,6 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar, styl
             title: t("dashboard"),
             icon: () => <TodosIcon className="h-5 w-5" />,
             href: "/dashboard",
-          },
-          {
-            id: "announcements",
-            title: t("announcements"),
-            icon: () => <Megaphone className="h-5 w-5" />,
-            href: "/announcements",
           },
           {
             id: "merchants",

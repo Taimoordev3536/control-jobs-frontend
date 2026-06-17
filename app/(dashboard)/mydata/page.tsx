@@ -15,7 +15,6 @@ import PartnerDataTab from "@/components/partner-tabs/partner-data-tab"
 import { ClientDataTab } from "@/components/client-tabs/client-data-tab"
 import { WorkerDataTab } from "@/components/worker-tab/worker-data-tab"
 import { AdminProfileTab } from "@/components/admin-profile-tab"
-import { AliasField } from "@/components/alias-field"
 
 // Static lookup matching the backend `cjobs_payment_methods` seed (id 1..5).
 // Used to label the current method on the /mydata Payment-method card.
@@ -410,8 +409,6 @@ export default function MyDataPage() {
             "Manage your profile and the branding that appears on documents you generate."}
         </p>
       </div>
-
-      <AliasField />
 
       <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
         <div className="p-4 border-b border-border bg-muted/20">

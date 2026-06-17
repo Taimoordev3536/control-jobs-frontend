@@ -46,7 +46,21 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
   useEffect(() => {
     if (!session?.accessToken) return
-    // Fetch recent alerts (last 2 days)
+    // Seed the unread badge from the server so it survives reloads (just like
+    // the messages icon), then keep it live via socket events below.
+    ;(async () => {
+      try {
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_BASE_URL}/alerts/unread-count`,
+          { headers: { Authorization: `Bearer ${session.accessToken}` } },
+        )
+        if (res.ok) {
+          const json = await res.json()
+          setUnread(json?.data?.count ?? 0)
+        }
+      } catch {}
+    })()
+    // Fetch recent alerts (last 5 days)
     ;(async () => {
       try {
         const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/alerts`, {
@@ -122,7 +136,17 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const value = useMemo<Ctx>(() => ({
     unreadCount: unread,
     items,
-    markAllRead: () => setUnread(0),
+    markAllRead: () => {
+      setUnread(0)
+      if (session?.accessToken) {
+        fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/alerts/read-all`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${session.accessToken}` },
+        }).catch(() => {
+          /* swallow — local reset still wins UX-wise */
+        })
+      }
+    },
     dismiss: (localId: string) => {
       const target = items.find((a) => a.localId === localId)
       // Drop locally first so the click feels instant.

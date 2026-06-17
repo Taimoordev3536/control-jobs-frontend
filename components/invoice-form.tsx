@@ -10,6 +10,7 @@ import { Plus, Trash2, Building2, Users } from "lucide-react"
 import { useTranslation } from "@/hooks/use-translation"
 import { useToast } from "@/hooks/use-toast"
 import { apiFetch } from "@/lib/api"
+import { AnimatedLoader } from "@/components/animated-loader"
 
 type Mode = "view" | "create" | "generate" | "edit"
 
@@ -50,7 +51,7 @@ interface GeneratePayload {
 interface InvoiceFormProps {
   mode: Mode
   invoice?: any
-  onSubmitted?: () => void
+  onSubmitted?: (created?: any) => void
   onCancel?: () => void
   allowMethodEdit?: boolean
   onMethodChanged?: () => void
@@ -95,6 +96,7 @@ export default function InvoiceForm({ mode, invoice, onSubmitted, onCancel, allo
   const [remarks, setRemarks] = useState("")
   const [paymentMethodId, setPaymentMethodId] = useState("")
   const [submitting, setSubmitting] = useState(false)
+  const [ctxLoading, setCtxLoading] = useState(false)
 
   // generate/edit editable state
   const [genWcSel, setGenWcSel] = useState<Set<number>>(new Set())
@@ -147,6 +149,7 @@ export default function InvoiceForm({ mode, invoice, onSubmitted, onCancel, allo
 
   useEffect(() => {
     if (mode !== "create" || !selectedEmployer) return
+    setCtxLoading(true)
     apiFetch<{ data: FormContext }>(`/invoices/form-context?employerId=${selectedEmployer}`)
       .then((j) => {
         setCtx(j.data)
@@ -154,6 +157,7 @@ export default function InvoiceForm({ mode, invoice, onSubmitted, onCancel, allo
         if (j.data.payment?.methodId) setPaymentMethodId(String(j.data.payment.methodId))
       })
       .catch(() => {})
+      .finally(() => setCtxLoading(false))
   }, [mode, selectedEmployer])
 
   const addLine = () =>
@@ -274,7 +278,7 @@ export default function InvoiceForm({ mode, invoice, onSubmitted, onCancel, allo
     }
     setSubmitting(true)
     try {
-      await apiFetch("/invoices", {
+      const res = await apiFetch<{ data: any }>("/invoices", {
         method: "POST",
         body: {
           employerId: Number(selectedEmployer),
@@ -290,7 +294,7 @@ export default function InvoiceForm({ mode, invoice, onSubmitted, onCancel, allo
         },
       })
       toast({ title: t("invoiceCreated") || "Invoice created", variant: "success" as any })
-      onSubmitted?.()
+      onSubmitted?.(res.data)
     } catch (e: any) {
       toast({ title: e.message || "Error", variant: "destructive" })
     } finally {
@@ -376,12 +380,18 @@ export default function InvoiceForm({ mode, invoice, onSubmitted, onCancel, allo
           ) : (
             <div className="border border-border rounded px-3 py-2 font-semibold">{client?.name || `#${invoice?.employerId}`}</div>
           )}
-          <div className="mt-2 text-xs text-muted-foreground italic leading-5">
-            {client?.taxId && <div>{client.taxId}</div>}
-            {client?.address && <div>{client.address}</div>}
-            <div>{[client?.postalCode, client?.city].filter(Boolean).join("  ")}</div>
-            <div>{[client?.province, client?.country].filter(Boolean).join("  ")}</div>
-          </div>
+          {ctxLoading ? (
+            <div className="mt-2 flex justify-start py-2">
+              <AnimatedLoader size={24} />
+            </div>
+          ) : (
+            <div className="mt-2 text-xs text-muted-foreground italic leading-5">
+              {client?.taxId && <div>{client.taxId}</div>}
+              {client?.address && <div>{client.address}</div>}
+              <div>{[client?.postalCode, client?.city].filter(Boolean).join("  ")}</div>
+              <div>{[client?.province, client?.country].filter(Boolean).join("  ")}</div>
+            </div>
+          )}
 
           <div className="mt-auto pt-6 flex items-center justify-between gap-2">
             {tariff ? (

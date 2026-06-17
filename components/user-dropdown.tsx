@@ -29,7 +29,6 @@ export function UserDropdown() {
   const translateBackendError = useBackendError()
   const userRole = getUserRole()
   const [logoUrl, setLogoUrl] = useState<string | null>(null)
-  const [aliasText, setAliasText] = useState<string | null>(null)
   const [isUploading, setIsUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
@@ -75,35 +74,6 @@ export function UserDropdown() {
       window.removeEventListener("user-identity-changed", onIdentityChanged as EventListener)
     }
   }, [endpoints?.read, session?.accessToken, identityUrlField])
-
-  useEffect(() => {
-    if (!session?.accessToken) {
-      setAliasText(null)
-      return
-    }
-    let cancelled = false
-    const load = async () => {
-      try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/me/profile`, {
-          headers: { Authorization: `Bearer ${session.accessToken}` },
-        })
-        if (!res.ok) return
-        const json = await res.json()
-        if (!cancelled) setAliasText(json?.data?.alias ?? null)
-      } catch {
-        /* swallow — fall back to initials */
-      }
-    }
-    load()
-    const onAliasChanged = (e: Event) => {
-      setAliasText((e as CustomEvent<{ alias: string | null }>).detail?.alias ?? null)
-    }
-    window.addEventListener("user-alias-changed", onAliasChanged as EventListener)
-    return () => {
-      cancelled = true
-      window.removeEventListener("user-alias-changed", onAliasChanged as EventListener)
-    }
-  }, [session?.accessToken])
 
   const onPickFile = (e: React.MouseEvent) => {
     // Prevent the dropdown from treating this as an item click that would
@@ -245,7 +215,7 @@ export function UserDropdown() {
             <AvatarFallback>{getInitials()}</AvatarFallback>
           </Avatar>
           <span className="text-sm font-medium text-foreground max-w-[120px] truncate">
-            {aliasText || getInitials()}
+            {getInitials()}
           </span>
         </Button>
       </DropdownMenuTrigger>

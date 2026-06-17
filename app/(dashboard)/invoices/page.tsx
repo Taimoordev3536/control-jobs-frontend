@@ -110,7 +110,7 @@ export default function InvoicesPage() {
     { key: "invoiceNo", label: t("invoiceNo"), sortable: true, align: "center" as const, width: "180px" },
   ]
   if (showEmployerColumn) {
-    baseColumns.push({ key: "employer", label: t("employer"), sortable: true, align: "center" as const, width: "320px" })
+    baseColumns.push({ key: "employer", label: t("employer"), sortable: true, align: "left" as const, width: "320px" })
   }
   const columns = [
     ...baseColumns,
@@ -204,6 +204,8 @@ export default function InvoicesPage() {
       key: "receipts",
       icon: Landmark,
       title: t("issueReceipts") || "Issue receipts",
+      // Collection receipts can only be issued for invoices still pending payment.
+      canSelect: (row: any) => row.status === "PENDING",
       onAction: (sel: any[]) => downloadBulkPdf("/invoices/bulk-receipts", "receipts.pdf", sel),
     },
   ]

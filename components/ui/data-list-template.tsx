@@ -40,6 +40,8 @@ interface SelectionColumn {
   icon: React.ComponentType<{ className?: string }>
   title: string
   onAction: (selectedRows: any[]) => void
+  // When set, a row is only selectable (checkbox shown) if this returns true.
+  canSelect?: (row: any) => boolean
 }
 
 interface DataListTemplateProps {
@@ -207,6 +209,31 @@ export default function DataListTemplate({
     const rk = rowKeyRef.current
     const fd = filteredDataRef.current
     col.onAction(fd.filter((r) => set.has(rk(r))))
+  }
+
+  // Rows the column allows selecting, restricted to the current filter/search view.
+  const eligibleRows = useCallback(
+    (col: SelectionColumn) =>
+      filteredData.filter((r) => !col.canSelect || col.canSelect(r)),
+    [filteredData],
+  )
+
+  // Header checkbox is "checked" only when every eligible filtered row is selected.
+  const isAllEligibleSelected = (col: SelectionColumn) => {
+    const eligible = eligibleRows(col)
+    if (eligible.length === 0) return false
+    const set = selections[col.key] ?? new Set()
+    return eligible.every((r) => set.has(rowKey(r)))
+  }
+
+  const toggleSelectAll = (col: SelectionColumn) => {
+    const keys = eligibleRows(col).map(rowKey)
+    setSelections((prev) => {
+      const next = new Set(prev[col.key] ?? [])
+      const allSelected = keys.length > 0 && keys.every((k) => next.has(k))
+      keys.forEach((k) => (allSelected ? next.delete(k) : next.add(k)))
+      return { ...prev, [col.key]: next }
+    })
   }
 
   // When filters/search reduce results so currentPage is out of range, snap back to page 1.
@@ -382,7 +409,7 @@ export default function DataListTemplate({
 
   return (
     <div className="p-2 bg-background min-h-screen relative">
-      <div className="bg-card rounded-lg shadow-sm border border-border">
+      <div className="bg-card rounded-lg shadow-sm border border-border overflow-hidden">
         {/* Header */}
         <div className="flex justify-between items-center px-3 py-1.5 border-b border-border bg-gray-100 dark:bg-gray-800">
           <h1 className="text-base sm:text-lg font-semibold text-foreground truncate">{title}</h1>
@@ -524,6 +551,7 @@ export default function DataListTemplate({
                     <div className="flex gap-4" onClick={(e) => e.stopPropagation()}>
                       {selectionColumns.map((col) => {
                         const Icon = col.icon
+                        if (col.canSelect && !col.canSelect(row)) return null
                         return (
                           <label key={`m-sel-${col.key}`} className="flex items-center gap-1 text-xs text-muted-foreground">
                             <input
@@ -637,14 +665,24 @@ export default function DataListTemplate({
                                 style={{ width: "56px" }}
                                 className="px-2 py-[7px] text-center border border-gray-300 dark:border-gray-700"
                               >
-                                <button
-                                  type="button"
-                                  onClick={() => runColumnAction(col)}
-                                  title={col.title}
-                                  className="inline-flex items-center justify-center p-1 text-[#662D91] hover:bg-purple-100 dark:hover:bg-purple-900/50 rounded"
-                                >
-                                  <Icon className="w-5 h-5" />
-                                </button>
+                                <div className="flex flex-col items-center gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => runColumnAction(col)}
+                                    title={col.title}
+                                    className="inline-flex items-center justify-center p-1 text-[#662D91] hover:bg-purple-100 dark:hover:bg-purple-900/50 rounded"
+                                  >
+                                    <Icon className="w-5 h-5" />
+                                  </button>
+                                  <input
+                                    type="checkbox"
+                                    checked={isAllEligibleSelected(col)}
+                                    onChange={() => toggleSelectAll(col)}
+                                    title={t("selectAllFiltered") || "Select all filtered"}
+                                    aria-label={t("selectAllFiltered") || "Select all filtered"}
+                                    className="cursor-pointer accent-[#662D91]"
+                                  />
+                                </div>
                               </th>
                             )
                           })}
@@ -730,13 +768,15 @@ export default function DataListTemplate({
                           className="px-2 text-center align-middle border border-gray-300 dark:border-gray-700"
                           onClick={(e) => e.stopPropagation()}
                         >
-                          <input
-                            type="checkbox"
-                            checked={(selections[col.key] ?? new Set()).has(rowKey(row))}
-                            onChange={() => toggleCell(col.key, rowKey(row))}
-                            aria-label={col.title}
-                            className="cursor-pointer accent-[#662D91]"
-                          />
+                          {(!col.canSelect || col.canSelect(row)) && (
+                            <input
+                              type="checkbox"
+                              checked={(selections[col.key] ?? new Set()).has(rowKey(row))}
+                              onChange={() => toggleCell(col.key, rowKey(row))}
+                              aria-label={col.title}
+                              className="cursor-pointer accent-[#662D91]"
+                            />
+                          )}
                         </td>
                       ))}
                     </tr>

@@ -1,6 +1,6 @@
 "use client"
 
-import { Menu, MoreVertical, QrCode } from "lucide-react"
+import { Menu, MoreVertical, QrCode, Megaphone } from "lucide-react"
 import ContactIcon from "../icons/Header/Contact.svg"
 import MessageIcon from "../icons/Header/Message.svg"
 import NotificationIcon from "../icons/Header/Notification.svg"
@@ -201,6 +201,15 @@ export function AppHeader({ collapsed, toggleSidebar, style }: AppHeaderProps) {
               </span>
             )}
           </button>
+          {(userRole === "employer" || userRole === "partner" || userRole === "admin") && (
+            <button
+              className="header-icon-button"
+              onClick={() => router.push("/announcements")}
+            >
+              <Megaphone className="h-5 w-5" />
+              <span className="tooltip">{t("announcements")}</span>
+            </button>
+          )}
           <button className="header-icon-button">
             <ContactIcon className="h-5 w-5" />
             <span className="tooltip">{t("contact")}</span>
@@ -241,6 +250,18 @@ export function AppHeader({ collapsed, toggleSidebar, style }: AppHeaderProps) {
                   </span>
                 )}
               </button>
+              {(userRole === "employer" || userRole === "partner" || userRole === "admin") && (
+                <button
+                  className="header-icon-button block w-full text-left"
+                  onClick={() => {
+                    setMobileDropdownOpen(false)
+                    router.push("/announcements")
+                  }}
+                >
+                  <Megaphone className="h-5 w-5 inline-block mr-2" />
+                  {t("announcements")}
+                </button>
+              )}
               <button className="header-icon-button block w-full text-left">
                 <ContactIcon className="h-5 w-5 inline-block mr-2" />
                 {t("contact")}
