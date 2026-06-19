@@ -168,7 +168,7 @@ export default function InvoiceDetailPage() {
           >
             {pdfHovered ? <PdfIconHover className="w-5 h-5" /> : <PdfIconDefault className="w-5 h-5" />}
           </button>
-          {canManage && !invoice.isManual && !editData && (
+          {canManage && invoice.status === "PENDING" && !invoice.isManual && !editData && (
             <button
               onClick={openEdit}
               disabled={isActing}
@@ -198,7 +198,7 @@ export default function InvoiceDetailPage() {
               <XCircle className="w-5 h-5" />
             </button>
           )}
-          {canManage && (
+          {canManage && invoice.status === "PENDING" && invoice.isLastInvoice && (
             <button
               onClick={deleteInvoice}
               disabled={isActing}

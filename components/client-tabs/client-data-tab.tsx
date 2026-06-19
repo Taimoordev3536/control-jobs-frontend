@@ -659,14 +659,13 @@ export function ClientDataTab({ clientId, selfService = false }: ClientDataTabPr
             </Button>
           </div>
         )}
-        {meMode && (
-          <InlineImageUploader
-            initialUrl={(clientData as any).logoUrl ?? null}
-            uploadPath="/client/me/logo"
-            accessToken={session?.accessToken}
-            label={t("profile")}
-          />
-        )}
+        <InlineImageUploader
+          initialUrl={(clientData as any).logoUrl ?? null}
+          uploadPath={meMode ? "/client/me/logo" : `/client/${clientId}/logo`}
+          accessToken={session?.accessToken}
+          label={t("profile")}
+          onChange={(u) => setClientData((prev) => (prev ? ({ ...prev, logoUrl: u } as any) : prev))}
+        />
       </div>
 
       {/* Row 5: Observations 60%, Periodo Horario de Verano default */}

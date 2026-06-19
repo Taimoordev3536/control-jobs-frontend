@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { useState, useRef } from "react"
-import { Plus, Trash2, Loader2 } from "lucide-react"
+import { Plus, Pencil, Trash2, Loader2 } from "lucide-react"
 import { useTranslation } from "@/hooks/use-translation"
 import { useToast } from "@/hooks/use-toast"
 import { useBackendError } from "@/lib/backend-error"
@@ -111,32 +111,29 @@ export function InlineImageUploader({
             />
           )}
         </div>
-        {!busy &&
-          (url ? (
-            <button
-              type="button"
-              onClick={remove}
-              title={t("remove") || "Remove"}
-              className="absolute -top-1 -right-1 z-10 bg-red-500 hover:bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center shadow"
-            >
-              <Trash2 className="w-3 h-3" />
-            </button>
-          ) : (
+        {!busy && (
+          <>
+            {url && (
+              <button
+                type="button"
+                onClick={remove}
+                title={t("remove") || "Remove"}
+                className="absolute -top-1 -right-1 z-10 bg-red-500 hover:bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center shadow"
+              >
+                <Trash2 className="w-3 h-3" />
+              </button>
+            )}
             <button
               type="button"
               onClick={pick}
-              title={t("add") || "Add"}
+              title={url ? t("changeLogo") || "Change" : t("add") || "Add"}
               className="absolute -bottom-1 -right-1 z-10 bg-[#662D91] hover:bg-[#532073] text-white rounded-full w-5 h-5 flex items-center justify-center shadow"
             >
-              <Plus className="w-3 h-3" strokeWidth={3} />
+              {url ? <Pencil className="w-2.5 h-2.5" /> : <Plus className="w-3 h-3" strokeWidth={3} />}
             </button>
-          ))}
+          </>
+        )}
       </div>
-      {url && (
-        <button type="button" onClick={pick} className="text-[10px] text-[#662D91] hover:underline">
-          {t("changeLogo")}
-        </button>
-      )}
       <input ref={inputRef} type="file" accept="image/png,image/jpeg" className="hidden" onChange={onFile} />
     </div>
   )

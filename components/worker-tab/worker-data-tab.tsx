@@ -628,14 +628,14 @@ export function WorkerDataTab({ selfService = false }: { selfService?: boolean }
             allowPastDates
           />
         </div>
-        {meMode && (
-          <InlineImageUploader
-            initialUrl={workerData.logoUrl ?? null}
-            uploadPath="/worker/me/logo"
-            accessToken={session?.accessToken}
-            label={t("profile")}
-          />
-        )}
+        <InlineImageUploader
+          initialUrl={workerData.logoUrl ?? null}
+          uploadPath={meMode ? "/worker/me/logo" : `/worker/${workerId}/logo`}
+          accessToken={session?.accessToken}
+          label={t("profile")}
+          onChange={(u) => setWorkerData((prev) => ({ ...prev, logoUrl: u ?? undefined }))}
+        />
+
       </div>
 
       {/* Row 5: Observaciones 60% */}

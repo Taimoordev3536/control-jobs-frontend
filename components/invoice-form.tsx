@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DateInput as UiDateInput } from "@/components/ui/date-input"
-import { Plus, Trash2, Building2, Users } from "lucide-react"
+import { Plus, Trash2 } from "lucide-react"
+import BuildingsIcon from "../icons/Menu/buildings.svg"
+import WorkersIcon from "../icons/Menu/workers.svg"
 import { useTranslation } from "@/hooks/use-translation"
 import { useToast } from "@/hooks/use-toast"
 import { apiFetch } from "@/lib/api"
@@ -22,7 +24,18 @@ interface Line {
 }
 
 interface FormContext {
-  company: { name: string; address: string; paymentDetails?: string } | null
+  company:
+    | {
+        name: string
+        taxId?: string | null
+        address?: string | null
+        postalCode?: string | null
+        city?: string | null
+        province?: string | null
+        country?: string | null
+        paymentDetails?: string | null
+      }
+    | null
   client:
     | { id: number; name: string; taxId: string; address: string; postalCode: string; city: string; province: string; country: string }
     | null
@@ -38,6 +51,7 @@ interface FormContext {
   tariff: { code: string; label: string; tariffType: string } | null
   defaultDiscount: number
   partnerCommission: number
+  nextInvoiceNumber?: string
 }
 
 interface GeneratePayload {
@@ -89,7 +103,9 @@ export default function InvoiceForm({ mode, invoice, onSubmitted, onCancel, allo
   const [selectedEmployer, setSelectedEmployer] = useState<string>("")
   const [lines, setLines] = useState<Line[]>([])
   const [discountPct, setDiscountPct] = useState(0)
+  const [discountText, setDiscountText] = useState("0")
   const [vatPct, setVatPct] = useState(21)
+  const [vatText, setVatText] = useState("21")
   const [periodStart, setPeriodStart] = useState("")
   const [periodEnd, setPeriodEnd] = useState("")
   const [chargeDate, setChargeDate] = useState("")
@@ -232,6 +248,14 @@ export default function InvoiceForm({ mode, invoice, onSubmitted, onCancel, allo
     return { subtotal, discountAmount, base, vatAmount, total: round2(base + vatAmount) }
   }, [mode, invoice, lines, discountPct, vatPct, editGen, viewRows])
 
+  useEffect(() => {
+    setDiscountText((prev) => (Number.parseFloat(prev.replace(",", ".")) === discountPct ? prev : String(discountPct)))
+  }, [discountPct])
+
+  useEffect(() => {
+    setVatText((prev) => (Number.parseFloat(prev.replace(",", ".")) === vatPct ? prev : String(vatPct)))
+  }, [vatPct])
+
   const todayIso = new Date().toISOString().slice(0, 10)
   const status = mode === "view" ? invoice?.status : null
   const docTitle = totals.total < 0 ? t("creditNoteTitle") || "ABONO" : t("invoiceTitle") || "FACTURA"
@@ -276,6 +300,10 @@ export default function InvoiceForm({ mode, invoice, onSubmitted, onCancel, allo
       toast({ title: t("chargeDateNotPast") || "Charge date cannot be before today", variant: "destructive" })
       return
     }
+    if (periodStart && periodEnd && periodEnd < periodStart) {
+      toast({ title: t("periodEndBeforeStart") || "End date must be on or after the start date", variant: "destructive" })
+      return
+    }
     setSubmitting(true)
     try {
       const res = await apiFetch<{ data: any }>("/invoices", {
@@ -316,7 +344,13 @@ export default function InvoiceForm({ mode, invoice, onSubmitted, onCancel, allo
           </div>
           <div className="text-xs text-muted-foreground italic leading-5">
             {company?.name ? <div>{company.name}</div> : null}
+            {company?.taxId ? <div>{company.taxId}</div> : null}
             {company?.address ? <div className="whitespace-pre-line">{company.address}</div> : null}
+            {company?.postalCode || company?.city ? (
+              <div>{[company?.postalCode, company?.city].filter(Boolean).join(" ")}</div>
+            ) : null}
+            {company?.province ? <div>{company.province}</div> : null}
+            {company?.country ? <div>{company.country}</div> : null}
             {!company?.name && !company?.address && <div>—</div>}
           </div>
 
@@ -324,7 +358,7 @@ export default function InvoiceForm({ mode, invoice, onSubmitted, onCancel, allo
             <Meta label={t("date") || "Fecha"}>
               {mode === "view" ? isoToDmy(invoice?.issueDate) : isoToDmy(todayIso)}
             </Meta>
-            <Meta label={t("invoiceNo") || "Nº Factura"}>{invoice?.invoiceNumber || t("autoAssigned") || "(auto)"}</Meta>
+            <Meta label={t("invoiceNo") || "Nº Factura"}>{invoice?.invoiceNumber || ctx?.nextInvoiceNumber || t("autoAssigned") || "(auto)"}</Meta>
             <Meta label={t("period") || "Periodo"}>
               {editable ? (
                 <span className="flex items-center gap-1">
@@ -338,7 +372,7 @@ export default function InvoiceForm({ mode, invoice, onSubmitted, onCancel, allo
             </Meta>
             <Meta label={t("paymentMethod") || "Forma de pago"}>
               <span className="flex items-center gap-3 flex-wrap">
-                {editable || (mode === "view" && allowMethodEdit) ? (
+                {editable || (mode === "view" && allowMethodEdit && invoice?.status === "PENDING") ? (
                   <Select value={paymentMethodId} onValueChange={editable ? setPaymentMethodId : changeMethod} disabled={!methodsList.length}>
                     <SelectTrigger className="h-8 w-52 text-sm">
                       <SelectValue placeholder={t("paymentMethod") || "Forma de pago"} />
@@ -358,7 +392,7 @@ export default function InvoiceForm({ mode, invoice, onSubmitted, onCancel, allo
               </span>
             </Meta>
             <Meta label={t("chargeDate") || "Fecha de cargo"}>
-              {editable || editGen ? <DateInput value={chargeDate} onChange={setChargeDate} /> : isoToDmy(invoice?.chargeDate) || "—"}
+              {editable || editGen ? <DateInput value={chargeDate} onChange={setChargeDate} errorPosition="right" /> : isoToDmy(invoice?.chargeDate) || "—"}
             </Meta>
           </div>
         </div>
@@ -497,7 +531,21 @@ export default function InvoiceForm({ mode, invoice, onSubmitted, onCancel, allo
             <span className="font-semibold flex items-center gap-2">
               {t("discount") || "% Dto."}
               {editable || editGen ? (
-                <Input type="number" value={discountPct} onChange={(e) => setDiscountPct(Number.parseFloat(e.target.value) || 0)} className="h-7 w-14 text-xs text-center" max={editable ? ctx?.partnerCommission : invoice?.partnerCommission} min={0} step="0.1" />
+                <span className="inline-flex items-center gap-1">
+                  <Input
+                    type="text"
+                    inputMode="decimal"
+                    value={discountText}
+                    onChange={(e) => {
+                      const raw = e.target.value.replace(",", ".")
+                      if (raw !== "" && !/^\d*\.?\d*$/.test(raw)) return
+                      setDiscountText(raw)
+                      setDiscountPct(Number.parseFloat(raw) || 0)
+                    }}
+                    className="h-7 w-20 text-xs text-center"
+                  />
+                  <span className="text-muted-foreground">%</span>
+                </span>
               ) : (
                 effDiscountPct > 0 && <span className="text-muted-foreground">({effDiscountPct}%)</span>
               )}
@@ -512,7 +560,7 @@ export default function InvoiceForm({ mode, invoice, onSubmitted, onCancel, allo
           )}
 
           <div className="border border-border rounded overflow-hidden">
-            <div className="text-center text-xs font-semibold text-[#662D91] bg-purple-50 dark:bg-purple-950/40 py-1.5">
+            <div className="text-center text-xs font-semibold text-foreground bg-purple-50 dark:bg-purple-950/40 py-1.5">
               {t("taxBreakdown") || "Desglose fiscal"}
             </div>
             <div className="p-3 space-y-2">
@@ -524,11 +572,23 @@ export default function InvoiceForm({ mode, invoice, onSubmitted, onCancel, allo
                 <span className="font-semibold flex items-center gap-1">
                   {t("vat") || "I.V.A."}
                   {editable ? (
-                    <>
-                      (<Input type="number" value={vatPct} onChange={(e) => setVatPct(Number.parseFloat(e.target.value) || 0)} className="h-6 w-12 text-xs text-center" step="0.1" />%)
-                    </>
+                    <span className="inline-flex items-center gap-1">
+                      <Input
+                        type="text"
+                        inputMode="decimal"
+                        value={vatText}
+                        onChange={(e) => {
+                          const raw = e.target.value.replace(",", ".")
+                          if (raw !== "" && !/^\d*\.?\d*$/.test(raw)) return
+                          setVatText(raw)
+                          setVatPct(Number.parseFloat(raw) || 0)
+                        }}
+                        className="h-6 w-20 text-xs text-center"
+                      />
+                      <span className="text-muted-foreground">%</span>
+                    </span>
                   ) : (
-                    `(${effVatPct}%)`
+                    `${effVatPct}%`
                   )}
                 </span>
                 <span className={amountBox}>{money(totals.vatAmount)}</span>
@@ -559,7 +619,7 @@ export default function InvoiceForm({ mode, invoice, onSubmitted, onCancel, allo
               {t("billingDetail") || "Detalle de facturación"}
             </div>
             <div className="flex gap-5 items-start pb-4">
-              <Building2 className="h-9 w-9 shrink-0 text-[#662D91]" />
+              <BuildingsIcon className="h-9 w-9 shrink-0 text-[#662D91]" />
               <ul className="text-sm space-y-0.5">
                 {(invoice?.workCenters || []).map((w: any) =>
                   editGen ? (
@@ -576,7 +636,7 @@ export default function InvoiceForm({ mode, invoice, onSubmitted, onCancel, allo
             </div>
             <div className="border-t-2 border-[#662D91]" />
             <div className="flex gap-5 items-start pt-4">
-              <Users className="h-9 w-9 shrink-0 text-[#662D91]" />
+              <WorkersIcon className="h-9 w-9 shrink-0 text-[#662D91]" />
               <ul className="text-sm space-y-0.5">
                 {(invoice?.workers || []).map((w: any) =>
                   editGen ? (
@@ -616,10 +676,10 @@ function Meta({ label, children }: { label: string; children: React.ReactNode })
   )
 }
 
-function DateInput({ value, onChange, allowPast, width = "w-40" }: { value: string; onChange: (v: string) => void; allowPast?: boolean; width?: string }) {
+function DateInput({ value, onChange, allowPast, width = "w-40", errorPosition }: { value: string; onChange: (v: string) => void; allowPast?: boolean; width?: string; errorPosition?: "below" | "right" }) {
   return (
     <div className={`${width} inline-block`}>
-      <UiDateInput value={value} onChange={(e) => onChange(e.target.value)} allowPastDates={allowPast} className="h-9 text-sm" />
+      <UiDateInput value={value} onChange={(e) => onChange(e.target.value)} allowPastDates={allowPast} errorPosition={errorPosition} className="h-9 text-sm" />
     </div>
   )
 }

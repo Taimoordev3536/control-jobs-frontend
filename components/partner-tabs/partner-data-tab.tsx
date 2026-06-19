@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Camera, Loader2, AlertCircle, RefreshCw, Info } from "lucide-react"
+import { Loader2, AlertCircle, RefreshCw, Info } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -556,23 +556,13 @@ export default function PartnerDataTab({ partnerId, onNameChange, selfService = 
             </Button>
           </div>
         )}
-        {meMode ? (
-          <InlineImageUploader
-            initialUrl={partnerData.logoUrl ?? null}
-            uploadPath="/partners/me/logo"
-            accessToken={session?.accessToken}
-            label={t("profile")}
-          />
-        ) : (
-          <div className="flex flex-col items-center justify-center shrink-0">
-            <div className="w-16 h-16 rounded-full border-2 border-muted flex items-center justify-center bg-muted/20">
-              <Camera className="w-4 h-4 text-muted-foreground" />
-            </div>
-            <Button variant="outline" className="text-[10px] px-2 py-0 h-6 bg-transparent mt-1">
-              {t("chooseFile") || "Choose file"}
-            </Button>
-          </div>
-        )}
+        <InlineImageUploader
+          initialUrl={partnerData.logoUrl ?? null}
+          uploadPath={meMode ? "/partners/me/logo" : `/partners/${partnerId}/logo`}
+          accessToken={session?.accessToken}
+          label={t("profile")}
+          onChange={(u) => setPartnerData((prev) => (prev ? { ...prev, logoUrl: u } : prev))}
+        />
       </div>
 
       {/* Separator line */}

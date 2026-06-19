@@ -9,6 +9,7 @@ export interface DateInputProps
   value?: string; // ISO yyyy-mm-dd
   onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   allowPastDates?: boolean;
+  errorPosition?: "below" | "right";
 }
 
 function formatISO(date: Date) {
@@ -33,6 +34,7 @@ export const DateInput: React.FC<DateInputProps> = ({
   className,
   placeholder,
   allowPastDates = false,
+  errorPosition = "below",
   ...rest
 }) => {
   const { t, language } = useTranslation();
@@ -457,11 +459,19 @@ export const DateInput: React.FC<DateInputProps> = ({
         </button>
         </div>
       </div>
-      {error && (
-        <div className="text-xs text-red-600 mt-1" role="alert">
-          {error}
-        </div>
-      )}
+      {error &&
+        (errorPosition === "right" ? (
+          <div
+            className="absolute left-full top-1/2 -translate-y-1/2 ml-2 text-xs text-red-600 whitespace-nowrap pointer-events-none"
+            role="alert"
+          >
+            {error}
+          </div>
+        ) : (
+          <div className="text-xs text-red-600 mt-1" role="alert">
+            {error}
+          </div>
+        ))}
 
 {open && (
   <div

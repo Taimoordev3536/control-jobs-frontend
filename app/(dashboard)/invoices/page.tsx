@@ -67,8 +67,6 @@ export default function InvoicesPage() {
           total: Number(i.total) || 0,
           status: i.status,
         }))
-        setInvoices(list)
-
         if (showEmployerColumn && list.length > 0) {
           try {
             const eJson = await apiFetch<{ data: any[] }>("/employers")
@@ -81,6 +79,8 @@ export default function InvoicesPage() {
             /* fall back to id */
           }
         }
+
+        setInvoices(list)
       } catch (e: any) {
         setInvoices([])
         toast({ title: e.message || "Error", variant: "destructive" })

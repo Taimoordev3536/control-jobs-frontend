@@ -4,8 +4,8 @@
 
 "use client"
 
-import { useState, useEffect, useRef } from "react"
-import { Camera, Loader2, AlertCircle, RefreshCw, X } from "lucide-react"
+import { useState, useEffect } from "react"
+import { Loader2, AlertCircle, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -105,74 +105,6 @@ export default function EmployerDataTab({ employerId, selfServiceLogo = false, s
   const [hasChanges, setHasChanges] = useState(false)
   const [resetKey, setResetKey] = useState(0)
   const [isImpersonateLoading, setIsImpersonateLoading] = useState(false)
-  const [isUploadingLogo, setIsUploadingLogo] = useState(false)
-  const logoInputRef = useRef<HTMLInputElement | null>(null)
-
-  const handleLogoSelect = () => logoInputRef.current?.click()
-
-  const handleLogoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    e.target.value = ""
-    if (!file) return
-    if (!["image/png", "image/jpeg", "image/jpg"].includes(file.type)) {
-      toast({ title: t("logoMustBePngOrJpeg") || "Logo must be PNG or JPEG", variant: "destructive" })
-      return
-    }
-    if (file.size > 2 * 1024 * 1024) {
-      toast({ title: t("logoTooLarge") || "Logo must be 2 MB or smaller", variant: "destructive" })
-      return
-    }
-    if (!session?.accessToken) return
-
-    setIsUploadingLogo(true)
-    try {
-      const fd = new FormData()
-      fd.append("file", file)
-      const path = useMeForLogo ? "me/logo" : `${employerId}/logo`
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/employers/${path}`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${session.accessToken}` },
-        body: fd,
-      })
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}))
-        throw new Error(err.message || `Error ${res.status}`)
-      }
-      const result = await res.json()
-      setEmployerData((prev) =>
-        prev
-          ? { ...prev, logoUrl: result.data?.logoUrl || null, logoPublicId: result.data?.logoPublicId || null }
-          : prev,
-      )
-      toast({ title: t("logoUpdated") || "Logo updated", variant: "success" })
-    } catch (err: any) {
-      toast({ title: translateBackendError(err), variant: "destructive" })
-    } finally {
-      setIsUploadingLogo(false)
-    }
-  }
-
-  const handleLogoDelete = async () => {
-    if (!session?.accessToken || !employerData?.logoUrl) return
-    setIsUploadingLogo(true)
-    try {
-      const path = useMeForLogo ? "me/logo" : `${employerId}/logo`
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/employers/${path}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${session.accessToken}` },
-      })
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}))
-        throw new Error(err.message || `Error ${res.status}`)
-      }
-      setEmployerData((prev) => (prev ? { ...prev, logoUrl: null, logoPublicId: null } : prev))
-      toast({ title: t("logoRemoved") || "Logo removed", variant: "success" })
-    } catch (err: any) {
-      toast({ title: translateBackendError(err), variant: "destructive" })
-    } finally {
-      setIsUploadingLogo(false)
-    }
-  }
 
   // Admin and Partner can impersonate employers.
   // Sub-users: only EDIT permission can impersonate; VIEW_ONLY is hidden.
@@ -738,10 +670,6 @@ export default function EmployerDataTab({ employerId, selfServiceLogo = false, s
             </Button>
           </div>
         )}
-      </div>
-
-      {/* Row 5: Profile image */}
-      <div className="flex gap-3 items-end justify-end">
         {meMode ? (
           <InlineImageUploader
             initialUrl={employerData.profilePhotoUrl ?? null}
@@ -749,47 +677,17 @@ export default function EmployerDataTab({ employerId, selfServiceLogo = false, s
             urlField="profilePhotoUrl"
             accessToken={session?.accessToken}
             label={t("profile")}
+            onChange={(u) => setEmployerData((prev) => (prev ? { ...prev, profilePhotoUrl: u } : prev))}
           />
         ) : (
-        <div className="flex flex-col items-center justify-center shrink-0">
-          <div className="relative w-16 h-16 rounded-full border-2 border-muted flex items-center justify-center bg-muted/20 overflow-hidden">
-            {isUploadingLogo ? (
-              <Loader2 className="w-4 h-4 text-muted-foreground animate-spin" />
-            ) : employerData.logoUrl ? (
-              <>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={employerData.logoUrl} alt="Logo" className="w-full h-full object-contain" />
-                <button
-                  type="button"
-                  onClick={handleLogoDelete}
-                  className="absolute top-0 right-0 bg-red-500 hover:bg-red-600 text-white rounded-full w-4 h-4 flex items-center justify-center"
-                  aria-label={t("removeLogo") || "Remove logo"}
-                  title={t("removeLogo") || "Remove logo"}
-                >
-                  <X className="w-2.5 h-2.5" />
-                </button>
-              </>
-            ) : (
-              <Camera className="w-4 h-4 text-muted-foreground" />
-            )}
-          </div>
-          <input
-            ref={logoInputRef}
-            type="file"
-            accept="image/png,image/jpeg"
-            className="hidden"
-            onChange={handleLogoChange}
+          <InlineImageUploader
+            initialUrl={employerData.logoUrl ?? null}
+            uploadPath={useMeForLogo ? "/employers/me/logo" : `/employers/${employerId}/logo`}
+            urlField="logoUrl"
+            accessToken={session?.accessToken}
+            label={t("profile")}
+            onChange={(u) => setEmployerData((prev) => (prev ? { ...prev, logoUrl: u } : prev))}
           />
-          <Button
-            variant="outline"
-            type="button"
-            onClick={handleLogoSelect}
-            disabled={isUploadingLogo}
-            className="text-[10px] px-2 py-0 h-6 bg-transparent mt-1"
-          >
-            {employerData.logoUrl ? (t("changeLogo") || "Change") : (t("chooseFile") || "Choose file")}
-          </Button>
-        </div>
         )}
       </div>
 
@@ -797,7 +695,7 @@ export default function EmployerDataTab({ employerId, selfServiceLogo = false, s
       <div className="border-t-2 border-border mt-4" />
 
       {/* Row 6: Billing fields */}
-      <div className="flex gap-3 items-end">
+      <div className="flex flex-wrap gap-3 items-end">
         <div className="space-y-1 min-w-0" style={{ flex: "0 0 15%" }}>
           <Label className="text-xs font-medium text-foreground">Partner <span className="text-red-500">*</span></Label>
           <Select
