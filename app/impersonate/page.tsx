@@ -60,6 +60,7 @@ function ImpersonateHandler() {
         lastName: user.lastName,
         roleId: user.roleId,
         partnerId: user.partnerId || null,
+        employer: user.employer || null,
         role: user.role,
         accessToken: token,
       }

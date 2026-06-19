@@ -165,7 +165,10 @@ export default function JobFormCore({
             isEmployer: true,
           }
         : {
-            id: (session as any)?.user?.publicId || (session as any)?.user?.id,
+            id:
+              (session as any)?.user?.employer?.publicId ||
+              (session as any)?.user?.publicId ||
+              (session as any)?.user?.id,
             name: userName || "Yourself",
             locality: "",
             type: "employer",

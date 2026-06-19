@@ -266,7 +266,7 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded, 
       if (Object.values(errors).some((error) => error)) return
     } else if (currentStep === 2) {
       const errors = {
-        partner: isPartnerRole ? false : !formData.partner,
+        partner: !formData.partner,
         fee: !formData.fee,
         nif: !formData.nif,
       }
