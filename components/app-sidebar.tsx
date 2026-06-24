@@ -28,6 +28,10 @@ import ConsultIcon from "../icons/new/consultas.svg"
 import OcupacionIcon from "../icons/new/ocupacion.svg"
 import CJobs from "../icons/new/logo_min.svg";
 import ContreolJobs from "../icons/Logos/ControlJobs.svg";
+import DashboardInformesIcon from "../icons/new_icons/Informes.svg"
+import SubscriptionsIcon from "../icons/new_icons/Suscripciones.svg"
+import SupportIcon from "../icons/new_icons/Soporte.svg"
+import SuggestionMenuIcon from "../icons/Header/Sugestions.svg"
 import {
   CreditCard,
   ChevronDown,
@@ -41,6 +45,10 @@ import {
   Settings,
   FileBarChart,
   MessageSquare,
+  Ticket,
+  ScrollText,
+  DatabaseBackup,
+  RotateCcw,
 } from "lucide-react"
 import { useState, useEffect } from "react"
 import { usePathname } from "next/navigation"
@@ -140,6 +148,16 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar, styl
         return <PaymentIcon className="h-5 w-5" />
       case "import":
         return <ImportIcon className="h-6 w-6" />
+      case "tickets":
+        return <Ticket className="h-5 w-5" />
+      case "suggestions":
+        return <SuggestionMenuIcon className="h-5 w-5" />
+      case "logs":
+        return <ScrollText className="h-5 w-5" />
+      case "backup":
+        return <DatabaseBackup className="h-5 w-5" />
+      case "restore":
+        return <RotateCcw className="h-5 w-5" />
       default:
         return <Users className="h-5 w-5" />
     }
@@ -362,37 +380,27 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar, styl
           {
             id: "dashboard",
             title: t("dashboard"),
-            icon: () => <TodosIcon className="h-5 w-5" />,
+            icon: () => <DashboardInformesIcon className="h-5 w-5" />,
             href: "/dashboard",
           },
           {
-            id: "merchants",
-            title: t("merchants"),
+            id: "accounts",
+            title: t("accounts"),
             icon: () => <BriefcaseIcon className="h-5 w-5" />,
             items: [
               { title: t("partners"), href: "/partners", iconKey: "partners" },
               { title: t("employers"), href: "/employers", iconKey: "employers" },
+              { title: t("clients"), href: "/admin/clients", iconKey: "clients" },
+              { title: t("workers"), href: "/admin/workers", iconKey: "workers" },
             ],
           },
           {
-            id: "billing",
-            title: t("billing"),
-            icon: () => <BillingIcon className="h-5 w-5" />,
+            id: "subscriptions",
+            title: t("subscriptions"),
+            icon: () => <SubscriptionsIcon className="h-5 w-5" />,
             items: [
               { title: t("invoices"), href: "/invoices", iconKey: "invoices" },
               { title: t("commissions"), href: "/commissions", iconKey: "commissions" },
-              { title: t("rates"), href: "/rates", iconKey: "rates" },
-            ],
-          },
-          {
-            id: "information",
-            title: t("information"),
-            icon: () => <InformationIcon className="h-5 w-5" />,
-            items: [
-              { title: t("partners"), href: "/information/partners-info", iconKey: "partners" },
-              { title: t("employers"), href: "/information/employers-info", iconKey: "employers" },
-              { title: t("commissions"), href: "/information/commissions-info", iconKey: "commissions" },
-              { title: t("invoices"), href: "/information/invoices-info", iconKey: "invoices" },
             ],
           },
           {
@@ -400,17 +408,22 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar, styl
             title: t("utilities"),
             icon: () => <UtilitiesIcon className="h-5 w-5" />,
             items: [
-              { title: t("payments"), href: "/utilities/payments", iconKey: "payments" },
-              { title: t("pages"), href: "/utilities/payments", iconKey: "payments" },
-              { title: t("import"), href: "/utilities/import", iconKey: "import" },
               { title: t("invitations") || "Invitar", href: "/utilities/invite", iconKey: "invite" },
+              { title: t("payments"), href: "/utilities/payments", iconKey: "payments" },
+              { title: t("import"), href: "/utilities/import", iconKey: "import" },
             ],
           },
           {
-            id: "aid",
-            title: t("aid"),
-            icon: () => <AidIcon className="h-5 w-5" />,
-            href: "/aid",
+            id: "support",
+            title: t("support"),
+            icon: () => <SupportIcon className="h-5 w-5" />,
+            items: [
+              { title: t("tickets"), href: "/support/tickets", iconKey: "tickets" },
+              { title: t("suggestions"), href: "/support/suggestions", iconKey: "suggestions" },
+              { title: t("logs"), href: "/support/logs", iconKey: "logs" },
+              { title: t("backup"), href: "/support/backup", iconKey: "backup" },
+              { title: t("restore"), href: "/support/restore", iconKey: "restore" },
+            ],
           },
         ]
       default:

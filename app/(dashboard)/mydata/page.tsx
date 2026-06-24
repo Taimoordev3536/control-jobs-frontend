@@ -15,6 +15,7 @@ import PartnerDataTab from "@/components/partner-tabs/partner-data-tab"
 import { ClientDataTab } from "@/components/client-tabs/client-data-tab"
 import { WorkerDataTab } from "@/components/worker-tab/worker-data-tab"
 import { AdminProfileTab } from "@/components/admin-profile-tab"
+import { AdminMyDataTabs } from "@/components/admin-mydata-tabs"
 
 // Static lookup matching the backend `cjobs_payment_methods` seed (id 1..5).
 // Used to label the current method on the /mydata Payment-method card.
@@ -410,18 +411,21 @@ export default function MyDataPage() {
         </p>
       </div>
 
-      <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
-        <div className="p-4 border-b border-border bg-muted/20">
-          <h2 className="text-base font-semibold">{t("data") || "Data"}</h2>
+      {role === "admin" ? (
+        <AdminMyDataTabs />
+      ) : (
+        <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+          <div className="p-4 border-b border-border bg-muted/20">
+            <h2 className="text-base font-semibold">{t("data") || "Data"}</h2>
+          </div>
+          <div className="p-2">
+            {role === "employer" && <EmployerDataTab employerId="" selfService />}
+            {role === "partner" && <PartnerDataTab partnerId="" selfService />}
+            {role === "client" && <ClientDataTab clientId="" selfService />}
+            {role === "worker" && <WorkerDataTab selfService />}
+          </div>
         </div>
-        <div className="p-2">
-          {role === "employer" && <EmployerDataTab employerId="" selfService />}
-          {role === "partner" && <PartnerDataTab partnerId="" selfService />}
-          {role === "client" && <ClientDataTab clientId="" selfService />}
-          {role === "worker" && <WorkerDataTab selfService />}
-          {role === "admin" && <AdminProfileTab />}
-        </div>
-      </div>
+      )}
 
       {isEmployer && (
         <ImageUploadCard

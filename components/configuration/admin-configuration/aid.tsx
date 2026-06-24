@@ -1,9 +1,7 @@
 "use client"
 
-export default function Ail() {
-  return (
-    <div className="text-foreground">
-      <p>Admin AIL settings (placeholder)</p>
-    </div>
-  )
+import AidCenter from "@/components/aid-center"
+
+export default function Aid() {
+  return <AidCenter />
 }

@@ -1,7 +1,7 @@
 "use client"
 
 import { Menu, MoreVertical, QrCode, Megaphone } from "lucide-react"
-import ContactIcon from "../icons/Header/Contact.svg"
+import SupportHeaderIcon from "../icons/new_icons/Soporte.svg"
 import MessageIcon from "../icons/Header/Message.svg"
 import NotificationIcon from "../icons/Header/Notification.svg"
 import SuggestionIcon from "../icons/Header/Sugestions.svg"
@@ -19,6 +19,7 @@ import { useChat } from "@/components/providers/chat-provider"
 import { X } from "lucide-react"
 import { formatLocalDateTime } from "@/lib/datetime"
 import { ClientTodayMergedQrDisplay } from "./dashboards/client-dashboard/client-today-merged-qr-display"
+import { SupportMessageDialog } from "./support-message-dialog"
 
 interface AppHeaderProps {
   collapsed: boolean
@@ -52,6 +53,8 @@ export function AppHeader({ collapsed, toggleSidebar, style }: AppHeaderProps) {
       case "MANUAL_ATTENDANCE_CANCELLED": return t("manualAttendanceCancelled") || "Manual attendance cancelled"
       case "RATE_CHANGE_SCHEDULED": return t("rateChangeScheduledTitle") || "Tariff change scheduled"
       case "RATE_CHANGE_CANCELLED": return t("rateChangeCancelledTitle") || "Tariff change cancelled"
+      case "SUPPORT_REQUEST": return t("supportRequest") || "Support request"
+      case "SUGGESTION": return t("suggestion") || "Suggestion"
       default: return t("notification")
     }
   }
@@ -68,8 +71,20 @@ export function AppHeader({ collapsed, toggleSidebar, style }: AppHeaderProps) {
       // own subscription on /billing. Both pages surface the pending change.
       router.push(userRole === "partner" ? "/rates" : "/billing")
     }
+    if (type === "SUPPORT_REQUEST") {
+      setNotifOpen(false)
+      router.push("/support/tickets")
+      return
+    }
+    if (type === "SUGGESTION") {
+      setNotifOpen(false)
+      router.push("/support/suggestions")
+      return
+    }
   }
   const [todayQrOpen, setTodayQrOpen] = useState(false)
+  const [supportOpen, setSupportOpen] = useState(false)
+  const [suggestionOpen, setSuggestionOpen] = useState(false)
   const notifRef = useRef<HTMLDivElement | null>(null)
   const userRole = getUserRole()
 
@@ -210,15 +225,15 @@ export function AppHeader({ collapsed, toggleSidebar, style }: AppHeaderProps) {
               <span className="tooltip">{t("announcements")}</span>
             </button>
           )}
-          <button className="header-icon-button">
-            <ContactIcon className="h-5 w-5" />
-            <span className="tooltip">{t("contact")}</span>
+          <button className="header-icon-button" onClick={() => setSupportOpen(true)}>
+            <SupportHeaderIcon className="h-5 w-5" />
+            <span className="tooltip">{t("support")}</span>
           </button>
-          <button className="header-icon-button">
+          <button className="header-icon-button" onClick={() => setSuggestionOpen(true)}>
             <SuggestionIcon className="h-5 w-5" />
             <span className="tooltip">{t("suggestions")}</span>
           </button>
-          <button className="header-icon-button">
+          <button className="header-icon-button" onClick={() => window.open("https://controljobs.com", "_blank")}>
             <WebIcon className="h-5 w-5" />
             <span className="tooltip">{t("Web")}</span>
           </button>
@@ -262,15 +277,30 @@ export function AppHeader({ collapsed, toggleSidebar, style }: AppHeaderProps) {
                   {t("announcements")}
                 </button>
               )}
-              <button className="header-icon-button block w-full text-left">
-                <ContactIcon className="h-5 w-5 inline-block mr-2" />
-                {t("contact")}
+              <button
+                className="header-icon-button block w-full text-left"
+                onClick={() => {
+                  setMobileDropdownOpen(false)
+                  setSupportOpen(true)
+                }}
+              >
+                <SupportHeaderIcon className="h-5 w-5 inline-block mr-2" />
+                {t("support")}
               </button>
-              <button className="header-icon-button block w-full text-left">
+              <button
+                className="header-icon-button block w-full text-left"
+                onClick={() => {
+                  setMobileDropdownOpen(false)
+                  setSuggestionOpen(true)
+                }}
+              >
                 <SuggestionIcon className="h-5 w-5 inline-block mr-2" />
                 {t("suggestions")}
               </button>
-              <button className="header-icon-button block w-full text-left">
+              <button
+                className="header-icon-button block w-full text-left"
+                onClick={() => window.open("https://controljobs.com", "_blank")}
+              >
                 <WebIcon className="h-5 w-5 inline-block mr-2" />
                 {t("Web")}
               </button>
@@ -287,6 +317,23 @@ export function AppHeader({ collapsed, toggleSidebar, style }: AppHeaderProps) {
 
       {/* Today's Merged QR Dialog */}
       <ClientTodayMergedQrDisplay open={todayQrOpen} onOpenChange={setTodayQrOpen} />
+
+      <SupportMessageDialog
+        open={supportOpen}
+        onOpenChange={setSupportOpen}
+        title={t("support")}
+        description={t("supportRequestDescription") || "Describe the issue and our team will get back to you."}
+        endpoint="/support/tickets"
+        successMessage={t("supportRequestSubmitted") || "Support request submitted"}
+      />
+      <SupportMessageDialog
+        open={suggestionOpen}
+        onOpenChange={setSuggestionOpen}
+        title={t("suggestions")}
+        description={t("suggestionDescription") || "Share your suggestion to help us improve."}
+        endpoint="/support/suggestions"
+        successMessage={t("suggestionSubmitted") || "Suggestion submitted"}
+      />
     </header>
   )
 }

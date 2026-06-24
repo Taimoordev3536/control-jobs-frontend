@@ -5,7 +5,7 @@ import { decodeJwt } from "jose"
 const IMP_COOKIE = "cj-imp-token"
 
 const roleRoutes: Record<string, string[]> = {
-  admin: ["/dashboard", "/announcements", "/partners", "/employers", "/invoices", "/commissions", "/rates", "/information", "/utilities", "/aid", "/tasks", "/messages"],
+  admin: ["/dashboard", "/announcements", "/partners", "/employers", "/admin", "/invoices", "/commissions", "/rates", "/information", "/utilities", "/support", "/aid", "/tasks", "/messages"],
   partner: ["/dashboard", "/announcements", "/employers", "/billing", "/invoices", "/commissions", "/rates", "/information", "/utilities", "/aid", "/tasks", "/messages"],
   employer: ["/dashboard", "/announcements", "/jobs", "/clients", "/workers", "/work-centers", "/surveys", "/invoices", "/billing", "/information", "/utilities", "/aid", "/tasks", "/records", "/messages"],
   client: ["/dashboard", "/jobs", "/surveys", "/information", "/aid", "/tasks", "/records", "/messages"],

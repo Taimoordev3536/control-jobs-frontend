@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
+  <defs>
+    <style>
+      .bg-box {
+        fill: none;
+        stroke: #000000;
+        stroke-width: 32;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .text-jobs {
+        font-family: 'Arial Black', 'Impact', sans-serif;
+        font-weight: 900;
+        fill: #000000;
+        font-size: 115px;
+        letter-spacing: -2px;
+      }
+      .cursor-pointer {
+        fill: #ffffff;
+        stroke: #000000;
+        stroke-width: 28;
+        stroke-linejoin: round;
+        stroke-linecap: round;
+      }
+    </style>
+  </defs>
+
+  <path class="bg-box" d="M 270 345 L 85 345 A 60 60 0 0 1 25 285 L 25 85 A 60 60 0 0 1 85 25 L 385 25 A 60 60 0 0 1 445 85 L 445 260" />
+
+  <text class="text-jobs" x="75" y="215">JOBS</text>
+
+  <path class="cursor-pointer" d="M 315 260 L 490 395 L 415 410 L 465 478 L 420 510 L 370 442 L 330 490 Z" />
+</svg>

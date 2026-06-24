@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 290" width="100%" height="100%">
+  <style>
+    .document-shape {
+      fill: #ffffff;
+      stroke: #1a1a1a;
+      stroke-width: 11;
+      stroke-linejoin: round;
+      stroke-linecap: round;
+    }
+    .text-line {
+      fill: none;
+      stroke: #1a1a1a;
+      stroke-width: 10;
+      stroke-linecap: round;
+    }
+  </style>
+
+  <rect class="document-shape" x="22" y="16" width="188" height="236" rx="28" />
+
+  <rect class="document-shape" x="50" y="38" width="188" height="236" rx="28" />
+
+  <g>
+    <line class="text-line" x1="108" y1="82"  x2="180" y2="82" />
+    <line class="text-line" x1="108" y1="114" x2="180" y2="114" />
+    <line class="text-line" x1="108" y1="146" x2="180" y2="146" />
+    <line class="text-line" x1="108" y1="178" x2="180" y2="178" />
+    <line class="text-line" x1="108" y1="210" x2="180" y2="210" />
+    <line class="text-line" x1="108" y1="242" x2="180" y2="242" />
+  </g>
+</svg>

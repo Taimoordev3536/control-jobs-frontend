@@ -62,6 +62,8 @@ export default function ImportPage() {
               <SelectContent>
                 <SelectItem value="partners">{t("partners")}</SelectItem>
                 <SelectItem value="employers">{t("employers")}</SelectItem>
+                <SelectItem value="clients">{t("clients")}</SelectItem>
+                <SelectItem value="workers">{t("workers")}</SelectItem>
                 <SelectItem value="invoices">{t("invoices")}</SelectItem>
                 <SelectItem value="commissions">{t("commissions")}</SelectItem>
                 <SelectItem value="users">{t("users")}</SelectItem>

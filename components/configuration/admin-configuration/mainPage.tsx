@@ -63,19 +63,21 @@
 "use client"
 
 import { useState } from "react"
-import Profile from "./profile"
+import Rates from "./rates"
 import Accounting from "./accounting"
 import Aid from "./aid"
 import Web from "./web"
+import { useTranslation } from "@/hooks/use-translation"
 
 export default function AdminConfigurationMainPage() {
-  const [activeTab, setActiveTab] = useState("profile")
+  const { t } = useTranslation()
+  const [activeTab, setActiveTab] = useState("rates")
 
   const tabs = [
-    { key: "profile", label: "Profile" },
-    { key: "accounting", label: "Accounting" },
-    { key: "aid", label: "AId" },
-    { key: "web", label: "Web" },
+    { key: "rates", label: t("rates") },
+    { key: "accounting", label: t("accounting") || "Accounting" },
+    { key: "aid", label: t("help") || "Help" },
+    { key: "web", label: t("Web") || "Web" },
   ]
 
   return (
@@ -106,7 +108,7 @@ export default function AdminConfigurationMainPage() {
       </div>
 
       <div className="min-h-[300px] bg-card p-6">
-        {activeTab === "profile" && <Profile />}
+        {activeTab === "rates" && <Rates />}
         {activeTab === "accounting" && <Accounting />}
         {activeTab === "aid" && <Aid />}
         {activeTab === "web" && <Web />}
