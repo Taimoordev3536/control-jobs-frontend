@@ -12,8 +12,8 @@
  *   "1ª D"      → "1ª D"   (feminine ordinal preserved)
  *   "1 D"       → "1º D"   (bare digit + letter, infer floor + door)
  *   "Piso 1 D"  → "1º D"
- *   "bajo"      → "BAJO"
- *   "Ático"     → "ÁTICO"
+ *   "bajo"      → "bajo"   (casing preserved as typed)
+ *   "Ático"     → "Ático"
  *   ""          → ""
  */
 const WORD_FLOORS = new Set([
@@ -34,7 +34,7 @@ export function normalizeFloorDoor(raw: string | null | undefined): string {
 
   const upperFirstToken = s.split(" ")[0].toUpperCase()
   if (WORD_FLOORS.has(upperFirstToken)) {
-    return s.toUpperCase().slice(0, 50)
+    return s.slice(0, 50)
   }
 
   s = s.replace(/^(\d{1,2})\s*(?:er|do|ro|to)(?=\s|$)/i, "$1º")
@@ -42,7 +42,7 @@ export function normalizeFloorDoor(raw: string | null | undefined): string {
   s = s.replace(/^(\d{1,2})\s*[aª](?=\s|$)/, "$1ª")
   s = s.replace(/^(\d{1,2})(?=\s+[A-Za-zÑñ](?:\s|$))/, "$1º")
 
-  s = s.toUpperCase().replace(/\s+/g, " ").trim()
+  s = s.replace(/\s+/g, " ").trim()
   return s.slice(0, 50)
 }
 

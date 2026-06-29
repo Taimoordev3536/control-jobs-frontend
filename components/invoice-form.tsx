@@ -29,6 +29,7 @@ interface FormContext {
         name: string
         taxId?: string | null
         address?: string | null
+        floorDoor?: string | null
         postalCode?: string | null
         city?: string | null
         province?: string | null
@@ -37,7 +38,7 @@ interface FormContext {
       }
     | null
   client:
-    | { id: number; name: string; taxId: string; address: string; postalCode: string; city: string; province: string; country: string }
+    | { id: number; name: string; taxId: string; address: string; floorDoor?: string | null; postalCode: string; city: string; province: string; country: string }
     | null
   payment: {
     methodId: number | null
@@ -256,7 +257,8 @@ export default function InvoiceForm({ mode, invoice, onSubmitted, onCancel, allo
     setVatText((prev) => (Number.parseFloat(prev.replace(",", ".")) === vatPct ? prev : String(vatPct)))
   }, [vatPct])
 
-  const todayIso = new Date().toISOString().slice(0, 10)
+  const now = new Date()
+  const todayIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`
   const status = mode === "view" ? invoice?.status : null
   const docTitle = totals.total < 0 ? t("creditNoteTitle") || "ABONO" : t("invoiceTitle") || "FACTURA"
   const editable = mode === "create"
@@ -345,7 +347,9 @@ export default function InvoiceForm({ mode, invoice, onSubmitted, onCancel, allo
           <div className="text-xs text-muted-foreground italic leading-5">
             {company?.name ? <div>{company.name}</div> : null}
             {company?.taxId ? <div>{company.taxId}</div> : null}
-            {company?.address ? <div className="whitespace-pre-line">{company.address}</div> : null}
+            {company?.address || company?.floorDoor ? (
+              <div className="whitespace-pre-line">{[company?.address, company?.floorDoor].filter(Boolean).join(" ")}</div>
+            ) : null}
             {company?.postalCode || company?.city ? (
               <div>{[company?.postalCode, company?.city].filter(Boolean).join(" ")}</div>
             ) : null}
@@ -421,9 +425,12 @@ export default function InvoiceForm({ mode, invoice, onSubmitted, onCancel, allo
           ) : (
             <div className="mt-2 text-xs text-muted-foreground italic leading-5">
               {client?.taxId && <div>{client.taxId}</div>}
-              {client?.address && <div>{client.address}</div>}
+              {(client?.address || client?.floorDoor) && (
+                <div>{[client?.address, client?.floorDoor].filter(Boolean).join(" ")}</div>
+              )}
               <div>{[client?.postalCode, client?.city].filter(Boolean).join("  ")}</div>
-              <div>{[client?.province, client?.country].filter(Boolean).join("  ")}</div>
+              {client?.province && <div>{client.province}</div>}
+              {client?.country && <div>{client.country}</div>}
             </div>
           )}
 
@@ -452,7 +459,7 @@ export default function InvoiceForm({ mode, invoice, onSubmitted, onCancel, allo
       {/* ── Line items ── */}
       <div className="px-6">
         <div className="flex items-center bg-purple-50 dark:bg-purple-950/40 border-b-2 border-[#662D91] py-2 text-xs font-semibold">
-          <div className="flex-1 px-2">{t("billingSummary") || "Resumen de facturación"}</div>
+          <div className="flex-1 px-2 text-center">{t("billingSummary") || "Resumen de facturación"}</div>
           <div className="w-24 text-center">{t("quantity") || "Cantidad"}</div>
           <div className="w-24 text-center">{t("price") || "Precio"}</div>
           <div className="w-24 text-right pr-2">{t("total") || "Total"}</div>
@@ -469,8 +476,8 @@ export default function InvoiceForm({ mode, invoice, onSubmitted, onCancel, allo
                   <div className="flex-1 px-1">
                     <Input value={l.description} onChange={(e) => updateLine(l.id, "description", e.target.value)} placeholder={t("serviceDescription") || "Service description"} className="h-8 text-sm" />
                   </div>
-                  <div className="w-24"><Input type="number" value={l.quantity} onChange={(e) => updateLine(l.id, "quantity", Number.parseFloat(e.target.value) || 0)} className="h-8 text-sm text-center" step="1" /></div>
-                  <div className="w-24"><Input type="number" value={l.unitPrice} onChange={(e) => updateLine(l.id, "unitPrice", Number.parseFloat(e.target.value) || 0)} className="h-8 text-sm text-center" step="0.01" /></div>
+                  <div className="w-24"><Input type="number" inputMode="decimal" value={l.quantity || ""} onChange={(e) => updateLine(l.id, "quantity", Number.parseFloat(e.target.value) || 0)} className="h-8 text-sm text-center" step="1" /></div>
+                  <div className="w-24"><Input type="number" inputMode="decimal" value={l.unitPrice || ""} onChange={(e) => updateLine(l.id, "unitPrice", Number.parseFloat(e.target.value) || 0)} className="h-8 text-sm text-center" step="0.01" /></div>
                   <div className="w-24 flex justify-end pr-2 text-sm"><span className="inline-block min-w-[72px] text-right bg-muted/60 rounded px-2 py-1">{money(l.quantity * l.unitPrice)}</span></div>
                   <button onClick={() => removeLine(l.id)} className="w-8 flex justify-center text-muted-foreground hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
                 </div>
@@ -542,7 +549,7 @@ export default function InvoiceForm({ mode, invoice, onSubmitted, onCancel, allo
                       setDiscountText(raw)
                       setDiscountPct(Number.parseFloat(raw) || 0)
                     }}
-                    className="h-7 w-20 text-xs text-center"
+                    className="h-7 w-24 text-xs text-center"
                   />
                   <span className="text-muted-foreground">%</span>
                 </span>
@@ -583,7 +590,7 @@ export default function InvoiceForm({ mode, invoice, onSubmitted, onCancel, allo
                           setVatText(raw)
                           setVatPct(Number.parseFloat(raw) || 0)
                         }}
-                        className="h-6 w-20 text-xs text-center"
+                        className="h-6 w-24 text-xs text-center"
                       />
                       <span className="text-muted-foreground">%</span>
                     </span>

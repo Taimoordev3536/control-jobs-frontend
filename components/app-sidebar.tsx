@@ -28,7 +28,6 @@ import ConsultIcon from "../icons/new/consultas.svg"
 import OcupacionIcon from "../icons/new/ocupacion.svg"
 import CJobs from "../icons/new/logo_min.svg";
 import ContreolJobs from "../icons/Logos/ControlJobs.svg";
-import DashboardInformesIcon from "../icons/new_icons/Informes.svg"
 import SubscriptionsIcon from "../icons/new_icons/Suscripciones.svg"
 import SupportIcon from "../icons/new_icons/Soporte.svg"
 import SuggestionMenuIcon from "../icons/Header/Sugestions.svg"
@@ -49,6 +48,7 @@ import {
   ScrollText,
   DatabaseBackup,
   RotateCcw,
+  BarChart3,
 } from "lucide-react"
 import { useState, useEffect } from "react"
 import { usePathname } from "next/navigation"
@@ -329,42 +329,33 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar, styl
           {
             id: "dashboard",
             title: t("dashboard"),
-            icon: () => <TodosIcon className="h-5 w-5" />,
+            icon: () => <BarChart3 className="h-5 w-5" />,
             href: "/dashboard",
           },
           {
-            id: "employers",
-            title: t("employers"),
-            icon: () => <EmployerIcon className="h-5 w-5" />,
-            href: "/employers",
-          },
-          {
-            id: "billing",
-            title: t("billing"),
-            icon: () => <BillingIcon className="h-5 w-5" />,
+            id: "subscriptions",
+            title: t("subscriptions"),
+            icon: () => <SubscriptionsIcon className="h-5 w-5" />,
             items: [
-              { title: t("commissions"), href: "/commissions", iconKey: "commissions" },
+              { title: t("employers"), href: "/employers", iconKey: "employers" },
               { title: t("invoices"), href: "/invoices", iconKey: "invoices" },
               { title: t("rates"), href: "/rates", iconKey: "rates" },
             ],
           },
           {
-            id: "information",
-            title: t("information"),
-            icon: () => <InformationIcon className="h-5 w-5" />,
-            items: [
-              { title: t("employers"), href: "/information/employers-info", iconKey: "employers" },
-              { title: t("commissions"), href: "/information/commissions-info", iconKey: "commissions" },
-              { title: t("invoices"), href: "/information/invoices-info", iconKey: "invoices" },
-            ],
+            id: "commissions",
+            title: t("commissions"),
+            icon: () => <ComisionesIcon className="h-5 w-5" />,
+            href: "/commissions",
           },
           {
             id: "utilities",
             title: t("utilities"),
             icon: () => <UtilitiesIcon className="h-5 w-5" />,
             items: [
-              { title: t("import"), href: "/utilities/import", iconKey: "import" },
+              { title: t("marketing") || "Marketing", href: "/utilities/marketing", iconKey: "marketing" },
               { title: t("invitations") || "Invitar", href: "/utilities/invite", iconKey: "invite" },
+              { title: t("import"), href: "/utilities/import", iconKey: "import" },
             ],
           },
           {
@@ -380,7 +371,7 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar, styl
           {
             id: "dashboard",
             title: t("dashboard"),
-            icon: () => <DashboardInformesIcon className="h-5 w-5" />,
+            icon: () => <BarChart3 className="h-5 w-5" />,
             href: "/dashboard",
           },
           {
@@ -409,7 +400,7 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar, styl
             icon: () => <UtilitiesIcon className="h-5 w-5" />,
             items: [
               { title: t("invitations") || "Invitar", href: "/utilities/invite", iconKey: "invite" },
-              { title: t("payments"), href: "/utilities/payments", iconKey: "payments" },
+              { title: t("banks") || "Bancos", href: "/utilities/payments", iconKey: "payments" },
               { title: t("import"), href: "/utilities/import", iconKey: "import" },
             ],
           },

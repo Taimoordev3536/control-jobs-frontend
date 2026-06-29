@@ -49,7 +49,7 @@ function PasswordField({
   )
 }
 
-export function AdminCredentials() {
+export function AdminCredentials({ endpointBase = "/users/admin/me" }: { endpointBase?: string } = {}) {
   const { t } = useTranslation()
   const { session, logout } = useAuth()
   const { toast } = useToast()
@@ -87,7 +87,7 @@ export function AdminCredentials() {
     }
     setSavingPassword(true)
     try {
-      await post("/users/admin/me/change-password", { currentPassword, newPassword })
+      await post(`${endpointBase}/change-password`, { currentPassword, newPassword })
       toast({
         title: t("passwordChanged") || "Password changed",
         description: t("pleaseLoginAgain") || "Please log in again with your new credentials.",
@@ -108,7 +108,7 @@ export function AdminCredentials() {
     if (!session?.accessToken) return
     setSavingEmail(true)
     try {
-      await post("/users/admin/me/change-email", { currentPassword: emailCurrentPassword, newEmail })
+      await post(`${endpointBase}/change-email`, { currentPassword: emailCurrentPassword, newEmail })
       toast({
         title: t("emailChanged") || "Email changed",
         description: t("pleaseLoginAgain") || "Please log in again with your new credentials.",

@@ -54,6 +54,7 @@ export function AppHeader({ collapsed, toggleSidebar, style }: AppHeaderProps) {
       case "RATE_CHANGE_SCHEDULED": return t("rateChangeScheduledTitle") || "Tariff change scheduled"
       case "RATE_CHANGE_CANCELLED": return t("rateChangeCancelledTitle") || "Tariff change cancelled"
       case "SUPPORT_REQUEST": return t("supportRequest") || "Support request"
+      case "SUPPORT_REPLY": return t("supportReply") || "Support reply"
       case "SUGGESTION": return t("suggestion") || "Suggestion"
       default: return t("notification")
     }

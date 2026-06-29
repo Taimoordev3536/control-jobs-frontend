@@ -47,7 +47,7 @@ const subUserTranslations = {
     editOptionDesc: "Full access — can create, update, and delete",
     viewOnlyOptionTitle: "View only",
     viewOnlyOptionDesc: "Read-only — cannot make changes",
-    inviteLinkNotice: "An invite link will be generated and copied to your clipboard.",
+    inviteLinkNotice: "An invite link will be generated and copied to your clipboard. The person you invite enters their own name and email when they open it.",
     cancel: "Cancel",
     sendInvite: "Send invite",
     sending: "Sending…",
@@ -93,7 +93,11 @@ const subUserTranslations = {
 
     // Accept invitation page
     acceptTitle: "Accept invitation",
-    acceptSubtitle: "Set a password to activate your account",
+    acceptSubtitle: "Enter your details and set a password to activate your account",
+    firstNamePlaceholder: "First name",
+    lastNamePlaceholder: "Last name",
+    toastNameRequired: "First and last name are required",
+    toastInvalidEmail: "Enter a valid email",
     newPasswordPlaceholder: "New password",
     confirmPasswordPlaceholder: "Confirm password",
     passwordHint: "Minimum 8 characters.",
@@ -154,7 +158,7 @@ const subUserTranslations = {
     editOptionDesc: "Acceso completo — puede crear, actualizar y eliminar",
     viewOnlyOptionTitle: "Solo lectura",
     viewOnlyOptionDesc: "Solo visualización — no puede hacer cambios",
-    inviteLinkNotice: "Se generará un enlace de invitación y se copiará al portapapeles.",
+    inviteLinkNotice: "Se generará un enlace de invitación y se copiará al portapapeles. La persona invitada introducirá su propio nombre y email al abrirlo.",
     cancel: "Cancelar",
     sendInvite: "Enviar invitación",
     sending: "Enviando…",
@@ -200,7 +204,11 @@ const subUserTranslations = {
 
     // Accept invitation page
     acceptTitle: "Aceptar invitación",
-    acceptSubtitle: "Establece una contraseña para activar tu cuenta",
+    acceptSubtitle: "Introduce tus datos y establece una contraseña para activar tu cuenta",
+    firstNamePlaceholder: "Nombre",
+    lastNamePlaceholder: "Apellidos",
+    toastNameRequired: "El nombre y los apellidos son obligatorios",
+    toastInvalidEmail: "Introduce un email válido",
     newPasswordPlaceholder: "Nueva contraseña",
     confirmPasswordPlaceholder: "Confirmar contraseña",
     passwordHint: "Mínimo 8 caracteres.",

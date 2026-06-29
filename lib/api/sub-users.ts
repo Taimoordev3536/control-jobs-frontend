@@ -51,9 +51,6 @@ export async function listSubUsers(): Promise<SubUser[]> {
 }
 
 export async function createSubUser(input: {
-  email: string
-  firstName: string
-  lastName: string
   permission: SubUserPermission
 }): Promise<{ user: { id: number }; inviteToken: string; inviteLink: string }> {
   const body = await authedFetch("/sub-users", {
@@ -93,11 +90,17 @@ export async function getSubUserContext(): Promise<SubUserContext> {
   return body.data || { isSubUser: false }
 }
 
-export async function acceptInvite(token: string, password: string): Promise<void> {
+export async function acceptInvite(input: {
+  token: string
+  password: string
+  firstName: string
+  lastName: string
+  email: string
+}): Promise<void> {
   const res = await fetch(`${API_BASE}/sub-users/accept-invite`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ token, password }),
+    body: JSON.stringify(input),
   })
   const body = await res.json().catch(() => ({}))
   if (!res.ok || body?.isSuccess === false) {

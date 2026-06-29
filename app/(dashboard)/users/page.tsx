@@ -311,34 +311,19 @@ function CreateSubUserDialog({
   onCreated: () => void
   t: TranslateFn
 }) {
-  const [firstName, setFirstName] = useState("")
-  const [lastName, setLastName] = useState("")
-  const [email, setEmail] = useState("")
   const [permission, setPermission] = useState<SubUserPermission>("EDIT")
   const [busy, setBusy] = useState(false)
-  const [errors, setErrors] = useState({ firstName: false, lastName: false, email: false })
 
   useEffect(() => {
     if (!open) {
-      setFirstName(""); setLastName(""); setEmail(""); setPermission("EDIT")
-      setErrors({ firstName: false, lastName: false, email: false })
+      setPermission("EDIT")
     }
   }, [open])
 
-  const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
-
   const submit = async () => {
-    const newErrors = {
-      firstName: !firstName,
-      lastName: !lastName,
-      email: !email || !isValidEmail(email),
-    }
-    setErrors(newErrors)
-    if (newErrors.firstName || newErrors.lastName || newErrors.email) return
-
     setBusy(true)
     try {
-      const res = await createSubUser({ firstName, lastName, email, permission })
+      const res = await createSubUser({ permission })
       try { await navigator.clipboard.writeText(res.inviteLink) } catch {}
       toast({
         title: t("toastSubUserInvited"),
@@ -368,52 +353,6 @@ function CreateSubUserDialog({
 
         <div className="px-4 sm:px-6 pb-6 flex-1 overflow-y-auto">
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label htmlFor="firstName" className="text-sm font-medium text-foreground">
-                  {t("firstNameLabel")} <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="firstName"
-                  value={firstName}
-                  onChange={(e) => { setFirstName(e.target.value); setErrors((p) => ({ ...p, firstName: false })) }}
-                  className={`mt-1 ${errors.firstName ? "border-red-500" : ""}`}
-                />
-                {errors.firstName && <p className="mt-1 text-xs text-red-500">{t("fieldRequired")}</p>}
-              </div>
-              <div>
-                <Label htmlFor="lastName" className="text-sm font-medium text-foreground">
-                  {t("lastNameLabel")} <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="lastName"
-                  value={lastName}
-                  onChange={(e) => { setLastName(e.target.value); setErrors((p) => ({ ...p, lastName: false })) }}
-                  className={`mt-1 ${errors.lastName ? "border-red-500" : ""}`}
-                />
-                {errors.lastName && <p className="mt-1 text-xs text-red-500">{t("fieldRequired")}</p>}
-              </div>
-            </div>
-
-            <div>
-              <Label htmlFor="subEmail" className="text-sm font-medium text-foreground">
-                {t("emailLabel")} <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="subEmail"
-                type="email"
-                value={email}
-                onChange={(e) => { setEmail(e.target.value); setErrors((p) => ({ ...p, email: false })) }}
-                placeholder={t("emailPlaceholder")}
-                className={`mt-1 ${errors.email ? "border-red-500" : ""}`}
-              />
-              {errors.email && (
-                <p className="mt-1 text-xs text-red-500">
-                  {!email ? t("fieldRequired") : t("invalidEmail")}
-                </p>
-              )}
-            </div>
-
             <div>
               <Label className="text-sm font-medium text-foreground">
                 {t("permissionLevelLabel")} <span className="text-red-500">*</span>

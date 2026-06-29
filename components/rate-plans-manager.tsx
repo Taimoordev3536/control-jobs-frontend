@@ -276,19 +276,21 @@ export default function RatePlansManager() {
           <div className="p-6 border-t border-border">
             <div className="flex justify-between items-center">
               <p className="text-sm text-muted-foreground">{t("vatNotIncluded")}</p>
-              <Button
-                onClick={handleSave}
-                disabled={!canEdit || !isDirty || isSaving}
-                className="bg-purple-600 hover:bg-purple-700 text-white px-6"
-              >
-                {isSaving ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-1 animate-spin" /> {t("saving") || "Saving..."}
-                  </>
-                ) : (
-                  t("saveChanges") || t("keep") || "Save"
-                )}
-              </Button>
+              {canEdit && (
+                <Button
+                  onClick={handleSave}
+                  disabled={!isDirty || isSaving}
+                  className="bg-purple-600 hover:bg-purple-700 text-white px-6"
+                >
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-1 animate-spin" /> {t("saving") || "Saving..."}
+                    </>
+                  ) : (
+                    t("saveChanges") || t("keep") || "Save"
+                  )}
+                </Button>
+              )}
             </div>
           </div>
         </>

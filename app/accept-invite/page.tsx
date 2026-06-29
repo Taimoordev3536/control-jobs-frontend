@@ -99,16 +99,29 @@ function AcceptInviteForm() {
     })()
   }, [tokenType, token])
 
+  const [firstName, setFirstName] = useState("")
+  const [lastName, setLastName] = useState("")
+  const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [confirm, setConfirm] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
   const [busy, setBusy] = useState(false)
 
+  const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!token) {
       toast({ title: t("toastMissingToken"), variant: "destructive" })
+      return
+    }
+    if (!firstName.trim() || !lastName.trim()) {
+      toast({ title: t("toastNameRequired") || "First and last name are required", variant: "destructive" })
+      return
+    }
+    if (!isValidEmail(email)) {
+      toast({ title: t("toastInvalidEmail") || "Enter a valid email", variant: "destructive" })
       return
     }
     if (password.length < 8) {
@@ -121,7 +134,7 @@ function AcceptInviteForm() {
     }
     setBusy(true)
     try {
-      await acceptInvite(token, password)
+      await acceptInvite({ token, password, firstName: firstName.trim(), lastName: lastName.trim(), email: email.trim() })
       toast({ title: t("toastPasswordSet"), description: t("toastPasswordSetDesc"), variant: "success" })
       router.push("/login")
     } catch (e: any) {
@@ -205,6 +218,38 @@ function AcceptInviteForm() {
         </CardHeader>
         <CardContent>
           <form onSubmit={submit} className="grid gap-4">
+            <div className="grid grid-cols-2 gap-3">
+              <Input
+                id="firstName"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                className="w-full bg-background border-input text-foreground"
+                placeholder={t("firstNamePlaceholder") || "First name"}
+                required
+                autoComplete="given-name"
+              />
+              <Input
+                id="lastName"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                className="w-full bg-background border-input text-foreground"
+                placeholder={t("lastNamePlaceholder") || "Last name"}
+                required
+                autoComplete="family-name"
+              />
+            </div>
+
+            <Input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full bg-background border-input text-foreground"
+              placeholder={t("emailPlaceholder") || "Email"}
+              required
+              autoComplete="email"
+            />
+
             <div className="grid gap-2">
               <div className="relative w-full">
                 <span className="absolute inset-y-0 left-0 flex items-center pl-3">

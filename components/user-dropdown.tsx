@@ -172,7 +172,6 @@ export function UserDropdown() {
       case "partner":
         return [
           { label: t("mydata"), href: "/mydata", icon: PerfileIcon },
-          { label: t("configuration"), href: "/configuration", icon: ConfigurationIcon },
           { label: t("users"), href: "/users", icon: UsersIcon },
         ]
 
@@ -220,7 +219,7 @@ export function UserDropdown() {
         </Button>
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent className="w-56" align="end" forceMount>
+      <DropdownMenuContent className="w-56 bg-[hsl(var(--sidebar-background))]" align="end" forceMount>
         {/* User info block */}
         <div className="flex flex-col items-center py-4 border-b border-border">
           <div className="relative mb-2">

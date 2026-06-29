@@ -1,61 +1,147 @@
-
-
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ChevronLeft, ChevronRight } from "lucide-react"
+import { Download, Info, Upload } from "lucide-react"
 import { useTranslation } from "@/hooks/use-translation"
+import { useToast } from "@/hooks/use-toast"
+import { useAuth } from "@/hooks/use-auth"
+import { AnimatedLoader } from "@/components/animated-loader"
+
+const SUPPORTED = new Set(["clients", "workers", "users", "partners", "employers"])
+
+const SAMPLE_FIELDS: Record<string, { headers: string[]; example: string[] }> = {
+  partners: {
+    headers: ["Nombre", "NIF", "Email", "Teléfono", "Dirección", "Tipo", "Tarifa", "Comisión (%)", "Retención (%)", "Método de pago", "Localidad", "Provincia", "Activo"],
+    example: ["Juan Pérez", "12345678A", "juan@ejemplo.com", "600000000", "Calle Sol 1", "Gold", "Estándar", "10", "15", "Transferencia", "Madrid", "Madrid", "Sí"],
+  },
+  employers: {
+    headers: ["Nombre", "NIF", "Email", "Dirección", "Partner", "Tipo", "SubTipo", "Teléfono", "Localidad", "Provincia", "Código Postal", "Activo"],
+    example: ["Empresa S.L.", "B12345678", "info@empresa.com", "Calle Mayor 1", "Nombre del partner", "Hogar", "Empresa", "910000000", "Madrid", "Madrid", "28001", "Sí"],
+  },
+  clients: {
+    headers: ["Nombre", "Email", "NIF", "Código", "Tipo", "Localidad", "Provincia", "Empleador", "Activo"],
+    example: ["María García", "maria@ejemplo.com", "12345678A", "CLI-001", "Particular", "Bilbao", "Vizcaya", "Empresa S.L.", "Sí"],
+  },
+  workers: {
+    headers: ["Nombre", "Apellidos", "Email", "NIF", "Código", "Ocupación", "Localidad", "Provincia", "Empleador", "Activo"],
+    example: ["Ana", "López Ruiz", "ana@ejemplo.com", "87654321B", "TRB-001", "Auxiliar", "Sevilla", "Sevilla", "Empresa S.L.", "Sí"],
+  },
+  users: {
+    headers: ["Nombre", "Apellidos", "Email", "Rol", "Activo"],
+    example: ["Carlos", "Ruiz Díaz", "carlos@ejemplo.com", "Empleador", "Sí"],
+  },
+}
+
+interface ImportSummary {
+  type: string
+  total: number
+  imported: number
+  skipped: number
+  failed: number
+  errors: { row: number; reason: string; email?: string }[]
+}
+
+function toCsv(rows: string[][]): string {
+  return rows
+    .map((row) =>
+      row
+        .map((cell) => {
+          const v = cell ?? ""
+          return /[",;\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v
+        })
+        .join(";"),
+    )
+    .join("\r\n")
+}
 
 export default function ImportPage() {
-  const [selectedPeriod, setSelectedPeriod] = useState("June 17, 2025")
-  const [selectedFile, setSelectedFile] = useState("")
   const { t } = useTranslation()
+  const { toast } = useToast()
+  const { session } = useAuth()
+  const [selectedRole, setSelectedRole] = useState("")
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [summary, setSummary] = useState<ImportSummary | null>(null)
 
-  const handleImport = () => {
-    console.log("Import initiated:", { selectedPeriod, selectedFile })
+  const fields = useMemo(() => (selectedRole ? SAMPLE_FIELDS[selectedRole] : null), [selectedRole])
+  const supported = selectedRole ? SUPPORTED.has(selectedRole) : true
+
+  const downloadSample = () => {
+    if (!fields) {
+      toast({ title: t("selectTypeFirst") || "Select a type first" })
+      return
+    }
+    const csv = "﻿" + toCsv([fields.headers, fields.example])
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `plantilla_${selectedRole}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
   }
 
-  const handlePrevPeriod = () => {
-    // Handle previous period logic
-    console.log("Previous period")
-  }
-
-  const handleNextPeriod = () => {
-    // Handle next period logic
-    console.log("Next period")
+  const handleImport = async () => {
+    if (!selectedRole) {
+      toast({ title: t("selectTypeFirst") || "Select a type first" })
+      return
+    }
+    if (!selectedFile) {
+      toast({ title: t("selectCsvFile") || "Select a CSV file" })
+      return
+    }
+    setBusy(true)
+    setSummary(null)
+    try {
+      const form = new FormData()
+      form.append("file", selectedFile)
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/import/${selectedRole}`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${session?.accessToken}` },
+        body: form,
+      })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok || body?.isSuccess === false) {
+        throw new Error(body?.message || "Import failed")
+      }
+      setSummary(body.data)
+      toast({
+        title: t("importDone") || "Import processed",
+        description: `${body.data.imported}/${body.data.total}`,
+        variant: "success",
+      })
+    } catch (e: any) {
+      toast({ title: t("somethingWentWrong") || "Something went wrong", description: e.message, variant: "destructive" })
+    } finally {
+      setBusy(false)
+    }
   }
 
   return (
-    <div className="p-6 bg-background min-h-screen">
+    <div className="w-full p-6 bg-background min-h-screen">
       <div className="bg-card rounded-lg shadow-sm border border-border">
-        {/* Header */}
         <div className="p-6 border-b border-border">
           <h1 className="text-2xl font-semibold text-foreground">{t("import")}</h1>
         </div>
 
-        {/* Form Content */}
         <div className="p-6 space-y-6">
-          {/* Period Section */}
-          <div className="space-y-2">
-            <Label className="text-sm font-medium text-foreground">{t("period")}</Label>
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" onClick={handlePrevPeriod} className="p-1 h-8 w-8">
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <span className="text-sm font-medium text-foreground min-w-[120px] text-center">{selectedPeriod}</span>
-              <Button variant="ghost" size="sm" onClick={handleNextPeriod} className="p-1 h-8 w-8">
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
+          <div className="flex gap-3 rounded-md border border-purple-200 dark:border-purple-900 bg-purple-50 dark:bg-purple-950/30 p-4">
+            <Info className="h-5 w-5 text-[#662D91] shrink-0 mt-0.5" />
+            <p className="text-sm text-foreground">
+              {t("importCsvInfo") ||
+                "Puedes importar datos en formato CSV. Descarga la plantilla de ejemplo para ver los nombres de los campos (en español) que se pueden importar y rellénala antes de subirla."}
+            </p>
           </div>
 
-          {/* File Select Dropdown */}
-          <div className="space-y-2">
-            <Label className="text-sm font-medium text-foreground">{t("file")}</Label>
-            <Select value={selectedFile} onValueChange={setSelectedFile}>
+          <div className="space-y-2 max-w-sm">
+            <Label className="text-sm font-medium text-foreground">{t("type") || "Tipo"}</Label>
+            <Select
+              value={selectedRole}
+              onValueChange={(v) => { setSelectedRole(v); setSummary(null) }}
+            >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder={t("select")} />
               </SelectTrigger>
@@ -64,19 +150,87 @@ export default function ImportPage() {
                 <SelectItem value="employers">{t("employers")}</SelectItem>
                 <SelectItem value="clients">{t("clients")}</SelectItem>
                 <SelectItem value="workers">{t("workers")}</SelectItem>
-                <SelectItem value="invoices">{t("invoices")}</SelectItem>
-                <SelectItem value="commissions">{t("commissions")}</SelectItem>
                 <SelectItem value="users">{t("users")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
-          {/* Import Button */}
-          <div className="pt-4">
-            <Button onClick={handleImport} className="bg-purple-600 hover:bg-purple-700 text-white px-8">
+          {fields && (
+            <div className="space-y-3">
+              <Button
+                variant="outline"
+                onClick={downloadSample}
+                className="gap-2 border-[#662D91] text-[#662D91] hover:bg-purple-50"
+              >
+                <Download className="h-4 w-4" />
+                {t("downloadSampleCsv") || "Descargar CSV de ejemplo"}
+              </Button>
+              <div className="text-xs text-muted-foreground">
+                {t("fields") || "Campos"}: {fields.headers.join(", ")}
+              </div>
+            </div>
+          )}
+
+          {selectedRole && !supported && (
+            <div className="rounded-md border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 p-3 text-sm text-amber-800 dark:text-amber-300">
+              {t("importTypeNotYet") ||
+                "La importación de este tipo aún no está disponible. Créalos desde su formulario (requieren configuración de tarifa/tipo y facturación)."}
+            </div>
+          )}
+
+          <div className="space-y-2 max-w-sm">
+            <Label className="text-sm font-medium text-foreground">{t("csvFile") || "Archivo CSV"}</Label>
+            <input
+              type="file"
+              accept=".csv,text/csv"
+              onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)}
+              className="block w-full text-sm text-muted-foreground file:mr-3 file:rounded-md file:border-0 file:bg-purple-100 file:px-3 file:py-1.5 file:text-[#662D91] hover:file:bg-purple-200"
+            />
+          </div>
+
+          <div className="pt-2">
+            <Button
+              onClick={handleImport}
+              disabled={busy || (!!selectedRole && !supported)}
+              className="gap-2 bg-purple-600 hover:bg-purple-700 text-white px-8"
+            >
+              {busy ? <AnimatedLoader size={18} /> : <Upload className="h-4 w-4" />}
               {t("Import")}
             </Button>
           </div>
+
+          {summary && (
+            <div className="space-y-3 rounded-md border border-border p-4">
+              <div className="flex flex-wrap gap-4 text-sm">
+                <span><strong>{summary.total}</strong> {t("total") || "total"}</span>
+                <span className="text-green-600 dark:text-green-400"><strong>{summary.imported}</strong> {t("imported") || "imported"}</span>
+                <span className="text-amber-600 dark:text-amber-400"><strong>{summary.skipped}</strong> {t("skipped") || "skipped"}</span>
+                <span className="text-red-600 dark:text-red-400"><strong>{summary.failed}</strong> {t("failed") || "failed"}</span>
+              </div>
+              {summary.errors.length > 0 && (
+                <div className="max-h-64 overflow-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="text-left text-muted-foreground">
+                        <th className="py-1 pr-3">{t("row") || "Row"}</th>
+                        <th className="py-1 pr-3">Email</th>
+                        <th className="py-1">{t("reason") || "Reason"}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {summary.errors.map((er, i) => (
+                        <tr key={i} className="border-t border-border">
+                          <td className="py-1 pr-3">{er.row}</td>
+                          <td className="py-1 pr-3">{er.email || "-"}</td>
+                          <td className="py-1">{er.reason}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
