@@ -20,9 +20,6 @@ const PartnerEmployersTab = dynamic(() => import("@/components/partner-tabs/part
 const PartnerInvoicesTab = dynamic(() => import("@/components/partner-tabs/partner-invoices-tab"), {
   loading: () => <AnimatedLoader size={24} className="p-6" />,
 })
-const PartnerWallTab = dynamic(() => import("@/components/partner-tabs/partner-wall-tab"), {
-  loading: () => <AnimatedLoader size={24} className="p-6" />,
-})
 const PartnerMessagesTab = dynamic(() => import("@/components/partner-tabs/partner-messages-tab"), {
   loading: () => <AnimatedLoader size={24} className="p-6" />,
 })
@@ -35,14 +32,16 @@ export default function PartnerDetailPage() {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState("data")
   const [partnerName, setPartnerName] = useState(searchParams.get("name") || "")
+  const [isSystem, setIsSystem] = useState(false)
 
+  // The system partner is an internal bookkeeping entity; chat with it is
+  // blocked server-side, so hide its Messages tab.
   const tabs = [
     { key: "data", label: t("data") },
     { key: "commissions", label: t("commissions") },
     { key: "employers", label: t("employers") },
     { key: "invoices", label: t("invoices") },
-    { key: "wall", label: t("wall") },
-    { key: "messages", label: t("messages") },
+    ...(isSystem ? [] : [{ key: "messages", label: t("messages") }]),
   ]
 
   return (
@@ -93,11 +92,16 @@ export default function PartnerDetailPage() {
 
       {/* Tab Content */}
       <div className="min-h-[400px] bg-card p-2">
-        {activeTab === "data" && <PartnerDataTab partnerId={partnerId} onNameChange={(n) => setPartnerName(n)} />}
+        {activeTab === "data" && (
+          <PartnerDataTab
+            partnerId={partnerId}
+            onNameChange={(n) => setPartnerName(n)}
+            onSystemChange={setIsSystem}
+          />
+        )}
         {activeTab === "commissions" && <PartnerCommissionsTab />}
         {activeTab === "employers" && <PartnerEmployersTab partnerId={partnerId} />}
         {activeTab === "invoices" && <PartnerInvoicesTab partnerId={partnerId} />}
-        {activeTab === "wall" && <PartnerWallTab />}
         {activeTab === "messages" && <PartnerMessagesTab partnerId={partnerId} />}
       </div>
     </div>

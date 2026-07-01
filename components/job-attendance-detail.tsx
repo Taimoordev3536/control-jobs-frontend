@@ -462,6 +462,7 @@ export function JobAttendanceDetail({ job, jobId, jobData, onBack }: JobAttendan
       hour: "2-digit",
       minute: "2-digit",
       hour12: true,
+      timeZone: "Europe/Madrid",
     })
   }
 
@@ -1065,8 +1066,8 @@ export function JobAttendanceDetail({ job, jobId, jobData, onBack }: JobAttendan
                                           {isMultiDay && (
                                             <div className="text-xs text-purple-700 dark:text-purple-400 mt-1 font-medium flex items-center">
                                               <span className="mr-1">📅</span>
-                                              Multi-day session: {new Date(session.checkInTime).toLocaleDateString()} → {
-                                                isOngoing ? "Ongoing" : new Date(session.checkOutTime).toLocaleDateString()
+                                              Multi-day session: {new Date(session.checkInTime).toLocaleDateString("es-ES", { timeZone: "Europe/Madrid" })} → {
+                                                isOngoing ? "Ongoing" : new Date(session.checkOutTime).toLocaleDateString("es-ES", { timeZone: "Europe/Madrid" })
                                               }
                                             </div>
                                           )}

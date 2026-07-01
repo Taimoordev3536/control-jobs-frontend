@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useMemo, useEffect, useRef, useLayoutEffect, useCallback } from "react"
+import { Fragment, useState, useMemo, useEffect, useRef, useLayoutEffect, useCallback } from "react"
 import { ChevronUp, ChevronDown } from "lucide-react"
 import { useTranslation } from "@/hooks/use-translation"
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd"
@@ -34,6 +34,8 @@ interface TabTableTemplateProps {
   onShowFiltersChange?: (visible: boolean) => void
   filters?: Record<string, string>
   onFiltersChange?: (filters: Record<string, string>) => void
+  rowClassName?: (row: any, index: number) => string
+  renderRowBefore?: (row: any, index: number) => React.ReactNode
 }
 
 export default function TabTableTemplate({
@@ -50,6 +52,8 @@ export default function TabTableTemplate({
   onShowFiltersChange,
   filters: filtersProp,
   onFiltersChange: onFiltersChangeProp,
+  rowClassName,
+  renderRowBefore,
 }: TabTableTemplateProps) {
   const { t } = useTranslation()
   const [columnOrder, setColumnOrder] = useState<string[]>(() => columns.map((c) => c.key))
@@ -238,7 +242,7 @@ export default function TabTableTemplate({
 
   if (loading) {
     return (
-      <div className={`bg-card rounded-lg shadow-sm border border-border ${className}`}>
+      <div className={`bg-card rounded-lg shadow-sm border border-border overflow-hidden ${className}`}>
         <div className="flex items-center justify-center py-12">
           <AnimatedLoader size={32} />
         </div>
@@ -247,7 +251,7 @@ export default function TabTableTemplate({
   }
 
   return (
-    <div className={`bg-card rounded-lg shadow-sm border border-border ${className}`}>
+    <div className={`bg-card rounded-lg shadow-sm border border-border overflow-hidden ${className}`}>
       <div className="overflow-x-auto">
         <DragDropContext
           onDragEnd={(result: DropResult) => {
@@ -294,7 +298,7 @@ export default function TabTableTemplate({
                                     ? { width: `${columnWidths[index]}px` }
                                     : {}),
                               }}
-                              className={`px-4 py-[7px] text-xs font-semibold text-foreground transition-colors cursor-move ${
+                              className={`px-4 py-2.5 text-xs font-semibold text-foreground transition-colors cursor-move ${
                                 snapshot.isDragging ? "bg-purple-200 dark:bg-purple-800" : ""
                               } text-center border border-gray-300 dark:border-gray-700 ${
                                 column.sortable ? "hover:bg-purple-100 dark:hover:bg-purple-900/50" : ""
@@ -350,32 +354,42 @@ export default function TabTableTemplate({
                   </td>
                 </tr>
               ) : (
-                filteredData
-                  .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
-                  .map((row, index) => (
-                    <tr
-                      key={row.id || index}
-                      className={`border-b border-border transition-colors ${
-                        index % 2 === 0 ? "bg-background" : "bg-muted/20"
-                      } ${onRowClick ? "cursor-pointer hover:bg-muted/50 active:bg-muted/70" : ""}`}
-                      onClick={() => onRowClick?.(row)}
-                    >
-                      {localColumns.map((column) => (
-                        <td
-                          key={`${row.id || index}-${column.key}`}
-                          className={`px-3 py-2 text-sm ${
-                            column.key === localColumns[0].key
-                              ? "text-foreground font-medium"
-                              : "text-muted-foreground"
-                          } ${getAlignmentClass(column, row[column.key])} border border-gray-300 dark:border-gray-700`}
-                        >
-                          {column.render
-                            ? column.render(row[column.key], row)
-                            : (renderValue(row[column.key], column.key) || "-")}
-                        </td>
+                (() => {
+                  const pageRows = filteredData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+                  return (
+                    <>
+                      {pageRows.map((row, index) => (
+                        <Fragment key={row.id || index}>
+                          {renderRowBefore?.(row, index)}
+                          <tr
+                            className={`border-b border-border transition-colors ${onRowClick ? "cursor-pointer" : ""} ${
+                              rowClassName
+                                ? rowClassName(row, index)
+                                : `${index % 2 === 0 ? "bg-background" : "bg-muted/20"} ${onRowClick ? "hover:bg-muted/50 active:bg-muted/70" : ""}`
+                            }`}
+                            onClick={() => onRowClick?.(row)}
+                          >
+                            {localColumns.map((column) => (
+                              <td
+                                key={`${row.id || index}-${column.key}`}
+                                className={`px-3 py-2 text-sm ${
+                                  column.key === localColumns[0].key
+                                    ? "text-foreground font-medium"
+                                    : "text-muted-foreground"
+                                } ${getAlignmentClass(column, row[column.key])} border border-gray-300 dark:border-gray-700`}
+                              >
+                                {column.render
+                                  ? column.render(row[column.key], row)
+                                  : (renderValue(row[column.key], column.key) || "-")}
+                              </td>
+                            ))}
+                          </tr>
+                        </Fragment>
                       ))}
-                    </tr>
-                  ))
+                      {renderRowBefore?.(null, pageRows.length)}
+                    </>
+                  )
+                })()
               )}
             </tbody>
           </table>
@@ -384,7 +398,7 @@ export default function TabTableTemplate({
 
       {/* Pagination */}
       {showPagination && filteredData.length > 0 && (
-        <div className="px-4 py-1.5 flex items-center justify-between border-t border-border bg-card bg-gray-100 dark:bg-gray-800">
+        <div className="px-4 py-2.5 flex items-center justify-between border-t border-border bg-card bg-gray-100 dark:bg-gray-800">
           <div className="text-xs text-muted-foreground">
             {t("showingRecordsFrom")} {((currentPage - 1) * itemsPerPage + 1)} {t("to")}{" "}
             {Math.min(currentPage * itemsPerPage, total)} {t("outOfTotal")} {total} {t("records")}

@@ -641,7 +641,7 @@ export default function DataListTemplate({
                                         ? { width: `${columnWidths[index]}px` }
                                         : {}),
                                   }}
-                                  className={`px-4 py-[7px] text-xs font-semibold text-foreground transition-colors cursor-move ${
+                                  className={`px-4 py-2.5 text-xs font-semibold text-foreground transition-colors cursor-move ${
                                     snapshot.isDragging ? "bg-purple-200 dark:bg-purple-800" : ""
                                   } text-center border border-gray-300 dark:border-gray-700 ${
                                     column.sortable ? "hover:bg-purple-100 dark:hover:bg-purple-900/50" : ""
@@ -663,7 +663,7 @@ export default function DataListTemplate({
                               <th
                                 key={`sel-head-${col.key}`}
                                 style={{ width: "56px" }}
-                                className="px-2 py-[7px] text-center border border-gray-300 dark:border-gray-700"
+                                className="px-2 py-2.5 text-center border border-gray-300 dark:border-gray-700"
                               >
                                 <div className="flex flex-col items-center gap-1">
                                   <button
@@ -818,7 +818,7 @@ export default function DataListTemplate({
           }
 
           return (
-            <div className="px-3 sm:px-4 py-1.5 flex flex-col items-center gap-1.5 border-t border-border bg-card bg-gray-100 dark:bg-gray-800">
+            <div className="px-3 sm:px-4 py-2.5 flex flex-col items-center gap-1.5 border-t border-border bg-card bg-gray-100 dark:bg-gray-800">
               {/* Page buttons */}
               <div className="flex items-center gap-0.5 flex-wrap justify-center">
                 {/* First */}

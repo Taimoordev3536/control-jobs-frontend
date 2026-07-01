@@ -1,365 +1,320 @@
-
 "use client"
 
-import type React from "react"
-import { useState } from "react"
-import { MoreVertical } from "lucide-react"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import { ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react"
+import { useAuth } from "@/hooks/use-auth"
 import { useTranslation } from "@/hooks/use-translation"
-import AddJobModal from "@/components/add-job-modal"
-import { exportToCSV, exportToXLSX, exportToPDF } from "@/lib/export"
-import dynamic from "next/dynamic"
-import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Label } from "@/components/ui/label"
-import { AnimatedLoader } from "@/components/animated-loader"
+import { Button } from "@/components/ui/button"
+import { DateInput } from "@/components/ui/date-input"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import TabTableTemplate, { TabTableColumn } from "@/components/ui/tab-table-template"
 
-// Import tab components dynamically
-const ControlAlertTab = dynamic(() => import("@/components/control-tabs/control-alert-tab"), {
-  loading: () => <AnimatedLoader size={24} className="p-6" />,
-  ssr: false,
-})
-const ControlSigningsTab = dynamic(() => import("@/components/control-tabs/control-signings-tab"), {
-  loading: () => <AnimatedLoader size={24} className="p-6" />,
-  ssr: false,
-})
-const ControlTasksTab = dynamic(() => import("@/components/control-tabs/control-tasks-tab"), {
-  loading: () => <AnimatedLoader size={24} className="p-6" />,
-  ssr: false,
-})
-const ControlSurveysTab = dynamic(() => import("@/components/control-tabs/control-surveys-tab"), {
-  loading: () => <AnimatedLoader size={24} className="p-6" />,
-  ssr: false,
-})
-const ControlManualTab = dynamic(() => import("@/components/control-tabs/control-manual-tab"), {
-  loading: () => <AnimatedLoader size={24} className="p-6" />,
-  ssr: false,
-})
-
-// Import SVG icons
-import AddIcon1 from "../../../../icons/Controles/add1.svg"
-import AddIcon2 from "../../../../icons/Controles/add2.svg"
-import FilterIcon1 from "../../../../icons/Controles/filter1.svg"
-import FilterIcon2 from "../../../../icons/Controles/filter2.svg"
-import CsvIcon1 from "../../../../icons/Controles/csv1.svg"
-import CsvIcon2 from "../../../../icons/Controles/csv2.svg"
-import ExcelIcon1 from "../../../../icons/Controles/xls1.svg"
-import ExcelIcon2 from "../../../../icons/Controles/xls2.svg"
-import PdfIcon1 from "../../../../icons/Controles/pdf1.svg"
-import PdfIcon2 from "../../../../icons/Controles/pdf2.svg"
-import BriefcaseIcon from "../../../../icons/Menu/merchants.svg" 
-import ClientIcon from "../../../../icons/Menu/clients.svg"
-import WorkersIcon from "../../../../icons/Menu/workers.svg"
-import OcupacionIcon from "../../../../icons/new/ocupacion.svg"
-
-// ActionIconButton component
-function ActionIconButton({
-  IconDefault,
-  IconHover,
-  onClick,
-  title,
-}: {
-  IconDefault: React.ComponentType<{ className?: string }>
-  IconHover: React.ComponentType<{ className?: string }>
-  onClick: () => void
-  title: string
-}) {
-  const [hovered, setHovered] = useState(false)
-  return (
-    <button
-      onClick={onClick}
-      className="p-2 text-[#662D91] hover:bg-purple-50 dark:hover:bg-purple-950 rounded-md border border-purple-200 dark:border-purple-800 transition-colors"
-      title={title}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-    >
-      {hovered ? <IconHover className="w-7 h-7" /> : <IconDefault className="w-7 h-7" />}
-    </button>
-  )
+interface ControlWorker {
+  id: number
+  name: string | null
+  code: string
+  checkedIn: boolean
+  checkInTime: string | null
+  checkOutTime: string | null
+  durationMinutes: number | null
+}
+interface ControlRow {
+  jobId: number
+  publicId: string
+  jobName: string
+  startTime: string | null
+  endTime: string | null
+  titular: string | null
+  workCenterName: string
+  workCenterLocality: string
+  workers: ControlWorker[]
+  workerNames: string
+  firstCheckIn: string | null
+  alerts: string[]
+  overdue: boolean
+  isHoliday?: boolean
+  holidayName?: string | null
+  scheduleType: string
 }
 
-// MobileDropdown component
-function MobileDropdown({
-  actionButtons,
-}: {
-  actionButtons: { IconDefault: React.ComponentType<{ className?: string }>; title: string; onClick: () => void }[]
-}) {
-  const [open, setOpen] = useState(false)
+const BUSINESS_TZ = "Europe/Madrid"
+function todayStr(): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: BUSINESS_TZ }).format(new Date())
+}
+const madridNowHHMM = () =>
+  new Date().toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: BUSINESS_TZ })
+const madridNowMinutes = () => {
+  const [h, m] = madridNowHHMM().split(":").map(Number)
+  return h * 60 + m
+}
+function shiftDay(dateStr: string, delta: number): string {
+  const d = new Date(`${dateStr}T00:00:00`)
+  d.setDate(d.getDate() + delta)
+  const p = (n: number) => String(n).padStart(2, "0")
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+}
+const hhmm = (t: string | null) => (t ? t.slice(0, 5) : "—")
+const isoHHMM = (iso: string | null) =>
+  iso
+    ? new Date(iso).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: BUSINESS_TZ })
+    : null
+const rowHour = (r: ControlRow) => (r.startTime ? hhmm(r.startTime) : isoHHMM(r.firstCheckIn) || "—")
+const fmtDuration = (min: number | null) => {
+  if (min == null) return null
+  const h = Math.floor(min / 60)
+  const m = min % 60
+  return h > 0 ? `${h}h ${String(m).padStart(2, "0")}m` : `${m}m`
+}
+
+export default function JobsControlPage() {
+  const { t } = useTranslation()
+  const { session } = useAuth()
+  const [date, setDate] = useState(todayStr())
+  const [rows, setRows] = useState<ControlRow[]>([])
+  const [loading, setLoading] = useState(true)
+  const [query, setQuery] = useState("")
+  const [selected, setSelected] = useState<ControlRow | null>(null)
+
+  const alertLabel = (a: string) =>
+    ({
+      sign_in: t("alertSignIn") || "Entrada",
+      sign_out: t("alertSignOut") || "Salida",
+      delay: t("alertDelay") || "Retraso",
+      duration: t("alertDuration") || "Duración",
+    } as Record<string, string>)[a] || a
+
+  const load = useCallback(async () => {
+    if (!session?.accessToken) return
+    setLoading(true)
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/control?date=${date}`, {
+        headers: { Authorization: `Bearer ${session.accessToken}` },
+      })
+      const body = await res.json()
+      setRows(res.ok ? body.data || [] : [])
+    } catch {
+      setRows([])
+    } finally {
+      setLoading(false)
+    }
+  }, [date, session?.accessToken])
+
+  useEffect(() => {
+    load()
+  }, [load])
+
+  const shown = useMemo(() => {
+    if (!query.trim()) return rows
+    const q = query.toLowerCase()
+    return rows.filter((r) =>
+      [r.titular, r.jobName, r.workerNames, r.workCenterName].some((v) => (v || "").toLowerCase().includes(q)),
+    )
+  }, [rows, query])
+
+  const isToday = date === todayStr()
+  const nowLineIndex = useMemo(() => {
+    if (!isToday) return -1
+    const nowMin = madridNowMinutes()
+    const idx = shown.findIndex((r) => {
+      if (!r.startTime) return false
+      const [h, m] = r.startTime.split(":").map(Number)
+      return h * 60 + m > nowMin
+    })
+    return idx === -1 ? shown.length : idx
+  }, [shown, isToday])
+
+  const columns: TabTableColumn[] = [
+    {
+      key: "startTime",
+      label: t("hour") || "Hora",
+      align: "center",
+      render: (_v, row) => (
+        <span className={row.overdue ? "text-red-700 dark:text-red-400 font-medium" : ""}>{rowHour(row)}</span>
+      ),
+    },
+    { key: "titular", label: t("titular") || "Titular", render: (v) => v || "—" },
+    {
+      key: "workCenterName",
+      label: t("workCenter") || "Centro de Trabajo",
+      render: (v, row) => (
+        <span>
+          {v || "—"}
+          {row.workCenterLocality && <span className="text-muted-foreground"> · {row.workCenterLocality}</span>}
+        </span>
+      ),
+    },
+    { key: "jobName", label: t("job") || "Job", render: (v) => v || "—" },
+    { key: "workerNames", label: t("worker") || "Trabajador", render: (v) => v || "—" },
+    {
+      key: "alerts",
+      label: t("alerts") || "Alertas",
+      align: "center",
+      width: "9.5rem",
+      render: (v, row) => (
+        <div className="flex flex-col items-center gap-1">
+          {row.overdue && (
+            <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 px-2 py-0.5 text-[11px] font-medium">
+              <AlertTriangle className="h-3 w-3 shrink-0" />
+              {t("noCheckIn") || "Sin fichaje"}
+            </span>
+          )}
+          {(v || []).map((a: string, k: number) => (
+            <span key={k} className="whitespace-nowrap rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 px-2 py-0.5 text-[11px] font-medium">
+              {alertLabel(a)}
+            </span>
+          ))}
+          {!row.overdue && (!v || v.length === 0) && <span className="text-muted-foreground">—</span>}
+        </div>
+      ),
+    },
+  ]
+
+  const rowClassName = (row: ControlRow, i: number) =>
+    row.overdue
+      ? "bg-red-50 dark:bg-red-950/30 hover:bg-red-100 dark:hover:bg-red-950/50"
+      : `${i % 2 === 0 ? "bg-background" : "bg-muted/20"} hover:bg-muted/50 active:bg-muted/70`
+
+  const renderRowBefore = (_row: ControlRow | null, index: number) =>
+    index === nowLineIndex ? (
+      <tr>
+        <td colSpan={columns.length} className="p-0">
+          <div className="bg-[#662D91]/10 border-y-2 border-[#662D91] px-3 py-1.5">
+            <span className="text-[11px] font-semibold text-[#662D91]">
+              {t("now") || "Ahora"} · {madridNowHHMM()}
+            </span>
+          </div>
+        </td>
+      </tr>
+    ) : null
+
+  const statusBadge = (ok: boolean) =>
+    `inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+      ok
+        ? "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300"
+        : "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300"
+    }`
 
   return (
-    <div className="relative sm:hidden">
-      <button
-        onClick={() => setOpen(!open)}
-        className="p-2 text-[#662D91] hover:bg-purple-50 dark:hover:bg-purple-950 rounded-md border border-purple-200 dark:border-purple-800"
-      >
-        <MoreVertical className="w-7 h-7" />
-      </button>
-      {open && (
-        <div className="absolute right-0 mt-2 bg-white dark:bg-gray-800 rounded shadow-lg z-50 w-40">
-          {actionButtons.map((button, index) => (
-            <div
-              key={index}
-              onClick={() => {
-                setOpen(false)
-                button.onClick()
-              }}
-              className="flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer"
-            >
-              <button.IconDefault className="w-6 h-6" />
-              {button.title}
-            </div>
-          ))}
+    <div className="p-2 bg-background min-h-screen space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-2xl font-semibold text-foreground">{t("control") || "Control"}</h1>
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={t("search") || "Search..."}
+            className="w-[8.5rem] h-9 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:border-[#662D91] focus:ring-1 focus:ring-[#662D91] bg-background"
+          />
+          <Button variant="outline" size="sm" onClick={() => setDate((d) => shiftDay(d, -1))} className="p-1 h-9 w-9">
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <div className="w-[11rem]">
+            <DateInput value={date} onChange={(e) => setDate(e.target.value)} allowPastDates className="h-9 text-sm" />
+          </div>
+          <Button variant="outline" size="sm" onClick={() => setDate((d) => shiftDay(d, 1))} className="p-1 h-9 w-9">
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+          {!isToday && (
+            <Button variant="outline" size="sm" onClick={() => setDate(todayStr())} className="h-9 text-xs">
+              {t("today") || "Today"}
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {rows.some((r) => r.isHoliday) && (
+        <div className="rounded-md border border-rose-300 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/30 px-3 py-2 text-sm text-rose-700 dark:text-rose-300">
+          {t("holiday") || "Festivo"}{rows.find((r) => r.holidayName)?.holidayName ? `: ${rows.find((r) => r.holidayName)?.holidayName}` : ""}
         </div>
       )}
-    </div>
-  )
-}
 
-function JobsControlPage() {
-  const { t } = useTranslation()
-  const [activeTab, setActiveTab] = useState("alerts")
-  const [showAddJobModal, setShowAddJobModal] = useState(false)
-  const [showFilters, setShowFilters] = useState(true)
+      <TabTableTemplate
+        columns={columns}
+        data={shown}
+        loading={loading}
+        showPagination={false}
+        emptyMessage={t("noJobsForDay") || "No jobs scheduled for this day"}
+        onRowClick={(row) => setSelected(row)}
+        rowClassName={rowClassName as any}
+        renderRowBefore={renderRowBefore as any}
+      />
 
-  // Filter states
-  const [selectedDate, setSelectedDate] = useState("")
-  const [selectedClient, setSelectedClient] = useState("all")
-  const [selectedJob, setSelectedJob] = useState("all")
-  const [selectedWorker, setSelectedWorker] = useState("all")
-
-  const tabs = [
-    { key: "alerts", label: t("alerts") },
-    { key: "signings", label: t("signings") },
-    { key: "tasks", label: t("tasks") },
-    { key: "surveys", label: t("surveys") },
-    { key: "manual", label: t("manualAttendance") || "Manual" },
-  ]
-
-  const actionButtons = [
-    {
-      type: "add",
-      IconDefault: AddIcon1,
-      IconHover: AddIcon2,
-      onClick: () => setShowAddJobModal(true),
-      title: t("add") || "Add new job",
-    },
-    {
-      type: "filter",
-      IconDefault: FilterIcon1,
-      IconHover: FilterIcon2,
-      onClick: () => setShowFilters((v) => !v),
-      title: t("filter") || "Filter",
-    },
-    {
-      type: "pdf",
-      IconDefault: PdfIcon1,
-      IconHover: PdfIcon2,
-      onClick: () => exportToPDF([], [], "jobs-control.pdf"),
-      title: t("exportPdf") || "Export PDF",
-    },
-    {
-      type: "excel",
-      IconDefault: ExcelIcon1,
-      IconHover: ExcelIcon2,
-      onClick: () => exportToXLSX([], [], "jobs-control.xls"),
-      title: t("exportExcel") || "Export Excel",
-    },
-    {
-      type: "csv",
-      IconDefault: CsvIcon1,
-      IconHover: CsvIcon2,
-      onClick: () => exportToCSV([], [], "jobs-control.csv"),
-      title: t("exportCsv") || "Export CSV",
-    },
-  ]
-
-  const handleJobAdded = (newJob: any) => {
-    console.log("New job added:", newJob)
-  }
-
-  return (
-    <div className="p-2 bg-background min-h-screen relative">
-      <div className="bg-card rounded-lg shadow-sm border border-border">
-        {/* Header */}
-        <div className="flex justify-between items-center p-2 border-b border-border bg-gray-100 dark:bg-gray-800">
-          <h1 className="text-2xl font-semibold text-foreground">{t("controlCenter")}</h1>
-          <div className="flex items-center gap-2">
-            {/* Desktop Action Buttons */}
-            <div className="hidden sm:flex items-center gap-2">
-              {actionButtons.map((button, index) => {
-                const isMobileButton = ["csv", "excel", "pdf", "filter"].includes(button.type)
-                return (
-                  <div
-                    key={index}
-                    className={isMobileButton ? "hidden sm:block" : "hidden sm:flex"}
-                  >
-                    <ActionIconButton
-                      IconDefault={button.IconDefault}
-                      IconHover={button.IconHover}
-                      onClick={button.onClick}
-                      title={button.title}
-                    />
-                  </div>
-                )
-              })}
-            </div>
-            {/* Mobile Dropdown */}
-            <MobileDropdown
-              actionButtons={actionButtons.filter((button) =>
-                ["csv", "excel", "pdf", "filter"].includes(button.type)
-              )}
-            />
-          </div>
-        </div>
-
-        {/* Tabs */}
-        <div className="border-b border-border">
-          <nav className="flex overflow-x-auto scrollbar-hide">
-            {tabs.map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
-                className={`flex-shrink-0 px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
-                  activeTab === tab.key
-                    ? "border-[#662D91] text-[#662D91] bg-purple-50 dark:bg-purple-950/50"
-                    : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </nav>
-        </div>
-
-        {/* Filter Section */}
-        {showFilters && (
-          <div className="p-3 border-b border-border bg-gray-50 dark:bg-gray-900">
-            <Card className="w-full">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base font-semibold flex items-center gap-2">
-                  <div className="flex items-center justify-center w-8 h-8 rounded-md" style={{ backgroundColor: '#662D91' }}>
-                    <div className="h-4 w-4" style={{ filter: 'brightness(0) invert(1) drop-shadow(0 0 0.5px white)' }}>
-                      <FilterIcon1 className="h-4 w-4" />
-                    </div>
-                  </div>
-                  Filtros
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-                  {/* Date Filter */}
-                  <div className="space-y-1.5">
-                    <Label htmlFor="date" className="flex items-center gap-1.5 text-xs font-medium">
-                      <OcupacionIcon className="h-3.5 w-3.5" />
-                      Fecha
-                    </Label>
-                    <Input
-                      id="date"
-                      type="date"
-                      value={selectedDate}
-                      onChange={(e) => setSelectedDate(e.target.value)}
-                      className="w-full h-9 text-sm"
-                    />
-                  </div>
-
-                  {/* Client/Titular Filter */}
-                  <div className="space-y-1.5">
-                    <Label htmlFor="client" className="flex items-center gap-1.5 text-xs font-medium">
-                      <ClientIcon className="h-3.5 w-3.5" />
-                      Seleccionar Titular
-                    </Label>
-                    <Select value={selectedClient} onValueChange={setSelectedClient}>
-                      <SelectTrigger id="client" className="w-full h-9 text-sm">
-                        <SelectValue placeholder="Todos los Titulares" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Todos los Titulares</SelectItem>
-                        <SelectItem value="client1">Client 1</SelectItem>
-                        <SelectItem value="client2">Client 2</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Job Filter */}
-                  <div className="space-y-1.5">
-                    <Label htmlFor="job" className="flex items-center gap-1.5 text-xs font-medium">
-                      <BriefcaseIcon className="h-3.5 w-3.5" />
-                      Seleccionar Job
-                    </Label>
-                    <Select value={selectedJob} onValueChange={setSelectedJob}>
-                      <SelectTrigger id="job" className="w-full h-9 text-sm">
-                        <SelectValue placeholder="Todos los Jobs" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Todos los Jobs</SelectItem>
-                        <SelectItem value="job1">Job Nº 1</SelectItem>
-                        <SelectItem value="job2">Job Nº 2</SelectItem>
-                        <SelectItem value="job3">Job Nº 3</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Worker Filter */}
-                  <div className="space-y-1.5">
-                    <Label htmlFor="worker" className="flex items-center gap-1.5 text-xs font-medium">
-                      <WorkersIcon className="h-3.5 w-3.5" />
-                      Seleccionar Trabajador
-                    </Label>
-                    <Select value={selectedWorker} onValueChange={setSelectedWorker}>
-                      <SelectTrigger id="worker" className="w-full h-9 text-sm">
-                        <SelectValue placeholder="Todos los Trabajadores" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Todos los Trabajadores</SelectItem>
-                        <SelectItem value="worker1">Worker 1</SelectItem>
-                        <SelectItem value="worker2">Worker 2</SelectItem>
-                        <SelectItem value="worker3">Worker 3</SelectItem>
-                      </SelectContent>
-                    </Select>
+      <Dialog open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
+        <DialogContent className="max-w-lg p-0 gap-0 bg-background">
+          <DialogHeader className="p-6 pb-4">
+            <DialogTitle className="text-xl font-semibold text-foreground text-center tracking-tight">
+              {selected?.jobName}
+            </DialogTitle>
+          </DialogHeader>
+          {selected && (
+            <div className="px-6 pb-2 space-y-4">
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <div className="text-xs text-muted-foreground">{t("hour") || "Hora"}</div>
+                  <div className="font-medium text-foreground">
+                    {rowHour(selected)}
+                    {selected.endTime ? ` – ${hhmm(selected.endTime)}` : ""}
                   </div>
                 </div>
-              </CardContent>
-            </Card>
+                <div>
+                  <div className="text-xs text-muted-foreground">{t("titular") || "Titular"}</div>
+                  <div className="font-medium text-foreground">{selected.titular || "—"}</div>
+                </div>
+                <div className="col-span-2">
+                  <div className="text-xs text-muted-foreground">{t("workCenter") || "Centro de Trabajo"}</div>
+                  <div className="font-medium text-foreground">
+                    {selected.workCenterName || "—"}
+                    {selected.workCenterLocality ? ` · ${selected.workCenterLocality}` : ""}
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <div className="text-xs text-muted-foreground mb-1.5">{t("worker") || "Trabajador"}</div>
+                <div className="space-y-1.5">
+                  {selected.workers.length === 0 && <div className="text-sm text-muted-foreground">—</div>}
+                  {selected.workers.map((w) => (
+                    <div key={w.id} className="flex items-center justify-between gap-2 rounded-md border border-border bg-muted/20 px-3 py-2">
+                      <div className="min-w-0">
+                        <div className="text-sm text-foreground truncate">{w.name || w.code}</div>
+                        {w.checkedIn && (
+                          <div className="text-xs text-muted-foreground">
+                            {t("alertSignIn") || "Entrada"} {isoHHMM(w.checkInTime)}
+                            {w.checkOutTime ? ` · ${t("alertSignOut") || "Salida"} ${isoHHMM(w.checkOutTime)}` : ""}
+                            {w.durationMinutes != null ? ` · ${fmtDuration(w.durationMinutes)}` : ""}
+                          </div>
+                        )}
+                      </div>
+                      <span className={statusBadge(w.checkedIn)}>
+                        {w.checkedIn ? t("checkedIn") || "Fichado" : t("noCheckIn") || "Sin fichaje"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {selected.alerts.length > 0 && (
+                <div>
+                  <div className="text-xs text-muted-foreground mb-1.5">{t("alerts") || "Alertas"}</div>
+                  <div className="flex flex-wrap gap-1">
+                    {selected.alerts.map((a, k) => (
+                      <span key={k} className="rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 px-2 py-0.5 text-xs font-medium">
+                        {alertLabel(a)}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          <div className="flex justify-end gap-2 p-6 pt-4">
+            <Button onClick={() => setSelected(null)} className="bg-purple-600 hover:bg-purple-700 text-white px-6">
+              {t("close") || "Close"}
+            </Button>
           </div>
-        )}
-
-        {/* Tab Content */}
-        <div className="min-h-[400px]">
-          {activeTab === "alerts" && (
-            <ControlAlertTab showFilters={showFilters} onShowFiltersChange={setShowFilters} />
-          )}
-          {activeTab === "signings" && (
-            <ControlSigningsTab showFilters={showFilters} onShowFiltersChange={setShowFilters} />
-          )}
-          {activeTab === "tasks" && (
-            <ControlTasksTab showFilters={showFilters} onShowFiltersChange={setShowFilters} />
-          )}
-          {activeTab === "surveys" && (
-            <ControlSurveysTab showFilters={showFilters} onShowFiltersChange={setShowFilters} />
-          )}
-          {activeTab === "manual" && (
-            <ControlManualTab showFilters={showFilters} onShowFiltersChange={setShowFilters} />
-          )}
-        </div>
-      </div>
-
-      {/* Mobile Add Icon */}
-      <div className="sm:hidden fixed bottom-4 right-4 z-50">
-        {actionButtons.some((btn) => btn.type === "add") && (
-          <ActionIconButton
-            IconDefault={AddIcon1}
-            IconHover={AddIcon2}
-            onClick={actionButtons.find((btn) => btn.type === "add")?.onClick || (() => {})}
-            title="Add"
-          />
-        )}
-      </div>
-
-      {/* Add Job Modal */}
-      <AddJobModal open={showAddJobModal} onOpenChange={setShowAddJobModal} onJobAdded={handleJobAdded} />
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
-
-// Export as dynamic component to avoid SSR issues with SVG imports
-export default dynamic(() => Promise.resolve(JobsControlPage), { ssr: false })

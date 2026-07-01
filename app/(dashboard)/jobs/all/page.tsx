@@ -1,105 +1,95 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Plus } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { useTranslation } from "@/hooks/use-translation"
+import { useRouter } from "next/navigation"
+import DataListTemplate, { ExcelIcon, CsvIcon, PdfIcon } from "@/components/ui/data-list-template"
 import AddJobModal from "@/components/add-job-modal/main"
-
-// Add icon component
-const AddIcon1 = () => (
-  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <path d="M12 5v14M5 12h14" />
-  </svg>
-)
-
-const AddIcon2 = () => (
-  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="purple" stroke="purple" strokeWidth="2">
-    <path d="M12 5v14M5 12h14" />
-  </svg>
-)
-
-// ActionIconButton component to handle hover state
-function ActionIconButton({
-  IconDefault,
-  IconHover,
-  onClick,
-  title,
-}: {
-  IconDefault: React.ComponentType
-  IconHover: React.ComponentType
-  onClick: () => void
-  title: string
-}) {
-  const [isHovered, setIsHovered] = useState(false)
-
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      className="p-2 rounded-md hover:bg-purple-100 dark:hover:bg-purple-900/20 transition-colors"
-      title={title}
-    >
-      {isHovered ? <IconHover /> : <IconDefault />}
-    </button>
-  )
-}
+import { useTranslation } from "@/hooks/use-translation"
+import { useAuth } from "@/hooks/use-auth"
+import { AnimatedLoader } from "@/components/animated-loader"
+import { exportToCSV, exportToXLSX, exportToPDF } from "@/lib/export"
+import { apiFetch } from "@/lib/api"
 
 export default function AllJobsPage() {
   const { t } = useTranslation()
+  const { session } = useAuth()
+  const router = useRouter()
+  const [jobs, setJobs] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const [showAddJobModal, setShowAddJobModal] = useState(false)
+  const [refreshKey, setRefreshKey] = useState(0)
 
-  const handleJobAdded = (newJob: any) => {
-    console.log("New job added:", newJob)
-    // You can add logic here to refresh the jobs list or show a success message
+  useEffect(() => {
+    if (!session?.accessToken) return
+    setIsLoading(true)
+    apiFetch<{ data: any[] }>("/jobs/employer/all-jobs")
+      .then((j) => setJobs(Array.isArray(j?.data) ? j.data : []))
+      .catch(() => setJobs([]))
+      .finally(() => setIsLoading(false))
+  }, [session?.accessToken, refreshKey])
+
+  const estado = (s: string) => {
+    if (s === "cancelled") return { label: t("statusCancelled") || "Cancelado", color: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300" }
+    if (s === "on_hold") return { label: t("statusPaused") || "Pausado", color: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300" }
+    return { label: t("statusActive") || "Activo", color: "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300" }
   }
 
+  const rows = useMemo(
+    () =>
+      [...jobs]
+        .map((j) => ({
+          publicId: j.publicId,
+          titular: j.clientName || "—",
+          workCenter: (j.workCenters || []).map((w: any) => w.name).join(", ") || "—",
+          locality: (j.workCenters || []).map((w: any) => w.locality).filter(Boolean).join(", ") || "—",
+          job: j.jobName || "—",
+          worker: (j.workers || []).map((w: any) => w.name || w.code).filter(Boolean).join(", ") || "—",
+          status: j.jobStatus,
+        }))
+        .sort((a, b) => a.titular.localeCompare(b.titular)),
+    [jobs, t],
+  )
+
+  const columns = [
+    { key: "titular", label: t("titular") || "Titular", sortable: true, align: "left" as const },
+    { key: "workCenter", label: t("workCenter") || "Centro de Trabajo", sortable: true, align: "left" as const },
+    { key: "locality", label: t("locality") || "Localidad", sortable: true, align: "left" as const, width: "140px" },
+    { key: "job", label: t("job") || "Job", sortable: true, align: "left" as const },
+    { key: "worker", label: t("worker") || "Trabajador", align: "left" as const },
+    {
+      key: "status",
+      label: t("status") || "Estado",
+      sortable: true,
+      align: "center" as const,
+      width: "120px",
+      render: (v: string) => {
+        const e = estado(v)
+        return <span className={`px-2 py-0.5 rounded text-xs font-medium ${e.color}`}>{e.label}</span>
+      },
+    },
+  ]
+
+  const actionButtons = [
+    { icon: Plus, onClick: () => setShowAddJobModal(true), title: t("add") || "Add", type: "add" as any },
+    { icon: ExcelIcon, onClick: () => exportToXLSX(rows, columns, "jobs.xlsx"), title: t("exportExcel") || "Export Excel", type: "excel" as any },
+    { icon: CsvIcon, onClick: () => exportToCSV(rows, columns, "jobs.csv"), title: t("exportCsv") || "Export CSV", type: "csv" as any },
+    { icon: PdfIcon, onClick: () => exportToPDF(rows, columns, "jobs.pdf"), title: t("exportPdf") || "Export PDF", type: "pdf" as any },
+  ]
+
   return (
-    <div className="p-2 bg-background min-h-screen relative">
-      <div className="bg-card rounded-lg shadow-sm border border-border">
-        {/* Header */}
-        <div className="flex justify-between items-center p-4 border-b border-border bg-gray-100 dark:bg-gray-800">
-          <h1 className="text-2xl font-semibold text-foreground">{t("allJobs") || "All Jobs"}</h1>
-          <div className="flex items-center gap-2">
-            {/* Desktop Add Button */}
-            <div className="hidden sm:block">
-              <ActionIconButton
-                IconDefault={AddIcon1}
-                IconHover={AddIcon2}
-                onClick={() => setShowAddJobModal(true)}
-                title={t("add") || "Add new job"}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Content Area */}
-        <div className="p-6">
-          <p className="text-muted-foreground">
-            {t("jobsListWillAppearHere") || "Jobs list will appear here..."}
-          </p>
-          {/* Add your jobs table/list component here */}
-        </div>
-      </div>
-
-      {/* Mobile Add Button (Floating) */}
-      <div className="sm:hidden fixed bottom-4 right-4 z-50">
-        <ActionIconButton
-          IconDefault={AddIcon1}
-          IconHover={AddIcon2}
-          onClick={() => setShowAddJobModal(true)}
-          title={t("add") || "Add"}
-        />
-      </div>
-
-      {/* Add Job Modal */}
-      <AddJobModal 
-        open={showAddJobModal} 
-        onOpenChange={setShowAddJobModal} 
-        onJobAdded={handleJobAdded} 
+    <>
+      <DataListTemplate
+        title={t("management") || "Gestión"}
+        data={rows}
+        columns={columns}
+        actionButtons={actionButtons}
+        isLoading={isLoading}
+        emptyMessage={isLoading ? <AnimatedLoader size={32} /> : t("noJobsAvailable") || "No jobs yet"}
+        onRowClick={(row: any) => router.push(`/jobs/${row.publicId}`)}
+        getRowId={(r: any) => r.publicId}
       />
-    </div>
+      <AddJobModal open={showAddJobModal} onOpenChange={setShowAddJobModal} onJobAdded={() => setRefreshKey((k) => k + 1)} />
+    </>
   )
 }

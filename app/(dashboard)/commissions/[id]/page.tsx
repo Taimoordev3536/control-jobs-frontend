@@ -1,240 +1,139 @@
 "use client"
 
-import { useParams } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Building2, Users, FileText, ChevronDown } from "lucide-react"
+import { useCallback, useEffect, useState } from "react"
+import { useParams, useRouter } from "next/navigation"
+import { ArrowLeft, CheckCircle2, XCircle, Trash2, Loader2 } from "lucide-react"
+import PdfIconDefault from "@/icons/Controles/pdf1.svg"
+import PdfIconHover from "@/icons/Controles/pdf2.svg"
+import { AnimatedLoader } from "@/components/animated-loader"
+import AutofacturaForm from "@/components/autofactura-form"
 import { useTranslation } from "@/hooks/use-translation"
+import { useAuth } from "@/hooks/use-auth"
+import { useToast } from "@/hooks/use-toast"
+import { apiFetch } from "@/lib/api"
 
-export default function InvoiceDetailPage() {
+const eur = (n: number) => `${(n || 0).toFixed(2).replace(".", ",")} €`
+const GROUP: Record<string, string> = { INDIVIDUAL: "Particulares", COMPANY: "Empresas", FREELANCER: "Autónomos" }
+
+export default function CommissionDetailPage() {
   const { t } = useTranslation()
+  const { session, hasRole } = useAuth()
+  const { toast } = useToast()
   const params = useParams()
-  const invoiceId = params.id
+  const router = useRouter()
+  const id = params.id as string
+  const isAdmin = hasRole("admin")
+
+  const [af, setAf] = useState<any | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [busy, setBusy] = useState(false)
+  const [pdfHovered, setPdfHovered] = useState(false)
+
+  const load = useCallback(() => {
+    if (!session?.accessToken || !id) return
+    setLoading(true)
+    apiFetch<any>(`/commissions/${id}`).then((j) => setAf(j?.data || j)).catch(() => setAf(null)).finally(() => setLoading(false))
+  }, [session?.accessToken, id])
+  useEffect(() => { load() }, [load])
+
+  const openPdf = async () => {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/commissions/${id}/pdf`, { headers: { Authorization: `Bearer ${session?.accessToken}` } })
+    if (!res.ok) { toast({ title: "Error", variant: "destructive" }); return }
+    const url = URL.createObjectURL(await res.blob())
+    window.open(url, "_blank", "noopener,noreferrer")
+    setTimeout(() => URL.revokeObjectURL(url), 60000)
+  }
+
+  const action = async (path: string, method = "POST") => {
+    setBusy(true)
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/commissions/${id}${path}`, { method, headers: { Authorization: `Bearer ${session?.accessToken}` } })
+      if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.message || "failed") }
+      if (path === "" && method === "DELETE") { router.push("/commissions"); return }
+      toast({ title: t("saved") || "OK", variant: "success" as any })
+      load()
+    } catch (e: any) {
+      toast({ title: e.message || "Error", variant: "destructive" })
+    } finally { setBusy(false) }
+  }
+
+  if (loading) return <div className="w-full p-10 flex justify-center"><AnimatedLoader /></div>
+  if (!af) return <div className="w-full p-10 text-center text-muted-foreground">{t("notFound") || "Not found"}</div>
+
+  const sourcesByType: Record<string, any[]> = {}
+  ;(af.sources || []).forEach((s: any) => { const k = s.employerType || "OTHER"; (sourcesByType[k] ||= []).push(s) })
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-full mx-auto bg-background">
-        {/* Header Section */}
-        <div className="flex items-start justify-between px-8 py-8 bg-muted/50">
-          {/* Left Side - Company Info */}
-          <div className="flex-1 max-w-md">
-            <h1 className="text-lg font-normal text-muted-foreground mb-8">{t("Bill")}</h1>
-
-            <div className="space-y-2">
-              <div className="flex items-center">
-                <span className="text-2xl font-normal text-foreground">Control</span>
-                <span className="text-2xl font-normal text-primary">Jobs</span>
-              </div>
-              <div className="text-sm text-muted-foreground space-y-1 mt-3">
-                <div className="font-normal text-muted-foreground italic">CONTROLJOBS TECH, S.L.U.</div>
-                <div className="italic">B31972524</div>
-                <div className="italic">Calvo Sotelo</div>
-                <div className="flex gap-8 italic">
-                  <span>26003</span>
-                  <span>Logroño coño</span>
-                </div>
-                <div className="flex gap-8 italic">
-                  <span>La Rioja</span>
-                  <span>España</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-8 space-y-1 text-sm">
-              <div className="flex items-center">
-                <span className="font-semibold text-foreground">{t("invoiceNo")}:</span>
-              </div>
-              <div className="flex items-center">
-                <span className="font-semibold text-foreground">{t("date")}</span>
-              </div>
-              <div className="text-muted-foreground mt-2">{t("payments")} by XXXX card</div>
-            </div>
-          </div>
-
-          {/* Right Side - Bill Info */}
-          <div className="flex flex-col items-end">
-            <Button variant="outline" size="sm" className="mb-8 px-3 py-1.5 text-xs font-normal bg-transparent">
-              <FileText className="h-3 w-3 mr-1" />
-              PDF
-            </Button>
-
-            <div className="text-right mb-6">
-              <h2 className="text-3xl font-normal text-foreground">{t("Bill")}</h2>
-            </div>
-
-            <div className="w-80">
-              <div className="relative mb-0">
-                <select className="w-full px-4 py-3 border border-border bg-background text-foreground text-sm appearance-none pr-10 font-normal rounded-md">
-                  <option>ANA LINARES OSÉS</option>
-                </select>
-                <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              </div>
-
-              <div className="border-t-0">
-                <div className="bg-primary text-primary-foreground px-4 py-3 text-sm font-medium">{t("clientData")}</div>
-                <div className="border border-t-0 border-border bg-background px-4 py-4 space-y-2 text-sm">
-                  <div className="text-muted-foreground italic">Name</div>
-                  <div className="text-muted-foreground italic">CIF</div>
-                  <div className="text-muted-foreground italic">Address</div>
-                  <div className="flex gap-20">
-                    <span className="text-muted-foreground italic">CP</span>
-                    <span className="text-muted-foreground italic">Locality</span>
-                  </div>
-                  <div className="flex gap-16">
-                    <span className="text-muted-foreground italic">Province</span>
-                    <span className="text-muted-foreground italic">Country</span>
-                  </div>
-                </div>
-              </div>
-            </div>
+    <div className="bg-background min-h-[calc(100vh-60px)] w-full pb-16">
+      <div className="bg-card border-b border-border">
+        <div className="grid grid-cols-3 items-center px-4 pt-1 pb-1 sm:px-3">
+          <h1 className="text-sm sm:text-base font-semibold text-foreground truncate">{af.autofacturaNumber}</h1>
+          <span className="text-sm sm:text-base font-medium text-foreground text-center">{t("commissionsList") || "Comisiones"}</span>
+          <div className="flex justify-end">
+            <button onClick={() => router.back()} className="p-1 text-muted-foreground hover:text-foreground transition-colors"><ArrowLeft className="h-5 w-5" /></button>
           </div>
         </div>
 
-        {/* Billing Summary Table */}
-        <div className="px-8 py-4">
-          <div className="w-full">
-            {/* Table Header */}
-                <div className="flex mb-4 bg-purple-50 dark:bg-purple-950/50 border-b-2 border-purple-600 pb-2">
-                  <div className="w-[60%] pt-2 text-center font-semibold text-foreground">{t("billingSummary")}</div>
-                  <div className="w-[13%] pt-2 text-center font-semibold text-foreground">{t("amount")}</div>
-                  <div className="w-[13%] pt-2 text-center font-semibold text-foreground">{t("price")}</div>
-                  <div className="w-[13%] pt-2 text-center font-semibold text-foreground">{t("total")}</div>
-                  <div className="w-[1%]"></div>
-                </div>
-
-            {/* Service Rows */}
-            <div className="space-y-3 mb-8">
-              {/* First Service Row */}
-              <div className="flex items-center gap-4">
-                <div className="w-[70%]">
-                  <div className="bg-muted rounded-lg px-4 py-3 text-foreground font-medium">3 Servicio</div>
-                </div>
-                <div className="w-[10%] text-center">
-                  <input
-                    type="number"
-                    defaultValue="1"
-                    className="w-12 h-8 text-center border border-border bg-background text-foreground text-sm rounded"
-                  />
-                </div>
-                <div className="w-[10%] text-center">
-                  <div className="bg-muted/50 rounded px-3 py-2 text-blue-600 dark:text-blue-400">4.00</div>
-                </div>
-                <div className="w-[10%] text-center">
-                  <div className="bg-muted/50 rounded px-3 py-2 text-foreground">4.00</div>
-                </div>
-              </div>
-
-              {/* Second Service Row */}
-              <div className="flex items-center gap-4">
-                <div className="w-[70%]">
-                  <div className="bg-muted rounded-lg px-4 py-3 text-foreground font-medium">4 Trabajadores</div>
-                </div>
-                <div className="w-[10%] text-center">
-                  <input
-                    type="number"
-                    defaultValue="3"
-                    className="w-12 h-8 text-center border border-border bg-background text-foreground text-sm rounded"
-                  />
-                </div>
-                <div className="w-[10%] text-center">
-                  <div className="bg-muted/50 rounded px-3 py-2 text-blue-600 dark:text-blue-400">1.00</div>
-                </div>
-                <div className="w-[10%] text-center">
-                  <div className="bg-muted/50 rounded px-3 py-2 text-foreground">3.00</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Partner Discount Section */}
-            <div className="mb-8">
-              <div className="flex items-center gap-4">
-                <div className="w-[70%]"></div>
-                <div className="w-[10%] text-right">
-                  <span className="font-semibold text-foreground">Partner Dto.</span>
-                </div>
-                <div className="w-[10%] text-center">
-                  <div className="flex items-center justify-center gap-1">
-                    <input
-                      type="number"
-                      defaultValue="0"
-                      className="w-8 h-8 text-center border border-border bg-background text-foreground text-sm rounded"
-                    />
-                    <span className="text-foreground text-sm">%</span>
-                  </div>
-                </div>
-                <div className="w-[10%] text-center">
-                  <div className="bg-muted/50 rounded px-3 py-2 text-foreground">0.00</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Tax Breakdown Section */}
-            <div className="space-y-3">
-              {/* Tax Breakdown Header */}
-                  <div className="flex justify-center mb-4 bg-purple-50 dark:bg-purple-950/50 border-b-2 border-purple-600 pb-2">
-                    <span className=" pt-2 font-semibold text-foreground">{t("taxBreakdown")}</span>
-                  </div>
-
-              {/* Tax Base Row */}
-              <div className="flex items-center gap-4">
-                <div className="w-[70%]"></div>
-                <div className="w-[10%]"></div>
-                <div className="w-[10%] text-center text-foreground">{t("taxBase")}</div>
-                <div className="w-[10%] text-center">
-                  <div className="bg-muted/50 rounded px-3 py-2 text-foreground">7.00</div>
-                </div>
-              </div>
-
-              {/* VAT Row */}
-              <div className="flex items-center gap-4">
-                <div className="w-[70%]"></div>
-                <div className="w-[10%]"></div>
-                <div className="w-[10%] text-center text-foreground">VAT ( 21 %)</div>
-                <div className="w-[10%] text-center">
-                  <div className="bg-muted/50 rounded px-3 py-2 text-foreground">1.47</div>
-                </div>
-              </div>
-
-              {/* Total Row */}
-              <div className="flex items-center gap-4">
-                <div className="w-[70%]"></div>
-                <div className="w-[10%]"></div>
-                <div className="w-[10%] text-center font-bold text-foreground">{t("totalToPay")}</div>
-                <div className="w-[10%] text-center">
-                  <div className="bg-muted/50 rounded px-3 py-2 font-bold text-foreground">7</div>
-                </div>
-              </div>
-            </div>
-          </div>
+        <div className="flex flex-wrap items-center justify-end gap-2 px-3 sm:px-4 py-2 border-t border-border bg-gray-100 dark:bg-gray-800">
+          <button onClick={openPdf} title="PDF" onMouseEnter={() => setPdfHovered(true)} onMouseLeave={() => setPdfHovered(false)} className="p-1.5 text-[#662D91] hover:bg-purple-50 dark:hover:bg-purple-950 rounded-md transition-colors">
+            {pdfHovered ? <PdfIconHover className="w-5 h-5" /> : <PdfIconDefault className="w-5 h-5" />}
+          </button>
+          {isAdmin && af.status === "PENDING" && (
+            <>
+              <button onClick={() => action("/mark-paid")} disabled={busy} title={t("markPaid") || "Marcar pagada"} className="p-1.5 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950 rounded-md transition-colors disabled:opacity-50">
+                <CheckCircle2 className="w-5 h-5" />
+              </button>
+              <button onClick={() => action("/cancel")} disabled={busy} title={t("cancel") || "Cancelar"} className="p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/50 rounded-md transition-colors disabled:opacity-50">
+                <XCircle className="w-5 h-5" />
+              </button>
+              <button onClick={() => { if (confirm(t("confirmDelete") || "Delete?")) action("", "DELETE") }} disabled={busy} title={t("delete") || "Eliminar"} className="p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/50 rounded-md transition-colors disabled:opacity-50">
+                <Trash2 className="w-5 h-5" />
+              </button>
+            </>
+          )}
+          {busy && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
         </div>
+      </div>
 
-        {/* Service Details */}
-        <div className="px-8 py-4">
-                <div>
-                  <div className="flex justify-center mb-4 bg-purple-50 dark:bg-purple-950/50 border-b-2 border-purple-600 pb-2">
-                    <span className=" pt-2 font-semibold text-foreground">{t("serviceDetails")}</span>
-                  </div>
-            <div className="px-8 py-8 bg-card">
-              <div className="flex items-start gap-6 mb-8">
-                <div className="flex-shrink-0">
-                  <Building2 className="h-8 w-8 text-muted-foreground stroke-[1.5]" />
-                </div>
-                <div>
-                  <div className="text-card-foreground font-normal">• {t("center")} 1</div>
+      <div className="overflow-x-auto p-4 space-y-4">
+        <AutofacturaForm mode="view" autofactura={af} />
+
+        {(af.sources || []).length > 0 && (
+          <div className="space-y-4">
+            <h3 className="text-sm font-semibold">{t("commissionDetail") || "Detalle de comisiones"}</h3>
+            {Object.keys(sourcesByType).map((type) => (
+              <div key={type}>
+                <div className="bg-muted px-3 py-1 text-sm font-semibold rounded-t">{GROUP[type] || "Otros"}</div>
+                <div className="overflow-x-auto rounded-b border border-border">
+                  <table className="w-full text-sm">
+                    <thead className="bg-[#f1e9f8] dark:bg-purple-950/40">
+                      <tr>
+                        <th className="px-3 py-1.5 text-left font-medium">{t("employer") || "Empleador"}</th>
+                        <th className="px-3 py-1.5 text-left font-medium">Nº Factura</th>
+                        <th className="px-3 py-1.5 text-right font-medium">Subtotal</th>
+                        <th className="px-3 py-1.5 text-right font-medium">{t("commission") || "Comisión"}</th>
+                        <th className="px-3 py-1.5 text-right font-medium">{t("discount") || "Descuento"}</th>
+                        <th className="px-3 py-1.5 text-right font-medium">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sourcesByType[type].map((s: any, i: number) => (
+                        <tr key={i} className="border-t border-border">
+                          <td className="px-3 py-1.5">{s.employerName}</td>
+                          <td className="px-3 py-1.5">{s.invoiceNumber}</td>
+                          <td className="px-3 py-1.5 text-right">{eur(s.subtotal)}</td>
+                          <td className="px-3 py-1.5 text-right">{eur(s.commission)}</td>
+                          <td className="px-3 py-1.5 text-right">-{eur(s.discount)}</td>
+                          <td className="px-3 py-1.5 text-right">{eur(s.totalCommission)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
-
-              <div className="flex items-start gap-6">
-                <div className="flex-shrink-0">
-                  <Users className="h-8 w-8 text-muted-foreground stroke-[1.5]" />
-                </div>
-                <div className="space-y-2">
-                  <div className="text-card-foreground font-normal">• {t("worker")} 1</div>
-                  <div className="text-card-foreground font-normal">• {t("worker")} 2</div>
-                </div>
-              </div>
-            </div>
+            ))}
           </div>
-        </div>
+        )}
       </div>
     </div>
   )

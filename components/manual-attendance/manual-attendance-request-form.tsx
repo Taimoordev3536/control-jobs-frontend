@@ -22,6 +22,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Clock, Calendar, MapPin, AlertCircle, Loader2, FileText } from "lucide-react"
+import { madridWallClockToISO } from "@/lib/datetime"
 import { useAuth } from "@/hooks/use-auth"
 import { useTranslation } from "@/hooks/use-translation"
 
@@ -197,10 +198,10 @@ export default function ManualAttendanceRequestForm({
       let requestedCheckOut: string | undefined
 
       if (checkInTime && requestedDate) {
-        requestedCheckIn = new Date(`${requestedDate}T${checkInTime}:00`).toISOString()
+        requestedCheckIn = madridWallClockToISO(requestedDate, checkInTime)
       }
       if (checkOutTime && requestedDate) {
-        requestedCheckOut = new Date(`${requestedDate}T${checkOutTime}:00`).toISOString()
+        requestedCheckOut = madridWallClockToISO(requestedDate, checkOutTime)
       }
 
       const resolvedJobId = activeJob?.publicId || activeJob?.jobId

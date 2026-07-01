@@ -25,7 +25,13 @@ export function EntityChatPanel({ targetType, targetEntityPublicId, className }:
         if (!cancelled) setPublicId(conv.publicId)
       })
       .catch((err: any) => {
-        if (!cancelled) setError(err?.message || "Failed to open chat")
+        if (cancelled) return
+        let msg = err?.message || "Failed to open chat"
+        try {
+          const parsed = JSON.parse(msg)
+          if (parsed?.message) msg = parsed.message
+        } catch {}
+        setError(msg)
       })
     return () => {
       cancelled = true

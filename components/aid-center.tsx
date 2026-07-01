@@ -23,6 +23,7 @@ interface Faq {
 }
 
 const AUDIENCES = ["ALL", "ADMIN", "PARTNER", "EMPLOYER", "CLIENT", "WORKER"]
+const ROLE_ORDER = ["ALL", "ADMIN", "PARTNER", "EMPLOYER", "CLIENT", "WORKER"]
 
 const emptyForm = { publicId: "", question: "", answer: "", audience: "ALL", sortOrder: 0 }
 
@@ -67,11 +68,17 @@ export default function AidCenter() {
     fetchFaqs()
   }, [fetchFaqs])
 
-  // Non-admins only see FAQs targeted at everyone or at their own role.
+  // Non-admins only see FAQs for everyone or their own role. Sorted by role
+  // (Roll) then by the assigned order, per the admin manager requirement.
   const visibleFaqs = useMemo(() => {
-    if (isAdmin) return faqs
     const role = (getUserRole() || "").toUpperCase()
-    return faqs.filter((f) => f.audience === "ALL" || f.audience === role)
+    const base = isAdmin ? [...faqs] : faqs.filter((f) => f.audience === "ALL" || f.audience === role)
+    return base.sort((a, b) => {
+      const ra = ROLE_ORDER.indexOf(a.audience)
+      const rb = ROLE_ORDER.indexOf(b.audience)
+      if (ra !== rb) return (ra < 0 ? 99 : ra) - (rb < 0 ? 99 : rb)
+      return (a.sortOrder || 0) - (b.sortOrder || 0)
+    })
   }, [faqs, isAdmin, getUserRole])
 
   const openNew = () => {
@@ -143,26 +150,33 @@ export default function AidCenter() {
 
   const audienceLabel = (a: string) => (a === "ALL" ? t("allUsers") || "All" : t(a.toLowerCase()) || a)
 
-  const columns = [
-    { key: "question", label: t("question") || "Question", sortable: true },
-    {
-      key: "answer",
-      label: t("answer") || "Answer",
-      sortable: false,
-      render: (v: string) => <span className="line-clamp-2">{v}</span>,
-    },
-    ...(isAdmin
-      ? [
-          {
-            key: "audience",
-            label: t("audience") || "Audience",
-            sortable: true,
-            align: "center" as const,
-            render: (v: string) => audienceLabel(v),
-          },
-        ]
-      : []),
-  ]
+  const columns = isAdmin
+    ? [
+        {
+          key: "audience",
+          label: t("role") || "Rol",
+          sortable: true,
+          width: "150px",
+          render: (v: string) => audienceLabel(v),
+        },
+        { key: "question", label: t("question") || "Question", sortable: true },
+        {
+          key: "answer",
+          label: t("answer") || "Answer",
+          sortable: false,
+          width: "280px",
+          render: (v: string) => <span className="line-clamp-2">{v}</span>,
+        },
+      ]
+    : [
+        { key: "question", label: t("question") || "Question", sortable: true },
+        {
+          key: "answer",
+          label: t("answer") || "Answer",
+          sortable: false,
+          render: (v: string) => <span className="line-clamp-2">{v}</span>,
+        },
+      ]
 
   const actionButtons = isAdmin
     ? [{ icon: Plus, onClick: openNew, title: t("addAid") || "Add", type: "add" as const }]

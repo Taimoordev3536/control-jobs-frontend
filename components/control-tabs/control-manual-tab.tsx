@@ -173,12 +173,12 @@ export default function ControlManualTab({
 
   const formatTime = (iso?: string) => {
     if (!iso) return "--:--"
-    return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+    return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Europe/Madrid" })
   }
 
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return ""
-    return new Date(dateStr).toLocaleDateString([], { day: "2-digit", month: "short", year: "numeric" })
+    return new Date(dateStr).toLocaleDateString([], { day: "2-digit", month: "short", year: "numeric", timeZone: "Europe/Madrid" })
   }
 
   const pendingCount = requests.filter((r) => r.status === "PENDING").length

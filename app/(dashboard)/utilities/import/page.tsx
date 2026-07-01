@@ -12,26 +12,28 @@ import { AnimatedLoader } from "@/components/animated-loader"
 
 const SUPPORTED = new Set(["clients", "workers", "users", "partners", "employers"])
 
+// Demo row (row 2) shows the allowed alternatives for the constrained fields,
+// joined by "/", since a CSV cell can't hold a dropdown.
 const SAMPLE_FIELDS: Record<string, { headers: string[]; example: string[] }> = {
   partners: {
-    headers: ["Nombre", "NIF", "Email", "Teléfono", "Dirección", "Tipo", "Tarifa", "Comisión (%)", "Retención (%)", "Método de pago", "Localidad", "Provincia", "Activo"],
-    example: ["Juan Pérez", "12345678A", "juan@ejemplo.com", "600000000", "Calle Sol 1", "Gold", "Estándar", "10", "15", "Transferencia", "Madrid", "Madrid", "Sí"],
+    headers: ["Nombre", "NIF", "Email", "Responsable", "Teléfono", "Móvil", "Dirección", "Piso&Puerta", "Código Postal", "Localidad", "Provincia", "País", "Tipo", "Comisión (%)", "Retención (%)", "Activo"],
+    example: ["Juan Pérez", "12345678A", "juan@ejemplo.com", "Juan Pérez", "910000000", "600000000", "Calle Sol 1", "2ºA", "28001", "Madrid", "Madrid", "España", "Gold/Silver/Bronze/Affiliate", "10", "15", "Sí"],
   },
   employers: {
-    headers: ["Nombre", "NIF", "Email", "Dirección", "Partner", "Tipo", "SubTipo", "Teléfono", "Localidad", "Provincia", "Código Postal", "Activo"],
-    example: ["Empresa S.L.", "B12345678", "info@empresa.com", "Calle Mayor 1", "Nombre del partner", "Hogar", "Empresa", "910000000", "Madrid", "Madrid", "28001", "Sí"],
+    headers: ["Nombre", "NIF", "Email", "Responsable", "Partner", "Teléfono", "Móvil", "Dirección", "Piso&Portal", "Código Postal", "Localidad", "Provincia", "País", "Clase", "Tarifa", "%Dto", "Prueba", "Activo"],
+    example: ["Empresa S.L.", "B12345678", "info@empresa.com", "Ana Gómez", "Nombre del partner", "910000000", "600000000", "Calle Mayor 1", "1ºB", "28001", "Madrid", "Madrid", "España", "Particular/Empresa/Autónomo", "Home/Static/Remote", "5", "30", "Sí"],
   },
   clients: {
-    headers: ["Nombre", "Email", "NIF", "Código", "Tipo", "Localidad", "Provincia", "Empleador", "Activo"],
-    example: ["María García", "maria@ejemplo.com", "12345678A", "CLI-001", "Particular", "Bilbao", "Vizcaya", "Empresa S.L.", "Sí"],
+    headers: ["Código", "Nombre", "NIF", "Email", "Responsable", "Empleador", "Teléfono", "Móvil", "Dirección", "Piso&Portal", "Código Postal", "Localidad", "Provincia", "País", "Tipo", "Activo"],
+    example: ["CLI-001", "María García", "12345678A", "maria@ejemplo.com", "María García", "Nombre del empleador", "910000000", "600000000", "Calle Luna 3", "3ºC", "48001", "Bilbao", "Vizcaya", "España", "Particular/Empresa", "Sí"],
   },
   workers: {
-    headers: ["Nombre", "Apellidos", "Email", "NIF", "Código", "Ocupación", "Localidad", "Provincia", "Empleador", "Activo"],
-    example: ["Ana", "López Ruiz", "ana@ejemplo.com", "87654321B", "TRB-001", "Auxiliar", "Sevilla", "Sevilla", "Empresa S.L.", "Sí"],
+    headers: ["Código", "Apellidos&Nombre", "NIF", "Email", "Empleador", "Teléfono", "Móvil", "Dirección", "Piso&Portal", "Código Postal", "Localidad", "Provincia", "País", "Ocupación", "Sexo", "F. Nacimiento", "Activo"],
+    example: ["TRB-001", "López Ruiz, Ana", "87654321B", "ana@ejemplo.com", "Nombre del empleador", "910000000", "600000000", "Calle Mar 4", "4ºD", "41001", "Sevilla", "Sevilla", "España", "Auxiliar", "Hombre/Mujer", "01/01/1990", "Sí"],
   },
   users: {
     headers: ["Nombre", "Apellidos", "Email", "Rol", "Activo"],
-    example: ["Carlos", "Ruiz Díaz", "carlos@ejemplo.com", "Empleador", "Sí"],
+    example: ["Carlos", "Ruiz Díaz", "carlos@ejemplo.com", "Administrador/Partner/Empleador/Cliente/Trabajador", "Sí"],
   },
 }
 
@@ -80,6 +82,22 @@ export default function ImportPage() {
     const a = document.createElement("a")
     a.href = url
     a.download = `plantilla_${selectedRole}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const exportErrors = () => {
+    if (!summary || summary.errors.length === 0) return
+    const rows = [
+      [t("row") || "Row", "Email", t("reason") || "Reason"],
+      ...summary.errors.map((e) => [String(e.row), e.email || "", e.reason]),
+    ]
+    const csv = "﻿" + toCsv(rows)
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `importacion_${selectedRole}_errores.csv`
     a.click()
     URL.revokeObjectURL(url)
   }
@@ -207,6 +225,18 @@ export default function ImportPage() {
                 <span className="text-amber-600 dark:text-amber-400"><strong>{summary.skipped}</strong> {t("skipped") || "skipped"}</span>
                 <span className="text-red-600 dark:text-red-400"><strong>{summary.failed}</strong> {t("failed") || "failed"}</span>
               </div>
+              {summary.errors.length > 0 && (
+                <div className="flex justify-end">
+                  <Button
+                    variant="outline"
+                    onClick={exportErrors}
+                    className="gap-2 border-[#662D91] text-[#662D91] hover:bg-purple-50"
+                  >
+                    <Download className="h-4 w-4" />
+                    {t("exportErrors") || "Export errors"}
+                  </Button>
+                </div>
+              )}
               {summary.errors.length > 0 && (
                 <div className="max-h-64 overflow-auto">
                   <table className="w-full text-xs">

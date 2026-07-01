@@ -36,8 +36,8 @@ export default function EmployerRecordDetailPage() {
     ],
   }
 
-  const formatDate = (d: string) => new Date(d).toLocaleDateString("es-ES", { weekday: "long", year: "numeric", month: "long", day: "numeric" })
-  const formatTime = (t: string) => new Date(t).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", hour12: true })
+  const formatDate = (d: string) => new Date(d).toLocaleDateString("es-ES", { weekday: "long", year: "numeric", month: "long", day: "numeric", timeZone: "Europe/Madrid" })
+  const formatTime = (t: string) => new Date(t).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "Europe/Madrid" })
 
   const getIcon = (type: string) => {
     switch (type) {

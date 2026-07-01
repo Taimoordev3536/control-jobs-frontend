@@ -416,7 +416,7 @@ export default function InvoiceForm({ mode, invoice, onSubmitted, onCancel, allo
               </SelectContent>
             </Select>
           ) : (
-            <div className="border border-border rounded px-3 py-2 font-semibold">{client?.name || `#${invoice?.employerId}`}</div>
+            <div className="border border-border rounded px-3 py-2 font-semibold">{invoice?.hideEmployer ? "—" : client?.name || `#${invoice?.employerId}`}</div>
           )}
           {ctxLoading ? (
             <div className="mt-2 flex justify-start py-2">

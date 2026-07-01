@@ -8,6 +8,9 @@ import { WorkerCalendarTab } from "@/components/worker-tab/worker-calendar-tab"
 import { WorkerJobsTab } from "@/components/worker-tab/worker-jobs-tab"
 import { WorkerClientTab } from "@/components/worker-tab/worker-client-tab"
 import { WorkerMessageTab } from "@/components/worker-tab/worker-message-tab"
+import { WorkerSalariosTab } from "@/components/worker-tab/worker-salarios-tab"
+import { WorkerDocumentosTab } from "@/components/worker-tab/worker-documentos-tab"
+import { WorkerSolicitudesTab } from "@/components/worker-tab/worker-solicitudes-tab"
 import { useTranslation } from "@/hooks/use-translation"
 import { useAuth } from "@/hooks/use-auth"
 
@@ -46,6 +49,9 @@ export default function WorkerDetailPage() {
     { key: "calendar", label: t("calendar") },
     { key: "jobs", label: t("jobs") },
     { key: "customers", label: t("clients") },
+    { key: "salaries", label: t("salaries") || "Salarios" },
+    { key: "documents", label: t("documents") || "Documentos" },
+    { key: "requests", label: t("requests") || "Solicitudes" },
     { key: "messages", label: t("messages") },
   ]
 
@@ -99,6 +105,9 @@ export default function WorkerDetailPage() {
         {activeTab === "calendar" && <WorkerCalendarTab />}
         {activeTab === "jobs" && <WorkerJobsTab workerId={params.id as string} />}
         {activeTab === "customers" && <WorkerClientTab workerId={params.id as string} />}
+        {activeTab === "salaries" && <WorkerSalariosTab workerId={params.id as string} />}
+        {activeTab === "documents" && <WorkerDocumentosTab workerId={params.id as string} />}
+        {activeTab === "requests" && <WorkerSolicitudesTab workerId={params.id as string} />}
         {activeTab === "messages" && <WorkerMessageTab workerId={params.id as string} />}
       </div>
     </div>

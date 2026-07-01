@@ -78,18 +78,14 @@ export default function EmployerRecordDetailPage() {
     fetchWorkSessionDetail()
   }, [workSessionId, session?.accessToken])
 
-  const formatDate = (d: string) => {
-    const date = new Date(d)
-    const days = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"]
-    const months = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
-    return `${days[date.getDay()]}, ${date.getDate()} ${months[date.getMonth()]}, ${date.getFullYear()}`
-  }
-  
+  const formatDate = (d: string) =>
+    formatDateKey(new Date(d).toLocaleDateString('en-CA', { timeZone: 'Europe/Madrid' }))
+
   const formatTime = (t?: string | Date | null) => {
     if (!t) return '—'
     const d = t instanceof Date ? t : new Date(t)
     if (isNaN(d.getTime())) return '—'
-    return d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', hour12: false })
+    return d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Europe/Madrid' })
   }
   
   const formatDuration = (minutes: number) => {

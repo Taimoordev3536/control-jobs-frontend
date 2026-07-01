@@ -7,9 +7,9 @@ const IMP_COOKIE = "cj-imp-token"
 const roleRoutes: Record<string, string[]> = {
   admin: ["/dashboard", "/announcements", "/partners", "/employers", "/admin", "/invoices", "/commissions", "/rates", "/information", "/utilities", "/support", "/aid", "/tasks", "/messages"],
   partner: ["/dashboard", "/announcements", "/employers", "/billing", "/invoices", "/commissions", "/rates", "/information", "/utilities", "/aid", "/tasks", "/messages"],
-  employer: ["/dashboard", "/announcements", "/jobs", "/clients", "/workers", "/work-centers", "/surveys", "/invoices", "/billing", "/information", "/utilities", "/aid", "/tasks", "/records", "/messages"],
-  client: ["/dashboard", "/jobs", "/surveys", "/information", "/aid", "/tasks", "/records", "/messages"],
-  worker: ["/dashboard", "/jobs", "/occupation", "/surveys", "/information", "/aid", "/tasks", "/records", "/messages"],
+  employer: ["/dashboard", "/announcements", "/jobs", "/clients", "/workers", "/work-centers", "/occupation", "/absences", "/salaries", "/client-invoices", "/my-invoices", "/surveys", "/invoices", "/billing", "/information", "/utilities", "/aid", "/tasks", "/records", "/messages"],
+  client: ["/dashboard", "/jobs", "/my-client-invoices", "/surveys", "/information", "/aid", "/tasks", "/records", "/messages"],
+  worker: ["/dashboard", "/jobs", "/presence", "/calendar", "/documents", "/my-salaries", "/surveys", "/information", "/aid", "/tasks", "/records", "/messages", "/mydata"],
 }
 
 function readImpersonatedRole(impToken: string): string | null {

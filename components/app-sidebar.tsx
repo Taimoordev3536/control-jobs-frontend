@@ -31,6 +31,9 @@ import ContreolJobs from "../icons/Logos/ControlJobs.svg";
 import SubscriptionsIcon from "../icons/new_icons/Suscripciones.svg"
 import SupportIcon from "../icons/new_icons/Soporte.svg"
 import SuggestionMenuIcon from "../icons/Header/Sugestions.svg"
+import MarketingIcon from "../icons/new_icons/Marketing.svg"
+import StaffIcon from "../icons/User/users.svg"
+import TareasIcon from "../icons/Otros/Tareas.svg"
 import {
   CreditCard,
   ChevronDown,
@@ -49,6 +52,7 @@ import {
   DatabaseBackup,
   RotateCcw,
   BarChart3,
+  AlertTriangle,
 } from "lucide-react"
 import { useState, useEffect } from "react"
 import { usePathname } from "next/navigation"
@@ -113,7 +117,25 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar, styl
       case "all":
         return <TodosIcon className="h-5 w-5" />
       case "occupation":
-        return <Briefcase className="h-5 w-5" />
+        return <OcupacionIcon className="h-5 w-5" />
+      case "incidents":
+        return <AlertTriangle className="h-5 w-5" />
+      case "management":
+        return <TareasIcon className="h-5 w-5" />
+      case "manual-requests":
+        return <ConsultIcon className="h-5 w-5" />
+      case "absences":
+        return <ConsultIcon className="h-5 w-5" />
+      case "salaries":
+        return <SalaryInfoIcon className="h-5 w-5" />
+      case "banks":
+        return <PaymentIcon className="h-5 w-5" />
+      case "marketing":
+        return <MarketingIcon className="h-5 w-5" />
+      case "history":
+        return <SigningsInfoIcon className="h-5 w-5" />
+      case "schedule":
+        return <OcupacionIcon className="h-5 w-5" />
       case "surveys":
         return <SurvayIcon className="h-5 w-5" />
       case "signings-info":
@@ -177,33 +199,22 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar, styl
             id: "jobs",
             title: t("jobs"),
             icon: () => <JobsIcon className="h-5 w-5" />,
-            items: [
-              { title: t("control"), href: "/jobs/control", iconKey: "control" },
-              { title: t("consultations"), href: "/jobs/consultations", iconKey: "consultations" },
-              { title: t("all"), href: "/jobs/all", iconKey: "all" },
-              { title: t("myRequests") || "My Requests", href: "/jobs/manual-requests", iconKey: "manual-requests" },
-            ],
+            href: "/jobs/mine",
           },
           {
-            id: "occupation",
-            title: t("occupation"),
+            id: "presence",
+            title: t("presence") || "Presencia",
             icon: () => <OcupacionIcon className="h-5 w-5" />,
-            href: "/occupation",
+            items: [
+              { title: t("history") || "Historial", href: "/presence/history", iconKey: "history" },
+              { title: t("schedule") || "Programación", href: "/presence/schedule", iconKey: "schedule" },
+            ],
           },
           {
             id: "surveys",
             title: t("surveys"),
             icon: () => <SurvayIcon className="h-5 w-5" />,
             href: "/surveys",
-          },
-          {
-            id: "information",
-            title: t("information"),
-            icon: () => <InformationIcon className="h-5 w-5" />,
-            items: [
-              { title: t("signings"), href: "/information/signings-info", iconKey: "signings-info" },
-              { title: t("wages"), href: "/information/wages-info", iconKey: "wages-info" },
-            ],
           },
           {
             id: "aid",
@@ -256,7 +267,7 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar, styl
           {
             id: "dashboard",
             title: t("dashboard"),
-            icon: () => <TodosIcon className="h-5 w-5" />,
+            icon: () => <BarChart3 className="h-5 w-5" />,
             href: "/dashboard",
           },
           {
@@ -265,21 +276,30 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar, styl
             icon: () => <JobsIcon className="h-5 w-5" />,
             items: [
               { title: t("control"), href: "/jobs/control", iconKey: "control" },
-              { title: t("all"), href: "/jobs/all", iconKey: "all" },
-              { title: t("attendanceRequests") || "Attendance Requests", href: "/jobs/manual-requests", iconKey: "manual-requests" },
+              { title: t("incidents") || "Incidencias", href: "/jobs/incidents", iconKey: "incidents" },
+              { title: t("management") || "Gestión", href: "/jobs/all", iconKey: "management" },
+              { title: t("requests") || "Solicitudes", href: "/jobs/manual-requests", iconKey: "manual-requests" },
             ],
           },
           {
-            id: "clients",
-            title: t("clients"),
-            icon: () => <ClientIcon className="h-5 w-5" />,
-            href: "/clients",
+            id: "personal",
+            title: t("personal") || "Personal",
+            icon: () => <StaffIcon className="h-5 w-5" />,
+            items: [
+              { title: t("workers"), href: "/workers", iconKey: "workers" },
+              { title: t("occupation") || "Ocupación", href: "/occupation", iconKey: "occupation" },
+              { title: t("requests") || "Solicitudes", href: "/absences", iconKey: "absences" },
+              { title: t("salaries") || "Salarios", href: "/salaries", iconKey: "salaries" },
+            ],
           },
           {
-            id: "workers",
-            title: t("workers"),
-            icon: () => <WorkersIcon className="h-5 w-5" />,
-            href: "/workers",
+            id: "consumers",
+            title: t("consumers") || "Consumidores",
+            icon: () => <ClientIcon className="h-5 w-5" />,
+            items: [
+              { title: t("clients"), href: "/clients", iconKey: "clients" },
+              { title: t("invoices"), href: "/client-invoices", iconKey: "invoices" },
+            ],
           },
           {
             id: "surveys",
@@ -291,29 +311,13 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar, styl
             ],
           },
           {
-            id: "invoices",
-            title: t("invoices"),
-            icon: () => <InvoicesIcon className="h-5 w-5" />,
-            href: "/invoices",
-          },
-          {
-            id: "information",
-            title: t("information"),
-            icon: () => <InformationIcon className="h-5 w-5" />,
-            items: [
-              { title: t("signings"), href: "/information/signings-info", iconKey: "signings-info" },
-              { title: t("services"), href: "/information/services-info", iconKey: "services-info" },
-              { title: t("invoices"), href: "/information/invoices-info", iconKey: "invoices" },
-              { title: t("wages"), href: "/information/wages-info", iconKey: "wages-info" },
-            ],
-          },
-          {
             id: "utilities",
             title: t("utilities"),
             icon: () => <UtilitiesIcon className="h-5 w-5" />,
             items: [
-              { title: t("import"), href: "/utilities/import", iconKey: "import" },
               { title: t("invitations") || "Invitar", href: "/utilities/invite", iconKey: "invite" },
+              { title: t("banks") || "Bancos", href: "/utilities/banks", iconKey: "banks" },
+              { title: t("import"), href: "/utilities/import", iconKey: "import" },
             ],
           },
           {

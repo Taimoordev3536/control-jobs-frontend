@@ -19,7 +19,7 @@ import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { useBackendError } from "@/lib/backend-error"
 import { logoEndpointsFor } from "@/lib/logo-endpoints"
-import { LogOut, CreditCard, DollarSign, Plus, Loader2 } from "lucide-react"
+import { LogOut, CreditCard, DollarSign, Plus, Loader2, Calendar, FileText } from "lucide-react"
 import Link from "next/link"
 
 export function UserDropdown() {
@@ -145,14 +145,15 @@ export function UserDropdown() {
       case "worker":
         return [
           { label: t("mydata"), href: "/mydata", icon: PerfileIcon },
-          { label: t("configuration"), href: "/configuration", icon: ConfigurationIcon },
-          { label: t("wages"), href: "/wages", icon: DollarSign }, // TODO: Replace with SVG if available
+          { label: t("calendar") || "Calendario", href: "/calendar", icon: Calendar },
+          { label: t("documentsSalaries") || "Documentos / Salarios", href: "/my-salaries", icon: FileText },
         ]
 
       case "client":
         return [
           { label: t("mydata"), href: "/mydata", icon: PerfileIcon },
           { label: t("configuration"), href: "/configuration", icon: ConfigurationIcon },
+          { label: t("myInvoices") || "Mis facturas", href: "/my-client-invoices", icon: CreditCard },
           { label: t("users"), href: "/users", icon: UsersIcon },
         ]
 
@@ -160,12 +161,7 @@ export function UserDropdown() {
         return [
           { label: t("mydata"), href: "/mydata", icon: PerfileIcon },
           { label: t("configuration"), href: "/configuration", icon: ConfigurationIcon },
-          // Billing entry now points at the canonical invoices list. The
-          // /billing stub page is intentionally bypassed — the sidebar's
-          // Billing expandable was removed so this dropdown link is the
-          // sole employer-facing entry into invoices.
-          { label: t("billing"), href: "/invoices", icon: CreditCard },
-          { label: t("wages"), href: "/wages", icon: DollarSign }, // TODO: Replace with SVG if available
+          { label: t("myInvoices"), href: "/my-invoices", icon: CreditCard },
           { label: t("users"), href: "/users", icon: UsersIcon },
         ]
 

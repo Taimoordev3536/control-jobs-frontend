@@ -61,6 +61,7 @@ interface PartnerData {
 interface PartnerDataTabProps {
   partnerId: string
   onNameChange?: (name: string) => void
+  onSystemChange?: (isSystem: boolean) => void
   selfService?: boolean
 }
 
@@ -78,7 +79,7 @@ const getTierId = (typeOfPartner: string): number => {
   return found?.tierId ?? 0
 }
 
-export default function PartnerDataTab({ partnerId, onNameChange, selfService = false }: PartnerDataTabProps) {
+export default function PartnerDataTab({ partnerId, onNameChange, onSystemChange, selfService = false }: PartnerDataTabProps) {
   const meMode = selfService
   const { t, language, tEnum } = useTranslation()
   const { session, isImpersonating, isSubUser, hasRole, canEdit } = useAuth()
@@ -170,6 +171,7 @@ export default function PartnerDataTab({ partnerId, onNameChange, selfService = 
           setPartnerData(mapped)
           setOriginalData(mapped)
           onNameChange?.(mapped.name)
+          onSystemChange?.(!!d.isSystem)
         } else {
           throw new Error(result.message || "Failed to fetch partner data")
         }

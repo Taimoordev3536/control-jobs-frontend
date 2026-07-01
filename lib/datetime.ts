@@ -57,3 +57,21 @@ export function formatLocalTime(input: string | Date | null | undefined): string
     minute: "2-digit",
   })
 }
+
+// Treats a user-typed date+time as Europe/Madrid and returns the UTC ISO instant.
+export function madridWallClockToISO(dateStr: string, timeStr: string): string {
+  const [y, mo, d] = dateStr.split("-").map(Number)
+  const [h, mi, s] = timeStr.split(":").map(Number)
+  const utcGuess = Date.UTC(y, (mo || 1) - 1, d || 1, h || 0, mi || 0, s || 0)
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: DEFAULT_TIMEZONE,
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
+  }).formatToParts(new Date(utcGuess))
+  const m: Record<string, number> = {}
+  for (const p of parts) if (p.type !== "literal") m[p.type] = Number(p.value)
+  const hour = m.hour === 24 ? 0 : m.hour
+  const asMadrid = Date.UTC(m.year, m.month - 1, m.day, hour, m.minute, m.second)
+  const offset = asMadrid - utcGuess
+  return new Date(utcGuess - offset).toISOString()
+}

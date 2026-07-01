@@ -44,10 +44,11 @@ export default function InvoicesPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [addOpen, setAddOpen] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
+  const [hideEmployer, setHideEmployer] = useState(false)
 
-  // Employer-role users only ever see their own invoices, so the employer
-  // column is redundant — hide it.
-  const showEmployerColumn = !hasRole("employer")
+  // Employer-role users only ever see their own invoices, so the column is
+  // redundant. Bronze/Affiliate partners are not allowed to see employer data.
+  const showEmployerColumn = !hasRole("employer") && !hideEmployer
   const canCreate = hasRole("admin")
 
   useEffect(() => {
@@ -55,7 +56,8 @@ export default function InvoicesPage() {
       if (!session?.accessToken) return
       setIsLoading(true)
       try {
-        const json = await apiFetch<{ data: any[] }>("/invoices?pageSize=100")
+        const json = await apiFetch<any>("/invoices?pageSize=100")
+        setHideEmployer(!!json.data?.[0]?.hideEmployer)
         const list: InvoiceRow[] = (json.data || []).map((i: any) => ({
           id: i.id,
           publicId: i.publicId,

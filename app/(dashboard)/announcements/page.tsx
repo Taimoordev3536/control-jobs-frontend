@@ -28,7 +28,7 @@ import {
 import { DateInput } from "@/components/ui/date-input"
 import { TimePicker } from "@/components/ui/time-picker"
 import { AnimatedLoader } from "@/components/animated-loader"
-import { formatLocalDateTime } from "@/lib/datetime"
+import { formatLocalDateTime, madridWallClockToISO } from "@/lib/datetime"
 
 type Severity = "INFO" | "WARNING" | "CRITICAL"
 type Audience = { segment: string; count: number }
@@ -152,12 +152,15 @@ export default function AnnouncementsPage() {
     }
     let scheduledAt: string | undefined
     if (scheduleLater) {
-      const d = new Date(`${schedDate}T${schedTime}`)
-      if (!schedDate || !schedTime || isNaN(d.getTime()) || d.getTime() <= Date.now()) {
+      if (!schedDate || !schedTime) {
         toast({ title: t("futureTimeError"), variant: "destructive" })
         return
       }
-      scheduledAt = d.toISOString()
+      scheduledAt = madridWallClockToISO(schedDate, schedTime)
+      if (isNaN(new Date(scheduledAt).getTime()) || new Date(scheduledAt).getTime() <= Date.now()) {
+        toast({ title: t("futureTimeError"), variant: "destructive" })
+        return
+      }
     }
     setSubmitting(true)
     try {
