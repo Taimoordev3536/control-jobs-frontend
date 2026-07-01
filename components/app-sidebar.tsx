@@ -404,7 +404,7 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar, styl
             icon: () => <UtilitiesIcon className="h-5 w-5" />,
             items: [
               { title: t("invitations") || "Invitar", href: "/utilities/invite", iconKey: "invite" },
-              { title: t("banks") || "Bancos", href: "/utilities/payments", iconKey: "payments" },
+              { title: t("banks") || "Bancos", href: "/utilities/banks", iconKey: "payments" },
               { title: t("import"), href: "/utilities/import", iconKey: "import" },
             ],
           },
