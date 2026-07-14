@@ -230,6 +230,11 @@ export default function RecordDetail({ recordId, backHref }: { recordId: string;
   const corrected = d.source === "MANUAL"
   const initials = (d.worker?.name || "?").split(" ").map((x: string) => x[0]).slice(0, 2).join("").toUpperCase()
   const diff = (h.workedMinutes || 0) - (h.scheduledMinutes || 0)
+  // Role-scoped survey visibility: worker sees only the worker survey, client only the
+  // customer survey, employer sees both. Derived from the record route (backHref).
+  const viewerRole = backHref.includes("/employer") ? "employer" : backHref.includes("/client") ? "client" : "worker"
+  const showWorkerSurvey = viewerRole !== "client"
+  const showCustomerSurvey = viewerRole !== "worker"
 
   return (
     <div className="w-full px-4 sm:px-6 lg:px-8 py-5 pb-24 bg-background min-h-screen">
@@ -312,7 +317,7 @@ export default function RecordDetail({ recordId, backHref }: { recordId: string;
           <Card title={t("dayStatus")} accent="#4F46E5">
             <KV k={t("tasks")}>{totalTasks ? <Chip tone={doneTasks === totalTasks ? "ok" : "late"}>{doneTasks} / {totalTasks} {t("done")}</Chip> : "—"}</KV>
             <KV k={t("survey")}>{(() => {
-              const items = [survey?.worker, survey?.customer].filter(Boolean) as any[]
+              const items = [showWorkerSurvey ? survey?.worker : null, showCustomerSurvey ? survey?.customer : null].filter(Boolean) as any[]
               if (items.length === 0) return "—"
               const allFilled = items.every((s) => s.filled)
               const anyFilled = items.some((s) => s.filled)
@@ -481,8 +486,8 @@ export default function RecordDetail({ recordId, backHref }: { recordId: string;
       {/* SURVEY */}
       {tab === "survey" && (
         <div className="w-full grid lg:grid-cols-2 gap-4 items-start">
-          <SurveyStatusCard title={t("surveyWorker")} entry={survey?.worker || null} onFill={(e) => setSurveyDialog({ entry: e, title: t("surveyWorker") })} />
-          <SurveyStatusCard title={t("surveyClient")} entry={survey?.customer || null} onFill={(e) => setSurveyDialog({ entry: e, title: t("surveyClientShort") })} />
+          {showWorkerSurvey && <SurveyStatusCard title={t("surveyWorker")} entry={survey?.worker || null} onFill={(e) => setSurveyDialog({ entry: e, title: t("surveyWorker") })} />}
+          {showCustomerSurvey && <SurveyStatusCard title={t("surveyClient")} entry={survey?.customer || null} onFill={(e) => setSurveyDialog({ entry: e, title: t("surveyClientShort") })} />}
         </div>
       )}
 

@@ -2,49 +2,58 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { useSession } from "next-auth/react"
-import { ChevronLeft, ChevronRight } from "lucide-react"
+import { ChevronLeft, ChevronRight, Plus, Loader2, ArrowLeft } from "lucide-react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
+import { DateInput } from "@/components/ui/date-input"
 import { AnimatedLoader } from "@/components/animated-loader"
 import { useTranslation } from "@/hooks/use-translation"
 import { toast } from "@/hooks/use-toast"
-import { madridToday, madridTodayKey } from "@/lib/datetime"
+import { formatLocalDate, madridToday, madridTodayKey } from "@/lib/datetime"
+import { CalendarYearGrid } from "@/components/ui/calendar-year-grid"
+import ConsultIcon from "@/icons/new/consultas.svg"
 
 const pad = (n: number) => String(n).padStart(2, "0")
 const ymd = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 
-const statusCls: Record<string, string> = {
-  pending: "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300",
-  accepted: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300",
-  rejected: "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300",
+const statusMeta: Record<string, { key: string; fallback: string; badge: string; accent: string; dot: string }> = {
+  pending: { key: "pending", fallback: "Pendiente", badge: "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300", accent: "border-l-amber-400", dot: "bg-amber-400" },
+  accepted: { key: "accepted", fallback: "Aceptada", badge: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300", accent: "border-l-emerald-400", dot: "bg-emerald-500" },
+  rejected: { key: "rejected", fallback: "Rechazada", badge: "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300", accent: "border-l-red-400", dot: "bg-red-500" },
 }
 
 export default function ClientCalendar() {
   const { t } = useTranslation()
+  const router = useRouter()
   const { data: session } = useSession()
   const base = process.env.NEXT_PUBLIC_API_BASE_URL
+  const todayStr = madridTodayKey()
 
   const [tab, setTab] = useState<"laboral" | "solicitudes">("laboral")
+  const [view, setView] = useState<"month" | "year">("month")
   const [cursor, setCursor] = useState(() => madridToday())
   const [days, setDays] = useState<Record<string, any>>({})
   const [absences, setAbsences] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [from, setFrom] = useState("")
-  const [to, setTo] = useState("")
+  const [from, setFrom] = useState(todayStr)
+  const [to, setTo] = useState(todayStr)
   const [reason, setReason] = useState("")
   const [submitting, setSubmitting] = useState(false)
+  const [filter, setFilter] = useState("")
 
   const monthStart = new Date(cursor.getFullYear(), cursor.getMonth(), 1)
   const monthEnd = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0)
+  const rangeStart = view === "year" ? new Date(cursor.getFullYear(), 0, 1) : monthStart
+  const rangeEnd = view === "year" ? new Date(cursor.getFullYear(), 11, 31) : monthEnd
 
   const load = useCallback(() => {
     if (!session?.accessToken) return
     const h = { Authorization: `Bearer ${session.accessToken}` }
     setLoading(true)
     Promise.all([
-      fetch(`${base}/jobs/client/my-calendar?start=${ymd(monthStart)}&end=${ymd(monthEnd)}`, { headers: h }).then((r) => r.json()),
+      fetch(`${base}/jobs/client/my-calendar?start=${ymd(rangeStart)}&end=${ymd(rangeEnd)}`, { headers: h }).then((r) => r.json()),
       fetch(`${base}/client-requests/mine`, { headers: h }).then((r) => r.json()),
     ])
       .then(([cal, reqs]) => {
@@ -55,7 +64,7 @@ export default function ClientCalendar() {
       })
       .catch(() => {})
       .finally(() => setLoading(false))
-  }, [session?.accessToken, base, cursor])
+  }, [session?.accessToken, base, cursor, view])
 
   useEffect(() => { load() }, [load])
 
@@ -70,9 +79,15 @@ export default function ClientCalendar() {
     return set
   }, [absences])
 
-  const step = (dir: number) => setCursor((c) => new Date(c.getFullYear(), c.getMonth() + dir, 1))
+  const counts = {
+    pending: absences.filter((a) => a.status === "pending").length,
+    accepted: absences.filter((a) => a.status === "accepted").length,
+    rejected: absences.filter((a) => a.status === "rejected").length,
+  }
+  const filtered = filter ? absences.filter((a) => a.status === filter) : absences
+
+  const step = (dir: number) => setCursor((c) => view === "year" ? new Date(c.getFullYear() + dir, c.getMonth(), 1) : new Date(c.getFullYear(), c.getMonth() + dir, 1))
   const monthLabel = cursor.toLocaleDateString("es-ES", { month: "long", year: "numeric" })
-  const todayStr = madridTodayKey()
 
   const firstWeekday = (monthStart.getDay() + 6) % 7
   const cells: (Date | null)[] = []
@@ -86,6 +101,10 @@ export default function ClientCalendar() {
       toast({ title: t("selectDates") || "Selecciona las fechas", variant: "destructive" })
       return
     }
+    if (to < from) {
+      toast({ title: t("invalidDateRange") || "End date must be after start", variant: "destructive" })
+      return
+    }
     setSubmitting(true)
     try {
       const res = await fetch(`${base}/client-requests`, {
@@ -94,8 +113,8 @@ export default function ClientCalendar() {
         body: JSON.stringify({ type: "absence", subject: reason || (t("absence") || "Ausencia"), description: reason, startDate: from, endDate: to }),
       })
       if (!res.ok) throw new Error()
-      toast({ title: t("requestSubmitted") || "Solicitud enviada" })
-      setFrom(""); setTo(""); setReason(""); load()
+      toast({ title: t("requestSubmitted") || "Solicitud enviada", variant: "success" })
+      setFrom(todayStr); setTo(todayStr); setReason(""); load()
     } catch {
       toast({ title: t("error") || "Error", variant: "destructive" })
     } finally {
@@ -103,9 +122,31 @@ export default function ClientCalendar() {
     }
   }
 
+  const FilterTile = ({ label, value, dot, status }: { label: string; value: number; dot: string; status: string }) => {
+    const active = filter === status
+    return (
+      <button
+        type="button"
+        onClick={() => setFilter(active ? "" : status)}
+        className={`text-left bg-card border rounded-xl shadow-sm px-4 py-3 transition-all hover:shadow-md ${active ? "border-[#662D91] ring-1 ring-[#662D91]" : "border-border"}`}
+      >
+        <div className="flex items-center gap-2">
+          <span className={`h-2.5 w-2.5 rounded-full ${dot}`} />
+          <span className="text-2xl font-bold tabular-nums text-foreground leading-none">{value}</span>
+        </div>
+        <div className={`text-[11px] uppercase tracking-wide font-semibold mt-1.5 ${active ? "text-[#662D91]" : "text-muted-foreground"}`}>{label}</div>
+      </button>
+    )
+  }
+
   return (
-    <div className="w-full p-4 md:p-6 bg-background min-h-screen space-y-4">
-      <h1 className="text-2xl font-semibold text-foreground">{t("calendar") || "Calendario"}</h1>
+    <div className="w-full px-4 md:px-6 pt-2 pb-4 md:pb-6 bg-background min-h-screen space-y-4">
+      <div className="space-y-1">
+        <button onClick={() => router.back()} className="text-sm text-muted-foreground hover:text-[#662D91] inline-flex items-center gap-1.5 transition-colors">
+          <ArrowLeft className="w-4 h-4" /> {t("back") || "Atrás"}
+        </button>
+        <h1 className="text-2xl font-semibold text-foreground">{t("calendar") || "Calendario"}</h1>
+      </div>
 
       <div className="flex gap-1 border-b border-border">
         {[{ k: "laboral", l: t("laboral") || "Laboral" }, { k: "solicitudes", l: t("requests") || "Solicitudes" }].map((x) => (
@@ -116,10 +157,14 @@ export default function ClientCalendar() {
       {tab === "laboral" && (
         <>
           <div className="flex flex-wrap items-center gap-2">
+            <div className="inline-flex rounded-md border border-border overflow-hidden">
+              <button onClick={() => setView("month")} className={`px-3 h-9 text-sm ${view === "month" ? "bg-[#662D91] text-white" : "bg-background text-foreground"}`}>{t("month") || "Mes"}</button>
+              <button onClick={() => setView("year")} className={`px-3 h-9 text-sm ${view === "year" ? "bg-[#662D91] text-white" : "bg-background text-foreground"}`}>{t("year") || "Año"}</button>
+            </div>
             <Button variant="outline" size="sm" className="h-9 w-9 p-1" onClick={() => step(-1)}><ChevronLeft className="h-4 w-4" /></Button>
             <Button variant="outline" size="sm" className="h-9 text-xs" onClick={() => setCursor(madridToday())}>{t("today") || "Hoy"}</Button>
             <Button variant="outline" size="sm" className="h-9 w-9 p-1" onClick={() => step(1)}><ChevronRight className="h-4 w-4" /></Button>
-            <span className="text-sm font-medium capitalize ml-1">{monthLabel}</span>
+            <span className="text-sm font-medium capitalize ml-1">{view === "year" ? cursor.getFullYear() : monthLabel}</span>
           </div>
           <div className="flex gap-4 text-xs text-muted-foreground">
             <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />{t("laborable") || "Laborable"}</span>
@@ -128,6 +173,12 @@ export default function ClientCalendar() {
           </div>
           {loading ? (
             <div className="flex justify-center py-12"><AnimatedLoader /></div>
+          ) : view === "year" ? (
+            <CalendarYearGrid
+              year={cursor.getFullYear()}
+              dayStatus={(key) => { const d = days[key]; return d?.holiday ? "holiday" : absenceDays.has(key) ? "absence" : d?.working ? "working" : null }}
+              onPickMonth={(m) => { setCursor(new Date(cursor.getFullYear(), m, 1)); setView("month") }}
+            />
           ) : (
             <div className="grid grid-cols-7 gap-1">
               {weekdays.map((w) => <div key={w} className="text-center text-[11px] font-medium text-muted-foreground py-1">{w}</div>)}
@@ -157,33 +208,79 @@ export default function ClientCalendar() {
       )}
 
       {tab === "solicitudes" && (
-        <div className="space-y-5">
-          <div className="rounded-xl border border-border bg-card p-4 space-y-3 max-w-lg">
-            <div className="text-sm font-semibold">{t("newAbsenceRequest") || "Nueva solicitud de ausencia"}</div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1"><Label className="text-xs text-muted-foreground">{t("start") || "Desde"}</Label><Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="h-9" /></div>
-              <div className="space-y-1"><Label className="text-xs text-muted-foreground">{t("end") || "Hasta"}</Label><Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="h-9" /></div>
-            </div>
-            <div className="space-y-1"><Label className="text-xs text-muted-foreground">{t("reason") || "Motivo"}</Label><Textarea value={reason} onChange={(e) => setReason(e.target.value)} className="min-h-[70px] text-sm" /></div>
-            <div className="flex justify-end"><Button onClick={submit} disabled={submitting} className="bg-[#662D91] hover:bg-[#532073] text-white h-9 text-sm">{t("sendRequest") || "Enviar solicitud"}</Button></div>
+        <div className="space-y-6 pt-2">
+          <div className="grid grid-cols-3 gap-3 sm:max-w-lg">
+            <FilterTile label={t("pending") || "Pendientes"} value={counts.pending} dot={statusMeta.pending.dot} status="pending" />
+            <FilterTile label={t("accepted") || "Aceptadas"} value={counts.accepted} dot={statusMeta.accepted.dot} status="accepted" />
+            <FilterTile label={t("rejected") || "Rechazadas"} value={counts.rejected} dot={statusMeta.rejected.dot} status="rejected" />
           </div>
-          <div className="space-y-2">
-            <h2 className="text-sm font-semibold">{t("myRequests") || "Mis solicitudes"}</h2>
-            {absences.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-4">{t("noRequestsYet") || "No has enviado solicitudes."}</p>
-            ) : (
-              <div className="flex flex-col gap-2">
-                {absences.map((a) => (
-                  <div key={a.id} className="rounded-lg border border-border bg-card p-3 flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="text-sm font-medium tabular-nums">{a.startDate} → {a.endDate}</div>
-                      {a.description && <div className="text-xs text-muted-foreground truncate">{a.description}</div>}
-                    </div>
-                    <span className={`shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full ${statusCls[a.status] || statusCls.pending}`}>{t(a.status) || a.status}</span>
-                  </div>
-                ))}
+
+          <div className="grid gap-6 lg:grid-cols-5 items-start">
+            <Card className="lg:col-span-2 rounded-xl shadow-sm overflow-hidden">
+              <div className="flex items-center gap-2.5 bg-[#662D91] px-4 py-3 text-white">
+                <Plus className="h-4 w-4" />
+                <span className="text-sm font-semibold">{t("newAbsenceRequest") || "Nueva solicitud de ausencia"}</span>
               </div>
-            )}
+              <CardContent className="space-y-4 pt-4">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-muted-foreground">{t("from") || "Desde"}</label>
+                    <DateInput value={from} onChange={(e) => setFrom(e.target.value)} className="h-9" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-muted-foreground">{t("to") || "Hasta"}</label>
+                    <DateInput value={to} onChange={(e) => setTo(e.target.value)} className="h-9" />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">{t("reason") || "Motivo"} <span className="font-normal">({t("optional") || "Opcional"})</span></label>
+                  <Textarea value={reason} onChange={(e) => setReason(e.target.value)} className="min-h-[100px] text-sm" />
+                </div>
+                <div className="flex justify-end pt-1">
+                  <Button onClick={submit} disabled={submitting} className="bg-[#662D91] hover:bg-[#532073] text-white h-9 text-sm">
+                    {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : null}
+                    {t("sendRequest") || "Enviar solicitud"}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="lg:col-span-3 rounded-xl shadow-sm">
+              <CardHeader className="pb-3 border-b border-border">
+                <CardTitle className="text-base flex items-center gap-2.5">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#662D91]/10 text-[#662D91]"><ConsultIcon className="h-4 w-4" /></span>
+                  {t("myRequests") || "Mis solicitudes"}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-4">
+                {loading ? (
+                  <div className="flex justify-center py-12"><AnimatedLoader /></div>
+                ) : filtered.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
+                    <span className="flex h-14 w-14 items-center justify-center rounded-full bg-muted text-muted-foreground/50"><ConsultIcon className="h-7 w-7" /></span>
+                    <p className="text-sm text-muted-foreground">{filter ? (t("noResults") || "Sin resultados") : (t("noRequestsYet") || "No has enviado solicitudes.")}</p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-2.5">
+                    {filtered.map((a) => {
+                      const s = statusMeta[a.status] || statusMeta.pending
+                      return (
+                        <div key={a.id} className={`rounded-lg border border-border border-l-4 ${s.accent} bg-card p-3 shadow-sm transition-shadow hover:shadow-md`}>
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <div className="text-sm font-semibold text-foreground">{formatLocalDate(a.startDate)} → {formatLocalDate(a.endDate)}</div>
+                              {a.description && <div className="text-xs text-muted-foreground mt-1 line-clamp-2">{a.description}</div>}
+                              {a.reviewerNotes && <div className="text-xs text-muted-foreground mt-1"><b className="text-foreground">{t("response") || "Respuesta"}:</b> {a.reviewerNotes}</div>}
+                            </div>
+                            <span className={`shrink-0 text-[11px] font-semibold px-2.5 py-1 rounded-full ${s.badge}`}>{t(s.key) || s.fallback}</span>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
         </div>
       )}

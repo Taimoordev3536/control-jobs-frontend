@@ -154,10 +154,10 @@ export function WorkerSalariosTab({ workerId }: WorkerSalariosTabProps) {
   }
 
   const columns = [
-    { key: "receiptNumber", label: t("number") || "Nº", render: (v: string) => v || "—" },
-    { key: "periodStart", label: t("period") || "Periodo", render: (_v: any, row: any) => `${formatLocalDate(row.periodStart)} – ${formatLocalDate(row.periodEnd)}` },
-    { key: "hoursQty", label: t("hours") || "Horas", align: "center" as const, render: (v: number) => (v ?? 0) },
-    { key: "total", label: t("total") || "Total", align: "right" as const, render: (v: number) => eur(v) },
+    { key: "receiptNumber", label: t("number") || "Nº", sortable: true, render: (v: string) => v || "—" },
+    { key: "periodStart", label: t("period") || "Periodo", sortable: true, render: (_v: any, row: any) => `${formatLocalDate(row.periodStart)} – ${formatLocalDate(row.periodEnd)}` },
+    { key: "hoursQty", label: t("hours") || "Horas", sortable: true, align: "center" as const, render: (v: number) => (v ?? 0) },
+    { key: "total", label: t("total") || "Total", sortable: true, align: "right" as const, render: (v: number) => eur(v) },
     {
       key: "actions",
       label: "",

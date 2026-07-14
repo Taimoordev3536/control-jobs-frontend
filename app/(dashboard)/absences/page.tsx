@@ -14,6 +14,15 @@ import { exportToCSV, exportToXLSX } from "@/lib/export"
 import { apiFetch } from "@/lib/api"
 import { formatLocalDate } from "@/lib/datetime"
 
+function Field({ label, value, multiline }: { label: string; value: string; multiline?: boolean }) {
+  return (
+    <div className={`px-4 py-3 ${multiline ? "" : "flex items-start justify-between gap-4"}`}>
+      <span className="text-xs font-medium text-muted-foreground shrink-0 pt-0.5">{label}</span>
+      <span className={`text-sm font-medium text-foreground ${multiline ? "block mt-1 whitespace-pre-wrap" : "text-right"}`}>{value}</span>
+    </div>
+  )
+}
+
 export default function AbsencesPage() {
   const { t } = useTranslation()
   const { session } = useAuth()
@@ -117,31 +126,40 @@ export default function AbsencesPage() {
       />
 
       <Dialog open={!!selected} onOpenChange={(o) => { if (!o) { setSelected(null); setNotes("") } }}>
-        <DialogContent className="max-w-md bg-background">
-          <DialogHeader>
-            <DialogTitle>{t("absenceRequest") || "Solicitud de ausencia"}</DialogTitle>
-          </DialogHeader>
-          {selected && (
-            <div className="space-y-3 text-sm">
-              <div className="grid grid-cols-2 gap-3">
-                <div><div className="text-xs text-muted-foreground">{t("worker") || "Trabajador"}</div><div className="font-medium">{selected.workerName || "—"}</div></div>
-                <div><div className="text-xs text-muted-foreground">{t("type") || "Tipo"}</div><div className="font-medium">{typeLabel(selected.type)}</div></div>
-                <div className="col-span-2"><div className="text-xs text-muted-foreground">{t("dates") || "Fechas"}</div><div className="font-medium">{formatLocalDate(selected.startDate)} – {formatLocalDate(selected.endDate)}</div></div>
-                {selected.reason && <div className="col-span-2"><div className="text-xs text-muted-foreground">{t("reason") || "Motivo"}</div><div className="font-medium">{selected.reason}</div></div>}
-                <div className="col-span-2"><div className="text-xs text-muted-foreground">{t("status") || "Estado"}</div><span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${statusMeta(selected.status).color}`}>{statusMeta(selected.status).label}</span></div>
+        <DialogContent className="max-w-lg p-0 gap-0 max-h-[90vh] flex flex-col bg-background overflow-hidden">
+          <DialogHeader className="p-6 pb-4 space-y-2 border-b border-border">
+            <DialogTitle className="text-xl sm:text-2xl font-semibold text-foreground text-center tracking-tight">
+              {t("absenceRequest") || "Solicitud de ausencia"}
+            </DialogTitle>
+            {selected && (
+              <div className="flex items-center justify-center gap-2">
+                <span className="text-sm text-muted-foreground">{selected.workerName || "—"}</span>
+                <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${statusMeta(selected.status).color}`}>{statusMeta(selected.status).label}</span>
               </div>
-              <div>
-                <div className="text-xs text-muted-foreground mb-1">{t("reviewerNotes") || "Notas del revisor"}</div>
-                <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} placeholder={t("optional") || "Opcional"} />
+            )}
+          </DialogHeader>
+
+          {selected && (
+            <div className="px-6 py-5 flex-1 overflow-y-auto space-y-4">
+              <div className="rounded-xl border border-border divide-y divide-border overflow-hidden">
+                <Field label={t("type") || "Tipo"} value={typeLabel(selected.type)} />
+                <Field label={t("dates") || "Fechas"} value={`${formatLocalDate(selected.startDate)} – ${formatLocalDate(selected.endDate)}`} />
+                {selected.reason && <Field label={t("reason") || "Motivo"} value={selected.reason} multiline />}
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">{t("reviewerNotes") || "Notas del revisor"}</label>
+                <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} placeholder={t("optional") || "Opcional"} className="text-sm" />
               </div>
             </div>
           )}
-          <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" onClick={() => review("rejected")} disabled={saving} className="text-red-600 border-red-300 hover:bg-red-50 dark:hover:bg-red-950/50">
-              <X className="h-4 w-4 mr-1" />{t("reject") || "Rechazar"}
+
+          <div className="border-t border-border px-6 py-4 flex justify-end gap-3">
+            <Button variant="outline" onClick={() => review("rejected")} disabled={saving} className="text-red-600 border-red-300 hover:bg-red-50 dark:border-red-900 dark:hover:bg-red-950/50">
+              <X className="h-4 w-4 mr-1.5" />{t("reject") || "Rechazar"}
             </Button>
             <Button onClick={() => review("approved")} disabled={saving} className="bg-green-600 hover:bg-green-700 text-white">
-              <Check className="h-4 w-4 mr-1" />{t("approve") || "Aprobar"}
+              <Check className="h-4 w-4 mr-1.5" />{t("approve") || "Aprobar"}
             </Button>
           </div>
         </DialogContent>
