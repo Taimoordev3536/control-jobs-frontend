@@ -1,18 +1,18 @@
 import type { ConversationDto, MessageDto, ParticipantType } from "@/lib/api/chat"
+import { madridYmd, madridTodayKey, formatLocalTime, DEFAULT_TIMEZONE } from "@/lib/datetime"
 
 export function formatDayLabel(date: Date, today: string, yesterday: string): string {
-  const now = new Date()
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-  const startOfYesterday = new Date(startOfToday)
-  startOfYesterday.setDate(startOfYesterday.getDate() - 1)
-
-  if (date >= startOfToday) return today
-  if (date >= startOfYesterday) return yesterday
-  return date.toLocaleDateString()
+  const key = madridYmd(date)
+  const todayKey = madridTodayKey()
+  if (key === todayKey) return today
+  const y = new Date(`${todayKey}T00:00:00Z`)
+  y.setUTCDate(y.getUTCDate() - 1)
+  if (key === madridYmd(y)) return yesterday
+  return date.toLocaleDateString("es-ES", { timeZone: DEFAULT_TIMEZONE })
 }
 
 export function formatTime(date: Date): string {
-  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+  return formatLocalTime(date)
 }
 
 export function shouldShowSenderLabel(

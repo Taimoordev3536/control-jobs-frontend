@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button"
 import { Building2, MapPin, Clock, Calendar, AlertCircle, Users, Eye, LogIn, Edit, Bell, QrCode, Lock, Globe, FileEdit } from "lucide-react"
 import { useTranslation } from "@/hooks/use-translation"
 import { useRouter } from "next/navigation"
+import { DEFAULT_TIMEZONE } from "@/lib/datetime"
 
 interface Job {
   id: number
@@ -90,10 +91,12 @@ export function EmployerJobCard({ job, onViewDetails, onEdit, onViewRecords, onA
   const formatDateShort = (date?: Date | string) => {
     if (!date) return ""
     const d = typeof date === "string" ? new Date(date) : date
+    if (isNaN(d.getTime())) return ""
     return d.toLocaleDateString("en-US", {
       day: "numeric",
       month: "short",
       year: "numeric",
+      timeZone: DEFAULT_TIMEZONE,
     })
   }
 
@@ -333,7 +336,7 @@ const getStatusConfig = (status: string) => {
             <div className="flex items-center gap-2 text-gray-900 dark:text-gray-300 font-semibold ">
                 <Calendar className="w-4 h-4 " />
                 <span className="text-sm">
-                  {formatDateShort(job.startDate)} - {formatEndDisplay(job.endDate)}
+                  {formatDateShort(job.startDate) ? `${formatDateShort(job.startDate)} - ${formatEndDisplay(job.endDate)}` : formatEndDisplay(job.endDate)}
                 </span>
               </div>
               <NotificationIcon className="w-4 h-4 " />

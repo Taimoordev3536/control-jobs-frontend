@@ -9,6 +9,7 @@ import AddPartnerModal from "@/components/add-partner-modal"
 import { useTranslation } from "@/hooks/use-translation"
 import { useAuth } from "@/hooks/use-auth"
 import { AnimatedLoader } from "@/components/animated-loader"
+import { formatLocalDate } from "@/lib/datetime"
 
 export default function PartnersList() {
   const { t } = useTranslation()
@@ -35,7 +36,7 @@ export default function PartnersList() {
           id: p.publicId || p.id,
           name: p.name,
           tier: p.partnerTier?.name || p.typeOfPartner || "-",
-          createdAt: p.createdAt ? new Date(p.createdAt).toLocaleDateString() : "-",
+          createdAt: p.createdAt ? formatLocalDate(p.createdAt) : "-",
           employersCount: p.employersCount ?? 0,
           billing: "0 €", // Replace with real value if available
           _createdAtRaw: p.createdAt || "", // for sorting

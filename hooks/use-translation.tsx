@@ -76,6 +76,9 @@ import subUserTranslations from "@/lib/translations/sub-user"
 import impersonationTranslations from "@/lib/translations/impersonation"
 import manualAttendanceTranslations from "@/lib/translations/manual-attendance"
 import announcementsTranslations from "@/lib/translations/announcements"
+import fichajeDialogsTranslations from "@/lib/translations/fichaje-dialogs"
+import fichajeCardsTranslations from "@/lib/translations/fichaje-cards"
+import recordDetailTranslations from "@/lib/translations/record-detail"
 
 type TranslationNamespace =
   | "default"
@@ -89,6 +92,9 @@ type TranslationNamespace =
   | "impersonation"
   | "manual-attendance"
   | "announcements"
+  | "fichaje-dialogs"
+  | "fichaje-cards"
+  | "record-detail"
 
 export function useTranslation(namespace: TranslationNamespace = "default") {
   const { language, setLanguage } = useContext(LanguageContext)
@@ -115,6 +121,12 @@ export function useTranslation(namespace: TranslationNamespace = "default") {
         return manualAttendanceTranslations
       case "announcements":
         return announcementsTranslations
+      case "fichaje-dialogs":
+        return fichajeDialogsTranslations
+      case "fichaje-cards":
+        return fichajeCardsTranslations
+      case "record-detail":
+        return recordDetailTranslations
       case "default":
       default:
         return translations

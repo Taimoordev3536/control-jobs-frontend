@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { acquireSocket, releaseSocket } from "@/lib/socket"
 import {
   Search,
   Filter,
@@ -14,6 +15,7 @@ import {
   Briefcase,
   Activity,
   Building,
+  AlertTriangle,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -22,12 +24,21 @@ import { Card, CardContent } from "@/components/ui/card"
 import { useTranslation } from "@/hooks/use-translation"
 import { LoadingSpinner } from "@/components/dashboard-loader"
 import { useAuth } from "@/hooks/use-auth"
+import { DEFAULT_TIMEZONE } from "@/lib/datetime"
 // import AddJobModal from "@/components/add-job-modal"
 import AddJobModal from "@/components/add-job-modal/main"
 import JobDetail from "@/components/job-detail/job-detail"
 import { EmployerJobCard } from "./employer-job-card"
 import ManualAttendanceRequestForm from "@/components/manual-attendance/manual-attendance-request-form"
 import { PaymentMethodModal } from "@/components/payment-method-modal"
+import { AttentionCard, ActionButton, SectionLabel, JobFilterBar, jobMatchesFilters, jobWorkCenters, jobClients, jobWorkers, jobOccupations } from "../dashboard-widgets"
+import JobsIcon from "../../../icons/Menu/Jobs.svg"
+import InvoicesIcon from "../../../icons/Menu/invoices.svg"
+import InviteIcon from "../../../icons/Menu/Invite.svg"
+import ClientMenuIcon from "../../../icons/Menu/clients.svg"
+import WorkersMenuIcon from "../../../icons/Menu/workers.svg"
+import ConsultIcon from "../../../icons/new/consultas.svg"
+import SalaryIcon from "../../../icons/new/salaries.svg"
 
 interface ApiJob {
   jobId: number
@@ -163,6 +174,7 @@ interface Stats {
 export default function EmployerDashboard() {
   const router = useRouter()
   const { t } = useTranslation("employer-dashboard")
+  const { t: tg, language } = useTranslation()
   const { session, logout } = useAuth()
 
   const [jobs, setJobs] = useState<Job[]>([])
@@ -203,6 +215,13 @@ export default function EmployerDashboard() {
     perWorkCenter: number
     perWorker: number
   } | null>(null)
+  const [attn, setAttn] = useState({ incidents: 0, clientRequests: 0, absences: 0, overdueInvoices: 0 })
+  const [jobsTab, setJobsTab] = useState<"today" | "live" | "all">("today")
+  const [clientFilter, setClientFilter] = useState("all")
+  const [workerFilter, setWorkerFilter] = useState("all")
+  const [todayJobIds, setTodayJobIds] = useState<Set<string>>(new Set())
+  const [liveJobIds, setLiveJobIds] = useState<Set<string>>(new Set())
+  const [liveStats, setLiveStats] = useState({ workingNow: 0, notChecked: 0, checkedOut: 0 })
 
   useEffect(() => {
     if (!session?.accessToken) return
@@ -261,6 +280,7 @@ export default function EmployerDashboard() {
       month: "short",
       day: "numeric",
       year: "numeric",
+      timeZone: DEFAULT_TIMEZONE,
     })
   }
 
@@ -557,11 +577,72 @@ export default function EmployerDashboard() {
         .then((r) => r.ok ? r.json() : null)
         .then((data) => { if (data?.data?.count) setPendingRequestsCount(data.data.count) })
         .catch(() => {})
+
+      // (live control data — todayJobIds, liveJobIds, liveStats — is fetched + auto-refreshed in a dedicated effect below)
+
+      const countList = (url: string, filter?: (x: any) => boolean) =>
+        fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}${url}`, { headers: { Authorization: `Bearer ${session.accessToken}` } })
+          .then((r) => (r.ok ? r.json() : null))
+          .then((j) => {
+            const arr = Array.isArray(j?.data) ? j.data : Array.isArray(j) ? j : []
+            return filter ? arr.filter(filter).length : arr.length
+          })
+          .catch(() => 0)
+      Promise.all([
+        countList("/jobs/incidents"),
+        countList("/client-requests", (r) => (r.status || "").toLowerCase() === "pending"),
+        countList("/absences", (r) => (r.status || "").toLowerCase() === "pending"),
+        countList("/client/all/invoices", (r) => (r.status || "").toUpperCase() === "OVERDUE"),
+      ]).then(([incidents, clientRequests, absences, overdueInvoices]) =>
+        setAttn({ incidents, clientRequests, absences, overdueInvoices }),
+      )
+    }
+  }, [session?.accessToken])
+
+  // Live presence — fetched on load + auto-refreshed every 45s
+  useEffect(() => {
+    if (!session?.accessToken) return
+    let alive = true
+    const fetchControl = () => {
+      fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/control`, { headers: { Authorization: `Bearer ${session.accessToken}` } })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((j) => {
+          if (!alive) return
+          const arr = Array.isArray(j?.data) ? j.data : Array.isArray(j?.data?.jobs) ? j.data.jobs : []
+          setTodayJobIds(new Set(arr.map((x: any) => x.publicId).filter(Boolean)))
+          const live = arr.filter((x: any) => Array.isArray(x.workers) && x.workers.some((w: any) => (w.checkedIn || w.checkInTime) && !w.checkOutTime))
+          setLiveJobIds(new Set(live.map((x: any) => x.publicId).filter(Boolean)))
+          let workingNow = 0
+          let notChecked = 0
+          let checkedOut = 0
+          for (const x of arr) for (const w of x.workers || []) {
+            if (w.checkOutTime) checkedOut++
+            else if (w.checkedIn || w.checkInTime) workingNow++
+            else notChecked++
+          }
+          setLiveStats({ workingNow, notChecked, checkedOut })
+        })
+        .catch(() => {})
+    }
+    fetchControl()
+    const id = setInterval(fetchControl, 45000)
+    // Real-time: refetch immediately when a worker checks in/out (WebSocket), not just every 45s.
+    const socket = acquireSocket(session.accessToken)
+    const onAlert = (a: any) => {
+      const t = a?.type
+      if (t === "CHECK_IN" || t === "CHECK_OUT" || t === "BREAK_START" || t === "BREAK_END") fetchControl()
+    }
+    socket.on("alerts:new", onAlert)
+    return () => {
+      alive = false
+      clearInterval(id)
+      socket.off("alerts:new", onAlert)
+      releaseSocket(session.accessToken)
     }
   }, [session?.accessToken])
 
   const handleViewDetails = (job: Job) => {
-    setSelectedJobForDetail(job.publicId || job.id.toString())
+    router.push(`/jobs/${job.publicId || job.id}/detail`)
   }
 
   const handleEditJob = (jobId: string | number) => {
@@ -577,18 +658,25 @@ export default function EmployerDashboard() {
     setSelectedJobForDetail(null)
   }
 
-  const filteredJobs = jobs.filter((job) => {
-    const matchesSearch =
-      job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      job.jobId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (job.client?.name || (job as any).clientName || "").toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesStatus = statusFilter === "all" || job.status === statusFilter
-    const matchesOccupation = occupationFilter === "all" || job.occupation === occupationFilter
-    const jobWorkCenterName = job.workCenter?.name || (job as any).workCenters?.[0]?.name || (job as any).workCenterNames || ""
-    const matchesWorkCenter = workCenterFilter === "all" || jobWorkCenterName === workCenterFilter
+  const filteredJobs = jobs.filter((job) =>
+    jobMatchesFilters(job, {
+      search: searchTerm,
+      status: statusFilter,
+      workCenter: workCenterFilter,
+      occupation: occupationFilter,
+      client: clientFilter,
+      worker: workerFilter,
+    }),
+  )
 
-    return matchesSearch && matchesStatus && matchesOccupation && matchesWorkCenter
-  })
+  const isTodayJob = (j: Job) => todayJobIds.has(j.publicId || "")
+  const isLiveJob = (j: Job) => liveJobIds.has(j.publicId || "")
+  const todayCount = filteredJobs.filter(isTodayJob).length
+  const liveCount = filteredJobs.filter(isLiveJob).length
+  const displayedJobs = jobsTab === "today" ? filteredJobs.filter(isTodayJob) : jobsTab === "live" ? filteredJobs.filter(isLiveJob) : filteredJobs
+  const localeMap: Record<string, string> = { en: "en-GB", es: "es-ES", de: "de-DE" }
+  const todayLabel = new Date().toLocaleDateString(localeMap[language] || "es-ES", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
+  const employerDisplayName = (session?.user as any)?.name || "Employer"
 
   const getStatusConfig = (status: string) => {
     switch (status) {
@@ -649,95 +737,32 @@ export default function EmployerDashboard() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-width-[1800px] mx-auto p-4 space-y-4">
-        {/* Compact Header */}
-        <Card className="border border-border shadow-sm bg-card">
-          <CardContent className="p-4">
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-purple-600 rounded-lg shadow-sm">
-                  <Briefcase className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t("jobsManagement")}</h1>
-                  <p className="text-gray-600 dark:text-gray-400 text-sm">{t("manageWorkforceAssignments")}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                  <Input
-                    placeholder={t("searchJobs")}
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-9 w-64 h-9 border-border bg-card"
-                  />
-                </div>
-                <Button
-                  size="sm"
-                  className="h-9 px-3 bg-purple-600 hover:bg-purple-700 text-white"
-                  onClick={() => setShowAddJobModal(true)}
-                >
-                  <Plus className="w-4 h-4 mr-0 sm:mr-2" />
-                  <span className="hidden sm:inline">{t("newJob")}</span>
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Compact Stats Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-          {[
-            {
-              label: t("totalJobs"),
-              value: stats.totalJobs,
-              icon: Briefcase,
-            },
-            {
-              label: t("inProgressJobs"),
-              value: stats.inProgressJobs,
-              icon: Activity,
-            },
-            {
-              label: t("scheduledJobs"),
-              value: stats.pendingJobs, // This now contains scheduled jobs
-              icon: Clock,
-            },
-            {
-              label: t("completedJobs"),
-              value: stats.completedJobs,
-              icon: CheckCircle,
-            },
-            {
-              label: t("totalClients"),
-              value: stats.totalClients,
-              icon: Building,
-            },
-          ].map((stat, index) => (
-            <Card
-              key={index}
-              className="border border-border hover:shadow-md transition-all duration-300 hover:scale-105 group bg-card"
-            >
-              <CardContent className="p-3">
-                <div className="w-full h-0.5 bg-[#6B7280] rounded-full mb-2"></div>
-                <div className="flex items-center justify-between mb-2">
-                  <div className="p-1.5 rounded-lg bg-[#6B7280] group-hover:scale-110 transition-transform duration-300">
-                    <stat.icon className="w-4 h-4 text-white" />
-                  </div>
-                  <div className="text-right">
-                    <div className="text-lg font-bold text-gray-900 dark:text-white group-hover:scale-110 transition-transform duration-300">
-                      {stat.value}
-                    </div>
-                  </div>
-                </div>
-                <div className="text-gray-500 dark:text-gray-400 font-medium text-xs uppercase tracking-wider">
-                  {stat.label}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+      <div className="w-full p-4 space-y-5">
+        <div>
+          <h1 className="text-2xl font-semibold text-foreground">{tg("hello") || "Hello"}, {employerDisplayName}</h1>
+          <p className="text-sm text-muted-foreground mt-0.5 capitalize">{todayLabel}</p>
         </div>
+
+        <section className="space-y-3">
+          <SectionLabel>{tg("needsAttention") || "Needs your attention"}</SectionLabel>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+            <AttentionCard value={attn.incidents} label={tg("incidents") || "Incidents"} Icon={AlertTriangle} tone="crit" onClick={() => router.push("/jobs/incidents")} />
+            <AttentionCard value={pendingRequestsCount} label={tg("manualAttendance") || "Manual attendance"} Icon={ConsultIcon} tone="warn" onClick={() => router.push("/jobs/manual-requests")} />
+            <AttentionCard value={attn.clientRequests} label={tg("clientRequests") || "Client requests"} Icon={ClientMenuIcon} tone="info" onClick={() => router.push("/jobs/client-requests")} />
+            <AttentionCard value={attn.absences} label={tg("workerAbsences") || "Worker absences"} Icon={WorkersMenuIcon} tone="warn" onClick={() => router.push("/absences")} />
+            <AttentionCard value={attn.overdueInvoices} label={tg("overdueInvoices") || "Overdue invoices"} Icon={InvoicesIcon} tone="crit" onClick={() => router.push("/client-invoices")} />
+          </div>
+        </section>
+
+        <section className="space-y-3">
+          <SectionLabel>{tg("quickActions") || "Quick actions"}</SectionLabel>
+          <div className="flex flex-wrap gap-3">
+            <ActionButton primary Icon={JobsIcon} label={tg("newJob") || "New job"} onClick={() => setShowAddJobModal(true)} />
+            <ActionButton Icon={SalaryIcon} label={tg("salaries") || "Salaries"} onClick={() => router.push("/salaries")} />
+            <ActionButton Icon={InvoicesIcon} label={tg("clientInvoices") || "Client invoices"} onClick={() => router.push("/client-invoices")} />
+            <ActionButton Icon={InviteIcon} label={tg("invite") || "Invite"} onClick={() => router.push("/utilities/invite")} />
+          </div>
+        </section>
 
         {/* Pending Manual Attendance Requests Banner */}
         {pendingRequestsCount > 0 && (
@@ -875,101 +900,70 @@ export default function EmployerDashboard() {
           )
         })()}
 
-        {/* Compact Filters */}
-        <Card className="border border-border shadow-sm bg-card">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 bg-purple-600 rounded-md">
-                  <Filter className="w-4 h-4 text-white" />
+        {/* Live presence tiles */}
+        <section className="space-y-3">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <SectionLabel>{tg("liveNow") || "Live now"}</SectionLabel>
+          </div>
+          <div className="grid grid-cols-3 gap-3 max-w-2xl">
+            {[
+              { v: liveStats.workingNow, l: tg("workingNow") || "Working now", bar: "bg-emerald-500" },
+              { v: liveStats.notChecked, l: tg("notCheckedIn") || "Not checked in", bar: "bg-amber-500" },
+              { v: liveStats.checkedOut, l: tg("checkedOut") || "Checked out", bar: "bg-slate-400" },
+            ].map((s, i) => (
+              <div key={i} className="bg-card border border-border rounded-xl overflow-hidden shadow-sm">
+                <div className={`h-1 w-full ${s.bar}`} />
+                <div className="p-3">
+                  <div className="text-2xl font-bold tabular-nums text-foreground">{s.v}</div>
+                  <div className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold mt-0.5">{s.l}</div>
                 </div>
-                <span className="text-sm font-semibold text-gray-900 dark:text-white">{t("filters")}</span>
               </div>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-gray-600 dark:text-gray-400 flex items-center gap-1">
-                  <PlayCircle className="w-3 h-3" />
-                  {t("status")}
-                </label>
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="h-8 text-xs border-border bg-card">
-                    <SelectValue placeholder={t("allStatuses")} />
-                  </SelectTrigger>
-                  <SelectContent className="bg-card border-border">
-                    <SelectItem value="all">{t("allStatuses")}</SelectItem>
-                    <SelectItem value="in_progress">{t("inProgress")}</SelectItem>
-                    <SelectItem value="scheduled">{t("scheduled")}</SelectItem>
-                    <SelectItem value="completed">{t("completed")}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-gray-600 dark:text-gray-400 flex items-center gap-1">
-                  <Briefcase className="w-3 h-3" />
-                  {t("occupation")}
-                </label>
-                <Select value={occupationFilter} onValueChange={setOccupationFilter}>
-                  <SelectTrigger className="h-8 text-xs border-border bg-card">
-                    <SelectValue placeholder={t("allOccupations")} />
-                  </SelectTrigger>
-                  <SelectContent className="bg-card border-border">
-                    <SelectItem value="all">{t("allOccupations")}</SelectItem>
-                    {occupations.map((occupation) => (
-                      <SelectItem key={occupation} value={occupation}>
-                        {occupation}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-gray-600 dark:text-gray-400 flex items-center gap-1">
-                  <Building className="w-3 h-3" />
-                  {t("workCenter")}
-                </label>
-                <Select value={workCenterFilter} onValueChange={setWorkCenterFilter}>
-                  <SelectTrigger className="h-8 text-xs border-border bg-card">
-                    <SelectValue placeholder={t("allWorkCenters")} />
-                  </SelectTrigger>
-                  <SelectContent className="bg-card border-border">
-                    <SelectItem value="all">{t("allWorkCenters")}</SelectItem>
-                    {workCenters.map((center) => (
-                      <SelectItem key={center} value={center}>
-                        {center}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-gray-600 dark:text-gray-400 flex items-center gap-1">
-                  <Calendar className="w-3 h-3" />
-                  {t("dateRange")}
-                </label>
-                <Select value={dateFilter} onValueChange={setDateFilter}>
-                  <SelectTrigger className="h-8 text-xs border-border bg-card">
-                    <SelectValue placeholder={t("allDates")} />
-                  </SelectTrigger>
-                  <SelectContent className="bg-card border-border">
-                    <SelectItem value="all">{t("allDates")}</SelectItem>
-                    <SelectItem value="today">{t("today")}</SelectItem>
-                    <SelectItem value="week">{t("thisWeek")}</SelectItem>
-                    <SelectItem value="month">{t("thisMonth")}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            ))}
+          </div>
+        </section>
+
+        {/* Jobs tabs: Today / Live / All */}
+        <div className="flex flex-wrap gap-1 border-b border-border">
+          {(["today", "live", "all"] as const).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setJobsTab(tab)}
+              className={`px-5 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors inline-flex items-center gap-1.5 ${jobsTab === tab ? "border-[#662D91] text-[#662D91] bg-purple-50 dark:bg-purple-950/50" : "border-transparent text-muted-foreground hover:text-[#662D91] hover:border-[#662D91]"}`}
+            >
+              {tab === "live" && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />}
+              {tab === "today" ? (tg("todaysJobs") || "Today's jobs") : tab === "live" ? (tg("live") || "Live") : (tg("allJobs") || "All jobs")}
+              <span className="text-xs">({tab === "today" ? todayCount : tab === "live" ? liveCount : filteredJobs.length})</span>
+            </button>
+          ))}
+        </div>
+
+        <JobFilterBar
+          search={searchTerm}
+          onSearch={setSearchTerm}
+          status={statusFilter}
+          onStatus={setStatusFilter}
+          workCenter={workCenterFilter}
+          onWorkCenter={setWorkCenterFilter}
+          workCenters={jobWorkCenters(jobs)}
+          occupation={occupationFilter}
+          onOccupation={setOccupationFilter}
+          occupations={jobOccupations(jobs)}
+          client={clientFilter}
+          onClient={setClientFilter}
+          clients={jobClients(jobs)}
+          worker={workerFilter}
+          onWorker={setWorkerFilter}
+          workers={jobWorkers(jobs)}
+        />
 
         <Card className="border border-border shadow-sm bg-card">
           <CardContent className="p-4">
             <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-              {filteredJobs.map((job) => (
+              {displayedJobs.map((job) => (
                 <EmployerJobCard
                   key={job.id}
-                  job={job as any}
+                  job={(isLiveJob(job) ? { ...job, status: "in_progress" } : job) as any}
                   onViewDetails={(j: any) => handleViewDetails(j as any)}
                   onEdit={handleEditJob}
                   onViewRecords={(j: any) => handleViewDetails(j as any)}
@@ -984,7 +978,7 @@ export default function EmployerDashboard() {
         </Card>
 
         {/* Empty State */}
-        {filteredJobs.length === 0 && !loading && !error && (
+        {displayedJobs.length === 0 && !loading && !error && (
           <Card className="border border-border shadow-sm bg-card">
             <CardContent className="text-center py-12">
               <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">

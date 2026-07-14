@@ -10,7 +10,7 @@
  * Always 24-hour. Format is dd/mm/yyyy, HH:MM:SS.
  */
 
-const DEFAULT_TIMEZONE = "Europe/Madrid"
+export const DEFAULT_TIMEZONE = "Europe/Madrid"
 
 function toInstant(input: string | Date): Date {
   if (input instanceof Date) return input
@@ -56,6 +56,24 @@ export function formatLocalTime(input: string | Date | null | undefined): string
     hour: "2-digit",
     minute: "2-digit",
   })
+}
+
+// Formats any Date (or timestamp string) to yyyy-MM-dd in Europe/Madrid.
+export function madridYmd(input: string | Date = new Date()): string {
+  const d = input instanceof Date ? input : toInstant(input)
+  return new Intl.DateTimeFormat("en-CA", { timeZone: DEFAULT_TIMEZONE }).format(d)
+}
+
+// Today's date as yyyy-MM-dd anchored to Europe/Madrid.
+export function madridTodayKey(): string {
+  return madridYmd(new Date())
+}
+
+// A local Date whose calendar Y/M/D equals today's date in Europe/Madrid.
+// Useful for month/week grid cursors that read getFullYear/getMonth/getDate.
+export function madridToday(): Date {
+  const [y, m, d] = madridTodayKey().split("-").map(Number)
+  return new Date(y, m - 1, d)
 }
 
 // Treats a user-typed date+time as Europe/Madrid and returns the UTC ISO instant.

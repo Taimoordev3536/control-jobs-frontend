@@ -86,7 +86,7 @@ export default function AllJobsPage() {
         actionButtons={actionButtons}
         isLoading={isLoading}
         emptyMessage={isLoading ? <AnimatedLoader size={32} /> : t("noJobsAvailable") || "No jobs yet"}
-        onRowClick={(row: any) => router.push(`/jobs/${row.publicId}`)}
+        onRowClick={(row: any) => router.push(`/jobs/${row.publicId}/detail`)}
         getRowId={(r: any) => r.publicId}
       />
       <AddJobModal open={showAddJobModal} onOpenChange={setShowAddJobModal} onJobAdded={() => setRefreshKey((k) => k + 1)} />

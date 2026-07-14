@@ -29,6 +29,7 @@ import {
 } from "lucide-react"
 import { Textarea } from "@/components/ui/textarea"
 import dynamic from "next/dynamic"
+import { formatLocalTime, DEFAULT_TIMEZONE } from "@/lib/datetime"
 
 const ManualAttendanceRequestForm = dynamic(
   () => import("@/components/manual-attendance/manual-attendance-request-form"),
@@ -173,12 +174,12 @@ function MyAttendanceRequestsPage() {
 
   const formatTime = (iso?: string) => {
     if (!iso) return "--:--"
-    return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+    return formatLocalTime(iso)
   }
 
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return ""
-    return new Date(dateStr).toLocaleDateString([], { day: "2-digit", month: "short", year: "numeric" })
+    return new Date(dateStr).toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric", timeZone: DEFAULT_TIMEZONE })
   }
 
   const getRequestTypeLabel = (type: string) => {

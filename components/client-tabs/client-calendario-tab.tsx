@@ -6,6 +6,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { AnimatedLoader } from "@/components/animated-loader"
 import { useTranslation } from "@/hooks/use-translation"
+import { madridToday, madridTodayKey } from "@/lib/datetime"
 
 interface ClientCalendarioTabProps {
   clientId: string
@@ -26,7 +27,7 @@ export function ClientCalendarioTab({ clientId }: ClientCalendarioTabProps) {
   const { t } = useTranslation()
   const { data: session } = useSession()
   const [cursor, setCursor] = useState(() => {
-    const d = new Date()
+    const d = madridToday()
     return new Date(d.getFullYear(), d.getMonth(), 1)
   })
   const [days, setDays] = useState<Record<string, CalDay>>({})
@@ -71,7 +72,7 @@ export function ClientCalendarioTab({ clientId }: ClientCalendarioTabProps) {
   for (let d = 1; d <= monthEnd.getDate(); d++) cells.push(new Date(cursor.getFullYear(), cursor.getMonth(), d))
   while (cells.length % 7 !== 0) cells.push(null)
 
-  const todayStr = ymd(new Date())
+  const todayStr = madridTodayKey()
   const selectedDay = selected ? days[selected] : null
 
   return (
@@ -82,7 +83,7 @@ export function ClientCalendarioTab({ clientId }: ClientCalendarioTabProps) {
           <Button variant="outline" size="sm" className="h-8 w-8 p-1" onClick={() => setCursor((c) => new Date(c.getFullYear(), c.getMonth() - 1, 1))}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => { const d = new Date(); setCursor(new Date(d.getFullYear(), d.getMonth(), 1)) }}>
+          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => { const d = madridToday(); setCursor(new Date(d.getFullYear(), d.getMonth(), 1)) }}>
             {t("today") || "Hoy"}
           </Button>
           <Button variant="outline" size="sm" className="h-8 w-8 p-1" onClick={() => setCursor((c) => new Date(c.getFullYear(), c.getMonth() + 1, 1))}>

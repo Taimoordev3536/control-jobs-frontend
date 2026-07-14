@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { useTranslation } from "@/hooks/use-translation"
+import { madridTodayKey } from "@/lib/datetime"
 import { useAuth } from "@/hooks/use-auth"
 
 interface TaskDetailViewProps {
@@ -274,7 +275,8 @@ export default function TaskDetailView({ taskId }: TaskDetailViewProps) {
     const daysInMonth = lastDay.getDate()
 
     const calendarDays = []
-    const today = new Date()
+    const todayKey = madridTodayKey()
+    const p = (n: number) => String(n).padStart(2, "0")
 
     // Add empty cells for days before the first day of the month
     for (let i = 0; i < firstDayOfWeek; i++) {
@@ -294,7 +296,8 @@ export default function TaskDetailView({ taskId }: TaskDetailViewProps) {
       let classes =
         "p-2 text-center border border-border/50 bg-card hover:bg-muted/30 cursor-pointer transition-all duration-300 min-h-[40px] flex items-center justify-center relative text-sm font-medium hover:shadow-md"
 
-      const isToday = today.toDateString() === currentCalendarDate.toDateString()
+      const cellKey = `${currentCalendarDate.getFullYear()}-${p(currentCalendarDate.getMonth() + 1)}-${p(currentCalendarDate.getDate())}`
+      const isToday = cellKey === todayKey
       const isScheduled = scheduledDates.some(
         (scheduledDate) => scheduledDate.toDateString() === currentCalendarDate.toDateString(),
       )

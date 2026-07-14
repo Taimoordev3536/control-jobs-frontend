@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { AnimatedLoader } from "@/components/animated-loader"
 import { useTranslation } from "@/hooks/use-translation"
 import { PlanificadorDialog } from "@/components/occupation/planificador-dialog"
+import { madridToday, madridTodayKey } from "@/lib/datetime"
 
 interface Cell {
   workerId: string
@@ -26,7 +27,7 @@ export default function OccupationPage() {
   const { data: session } = useSession()
 
   const [view, setView] = useState<"week" | "month">("week")
-  const [cursor, setCursor] = useState(() => new Date())
+  const [cursor, setCursor] = useState(() => madridToday())
   const [allWorkers, setAllWorkers] = useState<{ id: string; name: string }[]>([])
   const [selected, setSelected] = useState<string[]>([])
   const [showPicker, setShowPicker] = useState(false)
@@ -96,7 +97,7 @@ export default function OccupationPage() {
       ? cursor.toLocaleDateString("es-ES", { month: "long", year: "numeric", timeZone: "Europe/Madrid" })
       : `${range.start.toLocaleDateString("es-ES", { day: "numeric", month: "short" })} – ${range.end.toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" })}`
 
-  const todayStr = ymd(new Date())
+  const todayStr = madridTodayKey()
   const toggleWorker = (id: string) => setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]))
 
   return (
@@ -115,7 +116,7 @@ export default function OccupationPage() {
           <button onClick={() => setView("month")} className={`px-3 h-9 text-sm ${view === "month" ? "bg-[#662D91] text-white" : "bg-background text-foreground"}`}>{t("month") || "Mes"}</button>
         </div>
         <Button variant="outline" size="sm" className="h-9 w-9 p-1" onClick={() => step(-1)}><ChevronLeft className="h-4 w-4" /></Button>
-        <Button variant="outline" size="sm" className="h-9 text-xs" onClick={() => setCursor(new Date())}>{t("today") || "Hoy"}</Button>
+        <Button variant="outline" size="sm" className="h-9 text-xs" onClick={() => setCursor(madridToday())}>{t("today") || "Hoy"}</Button>
         <Button variant="outline" size="sm" className="h-9 w-9 p-1" onClick={() => step(1)}><ChevronRight className="h-4 w-4" /></Button>
         <span className="text-sm font-medium capitalize ml-1">{periodLabel}</span>
 

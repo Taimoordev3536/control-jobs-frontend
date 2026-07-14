@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { formatLocalDateTime } from "@/lib/datetime"
 
 export default function AttendanceCheckin() {
   const [ip, setIp] = useState("")
@@ -26,7 +27,7 @@ export default function AttendanceCheckin() {
   const handleCheckin = () => {
     setLoading(true)
     if (allowedIPs.includes(ip)) {
-      const now = new Date().toLocaleString()
+      const now = formatLocalDateTime(new Date())
       localStorage.setItem("attendance", JSON.stringify({ ip, checkInTime: now }))
       setStatus(`✅ Attendance marked at ${now}`)
     } else {

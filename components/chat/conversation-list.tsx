@@ -7,6 +7,7 @@ import { useChat } from "@/components/providers/chat-provider"
 import { useTranslation } from "@/hooks/use-translation"
 import { AnimatedLoader } from "@/components/animated-loader"
 import { groupInitials } from "./chat-utils"
+import { madridYmd, madridTodayKey, formatLocalTime, formatLocalDate, DEFAULT_TIMEZONE } from "@/lib/datetime"
 
 interface ConversationListProps {
   conversations: ConversationDto[]
@@ -17,19 +18,20 @@ interface ConversationListProps {
 function formatListTime(date: string | null): string {
   if (!date) return ""
   const d = new Date(date)
-  const now = new Date()
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-  const startOfYesterday = new Date(startOfToday)
-  startOfYesterday.setDate(startOfYesterday.getDate() - 1)
-  const startOfWeek = new Date(startOfToday)
-  startOfWeek.setDate(startOfWeek.getDate() - 6)
+  const key = madridYmd(d)
+  const todayKey = madridTodayKey()
+  const t0 = new Date(`${todayKey}T00:00:00Z`)
+  const yDate = new Date(t0)
+  yDate.setUTCDate(yDate.getUTCDate() - 1)
+  const weekDate = new Date(t0)
+  weekDate.setUTCDate(weekDate.getUTCDate() - 6)
+  const yesterdayKey = madridYmd(yDate)
+  const weekKey = madridYmd(weekDate)
 
-  if (d >= startOfToday) {
-    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-  }
-  if (d >= startOfYesterday) return "Ayer"
-  if (d >= startOfWeek) return d.toLocaleDateString([], { weekday: "long" })
-  return d.toLocaleDateString()
+  if (key === todayKey) return formatLocalTime(d)
+  if (key === yesterdayKey) return "Ayer"
+  if (key >= weekKey) return d.toLocaleDateString("es-ES", { weekday: "long", timeZone: DEFAULT_TIMEZONE })
+  return formatLocalDate(d)
 }
 
 function initials(name: string): string {

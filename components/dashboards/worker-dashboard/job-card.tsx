@@ -15,9 +15,10 @@ import NotificationIcon from "../../../icons/Header/Notification.svg"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Calendar, Clock, MapPin, QrCode, Globe, Lock, FileEdit } from "lucide-react"
+import { Calendar, Clock, MapPin, QrCode, Globe, Lock, FileEdit, ClipboardList } from "lucide-react"
 import { useTranslation } from "@/hooks/use-translation"
 import { useRouter } from "next/navigation"
+import { DEFAULT_TIMEZONE } from "@/lib/datetime"
 
 interface Job {
   id: number
@@ -33,7 +34,7 @@ interface Job {
     address?: string
   }
   workCenters?: Array<{ id?: number; name?: string }>
-  workers: Array<{
+  workers?: Array<{
     id: number
     name?: string
     code?: string
@@ -69,10 +70,18 @@ interface ClientJobCardProps {
   onViewRecords: (job: Job) => void
   onEnter?: (job: Job, method?: string, data?: any) => void
   onRequestManualAttendance?: (job: Job) => void
+  onAddManualAttendance?: (job: Job) => void
+  // manualOnly hides the whole check-in row; showEnter hides only the Enter button.
+  manualOnly?: boolean
+  showEnter?: boolean
+  recordsHref?: string
+  onFillSurvey?: (job: any) => void
+  surveyState?: "pending" | "done" | null
 }
 
-export function ClientJobCard({ job, onViewDetails, onViewRecords, onEnter, onRequestManualAttendance }: ClientJobCardProps) {
+export function ClientJobCard({ job, onViewDetails, onViewRecords, onEnter, onRequestManualAttendance, onAddManualAttendance, manualOnly = false, showEnter = true, recordsHref = "/records/worker", onFillSurvey, surveyState }: ClientJobCardProps) {
   const { t } = useTranslation("dashboard")
+  const { t: tf } = useTranslation("fichaje-cards")
   const router = useRouter()
 
   const [dialogOpen, setDialogOpen] = React.useState(false)
@@ -81,10 +90,12 @@ export function ClientJobCard({ job, onViewDetails, onViewRecords, onEnter, onRe
   const formatDateShort = (date?: Date | string) => {
     if (!date) return ""
     const d = typeof date === "string" ? new Date(date) : date
+    if (isNaN(d.getTime())) return ""
     return d.toLocaleDateString("en-US", {
       day: "numeric",
       month: "short",
       year: "numeric",
+      timeZone: DEFAULT_TIMEZONE,
     })
   }
 
@@ -283,7 +294,7 @@ export function ClientJobCard({ job, onViewDetails, onViewRecords, onEnter, onRe
             <div className="flex items-center gap-2 text-foreground font-semibold">
               <Calendar className="w-4 h-4" />
               <span className="text-sm">
-                {formatDateShort(job.startDate)} - {formatEndDisplay(job.endDate)}
+                {formatDateShort(job.startDate) ? `${formatDateShort(job.startDate)} - ${formatEndDisplay(job.endDate)}` : formatEndDisplay(job.endDate)}
               </span>
             </div>
             <NotificationIcon className="w-4 h-4" />
@@ -359,6 +370,7 @@ export function ClientJobCard({ job, onViewDetails, onViewRecords, onEnter, onRe
         <div className="border-t border-border my-2"></div>
 
         {/* Action Buttons: Details and Registros (Records) */}
+        {!manualOnly && (
         <div className="flex gap-2 pt-2">
           <Button
             size="sm"
@@ -371,33 +383,62 @@ export function ClientJobCard({ job, onViewDetails, onViewRecords, onEnter, onRe
           <Button
             size="sm"
             className="flex-1 h-8 text-xs bg-purple-700 hover:bg-purple-800 text-white"
-            onClick={() => router.push("/records/worker")}
+            onClick={() => router.push(`${recordsHref}?jobId=${(job as any).publicId || job.id}`)}
           >
             <ControlIcon className="w-3 h-3 mr-1" />
             {t("records")}
           </Button>
-                    {/* Enter button (red) */}
+          {showEnter && (
           <Button
             size="sm"
-            // bg-[#F59E0B] hover:bg-[#D97706]
             className="flex-1 h-8 text-xs bg-red-500 hover:bg-red-600 text-white"
             onClick={() => setDialogOpen(true)}
           >
             <Clock className="w-3 h-3 mr-1" />
             {t("enter") || "Enter"}
           </Button>
+          )}
         </div>
+        )}
+        {/* Survey fill button (client customer survey) */}
+        {onFillSurvey && surveyState && (
+          <div className="pt-1">
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full h-8 text-xs border-[#662D91] text-[#662D91] hover:bg-purple-50 dark:hover:bg-purple-950/40"
+              onClick={() => onFillSurvey(job)}
+              disabled={surveyState === "done"}
+            >
+              <ClipboardList className="w-3 h-3 mr-1" />
+              {surveyState === "done" ? tf("surveySent") : tf("fillSurvey")}
+            </Button>
+          </div>
+        )}
         {/* Manual Attendance Request Button */}
         {onRequestManualAttendance && (
           <div className="pt-1">
             <Button
               size="sm"
               variant="outline"
-              className="w-full h-8 text-xs border-purple-300 text-purple-600 hover:bg-purple-50"
+              className="w-full h-8 text-xs border-purple-300 text-[#662D91] hover:bg-purple-50 dark:border-purple-800 dark:hover:bg-purple-950/40"
               onClick={() => onRequestManualAttendance(job)}
             >
               <FileEdit className="w-3 h-3 mr-1" />
               {t("requestManualAttendance") || "Request Manual Attendance"}
+            </Button>
+          </div>
+        )}
+        {onAddManualAttendance && (
+          <div className="pt-1">
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full h-8 text-xs border-purple-300 text-[#662D91] hover:bg-purple-50 dark:border-purple-800 dark:hover:bg-purple-950/40"
+              onClick={() => onAddManualAttendance(job)}
+            >
+              <FileEdit className="w-3 h-3 mr-1" />
+              {t("addManualAttendance") || "Manual Attendance"}
             </Button>
           </div>
         )}

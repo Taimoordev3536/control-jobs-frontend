@@ -84,13 +84,15 @@ export default function EmployerRecordsPage() {
 
   const columns = [
     { key: "fecha", label: t("checkInCheckOut"), sortable: true },
-    { key: "titular", label: t("titular"), sortable: true },
     { key: "job", label: t("job"), sortable: true },
     { key: "trabajador", label: t("trabajador"), sortable: true },
+    { key: "centro", label: "Centro", sortable: true },
     { key: "entrada", label: t("entrada") },
     { key: "salida", label: t("salida") },
     { key: "total", label: t("total"), sortable: true },
-    { key: "alerts", label: t("alertas") },
+    { key: "extra", label: "Extra", sortable: true },
+    { key: "metodo", label: "Método" },
+    { key: "puntualidad", label: "Puntualidad" },
   ]
 
   // ---------------------------

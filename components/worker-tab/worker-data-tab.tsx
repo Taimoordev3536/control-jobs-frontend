@@ -56,6 +56,9 @@ interface WorkerData {
   birthday: string
   active: boolean
   observation: string
+  bankIban: string
+  bankSwift: string
+  bankHolder: string
   logoUrl?: string
 }
 
@@ -113,6 +116,9 @@ export function WorkerDataTab({ selfService = false }: { selfService?: boolean }
     birthday: "",
     active: true,
     observation: "",
+    bankIban: "",
+    bankSwift: "",
+    bankHolder: "",
   })
 
   const [isLoading, setIsLoading] = useState(true)
@@ -171,6 +177,9 @@ export function WorkerDataTab({ selfService = false }: { selfService?: boolean }
             birthday: apiData.birthday ? apiData.birthday.split("T")[0] : "",
             active: apiData.active !== undefined ? apiData.active : true,
             observation: apiData.observation || "",
+            bankIban: apiData.bankIban || "",
+            bankSwift: apiData.bankSwift || "",
+            bankHolder: apiData.bankHolder || "",
             logoUrl: apiData.logoUrl || "",
           }
 
@@ -649,6 +658,44 @@ export function WorkerDataTab({ selfService = false }: { selfService?: boolean }
             value={workerData.observation}
             onChange={(e) => handleInputChange("observation", e.target.value)}
             className="min-h-[40px] w-full bg-muted/30 border-input text-foreground resize-none text-xs py-1.5"
+          />
+        </div>
+      </div>
+
+      {/* Row 6: Datos bancarios (cuenta de cobro) */}
+      <div className="flex flex-wrap gap-3 items-end">
+        <div className="space-y-1 min-w-0" style={{ flex: "1 1 40%" }}>
+          <Label htmlFor="bankIban" className="text-xs font-medium text-foreground">
+            {t("iban") || "IBAN"}
+          </Label>
+          <Input
+            id="bankIban"
+            value={workerData.bankIban}
+            onChange={(e) => handleInputChange("bankIban", e.target.value)}
+            placeholder="ES.."
+            className="h-9 text-xs bg-muted/30 border-input text-foreground"
+          />
+        </div>
+        <div className="space-y-1 min-w-0" style={{ flex: "1 1 30%" }}>
+          <Label htmlFor="bankHolder" className="text-xs font-medium text-foreground">
+            {t("accountHolder") || "Titular"}
+          </Label>
+          <Input
+            id="bankHolder"
+            value={workerData.bankHolder}
+            onChange={(e) => handleInputChange("bankHolder", e.target.value)}
+            className="h-9 text-xs bg-muted/30 border-input text-foreground"
+          />
+        </div>
+        <div className="space-y-1 min-w-0" style={{ flex: "1 1 20%" }}>
+          <Label htmlFor="bankSwift" className="text-xs font-medium text-foreground">
+            {t("swiftBic") || "SWIFT / BIC"}
+          </Label>
+          <Input
+            id="bankSwift"
+            value={workerData.bankSwift}
+            onChange={(e) => handleInputChange("bankSwift", e.target.value)}
+            className="h-9 text-xs bg-muted/30 border-input text-foreground"
           />
         </div>
       </div>

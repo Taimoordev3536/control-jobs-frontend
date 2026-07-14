@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react"
 import { useSession } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { AnimatedLoader } from "@/components/animated-loader"
 import { Download, Printer, Trash2, Upload, FileText, Loader2 } from "lucide-react"
 import { useTranslation } from "@/hooks/use-translation"
@@ -30,7 +31,11 @@ export function WorkerDocumentosTab({ workerId }: WorkerDocumentosTabProps) {
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
   const [description, setDescription] = useState("")
+  const [category, setCategory] = useState("otros")
   const fileRef = useRef<HTMLInputElement>(null)
+
+  const catLabel = (c?: string) =>
+    c === "justificante" ? t("justificantes") || "Justificantes" : t("others") || "Otros"
 
   const base = process.env.NEXT_PUBLIC_API_BASE_URL
   const authHeader = { Authorization: `Bearer ${session?.accessToken}` }
@@ -53,6 +58,7 @@ export function WorkerDocumentosTab({ workerId }: WorkerDocumentosTabProps) {
     try {
       const fd = new FormData()
       fd.append("file", file)
+      fd.append("category", category)
       if (description.trim()) fd.append("description", description.trim())
       const res = await fetch(`${base}/worker/${workerId}/documents`, { method: "POST", headers: authHeader, body: fd })
       if (!res.ok) {
@@ -95,6 +101,16 @@ export function WorkerDocumentosTab({ workerId }: WorkerDocumentosTabProps) {
             className="h-9"
           />
         </div>
+        <div className="flex flex-col gap-1 min-w-[160px]">
+          <label className="text-xs text-muted-foreground">{t("category") || "Categoría"}</label>
+          <Select value={category} onValueChange={setCategory}>
+            <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="justificante">{t("justificantes") || "Justificantes"}</SelectItem>
+              <SelectItem value="otros">{t("others") || "Otros"}</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
         <input
           ref={fileRef}
           type="file"
@@ -122,7 +138,7 @@ export function WorkerDocumentosTab({ workerId }: WorkerDocumentosTabProps) {
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-medium truncate">{f.fileName}</div>
                 <div className="text-xs text-muted-foreground truncate">
-                  {[f.description, fmtSize(f.sizeBytes), fmtDate(f.createdAt)].filter(Boolean).join(" · ")}
+                  {[catLabel(f.category), f.description, fmtSize(f.sizeBytes), fmtDate(f.createdAt)].filter(Boolean).join(" · ")}
                 </div>
               </div>
               <a

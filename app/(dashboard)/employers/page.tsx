@@ -10,6 +10,7 @@ import AddEmployerModal from "@/components/add-employer-modal"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import PendingEmployersTab, { type PendingItem } from "@/components/employers/pending-employers-tab"
 import { useTranslation } from "@/hooks/use-translation"
+import { formatLocalDate } from "@/lib/datetime"
 import { useAuth } from "@/hooks/use-auth"
 import { AnimatedLoader } from "@/components/animated-loader"
 
@@ -85,7 +86,7 @@ export default function EmployersPage() {
           name: e.name,
           class: e.class,
           type: e.type,
-          lack: e.createdAt ? new Date(e.createdAt).toLocaleDateString() : "-",
+          lack: e.createdAt ? formatLocalDate(e.createdAt) : "-",
           partner: e.partnerName || "-",
           trial: typeof e.trialDaysRemaining === "number" && e.trialDaysRemaining > 0
             ? e.trialDaysRemaining

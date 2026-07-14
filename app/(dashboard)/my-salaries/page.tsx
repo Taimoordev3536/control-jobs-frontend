@@ -18,13 +18,16 @@ const fmtSize = (b?: number | null) => {
 }
 const downloadUrl = (url: string) => (url.includes("/upload/") ? url.replace("/upload/", "/upload/fl_attachment/") : url)
 
-export default function MySalariesPage() {
+type Tab = "salarios" | "justificantes" | "otros"
+
+export default function MyDocumentsPage() {
   const { t } = useTranslation()
   const { data: session } = useSession()
   const [docs, setDocs] = useState<any[]>([])
   const [receipts, setReceipts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<any | null>(null)
+  const [activeTab, setActiveTab] = useState<Tab>("salarios")
 
   const openPdf = async (id: string) => {
     if (!session?.accessToken) return
@@ -71,38 +74,67 @@ export default function MySalariesPage() {
     },
   ]
 
+  const renderDocs = (items: any[]) =>
+    items.length === 0 ? (
+      <p className="text-sm text-muted-foreground py-8 text-center">{t("noFilesYet") || "No files yet"}</p>
+    ) : (
+      <ul className="divide-y divide-border rounded-md border border-border">
+        {items.map((f) => (
+          <li key={f.id} className="flex items-center gap-3 px-3 py-2">
+            <FileText className="h-5 w-5 text-[#662D91] shrink-0" />
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-medium truncate">{f.fileName}</div>
+              <div className="text-xs text-muted-foreground truncate">{[f.description, fmtSize(f.sizeBytes), formatLocalDate(f.createdAt)].filter(Boolean).join(" · ")}</div>
+            </div>
+            <a href={downloadUrl(f.url)} target="_blank" rel="noopener noreferrer" title={t("download") || "Download"} className="p-1.5 rounded-md text-[#662D91] hover:bg-purple-50 dark:hover:bg-purple-950">
+              <Download className="h-4 w-4" />
+            </a>
+          </li>
+        ))}
+      </ul>
+    )
+
+  const justificantes = docs.filter((d) => d.category === "justificante")
+  const otros = docs.filter((d) => d.category !== "justificante")
+
+  const tabs: { key: Tab; label: string }[] = [
+    { key: "salarios", label: t("salaries") || "Salarios" },
+    { key: "justificantes", label: t("justificantes") || "Justificantes" },
+    { key: "otros", label: t("others") || "Otros" },
+  ]
+
   if (loading) return <div className="w-full p-6 flex justify-center"><AnimatedLoader /></div>
 
   return (
-    <div className="w-full p-6 bg-background min-h-screen space-y-6">
-      <h1 className="text-2xl font-semibold text-foreground">{t("documentsSalaries") || "Documentos / Salarios"}</h1>
+    <div className="w-full p-6 bg-background min-h-screen space-y-4">
+      <h1 className="text-2xl font-semibold text-foreground">{t("documents") || "Documentos"}</h1>
 
-      <section className="space-y-2">
-        <h2 className="text-sm font-semibold">{t("documents") || "Documentos"}</h2>
-        {docs.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{t("noFilesYet") || "No files yet"}</p>
-        ) : (
-          <ul className="divide-y divide-border rounded-md border border-border">
-            {docs.map((f) => (
-              <li key={f.id} className="flex items-center gap-3 px-3 py-2">
-                <FileText className="h-5 w-5 text-[#662D91] shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium truncate">{f.fileName}</div>
-                  <div className="text-xs text-muted-foreground truncate">{[f.description, fmtSize(f.sizeBytes), formatLocalDate(f.createdAt)].filter(Boolean).join(" · ")}</div>
-                </div>
-                <a href={downloadUrl(f.url)} target="_blank" rel="noopener noreferrer" title={t("download") || "Download"} className="p-1.5 rounded-md text-[#662D91] hover:bg-purple-50 dark:hover:bg-purple-950">
-                  <Download className="h-4 w-4" />
-                </a>
-              </li>
+      <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+        <div className="border-b border-border bg-muted/20">
+          <nav className="flex overflow-x-auto">
+            {tabs.map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={`flex-shrink-0 px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === tab.key
+                    ? "border-[#662D91] text-[#662D91]"
+                    : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                }`}
+              >
+                {tab.label}
+              </button>
             ))}
-          </ul>
-        )}
-      </section>
-
-      <section className="space-y-2">
-        <h2 className="text-sm font-semibold">{t("salaryReceipts") || "Recibos de salario"}</h2>
-        <TabTableTemplate columns={columns} data={receipts} loading={false} emptyMessage={t("noReceiptsYet") || "No receipts yet"} />
-      </section>
+          </nav>
+        </div>
+        <div className="p-3">
+          {activeTab === "salarios" && (
+            <TabTableTemplate columns={columns} data={receipts} loading={false} emptyMessage={t("noReceiptsYet") || "No receipts yet"} />
+          )}
+          {activeTab === "justificantes" && renderDocs(justificantes)}
+          {activeTab === "otros" && renderDocs(otros)}
+        </div>
+      </div>
 
       <Dialog open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
         <DialogContent className="max-w-md bg-background">

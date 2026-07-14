@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { useTranslation } from "@/hooks/use-translation";
+import { madridTodayKey } from "@/lib/datetime";
 
 export interface DateInputProps
   extends React.InputHTMLAttributes<HTMLInputElement> {
@@ -40,7 +41,7 @@ export const DateInput: React.FC<DateInputProps> = ({
   const { t, language } = useTranslation();
   const [open, setOpen] = useState(false);
   const [viewDate, setViewDate] = useState<Date>(
-    () => parseISO(value) || new Date()
+    () => parseISO(value) || parseISO(madridTodayKey()) || new Date()
   );
   // visible text inside the input (dd/mm/yyyy for Europe)
   const [inputValue, setInputValue] = useState<string>(() => {
@@ -54,7 +55,7 @@ export const DateInput: React.FC<DateInputProps> = ({
 
   useEffect(() => {
     const parsed = parseISO(value);
-    setViewDate(parsed || new Date());
+    setViewDate(parsed || parseISO(madridTodayKey()) || new Date());
     // update visible input when parent value changes
     if (parsed) setInputValue(formatDisplay(parsed));
     else if (!value) setInputValue("");
@@ -106,9 +107,7 @@ export const DateInput: React.FC<DateInputProps> = ({
     const newDate = new Date(viewDate.getFullYear(), viewDate.getMonth(), day);
     // do not allow picking past dates (unless allowPastDates is set)
     if (!allowPastDates) {
-      const today = new Date();
-      const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-      if (newDate < todayStart) {
+      if (formatISO(newDate) < madridTodayKey()) {
         setError(t?.("invalidDate") || "invalidDate");
         return;
       }
@@ -244,9 +243,7 @@ export const DateInput: React.FC<DateInputProps> = ({
     }
     // disallow past dates (must be today or in the future) unless allowPastDates
     if (!allowPastDates) {
-      const today = new Date();
-      const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-      if (dateObj < todayStart) return t?.("invalidDate") || "invalidDate";
+      if (formatISO(dateObj) < madridTodayKey()) return t?.("invalidDate") || "invalidDate";
     }
     return null;
   }
@@ -365,9 +362,7 @@ export const DateInput: React.FC<DateInputProps> = ({
                   }
                   // disallow past dates unless allowPastDates
                   if (!allowPastDates) {
-                    const today = new Date();
-                    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-                    if (dateObj < todayStart) {
+                    if (formatISO(dateObj) < madridTodayKey()) {
                       setError(t?.("invalidDate") || "invalidDate");
                       return;
                     }
@@ -524,7 +519,7 @@ export const DateInput: React.FC<DateInputProps> = ({
         const isSelected =
           value === formatISO(new Date(viewDate.getFullYear(), viewDate.getMonth(), d));
         const isToday =
-          formatISO(new Date()) ===
+          madridTodayKey() ===
           formatISO(new Date(viewDate.getFullYear(), viewDate.getMonth(), d));
         return (
           <button

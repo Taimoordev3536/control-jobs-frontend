@@ -7,6 +7,7 @@ import DataListTemplate, { ExcelIcon, CsvIcon, PdfIcon } from "@/components/ui/d
 import AddWorkCenterModal from "@/components/add-work-center-modal"
 import { useTranslation } from "@/hooks/use-translation"
 import { useAuth } from "@/hooks/use-auth"
+import { formatLocalDate } from "@/lib/datetime"
 
 interface ClientWorkCenterTabProps {
   clientId?: string
@@ -51,7 +52,7 @@ export default function Workcenter({ clientId }: ClientWorkCenterTabProps) {
           locality: w.locality || w.city || "-",
           postalCode: w.postalCode || w.zip || "-",
           employees: w.employeesCount ?? (Array.isArray(w.employees) ? w.employees.length : 0),
-          established: w.establishedAt ? new Date(w.establishedAt).toLocaleDateString() : "-",
+          established: w.establishedAt ? formatLocalDate(w.establishedAt) : "-",
           _establishedRaw: w.establishedAt || "",
         }))
 
@@ -146,7 +147,7 @@ export default function Workcenter({ clientId }: ClientWorkCenterTabProps) {
               locality: wc.locality || "-",
               postalCode: wc.postalCode || "-",
               employees: wc.employeesCount ?? 0,
-              established: wc.createdAt ? new Date(wc.createdAt).toLocaleDateString() : "-",
+              established: wc.createdAt ? formatLocalDate(wc.createdAt) : "-",
               _establishedRaw: wc.createdAt || "",
             },
             ...prev,

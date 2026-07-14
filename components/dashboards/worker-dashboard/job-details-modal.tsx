@@ -19,6 +19,7 @@ import {
   Download,
 } from "lucide-react"
 import { useTranslation } from "@/hooks/use-translation"
+import { DEFAULT_TIMEZONE } from "@/lib/datetime"
 
 interface AttendanceRecord {
   id: number
@@ -88,6 +89,7 @@ export function JobDetailsModal({ job, isOpen, onClose }: JobDetailsModalProps) 
       month: "short",
       day: "numeric",
       year: "numeric",
+      timeZone: DEFAULT_TIMEZONE,
     })
   }
 
@@ -96,6 +98,7 @@ export function JobDetailsModal({ job, isOpen, onClose }: JobDetailsModalProps) 
       hour: "2-digit",
       minute: "2-digit",
       hour12: true,
+      timeZone: DEFAULT_TIMEZONE,
     })
   }
 

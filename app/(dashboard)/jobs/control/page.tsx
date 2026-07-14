@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { DateInput } from "@/components/ui/date-input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import TabTableTemplate, { TabTableColumn } from "@/components/ui/tab-table-template"
+import ClientControl from "@/components/dashboards/client-dashboard/client-control"
 
 interface ControlWorker {
   id: number
@@ -67,6 +68,11 @@ const fmtDuration = (min: number | null) => {
 }
 
 export default function JobsControlPage() {
+  const { getUserRole } = useAuth()
+  return getUserRole() === "client" ? <ClientControl /> : <EmployerControlView />
+}
+
+function EmployerControlView() {
   const { t } = useTranslation()
   const { session } = useAuth()
   const [date, setDate] = useState(todayStr())

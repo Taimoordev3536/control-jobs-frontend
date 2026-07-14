@@ -619,6 +619,11 @@ export default function JobFormCore({
               return methods;
             })(),
 
+            // Load the saved identity-verification toggle from any signing method
+            verifyIdentity: Array.isArray(job.signingMethods)
+              ? job.signingMethods.some((sm: any) => sm.verifyIdentity === true)
+              : false,
+
             // Map alerts to entrance/exit format
             entrance: (() => {
               const entryAlert = job.alerts?.find(

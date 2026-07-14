@@ -27,6 +27,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AnimatedLoader } from "@/components/animated-loader"
 import { useAuth } from "@/hooks/use-auth"
 import { useTranslation } from "@/hooks/use-translation"
+import { madridYmd } from "@/lib/datetime"
 
 interface JobAssignment {
   id: number
@@ -262,22 +263,8 @@ export function JobAttendanceDetail({ job, jobId, jobData, onBack }: JobAttendan
         const result: ApiScanHistoryResponse = await response.json()
 
         if (result.isSuccess) {
-          // Regroup by viewer timezone on the client to avoid UTC day shifts
-          const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
-
-          const dateKeyInTz = (date: string | Date) => {
-            const d = typeof date === 'string' ? new Date(date) : date
-            const parts = new Intl.DateTimeFormat('en-CA', {
-              timeZone: tz,
-              year: 'numeric',
-              month: '2-digit',
-              day: '2-digit',
-            }).formatToParts(d)
-            const y = parts.find(p => p.type === 'year')!.value
-            const m = parts.find(p => p.type === 'month')!.value
-            const da = parts.find(p => p.type === 'day')!.value
-            return `${y}-${m}-${da}`
-          }
+          // Regroup by Europe/Madrid day to avoid UTC / viewer-tz day shifts
+          const dateKeyInTz = (date: string | Date) => madridYmd(date)
 
           // Flatten scans and sessions coming from server (which may be UTC-grouped)
           const allScans: any[] = []
@@ -447,13 +434,14 @@ export function JobAttendanceDetail({ job, jobId, jobData, onBack }: JobAttendan
   }
 
   const formatDate = (dateString: string) => {
-    // Create date object and ensure it's interpreted in local timezone
-    const date = new Date(dateString + "T00:00:00")
+    // dateString is a Madrid day-key; render it verbatim (UTC construction + UTC format)
+    const date = new Date(dateString + "T00:00:00Z")
     return date.toLocaleDateString("en-US", {
       weekday: "long",
       year: "numeric",
       month: "long",
       day: "numeric",
+      timeZone: "UTC",
     })
   }
 
@@ -472,7 +460,7 @@ export function JobAttendanceDetail({ job, jobId, jobData, onBack }: JobAttendan
   }
 
   const formatWeekday = (dateString: string) =>
-    new Date(dateString + "T00:00:00").toLocaleDateString("en-US", { weekday: "long" })
+    new Date(dateString + "T00:00:00Z").toLocaleDateString("en-US", { weekday: "long", timeZone: "UTC" })
 
   const formatDuration = (minutes: number) => {
     const m = Math.max(0, Math.round(minutes))
@@ -1026,9 +1014,10 @@ export function JobAttendanceDetail({ job, jobId, jobData, onBack }: JobAttendan
                                     sessionWorkTime = Math.max(0, totalMinutes - sessionBreaks)
                                   }
 
-                                  // Check if multi-day session
-                                  const isMultiDay = session.checkInTime && session.checkOutTime && 
-                                    new Date(session.checkInTime).toDateString() !== new Date(session.checkOutTime).toDateString()
+                                  // Check if multi-day session (compare Madrid civil days,
+                                  // consistent with the Madrid-formatted labels below)
+                                  const isMultiDay = session.checkInTime && session.checkOutTime &&
+                                    madridYmd(session.checkInTime) !== madridYmd(session.checkOutTime)
                                   const isOngoing = session.isActive || (session.checkInTime && !session.checkOutTime)
 
                                   return (

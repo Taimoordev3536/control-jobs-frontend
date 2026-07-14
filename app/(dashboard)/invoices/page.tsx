@@ -1,8 +1,9 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { Filter, Plus, Printer, Landmark } from "lucide-react"
+import { Filter, Plus, Printer, Landmark, RefreshCw } from "lucide-react"
 import DataListTemplate, { ExcelIcon, CsvIcon, PdfIcon } from "@/components/ui/data-list-template"
+import { Button } from "@/components/ui/button"
 import AddInvoicesModal from "@/components/add-invoices-modal"
 import { useRouter } from "next/navigation"
 import { useTranslation } from "@/hooks/use-translation"
@@ -45,6 +46,22 @@ export default function InvoicesPage() {
   const [addOpen, setAddOpen] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
   const [hideEmployer, setHideEmployer] = useState(false)
+  const [runningMonthly, setRunningMonthly] = useState(false)
+
+  const runMonthlyClose = async () => {
+    if (runningMonthly) return
+    if (!window.confirm(t("generateLastMonthConfirm") || "Generar las facturas, comisiones y tareas de banco del mes anterior que falten. No modifica ni borra facturas ya emitidas. ¿Continuar?")) return
+    setRunningMonthly(true)
+    try {
+      await apiFetch<any>("/billing/run-monthly", { method: "POST" })
+      toast({ title: t("monthlyCloseDone") || "Cierre mensual completado" })
+      setRefreshKey((k) => k + 1)
+    } catch (e: any) {
+      toast({ title: e.message || "Error", variant: "destructive" })
+    } finally {
+      setRunningMonthly(false)
+    }
+  }
 
   // Employer-role users only ever see their own invoices, so the column is
   // redundant. Bronze/Affiliate partners are not allowed to see employer data.
@@ -214,6 +231,19 @@ export default function InvoicesPage() {
 
   return (
     <>
+      {canCreate && (
+        <div className="flex justify-end px-4 pt-4 md:px-6">
+          <Button
+            onClick={runMonthlyClose}
+            disabled={runningMonthly}
+            variant="outline"
+            className="h-9 text-sm border-purple-300 text-[#662D91] hover:bg-purple-50 dark:border-purple-800 dark:hover:bg-purple-950/40"
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${runningMonthly ? "animate-spin" : ""}`} />
+            {t("generateLastMonth") || "Generar mes anterior"}
+          </Button>
+        </div>
+      )}
       <DataListTemplate
         title={t("listOfInvoices")}
         data={rows}

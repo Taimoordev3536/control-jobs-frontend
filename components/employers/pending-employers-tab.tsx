@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useState } from "react"
 import { RefreshCw, X, Mail, Filter } from "lucide-react"
 import DataListTemplate from "@/components/ui/data-list-template"
+import { formatLocalDate } from "@/lib/datetime"
 import {
   Dialog,
   DialogContent,
@@ -173,8 +174,8 @@ export default function PendingEmployersTab({
         partner: r.partnerName || "—",
         status: r.status,
         statusLabel: t(STATUS_LABEL[r.status]),
-        sentAt: r.sentAt ? new Date(r.sentAt).toLocaleDateString() : "—",
-        expiresAt: r.expiresAt ? new Date(r.expiresAt).toLocaleDateString() : "—",
+        sentAt: r.sentAt ? formatLocalDate(r.sentAt) : "—",
+        expiresAt: r.expiresAt ? formatLocalDate(r.expiresAt) : "—",
         _raw: r,
       })),
     [data, t],

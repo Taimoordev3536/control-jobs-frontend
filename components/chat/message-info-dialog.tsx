@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dialog"
 import type { MessageDto } from "@/lib/api/chat"
 import { useTranslation } from "@/hooks/use-translation"
+import { formatLocalDateTime } from "@/lib/datetime"
 
 interface MessageInfoDialogProps {
   open: boolean
@@ -18,7 +19,7 @@ interface MessageInfoDialogProps {
 
 function formatDateTime(value: string | null | undefined): string {
   if (!value) return "—"
-  return new Date(value).toLocaleString()
+  return formatLocalDateTime(value)
 }
 
 export function MessageInfoDialog({ open, onOpenChange, message }: MessageInfoDialogProps) {

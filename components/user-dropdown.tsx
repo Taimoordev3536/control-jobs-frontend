@@ -146,13 +146,13 @@ export function UserDropdown() {
         return [
           { label: t("mydata"), href: "/mydata", icon: PerfileIcon },
           { label: t("calendar") || "Calendario", href: "/calendar", icon: Calendar },
-          { label: t("documentsSalaries") || "Documentos / Salarios", href: "/my-salaries", icon: FileText },
+          { label: t("documents") || "Documentos", href: "/my-salaries", icon: FileText },
         ]
 
       case "client":
         return [
           { label: t("mydata"), href: "/mydata", icon: PerfileIcon },
-          { label: t("configuration"), href: "/configuration", icon: ConfigurationIcon },
+          { label: t("calendar") || "Calendario", href: "/calendar", icon: Calendar },
           { label: t("myInvoices") || "Mis facturas", href: "/my-client-invoices", icon: CreditCard },
           { label: t("users"), href: "/users", icon: UsersIcon },
         ]

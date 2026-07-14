@@ -24,8 +24,8 @@ export function AdminMyDataTabs() {
               onClick={() => setActiveTab(tab.key)}
               className={`flex-shrink-0 px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === tab.key
-                  ? "border-[#662D91] text-[#662D91]"
-                  : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                  ? "border-[#662D91] text-[#662D91] bg-purple-50 dark:bg-purple-950/50"
+                  : "border-transparent text-muted-foreground hover:text-[#662D91] hover:border-[#662D91]"
               }`}
             >
               {tab.label}

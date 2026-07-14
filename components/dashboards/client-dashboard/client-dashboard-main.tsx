@@ -1,18 +1,23 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { CheckCircle, Activity, ClipboardList, Search, User, Star, AlertCircle, RefreshCw, QrCode } from "lucide-react"
+import { ClipboardList, AlertCircle, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { StatsCard } from "@/components/ui/stats-card"
-import { SurveyCard } from "@/components/ui/survey-card"
 import { useTranslation } from "@/hooks/use-translation"
 import { LoadingSpinner } from "@/components/dashboard-loader"
 import { useAuth } from "@/hooks/use-auth"
 import { JobAttendanceDetail } from "@/components/job-attendance-detail"
-import { ClientJobCard } from "./client-job-card"
+import { ClientJobCard } from "../worker-dashboard/job-card"
+import SurveyFillDialog from "@/components/surveys/survey-fill-dialog"
+import { surveyStatus, SurveyEntry } from "@/lib/survey-client"
+import { acquireSocket, releaseSocket } from "@/lib/socket"
+import { JobFilterBar, jobMatchesFilters, jobWorkCenters, jobWorkers, jobOccupations, StatCard, AttentionCard, ActionButton, SectionLabel, ListPanel, ListRow, RowAvatar, StatusChip } from "../dashboard-widgets"
+import { useRouter } from "next/navigation"
+import { Briefcase, Users, LogIn, CheckCircle2, MessageSquare, Plus, Calendar } from "lucide-react"
+import InvoicesIcon from "../../../icons/Menu/invoices.svg"
 import ManualAttendanceRequestForm from "@/components/manual-attendance/manual-attendance-request-form"
+import { DEFAULT_TIMEZONE, formatLocalDate } from "@/lib/datetime"
 
 interface ApiJob {
   jobId: number
@@ -148,16 +153,102 @@ interface ClientStats {
 
 export default function ClientDashboard() {
   const { t } = useTranslation("dashboard")
+  const { t: tg, language } = useTranslation()
+  const { t: tf } = useTranslation("fichaje-cards")
   const { session, logout } = useAuth()
+  const router = useRouter()
+  const [cd, setCd] = useState<any>({ workersToday: 0, checkedInNow: 0, workerNotCheckedIn: 0, pendingRequests: 0, recentRequests: [], todayIds: [] as string[], liveIds: [] as string[] })
+  const [jobsTab, setJobsTab] = useState<"today" | "live" | "all">("today")
+
+  // Customer-survey status per job publicId, + fill dialog.
+  const [surveyMap, setSurveyMap] = useState<Record<string, SurveyEntry | null>>({})
+  const [surveyDialog, setSurveyDialog] = useState<SurveyEntry | null>(null)
+  const loadClientSurvey = async (job: any) => {
+    const pub = String(job.publicId || job.id)
+    if (!session?.accessToken || surveyMap[pub] !== undefined) return
+    const st = await surveyStatus(session.accessToken, pub)
+    setSurveyMap((m) => ({ ...m, [pub]: st?.customer || null }))
+  }
+  const clientSurveyState = (job: any): "pending" | "done" | null => {
+    const entry = surveyMap[String(job.publicId || job.id)]
+    if (!entry) return null
+    return entry.filled ? "done" : "pending"
+  }
+  const handleClientFillSurvey = async (job: any) => {
+    const pub = String(job.publicId || job.id)
+    let entry = surveyMap[pub]
+    if (entry === undefined) {
+      const st = await surveyStatus(session?.accessToken || "", pub)
+      entry = st?.customer || null
+      setSurveyMap((m) => ({ ...m, [pub]: entry }))
+    }
+    if (!entry || entry.filled) return
+    setSurveyDialog(entry)
+  }
+
+  useEffect(() => {
+    if (!session?.accessToken) return
+    const base = process.env.NEXT_PUBLIC_API_BASE_URL
+    const h = { Authorization: `Bearer ${session.accessToken}` }
+    let alive = true
+    // Live presence — fetched on load + auto-refreshed every 45s
+    const fetchDay = () => {
+      fetch(`${base}/jobs/client/day`, { headers: h })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((j) => {
+          if (!alive) return
+          const dayJobs = Array.isArray(j?.data?.jobs) ? j.data.jobs : []
+          const todayIds = dayJobs.map((x: any) => x.publicId).filter(Boolean)
+          let checkedIn = 0
+          let notChecked = 0
+          const workerSet = new Set<string>()
+          for (const job of dayJobs) {
+            for (const w of job.workers || []) {
+              workerSet.add(String(w.id ?? w.publicId ?? w.name))
+              if (w.active || w.checkInTime) checkedIn++
+              else notChecked++
+            }
+          }
+          const liveIds = dayJobs.filter((job: any) => (job.workers || []).some((w: any) => w.active || (w.checkInTime && !w.checkOutTime))).map((x: any) => x.publicId).filter(Boolean)
+          setCd((p: any) => ({ ...p, todayIds, liveIds, workersToday: workerSet.size, checkedInNow: checkedIn, workerNotCheckedIn: notChecked }))
+        })
+        .catch(() => {})
+    }
+    fetchDay()
+    const id = setInterval(fetchDay, 45000)
+    // Real-time: refetch immediately on worker check-in/out (WebSocket), not just every 45s.
+    const socket = acquireSocket(session.accessToken)
+    const onAlert = (a: any) => {
+      const t = a?.type
+      if (t === "CHECK_IN" || t === "CHECK_OUT" || t === "BREAK_START" || t === "BREAK_END") fetchDay()
+    }
+    socket.on("alerts:new", onAlert)
+    fetch(`${base}/client-requests/mine`, { headers: h })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        const reqs = Array.isArray(j?.data) ? j.data : []
+        setCd((p: any) => ({ ...p, pendingRequests: reqs.filter((r: any) => r.status === "pending").length, recentRequests: reqs.slice(0, 3) }))
+      })
+      .catch(() => {})
+    return () => {
+      alive = false
+      clearInterval(id)
+      socket.off("alerts:new", onAlert)
+      releaseSocket(session.accessToken)
+    }
+  }, [session?.accessToken])
   const [currentTime, setCurrentTime] = useState(new Date())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   // Tabs removed: always show job cards directly
   const [searchTerm, setSearchTerm] = useState("")
+  const [statusFilter, setStatusFilter] = useState("all")
+  const [workCenterFilter, setWorkCenterFilter] = useState("all")
+  const [occupationFilter, setOccupationFilter] = useState("all")
+  const [workerFilter, setWorkerFilter] = useState("all")
 
   const [currentView, setCurrentView] = useState("dashboard")
   const [selectedJobDetails, setSelectedJobDetails] = useState<Job | null>(null)
-  const [surveyJob, setSurveyJob] = useState<Job | null>(null)
 
   const [clientStats, setClientStats] = useState<ClientStats>({
     totalJobs: 0,
@@ -169,6 +260,13 @@ export default function ClientDashboard() {
   })
 
   const [jobs, setJobs] = useState<Job[]>([])
+
+  // Preload customer-survey status for the client's jobs so cards can show the survey button.
+  useEffect(() => {
+    if (!session?.accessToken) return
+    jobs.forEach((j) => loadClientSurvey(j))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jobs, session?.accessToken])
   const [manualAttendanceJob, setManualAttendanceJob] = useState<any>(null)
   const [showManualAttendanceForm, setShowManualAttendanceForm] = useState(false)
 
@@ -216,6 +314,7 @@ export default function ClientDashboard() {
             hour: "2-digit",
             minute: "2-digit",
             hour12: true,
+            timeZone: DEFAULT_TIMEZONE,
           })
         : undefined,
     }))
@@ -381,6 +480,7 @@ export default function ClientDashboard() {
       minute: "2-digit",
       second: "2-digit",
       hour12: true,
+      timeZone: DEFAULT_TIMEZONE,
     })
   }
 
@@ -389,6 +489,7 @@ export default function ClientDashboard() {
       month: "short",
       day: "numeric",
       year: "numeric",
+      timeZone: DEFAULT_TIMEZONE,
     })
   }
 
@@ -521,7 +622,7 @@ export default function ClientDashboard() {
   const handleViewDetails = async (job: Job) => {
     console.log("🎯 handleViewDetails called for job:", job.id)
     setSelectedJobDetails(job)
-    setCurrentView("jobDetails")
+    setCurrentView("attendanceDetails")
 
     console.log("🎯 IMMEDIATE QR generation for job:", job.id)
 
@@ -616,39 +717,6 @@ export default function ClientDashboard() {
     }
   }
 
-  const handleFillSurvey = (job: Job) => {
-    setSurveyJob(job)
-    setCurrentView("survey")
-  }
-
-  const handleClientSurveySubmit = (rating: number, comments: string) => {
-    if (!surveyJob) return
-
-    const newSurvey = {
-      rating,
-      comments,
-      submitted: true,
-      submittedAt: new Date(),
-    }
-
-    setJobs((prev) => prev.map((job) => (job.id === surveyJob.id ? { ...job, clientSurvey: newSurvey } : job)))
-
-    setSurveyJob(null)
-    setCurrentView("dashboard")
-  }
-
-  const handleSurveyCancel = () => {
-    setSurveyJob(null)
-    setCurrentView("dashboard")
-  }
-
-  const renderSurveyView = () => {
-    if (!surveyJob) return null
-
-    return (
-      <SurveyCard job={surveyJob} onSubmit={handleClientSurveySubmit} onCancel={handleSurveyCancel} isFullPage={true} />
-    )
-  }
 
   if (loading) {
     return <LoadingSpinner />
@@ -728,14 +796,6 @@ export default function ClientDashboard() {
       isOnBreak: false,
       tags: [],
       hasAttendanceRecord: job.hasAttendanceRecord,
-      survey: job.clientSurvey
-        ? {
-            rating: job.clientSurvey.rating,
-            comments: job.clientSurvey.comments,
-            submitted: job.clientSurvey.submitted,
-            submittedAt: job.clientSurvey.submittedAt,
-          }
-        : undefined,
     }
   }
 
@@ -750,101 +810,125 @@ export default function ClientDashboard() {
     return <JobAttendanceDetail job={jobAssignment} onBack={() => setCurrentView("dashboard")} />
   }
 
-  const filteredJobs = jobs.filter(
-    (job) =>
-      searchTerm === "" ||
-      job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      job.worker.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      job.jobId.toLowerCase().includes(searchTerm.toLowerCase()),
+  const filteredJobs = jobs.filter((job) =>
+    jobMatchesFilters(job, { search: searchTerm, status: statusFilter, workCenter: workCenterFilter, occupation: occupationFilter, worker: workerFilter }),
   )
+  const displayedJobs = jobsTab === "today" ? filteredJobs.filter((j: any) => cd.todayIds.includes(j.publicId)) : jobsTab === "live" ? filteredJobs.filter((j: any) => (cd.liveIds || []).includes(j.publicId)) : filteredJobs
+  const localeMap: Record<string, string> = { en: "en-GB", es: "es-ES", de: "de-DE" }
+  const todayLabel = new Date().toLocaleDateString(localeMap[language] || "es-ES", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
+  const clientName = (session?.user as any)?.name || t("clientDashboard")
 
   // Main Dashboard View
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-[1400px] mx-auto p-4 space-y-4">
-        {/* Header */}
-        <Card className="border border-border shadow-sm bg-card">
-          <CardContent className="p-4">
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-purple-600 rounded-lg shadow-sm">
-                  <User className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t("clientDashboard")}</h1>
-                  <p className="text-gray-600 dark:text-gray-400 text-sm" suppressHydrationWarning>
-                    {formatTime(currentTime)} •{" "}
-                    {currentTime.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                  <Input
-                    placeholder={t("searchJobs")}
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-9 w-64 h-9"
-                  />
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-3">
-          <StatsCard
-            label={t("activeJobs").toUpperCase()}
-            value={clientStats.activeJobs}
-            icon={Activity}
-            color="gray-500"
-          />
-          <StatsCard
-            label={t("completedJobs").toUpperCase()}
-            value={clientStats.completedJobs}
-            icon={CheckCircle}
-            color="gray-500"
-          />
-          <StatsCard
-            label={t("averageRating").toUpperCase()}
-            value={`${clientStats.satisfactionRate}%`}
-            icon={Star}
-            color="gray-500"
-          />
+        <div>
+          <h1 className="text-2xl font-semibold text-foreground">{tg("hello") || "Hello"}, {clientName}</h1>
+          <p className="text-sm text-muted-foreground mt-0.5 capitalize">{todayLabel}</p>
         </div>
 
+        <section className="space-y-3">
+          <SectionLabel>{tg("overview") || "Overview"}</SectionLabel>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <StatCard value={clientStats.activeJobs} label={tg("activeJobs") || "Active jobs"} Icon={Briefcase} tone="brand" />
+            <StatCard value={cd.workersToday} label={tg("workersToday") || "Workers today"} Icon={Users} tone="info" />
+            <StatCard value={cd.checkedInNow} label={tg("checkedInNow") || "Checked in now"} Icon={LogIn} tone="good" />
+            <StatCard value={clientStats.completedJobs} label={tg("completedJobs") || "Completed"} Icon={CheckCircle2} tone="brand" />
+          </div>
+        </section>
+
+        <section className="space-y-3">
+          <SectionLabel>{tg("needsAttention") || "Needs your attention"}</SectionLabel>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <AttentionCard value={cd.workerNotCheckedIn} label={tg("workerNotCheckedIn") || "Worker not checked in"} Icon={Users} tone="warn" onClick={() => router.push("/jobs/control")} />
+            <AttentionCard value={cd.pendingRequests} label={tg("pendingRequests") || "Pending requests"} Icon={MessageSquare} tone="info" onClick={() => router.push("/jobs/solicitudes")} />
+          </div>
+        </section>
+
+        <section className="space-y-3">
+          <SectionLabel>{tg("quickActions") || "Quick actions"}</SectionLabel>
+          <div className="flex flex-wrap gap-3">
+            <ActionButton primary Icon={Plus} label={tg("newRequest") || "New request"} onClick={() => router.push("/jobs/solicitudes")} />
+            <ActionButton Icon={Calendar} label={tg("calendar") || "Calendar"} onClick={() => router.push("/calendar")} />
+            <ActionButton Icon={InvoicesIcon} label={tg("invoices") || "Invoices"} onClick={() => router.push("/my-client-invoices")} />
+            <ActionButton Icon={ClipboardList} label={tg("attendance") || "Attendance"} onClick={() => router.push("/presence/history")} />
+          </div>
+        </section>
+
         <Card className="border border-border shadow-sm bg-card">
-          <CardContent className="p-4">
-            {/* Direct job cards view (tabs removed) */}
+          <CardContent className="p-4 space-y-4">
+            <div className="flex flex-wrap gap-1 border-b border-border">
+              {(["today", "live", "all"] as const).map((tab) => (
+                <button key={tab} type="button" onClick={() => setJobsTab(tab)}
+                  className={`px-5 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors inline-flex items-center gap-1.5 ${jobsTab === tab ? "border-[#662D91] text-[#662D91] bg-purple-50 dark:bg-purple-950/50" : "border-transparent text-muted-foreground hover:text-[#662D91] hover:border-[#662D91]"}`}>
+                  {tab === "live" && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />}
+                  {tab === "today" ? (tg("todaysJobs") || "Today's jobs") : tab === "live" ? (tg("live") || "Live") : (tg("allJobs") || "All jobs")}
+                  <span className="text-xs">({tab === "today" ? filteredJobs.filter((j: any) => cd.todayIds.includes(j.publicId)).length : tab === "live" ? filteredJobs.filter((j: any) => (cd.liveIds || []).includes(j.publicId)).length : filteredJobs.length})</span>
+                </button>
+              ))}
+            </div>
+            <JobFilterBar
+              search={searchTerm}
+              onSearch={setSearchTerm}
+              status={statusFilter}
+              onStatus={setStatusFilter}
+              workCenter={workCenterFilter}
+              onWorkCenter={setWorkCenterFilter}
+              workCenters={jobWorkCenters(jobs)}
+              occupation={occupationFilter}
+              onOccupation={setOccupationFilter}
+              occupations={jobOccupations(jobs)}
+              worker={workerFilter}
+              onWorker={setWorkerFilter}
+              workers={jobWorkers(jobs)}
+            />
             <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-              {filteredJobs
-                .filter((job) => job.status === "scheduled" || job.status === "pending" || job.status === "in_progress")
+              {displayedJobs
                 .map((job) => (
                   <ClientJobCard
                     key={job.id}
-                    job={job}
-                    onViewDetails={() => handleViewDetails(job)}
+                    job={(cd.liveIds || []).includes((job as any).publicId) ? { ...job, status: "in_progress" } : job}
+                    onViewDetails={() => router.push(`/jobs/${(job as any).publicId || job.id}/detail`)}
                     onViewRecords={() => handleViewAttendanceDetails(job)}
                     onAddManualAttendance={(j: any) => {
                       setManualAttendanceJob(j);
                       setShowManualAttendanceForm(true);
                     }}
+                    showEnter={false}
+                    recordsHref="/records/client"
+                    onFillSurvey={handleClientFillSurvey}
+                    surveyState={clientSurveyState(job)}
                   />
                 ))}
 
-              {filteredJobs.filter(
-                (job) => job.status === "scheduled" || job.status === "pending" || job.status === "in_progress",
-              ).length === 0 && (
-                <div className="col-span-full text-center py-8 text-gray-500">
-                  <p>{t("noActiveJobs") || "No active jobs found"}</p>
+              {displayedJobs.length === 0 && (
+                <div className="col-span-full text-center py-8 text-muted-foreground">
+                  <p>{t("noActiveJobs") || "No jobs found"}</p>
                 </div>
               )}
             </div>
           </CardContent>
         </Card>
+
+        <ListPanel title={tg("recentRequests") || "Recent requests"} actionLabel={tg("viewAll") || "View all"} onAction={() => router.push("/jobs/solicitudes")}>
+          {(cd.recentRequests || []).length === 0 ? (
+            <div className="p-6 text-sm text-muted-foreground text-center">—</div>
+          ) : (
+            (cd.recentRequests).map((r: any) => (
+              <ListRow
+                key={r.id}
+                avatar={<RowAvatar tone="brand">{(r.type || "?").charAt(0).toUpperCase()}</RowAvatar>}
+                title={r.subject || "—"}
+                subtitle={`${r.type === "new_job" ? (tg("newJob") || "New job") : r.type === "change" ? (tg("changeRequest") || "Change") : (tg("absence") || "Absence")} · ${formatLocalDate(r.createdAt)}`}
+                right={
+                  <StatusChip className={r.status === "accepted" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300" : r.status === "rejected" ? "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300" : "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"}>
+                    {tg(r.status) || r.status}
+                  </StatusChip>
+                }
+              />
+            ))
+          )}
+        </ListPanel>
       </div>
 
       {/* Manual Attendance Modal */}
@@ -855,6 +939,28 @@ export default function ClientDashboard() {
         mode="direct"
         onSuccess={() => {
           setShowManualAttendanceForm(false);
+        }}
+      />
+
+      <SurveyFillDialog
+        open={!!surveyDialog}
+        entry={surveyDialog}
+        title={tf("customerSurvey")}
+        token={session?.accessToken || ""}
+        onClose={() => setSurveyDialog(null)}
+        onSubmitted={() => {
+          if (surveyDialog) {
+            setSurveyMap((m) => {
+              const next = { ...m }
+              for (const k of Object.keys(next)) {
+                if (next[k]?.surveyPublicId === surveyDialog.surveyPublicId && next[k]) {
+                  next[k] = { ...(next[k] as SurveyEntry), filled: true, canFill: false }
+                }
+              }
+              return next
+            })
+          }
+          setSurveyDialog(null)
         }}
       />
     </div>

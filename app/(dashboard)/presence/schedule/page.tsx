@@ -6,6 +6,8 @@ import { ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { AnimatedLoader } from "@/components/animated-loader"
 import { useTranslation } from "@/hooks/use-translation"
+import { useAuth } from "@/hooks/use-auth"
+import { madridToday, madridTodayKey } from "@/lib/datetime"
 
 const pad = (n: number) => String(n).padStart(2, "0")
 const ymd = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
@@ -17,10 +19,12 @@ interface SchedDay { date: string; holiday: boolean; holidayName: string | null;
 export default function PresenceSchedulePage() {
   const { t } = useTranslation()
   const { data: session } = useSession()
+  const { getUserRole } = useAuth()
+  const scope = getUserRole() === "client" ? "client" : "worker"
   const base = process.env.NEXT_PUBLIC_API_BASE_URL
 
   const [view, setView] = useState<"week" | "month">("week")
-  const [cursor, setCursor] = useState(() => new Date())
+  const [cursor, setCursor] = useState(() => madridToday())
   const [days, setDays] = useState<Record<string, SchedDay>>({})
   const [loading, setLoading] = useState(true)
 
@@ -40,7 +44,7 @@ export default function PresenceSchedulePage() {
   const load = useCallback(() => {
     if (!session?.accessToken) return
     setLoading(true)
-    fetch(`${base}/jobs/worker/my-calendar?start=${ymd(range.start)}&end=${ymd(range.end)}`, { headers: { Authorization: `Bearer ${session.accessToken}` } })
+    fetch(`${base}/jobs/${scope}/my-calendar?start=${ymd(range.start)}&end=${ymd(range.end)}`, { headers: { Authorization: `Bearer ${session.accessToken}` } })
       .then((r) => r.json())
       .then((j) => {
         const map: Record<string, SchedDay> = {}
@@ -73,10 +77,10 @@ export default function PresenceSchedulePage() {
     view === "month"
       ? cursor.toLocaleDateString("es-ES", { month: "long", year: "numeric", timeZone: "Europe/Madrid" })
       : `${range.start.toLocaleDateString("es-ES", { day: "numeric", month: "short" })} – ${range.end.toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" })}`
-  const todayStr = ymd(new Date())
+  const todayStr = madridTodayKey()
 
   return (
-    <div className="w-full p-3 bg-background min-h-screen space-y-3">
+    <div className="w-full p-4 md:p-6 bg-background min-h-screen space-y-3">
       <h1 className="text-2xl font-semibold text-foreground">{t("schedule") || "Programación"}</h1>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -85,7 +89,7 @@ export default function PresenceSchedulePage() {
           <button onClick={() => setView("month")} className={`px-3 h-9 text-sm ${view === "month" ? "bg-[#662D91] text-white" : "bg-background"}`}>{t("month") || "Mes"}</button>
         </div>
         <Button variant="outline" size="sm" className="h-9 w-9 p-1" onClick={() => step(-1)}><ChevronLeft className="h-4 w-4" /></Button>
-        <Button variant="outline" size="sm" className="h-9 text-xs" onClick={() => setCursor(new Date())}>{t("today") || "Hoy"}</Button>
+        <Button variant="outline" size="sm" className="h-9 text-xs" onClick={() => setCursor(madridToday())}>{t("today") || "Hoy"}</Button>
         <Button variant="outline" size="sm" className="h-9 w-9 p-1" onClick={() => step(1)}><ChevronRight className="h-4 w-4" /></Button>
         <span className="text-sm font-medium capitalize ml-1">{periodLabel}</span>
       </div>

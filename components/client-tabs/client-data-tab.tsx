@@ -70,6 +70,9 @@ interface ClientData {
   latitude?: number | null
   longitude?: number | null
   active: boolean
+  bankIban?: string
+  bankSwift?: string
+  bankHolder?: string
 }
 
 export function ClientDataTab({ clientId, selfService = false }: ClientDataTabProps) {
@@ -711,6 +714,22 @@ export function ClientDataTab({ clientId, selfService = false }: ClientDataTabPr
               />
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Row 6: Datos bancarios (cuenta de cobro) */}
+      <div className="flex flex-wrap gap-3 items-end">
+        <div className="space-y-1 min-w-0" style={{ flex: "1 1 40%" }}>
+          <Label htmlFor="bankIban" className="text-xs font-medium text-foreground">{t("iban") || "IBAN"}</Label>
+          <Input id="bankIban" value={clientData.bankIban || ""} onChange={(e) => handleInputChange("bankIban", e.target.value)} placeholder="ES.." className="h-9 text-xs bg-muted/30 border-input text-foreground" />
+        </div>
+        <div className="space-y-1 min-w-0" style={{ flex: "1 1 30%" }}>
+          <Label htmlFor="bankHolder" className="text-xs font-medium text-foreground">{t("accountHolder") || "Titular"}</Label>
+          <Input id="bankHolder" value={clientData.bankHolder || ""} onChange={(e) => handleInputChange("bankHolder", e.target.value)} className="h-9 text-xs bg-muted/30 border-input text-foreground" />
+        </div>
+        <div className="space-y-1 min-w-0" style={{ flex: "1 1 20%" }}>
+          <Label htmlFor="bankSwift" className="text-xs font-medium text-foreground">{t("swiftBic") || "SWIFT / BIC"}</Label>
+          <Input id="bankSwift" value={clientData.bankSwift || ""} onChange={(e) => handleInputChange("bankSwift", e.target.value)} className="h-9 text-xs bg-muted/30 border-input text-foreground" />
         </div>
       </div>
 

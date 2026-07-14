@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { toast } from "@/hooks/use-toast"
+import { formatLocalDate } from "@/lib/datetime"
 import { useTranslation } from "@/hooks/use-translation"
 import { useBackendError } from "@/lib/backend-error"
 import { useAuth } from "@/hooks/use-auth"
@@ -216,7 +217,7 @@ export default function AddPartnerModal({ open, onOpenChange, onPartnerAdded }: 
           id: result.data.id,
           name: result.data.name,
           tier: result.data.partnerTier?.name || result.data.typeOfPartner || "-",
-          createdAt: result.data.createdAt ? new Date(result.data.createdAt).toLocaleDateString() : "-",
+          createdAt: result.data.createdAt ? formatLocalDate(result.data.createdAt) : "-",
           employersCount: result.data.employersCount ?? 0,
           billing: "0 €",
         }

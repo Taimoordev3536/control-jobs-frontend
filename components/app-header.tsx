@@ -217,7 +217,7 @@ export function AppHeader({ collapsed, toggleSidebar, style }: AppHeaderProps) {
               </span>
             )}
           </button>
-          {(userRole === "employer" || userRole === "partner" || userRole === "admin") && (
+          {(userRole === "employer" || userRole === "partner" || userRole === "admin" || userRole === "worker" || userRole === "client") && (
             <button
               className="header-icon-button"
               onClick={() => router.push("/announcements")}
@@ -266,7 +266,7 @@ export function AppHeader({ collapsed, toggleSidebar, style }: AppHeaderProps) {
                   </span>
                 )}
               </button>
-              {(userRole === "employer" || userRole === "partner" || userRole === "admin") && (
+              {(userRole === "employer" || userRole === "partner" || userRole === "admin" || userRole === "worker" || userRole === "client") && (
                 <button
                   className="header-icon-button block w-full text-left"
                   onClick={() => {

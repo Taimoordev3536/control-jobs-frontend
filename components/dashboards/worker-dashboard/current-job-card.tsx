@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { DateTime } from "luxon";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,7 +12,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Activity,
   Coffee,
   PlayCircle,
   Play,
@@ -21,8 +19,8 @@ import {
   Fingerprint,
   CheckSquare,
   Square,
-  FileText,
   RefreshCw,
+  ClipboardList,
 } from "lucide-react";
 import { useTranslation } from "@/hooks/use-translation";
 import { useAuth } from "@/hooks/use-auth";
@@ -106,6 +104,8 @@ interface CurrentJobCardProps {
   onTakeBreak: (job: JobAssignment, breakType: string) => void;
   onBackToWork: (job: JobAssignment) => void;
   onTaskToggle: (jobId: number, taskId: number) => void;
+  onFillSurvey?: (job: JobAssignment) => void;
+  surveyState?: "pending" | "done" | null;
   getCurrentSessionTime: (job: JobAssignment) => string;
   getCurrentBreakTime: (job: JobAssignment) => string;
   formatTimeShort: (date: Date) => string;
@@ -118,12 +118,15 @@ export function CurrentJobCard({
   onTakeBreak,
   onBackToWork,
   onTaskToggle,
+  onFillSurvey,
+  surveyState,
   getCurrentSessionTime,
   getCurrentBreakTime,
   formatTimeShort,
   actionLoading = false,
 }: CurrentJobCardProps) {
   const { t } = useTranslation("worker-dashboard");
+  const { t: tf } = useTranslation("fichaje-cards");
   const { session } = useAuth();
   const [selectedBreakType, setSelectedBreakType] = useState("");
   const [selectedWorkCenter, setSelectedWorkCenter] = useState<string | null>(
@@ -529,6 +532,18 @@ export function CurrentJobCard({
                 <Fingerprint className="w-4 h-4 mr-2" />
                 {t("checkOut")}
               </Button>
+
+              {onFillSurvey && surveyState && (
+                <Button
+                  onClick={() => onFillSurvey(job)}
+                  variant="outline"
+                  className="w-full mt-2 border-[#662D91] text-[#662D91] hover:bg-purple-50 dark:hover:bg-purple-950/40"
+                  disabled={surveyState === "done" || actionLoading}
+                >
+                  <ClipboardList className="w-4 h-4 mr-2" />
+                  {surveyState === "done" ? tf("surveySent") : tf("fillSurvey")}
+                </Button>
+              )}
             </div>
 
             {/* Break Summary */}

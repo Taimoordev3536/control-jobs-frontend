@@ -10,6 +10,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { toast } from "@/hooks/use-toast"
 import { useTranslation } from "@/hooks/use-translation"
+import { formatLocalDate } from "@/lib/datetime"
 import { useBackendError } from "@/lib/backend-error"
 import { useAuth } from "@/hooks/use-auth"
 import GoogleAddressInput from "@/components/GoogleAddressInput"
@@ -364,7 +365,7 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded, 
           class: tEnum("employerSubType", formData.class),
           type: selectedFeeType?.name || formData.fee,
           fee: selectedFeeType?.name || formData.fee,
-          lack: new Date().toLocaleDateString(), // Use current date since it was just created
+          lack: formatLocalDate(new Date()), // Use current date since it was just created
           partner: selectedPartner?.name || "-",
           billing: "0 €",
         }

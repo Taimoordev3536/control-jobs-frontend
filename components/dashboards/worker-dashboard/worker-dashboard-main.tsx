@@ -1,22 +1,27 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import {
   Calendar,
   CheckCircle,
-  Timer,
   Target,
-  CheckSquare,
-  User,
   MapPin,
-  Navigation,
   AlertCircle,
 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
-import { StatsCard } from "@/components/ui/stats-card"
 import JobCard from "./job-card"
+import SelfieCapture from "./selfie-capture"
+import GpsConsentDialog from "./gps-consent-dialog"
+import LocationHelpDialog, { LocationHelpChoice } from "./location-help-dialog"
+import SurveyFillDialog from "@/components/surveys/survey-fill-dialog"
+import { surveyStatus, SurveyEntry } from "@/lib/survey-client"
+import PrivacyDialog from "./privacy-section"
+import { webauthnStatus, authenticateDevice, registerDevice, webauthnSupported } from "@/lib/webauthn-client"
+import { locationConsentStatus, grantLocationConsent } from "@/lib/consent-client"
 import { CurrentJobCard } from "./current-job-card"
-import { SurveyCard } from "@/components/ui/survey-card"
+import { JobFilterBar, jobMatchesFilters, jobWorkCenters, jobClients, jobOccupations, StatCard, AttentionCard, ActionButton, SectionLabel, ListPanel, ListRow, RowAvatar, StatusChip } from "../dashboard-widgets"
+import { useRouter } from "next/navigation"
+import { Clock, Briefcase, ClipboardCheck, Coins, FileText, Fingerprint } from "lucide-react"
 import { CheckInMethods } from "@/components/dashboards/worker-dashboard/check-in-methods"
 import { CheckInProcess } from "@/components/dashboards/worker-dashboard/check-in-process"
 import { JobAttendanceDetail } from "@/components/job-attendance-detail"
@@ -27,6 +32,7 @@ import { Button } from "@/components/ui/button"
 import { toast } from "@/hooks/use-toast"
 import { useBackendError } from "@/lib/backend-error"
 import ManualAttendanceRequestForm from "@/components/manual-attendance/manual-attendance-request-form"
+import { madridYmd, DEFAULT_TIMEZONE, formatLocalDate } from "@/lib/datetime"
 
 // Backend error parsing/translation lives in `lib/backend-error.ts` and is consumed
 // inside the component via `useBackendError()`. The previous local `parseBackendError`
@@ -161,10 +167,62 @@ interface ApiWorkerResponse {
 
 export default function WorkerDashboardMain() {
   const { t } = useTranslation("worker-dashboard");
+  const { t: tg, language } = useTranslation();
+  const { t: tf } = useTranslation("fichaje-cards");
+  const router = useRouter();
   const translateBackendError = useBackendError();
   const { session, logout } = useAuth();
 
   const [todayAssignments, setTodayAssignments] = useState<JobAssignment[]>([]);
+  const [jobSearch, setJobSearch] = useState("");
+  const [jobStatus, setJobStatus] = useState("all");
+  const [jobWorkCenter, setJobWorkCenter] = useState("all");
+  const [jobClient, setJobClient] = useState("all");
+  const [jobOcc, setJobOcc] = useState("all");
+  const [jobsTab, setJobsTab] = useState<"today" | "all">("today");
+  const [wd, setWd] = useState<any>({ hoursThisWeek: 0, missing: 0, payslips: [], todayIds: [] as string[] });
+
+  useEffect(() => {
+    if (!session?.accessToken) return;
+    const base = process.env.NEXT_PUBLIC_API_BASE_URL;
+    const h = { Authorization: `Bearer ${session.accessToken}` };
+    const todayKey = new Date().toLocaleDateString("en-CA", { timeZone: "Europe/Madrid" });
+    const now = new Date();
+    const dow = now.getDay();
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - (dow === 0 ? 6 : dow - 1));
+    const mondayKey = monday.toLocaleDateString("en-CA", { timeZone: "Europe/Madrid" });
+    fetch(`${base}/jobs/worker/pending`, { headers: h })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        const arr = Array.isArray(j?.data) ? j.data : [];
+        setWd((p: any) => ({ ...p, missing: arr.filter((x: any) => x.date === todayKey).length }));
+      })
+      .catch(() => {});
+    fetch(`${base}/jobs/worker/work-session-records?start=${mondayKey}&end=${todayKey}`, { headers: h })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        const recs = Array.isArray(j?.data) ? j.data : [];
+        const mins = recs.reduce((s: number, r: any) => s + (Number(r.totalWorkMinutes ?? r.workedMinutes) || 0), 0);
+        setWd((p: any) => ({ ...p, hoursThisWeek: Math.round(mins / 60) }));
+      })
+      .catch(() => {});
+    fetch(`${base}/worker/me/salaries`, { headers: h })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => setWd((p: any) => ({ ...p, payslips: (Array.isArray(j?.data) ? j.data : []).slice(0, 3) })))
+      .catch(() => {});
+    fetch(`${base}/jobs/worker/day`, { headers: h })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        const dj = Array.isArray(j?.data?.jobs) ? j.data.jobs : Array.isArray(j?.data) ? j.data : [];
+        const liveIds = dj
+          .filter((x: any) => x.session?.checkInTime && !x.session?.checkOutTime)
+          .map((x: any) => x.publicId)
+          .filter(Boolean);
+        setWd((p: any) => ({ ...p, todayIds: dj.map((x: any) => x.publicId).filter(Boolean), liveIds }));
+      })
+      .catch(() => {});
+  }, [session?.accessToken]);
   const [currentJob, setCurrentJob] = useState<JobAssignment | null>(null);
   const [workerStats, setWorkerStats] = useState<WorkerStats>({
     todayShifts: 0,
@@ -187,21 +245,8 @@ export default function WorkerDashboardMain() {
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
 
-  // Local-day helper using viewer timezone
-  const viewerTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  const dateKeyInTz = (date: string | Date) => {
-    const d = typeof date === "string" ? new Date(date) : date;
-    const parts = new Intl.DateTimeFormat("en-CA", {
-      timeZone: viewerTimeZone,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).formatToParts(d);
-    const y = parts.find((p) => p.type === "year")!.value;
-    const m = parts.find((p) => p.type === "month")!.value;
-    const da = parts.find((p) => p.type === "day")!.value;
-    return `${y}-${m}-${da}`;
-  };
+  // Day-key anchored to Europe/Madrid regardless of viewer timezone
+  const dateKeyInTz = (date: string | Date) => madridYmd(date);
 
   // Check-in flow states
   const [currentView, setCurrentView] = useState("dashboard");
@@ -212,7 +257,6 @@ export default function WorkerDashboardMain() {
   const [preScannedQrToken, setPreScannedQrToken] = useState<string | undefined>(undefined);
 
   // Survey states
-  const [surveyJob, setSurveyJob] = useState<JobAssignment | null>(null);
 
   // Job detail view state
   const [detailJob, setDetailJob] = useState<JobAssignment | null>(null);
@@ -232,7 +276,7 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
   }
   
   const currentDate = new Date();
-  const today = dateKeyInTz(currentDate); // YYYY-MM-DD in viewer TZ
+  const today = dateKeyInTz(currentDate); // YYYY-MM-DD in Europe/Madrid
 
   // Parse start and end dates
   let startDate = new Date();
@@ -266,13 +310,14 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
     apiJob.workSession?.isActive
   );
 
-  if (currentDate > endDate) {
+  // An active session (checked in, not out) always means in progress — even for free jobs
+  // whose computed endDate is in the past.
+  if (hasActiveSession) {
+    status = "in_progress";
+  } else if (currentDate > endDate) {
     status = hasAttendanceRecord ? "completed" : "scheduled";
   } else {
-    // If there's an active session or completed attendance, it's in progress
-    status = hasActiveSession || hasAttendanceRecord || apiJob.workSession?.checkInTime
-      ? "in_progress"
-      : "scheduled";
+    status = hasAttendanceRecord || apiJob.workSession?.checkInTime ? "in_progress" : "scheduled";
   }
 
   // Get shift info — backend now returns scheduleType/totalShifts/activeScheduleWeekHours
@@ -359,6 +404,7 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
     publicId: apiJob.publicId,
     jobId: `JOB-${apiJob.jobId.toString().padStart(4, "0")}`,
     title: apiJob.jobName,
+    verifyIdentity: allSigning.some((m: any) => m?.verifyIdentity === true),
     client: {
       id: apiJob.clientId || 0,
       name: apiJob.clientName,
@@ -388,7 +434,7 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
   expectedHours: apiJob.activeScheduleWeekHours ?? apiJob.expectedDuration ?? 0,
     totalHours:
       status === "completed"
-        ? firstShift?.totalHours || apiJob.expectedDuration
+        ? apiJob.activeScheduleWeekHours ?? apiJob.expectedDuration
         : undefined,
     totalBreakTime: apiJob.workSession?.totalBreakMinutes || 0,
     isOnBreak: apiJob.workSession?.isOnBreak || false,
@@ -448,9 +494,10 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
         const transformedJobs = data.data.map(transformApiJobToJobAssignment);
         setTodayAssignments(transformedJobs);
 
-        // Set current job - find any job with active work session
+        // Set current job — an active check-in (not yet checked out) is definitive on its own;
+        // don't gate on endDate (free jobs compute an endDate in the past).
         let newCurrentJob = transformedJobs.find(
-          (job) => job.status === "in_progress" && job.checkInTime && !job.checkOutTime && new Date() <= job.endDate,
+          (job) => job.status === "in_progress" && job.checkInTime && !job.checkOutTime,
         );
 
         console.log("🔍 Looking for current job:", {
@@ -580,8 +627,119 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
   };
 
   // Handle check-in with specific signing method
+  // Identity selfie modal (opened only when the job requires identity verification)
+  const [selfieOpen, setSelfieOpen] = useState(false)
+  const selfieResolveRef = useRef<((v: string | null) => void) | null>(null)
+  const captureSelfie = () =>
+    new Promise<string | null>((resolve) => {
+      selfieResolveRef.current = resolve
+      setSelfieOpen(true)
+    })
+
+  // GDPR location consent (Phase 3) — asked once before the first location capture, then persisted.
+  const [gpsConsentOpen, setGpsConsentOpen] = useState(false)
+  const [gpsConsentBusy, setGpsConsentBusy] = useState(false)
+  const consentGrantedRef = useRef<boolean>(false)
+  const consentResolveRef = useRef<((v: boolean) => void) | null>(null)
+  const ensureLocationConsent = async (): Promise<boolean> => {
+    if (consentGrantedRef.current) return true
+    const token = session?.accessToken || ""
+    const st = await locationConsentStatus(token)
+    if (st.granted) {
+      consentGrantedRef.current = true
+      return true
+    }
+    const accepted = await new Promise<boolean>((resolve) => {
+      consentResolveRef.current = resolve
+      setGpsConsentOpen(true)
+    })
+    return accepted
+  }
+  const handleConsentAccept = async () => {
+    setGpsConsentBusy(true)
+    const res = await grantLocationConsent(session?.accessToken || "")
+    setGpsConsentBusy(false)
+    setGpsConsentOpen(false)
+    consentGrantedRef.current = !!res.granted
+    consentResolveRef.current?.(!!res.granted)
+    consentResolveRef.current = null
+  }
+  const handleConsentDecline = () => {
+    setGpsConsentOpen(false)
+    consentResolveRef.current?.(false)
+    consentResolveRef.current = null
+  }
+
+  // Location-blocked helper — offers retry / continue-without / cancel instead of a dead end.
+  const [locHelpOpen, setLocHelpOpen] = useState(false)
+  const [locHelpReason, setLocHelpReason] = useState<LocationError>("denied")
+  const locHelpResolveRef = useRef<((c: LocationHelpChoice) => void) | null>(null)
+  const openLocationHelp = (reason: LocationError) =>
+    new Promise<LocationHelpChoice>((resolve) => {
+      setLocHelpReason(reason)
+      locHelpResolveRef.current = resolve
+      setLocHelpOpen(true)
+    })
+  const handleLocHelpChoice = (choice: LocationHelpChoice) => {
+    setLocHelpOpen(false)
+    locHelpResolveRef.current?.(choice)
+    locHelpResolveRef.current = null
+  }
+
+  // Device biometric (WebAuthn) enrollment status
+  const [bioReg, setBioReg] = useState<boolean | null>(null)
+  const [bioBusy, setBioBusy] = useState(false)
+  useEffect(() => {
+    if (!session?.accessToken || !webauthnSupported()) return
+    webauthnStatus(session.accessToken).then((s) => setBioReg(s.registered)).catch(() => {})
+  }, [session?.accessToken])
+  const handleRegisterBio = async () => {
+    if (!session?.accessToken) return
+    setBioBusy(true)
+    try {
+      const r = await registerDevice(session.accessToken, typeof navigator !== "undefined" ? navigator.userAgent.slice(0, 100) : "")
+      if (r?.verified) {
+        setBioReg(true)
+        toast({ title: "Verificación biométrica activada" })
+      } else {
+        toast({ title: "No se pudo activar", description: r?.error || (r as any)?.message || "Error", variant: "destructive" })
+      }
+    } finally {
+      setBioBusy(false)
+    }
+  }
+
+  // Best-effort browser location (for web check-in record only — never blocks check-in)
+  type LocationError = "unsupported" | "insecure" | "denied" | "unavailable" | "timeout"
+  const getBrowserLocation = (): Promise<{ latitude?: number; longitude?: number; error?: LocationError }> =>
+    new Promise((resolve) => {
+      if (typeof navigator === "undefined" || !navigator.geolocation) return resolve({ error: "unsupported" })
+      // Geolocation only works in a secure context (https or localhost); on http+IP it fails silently.
+      if (typeof window !== "undefined" && window.isSecureContext === false) return resolve({ error: "insecure" })
+      navigator.geolocation.getCurrentPosition(
+        (pos) => resolve({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
+        (err) => resolve({ error: err?.code === 1 ? "denied" : err?.code === 3 ? "timeout" : "unavailable" }),
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
+      )
+    })
+
   const handleCheckInWithMethod = async (job: any, signingMethod: string, additionalData?: any) => {
     try {
+      // Identity verification (optional) — only when the job requires it.
+      let selfie: string | null = null
+      if (job?.verifyIdentity) {
+        selfie = await captureSelfie()
+        // Device biometric (fingerprint / Face ID / PIN) — only if the worker enrolled a device.
+        try {
+          const st = await webauthnStatus(session?.accessToken || "")
+          if (st.registered) {
+            await authenticateDevice(session?.accessToken || "")
+          }
+        } catch {
+          /* biometric is best-effort; check-in continues */
+        }
+      }
+
       setActionLoading(true);
 
       if (!session?.accessToken) {
@@ -601,6 +759,7 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
           signingMethod: signingMethod,
           userTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           ...additionalData,
+          ...(selfie ? { selfie } : {}),
         }),
       });
 
@@ -625,6 +784,8 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
       setTodayAssignments((prev) => prev.map((j) => (j.id === job.id ? updatedJob : j)));
       setCurrentJob(updatedJob);
       setCurrentView('currentJob');
+      const _pub = (job as any).publicId;
+      if (_pub) setWd((p: any) => ({ ...p, liveIds: Array.from(new Set([...(p.liveIds || []), _pub])) }));
 
     } catch (error) {
       console.error("Check-in error:", error);
@@ -656,8 +817,13 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
   // Handle check-in with GPS method
   const handleCheckInWithGPS = async (job: any) => {
     try {
+      // GDPR: explicit location consent before reading GPS.
+      if (!(await ensureLocationConsent())) {
+        toast({ variant: "destructive", title: tf("locNeeded"), description: tf("consentGps") });
+        return;
+      }
       setActionLoading(true);
-      
+
       // Request GPS permission and get coordinates
       const position = await new Promise<GeolocationPosition>((resolve, reject) => {
         navigator.geolocation.getCurrentPosition(resolve, reject, {
@@ -785,6 +951,8 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
 
         setTodayAssignments((prev) => prev.map((j) => (j.id === job.id ? updatedJob : j)));
         setCurrentJob(null);
+        const _pub = (job as any).publicId;
+        if (_pub) setWd((p: any) => ({ ...p, liveIds: (p.liveIds || []).filter((id: string) => id !== _pub) }));
         await fetchWorkerJobs();
       } else {
         throw new Error(data.message || "Failed to check out");
@@ -981,7 +1149,7 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
 
       if (response.ok) {
         // Fetch updated job data from backend to get correct totalBreakMinutes
-        await fetchJobs();
+        await fetchWorkerJobs();
       } else {
         throw new Error(data.message || "Failed to end break");
       }
@@ -1057,29 +1225,47 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
   }
 };
 
-  const handleSurveySubmit = (rating: number, comments: string) => {
-    if (!surveyJob) return;
+  // Survey status per job (worker survey), keyed by job publicId.
+  const [surveyMap, setSurveyMap] = useState<Record<string, SurveyEntry | null>>({});
+  const [surveyDialog, setSurveyDialog] = useState<{ entry: SurveyEntry; date?: string } | null>(null);
+  const [privacyOpen, setPrivacyOpen] = useState(false);
 
-    const newSurvey = {
-      rating,
-      comments,
-      submitted: true,
-      submittedAt: new Date(),
-    };
-
-    setTodayAssignments((prev) => prev.map((job) => (job.id === surveyJob.id ? { ...job, survey: newSurvey } : job)));
-    setSurveyJob(null);
-    setCurrentView("dashboard");
+  const loadSurveyStatus = async (job: JobAssignment) => {
+    const pub = String((job as any).publicId || job.id);
+    if (!session?.accessToken) return null;
+    const st = await surveyStatus(session.accessToken, pub);
+    const entry = st?.worker || null;
+    setSurveyMap((m) => ({ ...m, [pub]: entry }));
+    return entry;
   };
 
-  const handleFillSurvey = (job: JobAssignment) => {
-    setSurveyJob(job);
-    setCurrentView("survey");
+  const handleFillSurvey = async (job: JobAssignment) => {
+    const pub = String((job as any).publicId || job.id);
+    let entry = surveyMap[pub];
+    if (entry === undefined) entry = await loadSurveyStatus(job);
+    if (!entry) { toast({ title: tf("noSurvey"), description: tf("noSurveyDesc") }); return; }
+    if (entry.filled) { toast({ title: tf("surveyDoneTitle"), description: tf("surveyDoneDesc") }); return; }
+    setSurveyDialog({ entry }); // no date → backend uses Madrid today
   };
+
+  const surveyStateFor = (job: JobAssignment): "pending" | "done" | null => {
+    const pub = String((job as any).publicId || job.id);
+    const entry = surveyMap[pub];
+    if (!entry) return null;
+    return entry.filled ? "done" : "pending";
+  };
+
+  // Load the worker-survey status for the running job so the card can show the survey button.
+  useEffect(() => {
+    if (!currentJob || !session?.accessToken) return;
+    const pub = String((currentJob as any).publicId || currentJob.id);
+    if (surveyMap[pub] !== undefined) return;
+    loadSurveyStatus(currentJob);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentJob, session?.accessToken]);
 
   const handleViewDetail = (job: JobAssignment) => {
-    setDetailJob(job);
-    setCurrentView("jobDetail");
+    router.push(`/jobs/${(job as any).publicId || job.id}/detail`);
   };
 
   const formatTime = (date: Date) => {
@@ -1088,6 +1274,7 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
       minute: "2-digit",
       second: "2-digit",
       hour12: true,
+      timeZone: DEFAULT_TIMEZONE,
     });
   };
 
@@ -1096,6 +1283,7 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
       hour: "2-digit",
       minute: "2-digit",
       hour12: true,
+      timeZone: DEFAULT_TIMEZONE,
     });
   };
 
@@ -1220,74 +1408,70 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
 
   // QR Scanner view removed - now handled by SignInMethodDialog in job-card.tsx
 
-  if (currentView === "survey" && surveyJob) {
-    return (
-      <SurveyCard
-        job={surveyJob}
-        onSubmit={handleSurveySubmit}
-        onCancel={() => setCurrentView("dashboard")}
-        isFullPage={true}
-      />
-    );
-  }
-
   if (currentView === "jobDetail" && detailJob) {
     return <JobAttendanceDetail job={detailJob} onBack={() => setCurrentView("dashboard")} />;
   }
 
+  const localeMap: Record<string, string> = { en: "en-GB", es: "es-ES", de: "de-DE" };
+  const todayLabel = new Date().toLocaleDateString(localeMap[language] || "es-ES", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  const workerName = (session?.user as any)?.name || "Worker";
+
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-[1400px] mx-auto p-4 space-y-4">
-        <Card className="border-border shadow-sm bg-card">
-          <CardContent className="p-4">
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-purple-600 rounded-lg shadow-sm">
-                  <User className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-2xl font-bold text-foreground">{t("workerDashboard")}</h1>
-                  <p className="text-muted-foreground text-sm" suppressHydrationWarning>
-                    {formatTime(currentTime)} •{" "}
-                    {currentTime.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3">
-                {locationData.isAtWorkCenter ? (
-                  <div className="flex items-center gap-2 bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400 px-3 py-1.5 rounded-lg border border-green-200 dark:border-green-800">
-                    <Navigation className="w-4 h-4" />
-                    <span className="text-sm font-medium">{t("atWorkCenter")}</span>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2 bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400 px-3 py-1.5 rounded-lg border border-red-200 dark:border-red-800">
-                    <MapPin className="w-4 h-4" />
-                    <span className="text-sm font-medium">
-                      {locationData.distance}m {t("away")}
-                    </span>
-                  </div>
-                )}
-                {locationData.city && locationData.country && (
-                  <div className="flex items-center gap-2 bg-muted text-muted-foreground px-3 py-1.5 rounded-lg border border-border">
-                    <MapPin className="w-4 h-4" />
-                    <span className="text-sm font-medium">
-                      {locationData.city}, {locationData.country}
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-          <StatsCard label={t("todayShifts")} value={workerStats.todayShifts} icon={Calendar} />
-          <StatsCard label={t("completedJobs")} value={workerStats.completedJobs} icon={CheckCircle} />
-          <StatsCard label={t("hoursToday")} value={`${workerStats.totalHours}${t("hours")}`} icon={Timer} />
-          <StatsCard label={t("onTimeRate")} value={`${workerStats.onTimeRate}%`} icon={Target} />
-          <StatsCard label={t("taskCompletion")} value={`${workerStats.taskCompletionRate}%`} icon={CheckSquare} />
+      <div className="max-w-[1400px] mx-auto p-4 space-y-5">
+        <div>
+          <h1 className="text-2xl font-semibold text-foreground">{tg("hello") || "Hello"}, {workerName}</h1>
+          <p className="text-sm text-muted-foreground mt-0.5 capitalize">{todayLabel}</p>
         </div>
+
+        {bioReg !== true && (
+          <div className="bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-900 rounded-xl p-3.5 flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-2.5 text-sm text-foreground">
+              <Fingerprint className="w-5 h-5 text-[#662D91] dark:text-purple-300 shrink-0" />
+              <span>{tg("enableBiometric") || "Activa la verificación biométrica (huella / Face ID) para tus fichajes."}</span>
+            </div>
+            <button
+              onClick={handleRegisterBio}
+              disabled={bioBusy}
+              className="text-sm font-bold text-white bg-[#662D91] hover:bg-[#57267c] rounded-lg px-4 py-2 disabled:opacity-50 shrink-0"
+            >
+              {bioBusy ? "…" : (tg("activate") || "Activar")}
+            </button>
+          </div>
+        )}
+        {bioReg === true && (
+          <div className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold inline-flex items-center gap-1.5">
+            <Fingerprint className="w-3.5 h-3.5" /> {tg("biometricActive") || "Verificación biométrica activada"}
+          </div>
+        )}
+
+        <section className="space-y-3">
+          <SectionLabel>{tg("overview") || "Overview"}</SectionLabel>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <StatCard value={<>{wd.hoursThisWeek}<span className="text-sm font-semibold text-muted-foreground">h</span></>} label={tg("hoursThisWeek") || "Hours this week"} Icon={Clock} tone="brand" />
+            <StatCard value={workerStats.todayShifts} label={tg("jobsToday") || "Jobs today"} Icon={Briefcase} tone="info" />
+            <StatCard value={workerStats.completedJobs} label={tg("completedJobs") || "Completed"} Icon={CheckCircle} tone="good" />
+            <StatCard value={`${workerStats.onTimeRate}%`} label={tg("onTimeRate") || "On-time rate"} Icon={Target} tone="brand" />
+          </div>
+        </section>
+
+        <section className="space-y-3">
+          <SectionLabel>{tg("needsAttention") || "Needs your attention"}</SectionLabel>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <AttentionCard value={wd.missing} label={tg("missingCheckin") || "Missing check-in"} Icon={Clock} tone="warn" onClick={() => router.push("/jobs/mine")} />
+          </div>
+        </section>
+
+        <section className="space-y-3">
+          <SectionLabel>{tg("quickActions") || "Quick actions"}</SectionLabel>
+          <div className="flex flex-wrap gap-3">
+            <ActionButton primary Icon={ClipboardCheck} label={tg("requestManualCheckin") || "Request manual check-in"} onClick={() => router.push("/jobs/mine")} />
+            <ActionButton Icon={Calendar} label={tg("mySchedule") || "My schedule"} onClick={() => router.push("/presence/schedule")} />
+            <ActionButton Icon={Coins} label={tg("myPayslips") || "My payslips"} onClick={() => router.push("/my-salaries")} />
+            <ActionButton Icon={FileText} label={tg("documents") || "Documents"} onClick={() => router.push("/documents")} />
+            <ActionButton Icon={MapPin} label={tf("privacy")} onClick={() => setPrivacyOpen(true)} />
+          </div>
+        </section>
 
         {currentJob && (
           <CurrentJobCard
@@ -1296,6 +1480,8 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
             onTakeBreak={handleTakeBreak}
             onBackToWork={handleBackToWork}
             onTaskToggle={handleTaskToggle}
+            onFillSurvey={handleFillSurvey}
+            surveyState={surveyStateFor(currentJob)}
             getCurrentSessionTime={getCurrentSessionTime}
             getCurrentBreakTime={getCurrentBreakTime}
             formatTimeShort={formatTimeShort}
@@ -1304,18 +1490,44 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
         )}
 
         <Card className="border-border shadow-sm bg-card">
-          <CardContent className="p-4">
-                {/* Show today's assignments directly (menu removed) */}
+          <CardContent className="p-4 space-y-4">
+                <div className="flex flex-wrap gap-1 border-b border-border">
+                  {(["today", "all"] as const).map((tab) => (
+                    <button key={tab} type="button" onClick={() => setJobsTab(tab)}
+                      className={`px-5 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${jobsTab === tab ? "border-[#662D91] text-[#662D91] bg-purple-50 dark:bg-purple-950/50" : "border-transparent text-muted-foreground hover:text-[#662D91] hover:border-[#662D91]"}`}>
+                      {tab === "today" ? (tg("todaysJobs") || "Today's jobs") : (tg("allJobs") || "All jobs")}
+                      <span className="ml-1.5 text-xs">({tab === "today" ? todayAssignments.filter((j: any) => wd.todayIds.includes(j.publicId)).length : todayAssignments.length})</span>
+                    </button>
+                  ))}
+                </div>
+                <JobFilterBar
+                  search={jobSearch}
+                  onSearch={setJobSearch}
+                  status={jobStatus}
+                  onStatus={setJobStatus}
+                  workCenter={jobWorkCenter}
+                  onWorkCenter={setJobWorkCenter}
+                  workCenters={jobWorkCenters(todayAssignments)}
+                  occupation={jobOcc}
+                  onOccupation={setJobOcc}
+                  occupations={jobOccupations(todayAssignments)}
+                  client={jobClient}
+                  onClient={setJobClient}
+                  clients={jobClients(todayAssignments)}
+                />
                 <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-                  {todayAssignments.map((job) => (
+                  {todayAssignments
+                    .filter((job) => jobMatchesFilters(job, { search: jobSearch, status: jobStatus, workCenter: jobWorkCenter, client: jobClient, occupation: jobOcc }))
+                    .filter((job: any) => jobsTab === "all" || wd.todayIds.includes(job.publicId))
+                    .map((job) => (
                     <JobCard
                       key={job.id}
-                      job={job}
+                      job={(wd.liveIds || []).includes((job as any).publicId) ? { ...job, status: "in_progress" } : job}
                       onCheckIn={handleCheckIn}
                       onCheckOut={handleCheckOut}
                       onFillSurvey={handleFillSurvey}
                       onCompleteTask={(j: any, taskId: any) => handleTaskToggle(j.publicId || j.id, taskId)}
-                      onViewDetail={handleViewDetail}
+                      onViewDetails={(j: any) => handleViewDetail(j)}
                       onRequestManualAttendance={(job: any) => {
                         setManualAttendanceJob(job);
                         setShowManualAttendanceForm(true);
@@ -1325,10 +1537,31 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
                         
                         // Handle different signing methods
                         switch (signingMethod) {
-                          case 'web':
-                            // Direct check-in with web method (free)
-                            await handleCheckInWithMethod(job, 'web');
+                          case 'web': {
+                            // GDPR: get explicit location consent before reading any coordinates.
+                            if (!(await ensureLocationConsent())) {
+                              toast({ variant: "destructive", title: tf("locNeeded"), description: tf("consentWeb") });
+                              break;
+                            }
+                            // Web check-in captures location for the record. If the browser blocks it,
+                            // offer retry / continue-without / cancel instead of a dead end.
+                            let webLoc = await getBrowserLocation();
+                            let proceed: { latitude?: number; longitude?: number; locationUnavailable?: boolean } | null =
+                              webLoc.error ? null : { latitude: webLoc.latitude, longitude: webLoc.longitude };
+                            while (!proceed && webLoc.error) {
+                              const choice = await openLocationHelp(webLoc.error);
+                              if (choice === "retry") {
+                                webLoc = await getBrowserLocation();
+                                if (!webLoc.error) proceed = { latitude: webLoc.latitude, longitude: webLoc.longitude };
+                              } else if (choice === "continue") {
+                                proceed = { locationUnavailable: true };
+                              } else {
+                                break; // cancel
+                              }
+                            }
+                            if (proceed) await handleCheckInWithMethod(job, 'web', proceed);
                             break;
+                          }
                           case 'ip':
                             // Check-in with IP address from SignInMethodDialog
                             if (data?.ipAddress) {
@@ -1338,6 +1571,11 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
                             }
                             break;
                           case 'gps':
+                            // GDPR: explicit location consent before using any coordinates.
+                            if (!(await ensureLocationConsent())) {
+                              toast({ variant: "destructive", title: tf("locNeeded"), description: tf("consentGps") });
+                              break;
+                            }
                             // Check-in with GPS coordinates from SignInMethodDialog
                             if (data?.latitude && data?.longitude) {
                               await handleCheckInWithMethod(job, 'gps', { 
@@ -1375,7 +1613,89 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
                 </div>
           </CardContent>
         </Card>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          <ListPanel title={tg("recentPayslips") || "Recent payslips"} actionLabel={tg("viewAll") || "View all"} onAction={() => router.push("/my-salaries")}>
+            {(wd.payslips || []).length === 0 ? (
+              <div className="p-6 text-sm text-muted-foreground text-center">—</div>
+            ) : (
+              (wd.payslips).map((p: any, i: number) => (
+                <ListRow
+                  key={i}
+                  avatar={<RowAvatar tone="brand">&euro;</RowAvatar>}
+                  title={p.receiptNumber || p.periodStart || "Nómina"}
+                  subtitle={formatLocalDate(p.issueDate || p.createdAt)}
+                  right={<div className="text-sm font-bold tabular-nums">{Number(p.total || 0).toFixed(2)}&nbsp;&euro;</div>}
+                />
+              ))
+            )}
+          </ListPanel>
+          <ListPanel title={tg("thisWeek") || "This week"}>
+            {todayAssignments.length === 0 ? (
+              <div className="p-6 text-sm text-muted-foreground text-center">—</div>
+            ) : (
+              todayAssignments.slice(0, 4).map((job: any) => (
+                <ListRow
+                  key={job.id}
+                  avatar={<RowAvatar tone="muted">{String(job.jobName || job.title || "?").charAt(0).toUpperCase()}</RowAvatar>}
+                  title={job.jobName || job.title}
+                  subtitle={job.clientName || job.client?.name || ""}
+                  right={
+                    <StatusChip className={job.status === "in_progress" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300" : job.status === "completed" ? "bg-purple-100 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300" : "bg-indigo-100 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300"}>
+                      {tg(job.status === "in_progress" ? "inProgress" : job.status === "completed" ? "completed" : "scheduled") || job.status}
+                    </StatusChip>
+                  }
+                />
+              ))
+            )}
+          </ListPanel>
+        </div>
       </div>
+
+      <PrivacyDialog open={privacyOpen} onClose={() => setPrivacyOpen(false)} />
+
+      <SelfieCapture
+        open={selfieOpen}
+        onCapture={(url) => {
+          selfieResolveRef.current?.(url)
+          selfieResolveRef.current = null
+          setSelfieOpen(false)
+        }}
+        onClose={() => {
+          selfieResolveRef.current?.(null)
+          selfieResolveRef.current = null
+          setSelfieOpen(false)
+        }}
+      />
+
+      <GpsConsentDialog
+        open={gpsConsentOpen}
+        busy={gpsConsentBusy}
+        onAccept={handleConsentAccept}
+        onDecline={handleConsentDecline}
+      />
+
+      <LocationHelpDialog
+        open={locHelpOpen}
+        reason={locHelpReason}
+        onChoice={handleLocHelpChoice}
+      />
+
+      <SurveyFillDialog
+        open={!!surveyDialog}
+        entry={surveyDialog?.entry || null}
+        date={surveyDialog?.date}
+        title={tf("workerSurvey")}
+        token={session?.accessToken || ""}
+        onClose={() => setSurveyDialog(null)}
+        onSubmitted={() => {
+          if (currentJob) {
+            const pub = String((currentJob as any).publicId || currentJob.id);
+            setSurveyMap((m) => ({ ...m, [pub]: m[pub] ? { ...(m[pub] as SurveyEntry), filled: true, canFill: false } : m[pub] }));
+          }
+          setSurveyDialog(null);
+        }}
+      />
 
       {/* Manual Attendance Request Modal */}
       <ManualAttendanceRequestForm

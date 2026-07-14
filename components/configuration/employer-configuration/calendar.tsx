@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { DateInput } from "@/components/ui/date-input"
 import { AnimatedLoader } from "@/components/animated-loader"
 import { useTranslation } from "@/hooks/use-translation"
+import { madridToday, madridTodayKey } from "@/lib/datetime"
 
 const pad = (n: number) => String(n).padStart(2, "0")
 const ymd = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
@@ -20,10 +21,10 @@ export default function CalendarConfig() {
   const base = process.env.NEXT_PUBLIC_API_BASE_URL
   const authHeader = { Authorization: `Bearer ${session?.accessToken}` }
 
-  const [cursor, setCursor] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1) })
+  const [cursor, setCursor] = useState(() => { const d = madridToday(); return new Date(d.getFullYear(), d.getMonth(), 1) })
   const [holidays, setHolidays] = useState<{ id: string; date: string; name: string | null }[]>([])
   const [loading, setLoading] = useState(true)
-  const [newDate, setNewDate] = useState(ymd(new Date()))
+  const [newDate, setNewDate] = useState(madridTodayKey())
   const [newName, setNewName] = useState("")
   const [workDays, setWorkDays] = useState<Set<string>>(new Set())
 
@@ -109,7 +110,7 @@ export default function CalendarConfig() {
         <h3 className="text-sm font-semibold capitalize">{monthLabel}</h3>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" className="h-8 w-8 p-1" onClick={() => setCursor((c) => new Date(c.getFullYear(), c.getMonth() - 1, 1))}><ChevronLeft className="h-4 w-4" /></Button>
-          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => { const d = new Date(); setCursor(new Date(d.getFullYear(), d.getMonth(), 1)) }}>{t("today") || "Hoy"}</Button>
+          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => { const d = madridToday(); setCursor(new Date(d.getFullYear(), d.getMonth(), 1)) }}>{t("today") || "Hoy"}</Button>
           <Button variant="outline" size="sm" className="h-8 w-8 p-1" onClick={() => setCursor((c) => new Date(c.getFullYear(), c.getMonth() + 1, 1))}><ChevronRight className="h-4 w-4" /></Button>
         </div>
       </div>

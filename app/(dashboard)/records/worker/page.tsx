@@ -70,13 +70,14 @@ export default function WorkerRecordsPage() {
 
   const columns = [
     { key: "fecha", label: "Fecha", sortable: true },
-    { key: "titular", label: "Titular", sortable: true },
     { key: "job", label: "Job", sortable: true },
-    { key: "client", label: "Client", sortable: true },
+    { key: "centro", label: "Centro", sortable: true },
     { key: "entrada", label: "Entrada" },
     { key: "salida", label: "Salida" },
     { key: "total", label: "Total", sortable: true },
-    { key: "alerts", label: "Alertas" },
+    { key: "extra", label: "Extra", sortable: true },
+    { key: "metodo", label: "Método" },
+    { key: "puntualidad", label: "Puntualidad" },
   ]
 
   const actionButtons = [

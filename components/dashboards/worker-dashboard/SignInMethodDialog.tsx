@@ -7,6 +7,7 @@ import { MapPin, QrCode, Globe, Lock, Smartphone, Monitor } from "lucide-react"
 import { QrCodeScanner, GpsSignIn, IpSignIn, WebSignIn } from "./signin-methods/main"
 import { useTranslation } from "@/hooks/use-translation"
 import bg from "@/public/bg.jpg"
+import { DEFAULT_TIMEZONE } from "@/lib/datetime"
 
 type MethodKey = "QRCODE" | "IP" | "WEB" | "GPS"
 
@@ -160,7 +161,7 @@ export default function SignInMethodDialog({ isOpen, signingMethods = [], onClos
           <DialogHeader className="p-6">
             <div className="relative">
               <div className="text-center">
-                <div className="text-lg text-primary font-bold">{new Date().toLocaleDateString(typeof navigator !== 'undefined' ? navigator.language : undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</div>
+                <div className="text-lg text-primary font-bold">{new Date().toLocaleDateString(typeof navigator !== 'undefined' ? navigator.language : undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: DEFAULT_TIMEZONE })}</div>
                 <h2 className="text-3xl font-bold text-primary mt-2">{t("hello") || "Hello"} {workerName || "Worker"}</h2>
                 <p className="text-lg text-foreground mt-2 font-semibold">{t("chooseClockInMethod") || "Choose sign-in method"}</p>
               </div>

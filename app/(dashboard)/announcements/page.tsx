@@ -29,6 +29,7 @@ import { DateInput } from "@/components/ui/date-input"
 import { TimePicker } from "@/components/ui/time-picker"
 import { AnimatedLoader } from "@/components/animated-loader"
 import { formatLocalDateTime, madridWallClockToISO } from "@/lib/datetime"
+import ReceivedAnnouncements from "@/components/announcements/received-announcements"
 
 type Severity = "INFO" | "WARNING" | "CRITICAL"
 type Audience = { segment: string; count: number }
@@ -47,6 +48,13 @@ type HistoryItem = {
 }
 
 export default function AnnouncementsPage() {
+  const { getUserRole } = useAuth()
+  const r = getUserRole()
+  if (r === "worker" || r === "client") return <ReceivedAnnouncements />
+  return <AnnouncementsManageView />
+}
+
+function AnnouncementsManageView() {
   const { t } = useTranslation("announcements")
   const { getUserRole } = useAuth()
   const [role, setRole] = useState<string | null>(null)

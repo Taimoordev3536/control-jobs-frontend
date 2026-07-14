@@ -11,14 +11,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AnimatedLoader } from "@/components/animated-loader"
 import { useTranslation } from "@/hooks/use-translation"
 import { useToast } from "@/hooks/use-toast"
-import { formatLocalDate } from "@/lib/datetime"
+import { useAuth } from "@/hooks/use-auth"
+import { formatLocalDate, madridTodayKey } from "@/lib/datetime"
+import ClientCalendar from "@/components/dashboards/client-dashboard/client-calendar"
 
 const pad = (n: number) => String(n).padStart(2, "0")
 const ymd = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 
 interface CalDay { date: string; holiday: boolean; holidayName: string | null; absence: { type: string } | null; working: boolean }
 
-export default function WorkerCalendarPage() {
+export default function CalendarPage() {
+  const { getUserRole } = useAuth()
+  return getUserRole() === "client" ? <ClientCalendar /> : <WorkerCalendarView />
+}
+
+function WorkerCalendarView() {
   const { t } = useTranslation()
   const { toast } = useToast()
   const { data: session } = useSession()
@@ -37,7 +44,7 @@ export default function WorkerCalendarPage() {
     } as Record<string, { label: string; color: string }>)[v] || { label: v, color: "bg-muted text-muted-foreground" }
 
   // --- Laboral (month grid) ---
-  const [cursor, setCursor] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1) })
+  const [cursor, setCursor] = useState(() => { const [y, m] = madridTodayKey().split("-").map(Number); return new Date(y, m - 1, 1) })
   const [days, setDays] = useState<Record<string, CalDay>>({})
   const [loadingCal, setLoadingCal] = useState(true)
 
@@ -67,7 +74,7 @@ export default function WorkerCalendarPage() {
   while (cells.length % 7 !== 0) cells.push(null)
   const weekdays = [t("mon") || "Lun", t("tue") || "Mar", t("wed") || "Mié", t("thu") || "Jue", t("fri") || "Vie", t("sat") || "Sáb", t("sun") || "Dom"]
   const monthLabel = cursor.toLocaleDateString("es-ES", { month: "long", year: "numeric", timeZone: "Europe/Madrid" })
-  const todayStr = ymd(new Date())
+  const todayStr = madridTodayKey()
 
   // --- Solicitudes ---
   const [requests, setRequests] = useState<any[]>([])
@@ -138,7 +145,7 @@ export default function WorkerCalendarPage() {
             <h3 className="text-sm font-semibold capitalize">{monthLabel}</h3>
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" className="h-8 w-8 p-1" onClick={() => setCursor((c) => new Date(c.getFullYear(), c.getMonth() - 1, 1))}><ChevronLeft className="h-4 w-4" /></Button>
-              <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => { const d = new Date(); setCursor(new Date(d.getFullYear(), d.getMonth(), 1)) }}>{t("today") || "Hoy"}</Button>
+              <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => { const [y, m] = madridTodayKey().split("-").map(Number); setCursor(new Date(y, m - 1, 1)) }}>{t("today") || "Hoy"}</Button>
               <Button variant="outline" size="sm" className="h-8 w-8 p-1" onClick={() => setCursor((c) => new Date(c.getFullYear(), c.getMonth() + 1, 1))}><ChevronRight className="h-4 w-4" /></Button>
             </div>
           </div>

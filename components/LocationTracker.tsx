@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { DEFAULT_TIMEZONE } from '@/lib/datetime';
 
 type PlaceDetails = {
   displayName?: string;
@@ -203,7 +204,7 @@ export default function LocationTracker() {
               <div className="space-y-2">
                 <p><span className="font-medium">Coordinates:</span> {location.coords.latitude.toFixed(6)}, {location.coords.longitude.toFixed(6)}</p>
                 <p><span className="font-medium">Accuracy:</span> ±{Math.round(location.coords.accuracy)} meters</p>
-                <p><span className="font-medium">Last Update:</span> {new Date(location.timestamp).toLocaleTimeString()}</p>
+                <p><span className="font-medium">Last Update:</span> {new Date(location.timestamp).toLocaleTimeString("es-ES", { timeZone: DEFAULT_TIMEZONE })}</p>
               </div>
             ) : (
               <p>No location data available</p>

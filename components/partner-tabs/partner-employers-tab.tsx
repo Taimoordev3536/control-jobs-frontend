@@ -10,6 +10,7 @@ import { useTranslation } from "@/hooks/use-translation"
 import { useAuth } from "@/hooks/use-auth"
 import { AnimatedLoader } from "@/components/animated-loader"
 import { toast } from "@/hooks/use-toast"
+import { formatLocalDate } from "@/lib/datetime"
 import { useBackendError } from "@/lib/backend-error"
 import {
   AlertDialog,
@@ -60,7 +61,7 @@ export default function PartnerEmployersTab({ partnerId }: PartnerEmployersTabPr
           class: e.class || "-",
           type: e.type || "-",
           discount: e.discount || "0",
-          highDate: e.createdAt ? new Date(e.createdAt).toLocaleDateString() : "-",
+          highDate: e.createdAt ? formatLocalDate(e.createdAt) : "-",
           partner: e.partnerName || "-",
           billing: e.billing || "0 €",
         }))

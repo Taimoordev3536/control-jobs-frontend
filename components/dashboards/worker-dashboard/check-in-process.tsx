@@ -8,6 +8,8 @@ import { useTranslation } from "@/hooks/use-translation"
 import { useToast } from "@/hooks/use-toast"
 import jsQR from "jsqr"
 import { WorkCenterSelector, WorkCenterOption } from "./work-center-selector"
+import GpsConsentDialog from "./gps-consent-dialog"
+import { locationConsentStatus, grantLocationConsent } from "@/lib/consent-client"
 
 interface JobAssignment {
   id: number
@@ -80,11 +82,38 @@ export function CheckInProcess({ job, method, token, onBack, onComplete, preScan
   // Allowed IP addresses for the workplace
   const allowedIPs = ["39.50.140.1", "192.168.1.45"] // Add your workplace IPs here
 
-  // Initialize the sequential process
+  // GDPR location consent gate — must be granted before GPS is read.
+  const [consentOpen, setConsentOpen] = useState(false)
+  const [consentBusy, setConsentBusy] = useState(false)
+
+  // Initialize the sequential process — gate GPS behind location consent.
   useEffect(() => {
-    // Start with GPS verification
-    startGPSVerification()
+    let cancelled = false
+    ;(async () => {
+      const st = await locationConsentStatus(token)
+      if (cancelled) return
+      if (st.granted) startGPSVerification()
+      else setConsentOpen(true)
+    })()
+    return () => { cancelled = true }
   }, [])
+
+  const handleConsentAccept = async () => {
+    setConsentBusy(true)
+    const res = await grantLocationConsent(token)
+    setConsentBusy(false)
+    setConsentOpen(false)
+    if (res.granted) startGPSVerification()
+    else {
+      toast({ variant: "destructive", title: "Ubicación necesaria", description: "No se pudo registrar el consentimiento. Inténtalo de nuevo." })
+      onBack()
+    }
+  }
+  const handleConsentDecline = () => {
+    setConsentOpen(false)
+    toast({ variant: "destructive", title: "Ubicación necesaria", description: "Necesitamos tu consentimiento de ubicación para fichar." })
+    onBack()
+  }
 
   // GPS Verification
   const startGPSVerification = () => {
@@ -524,6 +553,12 @@ export function CheckInProcess({ job, method, token, onBack, onComplete, preScan
 
   return (
     <>
+      <GpsConsentDialog
+        open={consentOpen}
+        busy={consentBusy}
+        onAccept={handleConsentAccept}
+        onDecline={handleConsentDecline}
+      />
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
         <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-4 mb-4">
           <div className="flex items-center gap-3">

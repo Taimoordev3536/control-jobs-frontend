@@ -18,6 +18,7 @@ import { useTranslation } from "@/hooks/use-translation";
 import { useBackendError } from "@/lib/backend-error";
 import { useAuth } from "@/hooks/use-auth";
 import GoogleAddressInput, { AddressComponents } from "@/components/GoogleAddressInput";
+import { formatLocalDate } from "@/lib/datetime";
 
 interface AddWorkCenterModalProps {
   open: boolean;
@@ -164,7 +165,7 @@ export default function AddWorkCenterModal({
           landline: result.data.landline || "-",
           contactName: result.data.contactName || "-",
           createdAt: result.data.createdAt
-            ? new Date(result.data.createdAt).toLocaleDateString()
+            ? formatLocalDate(result.data.createdAt)
             : "-",
         };
         onWorkCenterAdded(newWorkCenter);

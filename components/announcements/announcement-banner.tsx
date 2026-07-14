@@ -8,17 +8,17 @@ import { apiFetch } from "@/lib/api"
 
 const SEVERITY = {
   INFO: {
-    bg: "bg-[#662D91]/10 dark:bg-[#662D91]/25",
+    bg: "bg-[#f3edf9] dark:bg-[#2a1b3d]",
     border: "border-[#662D91]/20 dark:border-[#662D91]/50",
     line: "border-[#662D91] dark:border-purple-400",
   },
   WARNING: {
-    bg: "bg-amber-50 dark:bg-amber-950/40",
+    bg: "bg-amber-50 dark:bg-amber-950",
     border: "border-amber-200 dark:border-amber-800/60",
     line: "border-amber-500 dark:border-amber-400",
   },
   CRITICAL: {
-    bg: "bg-red-50 dark:bg-red-950/40",
+    bg: "bg-red-50 dark:bg-red-950",
     border: "border-red-200 dark:border-red-800/60",
     line: "border-red-600 dark:border-red-400",
   },

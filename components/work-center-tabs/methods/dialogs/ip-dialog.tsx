@@ -92,6 +92,9 @@ export function IpDialog({ open, onOpenChange, workCenterId, ipData, onUpdate }:
               placeholder={`P. Ej.: ${detectedIp || "88.71.10.189"}`}
             />
             <p className="text-xs text-muted-foreground">{t("publicIpHint")}</p>
+            <p className="text-xs text-muted-foreground">
+              {t("ipRangeHint") || "También admite un rango (p. ej. 88.14.32.0/24) o varias IP separadas por comas."}
+            </p>
           </div>
 
           {/* Active Toggle */}

@@ -192,7 +192,7 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar, styl
           {
             id: "dashboard",
             title: t("dashboard"),
-            icon: () => <TodosIcon className="h-5 w-5" />,
+            icon: () => <BarChart3 className="h-5 w-5" />,
             href: "/dashboard",
           },
           {
@@ -229,7 +229,7 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar, styl
           {
             id: "dashboard",
             title: t("dashboard"),
-            icon: () => <TodosIcon className="h-5 w-5" />,
+            icon: () => <BarChart3 className="h-5 w-5" />,
             href: "/dashboard",
           },
           {
@@ -238,8 +238,16 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar, styl
             icon: () => <JobsIcon className="h-5 w-5" />,
             items: [
               { title: t("control"), href: "/jobs/control", iconKey: "control" },
-              { title: t("all"), href: "/jobs/all", iconKey: "all" },
-              { title: t("attendanceRequests") || "Attendance Requests", href: "/jobs/manual-requests", iconKey: "manual-requests" },
+              { title: t("requests") || "Solicitudes", href: "/jobs/solicitudes", iconKey: "manual-requests" },
+            ],
+          },
+          {
+            id: "presence",
+            title: t("presence") || "Presencia",
+            icon: () => <OcupacionIcon className="h-5 w-5" />,
+            items: [
+              { title: t("history") || "Historial", href: "/presence/history", iconKey: "history" },
+              { title: t("schedule") || "Programación", href: "/presence/schedule", iconKey: "schedule" },
             ],
           },
           {
@@ -247,12 +255,6 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar, styl
             title: t("surveys"),
             icon: () => <SurvayIcon className="h-5 w-5" />,
             href: "/surveys",
-          },
-          {
-            id: "information",
-            title: t("information"),
-            icon: () => <InformationIcon className="h-5 w-5" />,
-            items: [{ title: t("services"), href: "/information/services-info", iconKey: "services" }],
           },
           {
             id: "aid",
@@ -298,6 +300,7 @@ export function AppSidebar({ collapsed, isMobile, mobileOpen, closeSidebar, styl
             icon: () => <ClientIcon className="h-5 w-5" />,
             items: [
               { title: t("clients"), href: "/clients", iconKey: "clients" },
+              { title: t("clientRequests") || "Solicitudes de clientes", href: "/jobs/client-requests", iconKey: "manual-requests" },
               { title: t("invoices"), href: "/client-invoices", iconKey: "invoices" },
             ],
           },

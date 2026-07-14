@@ -8,6 +8,7 @@ import { AnimatedLoader } from "@/components/animated-loader"
 import { Download, Printer, Trash2, Upload, FileText, Loader2 } from "lucide-react"
 import { useTranslation } from "@/hooks/use-translation"
 import { useToast } from "@/hooks/use-toast"
+import { formatLocalDate } from "@/lib/datetime"
 
 interface ClientFilesTabProps {
   clientId: string
@@ -18,7 +19,7 @@ const fmtSize = (b?: number | null) => {
   const kb = b / 1024
   return kb < 1024 ? `${kb.toFixed(0)} KB` : `${(kb / 1024).toFixed(1)} MB`
 }
-const fmtDate = (iso?: string) => (iso ? new Date(iso).toLocaleDateString() : "")
+const fmtDate = (iso?: string) => (iso ? formatLocalDate(iso) : "")
 // Force-download via Cloudinary's fl_attachment delivery flag.
 const downloadUrl = (url: string) =>
   url.includes("/upload/") ? url.replace("/upload/", "/upload/fl_attachment/") : url
