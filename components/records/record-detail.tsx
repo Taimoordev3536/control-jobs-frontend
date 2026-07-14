@@ -161,7 +161,7 @@ export default function RecordDetail({ recordId, backHref }: { recordId: string;
     const ci = d.scans?.find((s: any) => s.scanType === "check-in")
     const esc = (v: any) => (v == null || v === "" ? "—" : String(v).replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c] as string)))
     const row = (k: string, v: any) => `<tr><td class="k">${k}</td><td class="v">${esc(v)}</td></tr>`
-    const tasksRows = (d.tasks || []).map((t: any) => `<tr><td>${esc(t.name)}</td><td>${t.completed ? t("pdfCompletada") : t("pdfPendiente")}</td></tr>`).join("")
+    const tasksRows = (d.tasks || []).map((task: any) => `<tr><td>${esc(task.name)}</td><td>${task.completed ? t("pdfCompletada") : t("pdfPendiente")}</td></tr>`).join("")
     const html = `<!doctype html><html><head><meta charset="utf-8"><title>${t("pdfClockIn")} ${esc(d.worker?.name)} ${esc(d.date)}</title>
       <style>
         *{font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;box-sizing:border-box}
@@ -407,12 +407,12 @@ export default function RecordDetail({ recordId, backHref }: { recordId: string;
                   </tr>
                 </thead>
                 <tbody>
-                  {(d.tasks || []).map((t: any, i: number) => (
+                  {(d.tasks || []).map((task: any, i: number) => (
                     <tr key={i} className="border-t border-border">
-                      <td className="py-3">{t.name}</td>
-                      <td>{t.completed ? <Chip tone="ok">{t("taskDone")}</Chip> : <Chip tone="no">{t("taskPending")}</Chip>}</td>
-                      <td>{t.completedAt || "—"}</td>
-                      <td>{t.completedBy || "—"}</td>
+                      <td className="py-3">{task.name}</td>
+                      <td>{task.completed ? <Chip tone="ok">{t("taskDone")}</Chip> : <Chip tone="no">{t("taskPending")}</Chip>}</td>
+                      <td>{task.completedAt || "—"}</td>
+                      <td>{task.completedBy || "—"}</td>
                     </tr>
                   ))}
                 </tbody>
