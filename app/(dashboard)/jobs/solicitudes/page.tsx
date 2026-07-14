@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { DateInput } from "@/components/ui/date-input"
 import { AnimatedLoader } from "@/components/animated-loader"
 import { useTranslation } from "@/hooks/use-translation"
 import { toast } from "@/hooks/use-toast"
@@ -25,10 +26,12 @@ export default function ClientSolicitudesPage() {
   const { data: session } = useSession()
   const base = process.env.NEXT_PUBLIC_API_BASE_URL
 
-  const [type, setType] = useState<"new_job" | "change">("new_job")
+  const [type, setType] = useState<"new_job" | "change" | "absence">("new_job")
   const [jobPublicId, setJobPublicId] = useState("")
   const [subject, setSubject] = useState("")
   const [description, setDescription] = useState("")
+  const [startDate, setStartDate] = useState("")
+  const [endDate, setEndDate] = useState("")
   const [jobs, setJobs] = useState<any[]>([])
   const [list, setList] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -43,7 +46,7 @@ export default function ClientSolicitudesPage() {
       fetch(`${base}/jobs/client/all-jobs`, { headers: h }).then((r) => r.json()),
     ])
       .then(([reqs, js]) => {
-        setList(Array.isArray(reqs?.data) ? reqs.data.filter((r: any) => r.type !== "absence") : [])
+        setList(Array.isArray(reqs?.data) ? reqs.data : [])
         setJobs(Array.isArray(js?.data) ? js.data : [])
       })
       .catch(() => {})
@@ -61,16 +64,27 @@ export default function ClientSolicitudesPage() {
       toast({ title: t("selectJob") || "Selecciona un Job", variant: "destructive" })
       return
     }
+    if (type === "absence" && !startDate) {
+      toast({ title: t("startDateRequired") || "Indica la fecha de inicio", variant: "destructive" })
+      return
+    }
     setSubmitting(true)
     try {
       const res = await fetch(`${base}/client-requests`, {
         method: "POST",
         headers: { Authorization: `Bearer ${session.accessToken}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ type, jobPublicId: type === "change" ? jobPublicId : undefined, subject, description }),
+        body: JSON.stringify({
+          type,
+          jobPublicId: type === "change" ? jobPublicId : undefined,
+          subject,
+          description,
+          startDate: type === "absence" ? startDate : undefined,
+          endDate: type === "absence" ? endDate || undefined : undefined,
+        }),
       })
       if (!res.ok) throw new Error()
-      toast({ title: t("requestSubmitted") || "Solicitud enviada" })
-      setSubject(""); setDescription(""); setJobPublicId("")
+      toast({ title: t("requestSubmitted") || "Solicitud enviada", variant: "success" })
+      setSubject(""); setDescription(""); setJobPublicId(""); setStartDate(""); setEndDate("")
       load()
     } catch {
       toast({ title: t("error") || "Error", variant: "destructive" })
@@ -103,6 +117,7 @@ export default function ClientSolicitudesPage() {
                   <SelectContent>
                     <SelectItem value="new_job">{t("newJob") || "Nuevo Job"}</SelectItem>
                     <SelectItem value="change">{t("changeRequest") || "Cambio en un Job"}</SelectItem>
+                    <SelectItem value="absence">{t("absence") || "Ausencia"}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -119,11 +134,23 @@ export default function ClientSolicitudesPage() {
                   </Select>
                 </div>
               )}
+              {type === "absence" && (
+                <>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">{t("startDate") || "Fecha de inicio"}</Label>
+                    <DateInput value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">{t("endDate") || "Fecha de fin"}</Label>
+                    <DateInput value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+                  </div>
+                </>
+              )}
             </div>
 
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">{t("subject") || "Asunto"}</Label>
-              <Input value={subject} onChange={(e) => setSubject(e.target.value)} className="h-9" placeholder={type === "new_job" ? (t("newJobSubjectPlaceholder") || "p. ej. Limpieza sábados en Tienda Norte") : (t("changeSubjectPlaceholder") || "p. ej. Cambiar horario del turno")} />
+              <Input value={subject} onChange={(e) => setSubject(e.target.value)} className="h-9" placeholder={type === "new_job" ? (t("newJobSubjectPlaceholder") || "p. ej. Limpieza sábados en Tienda Norte") : type === "absence" ? (t("absenceSubjectPlaceholder") || "p. ej. Cierre por vacaciones") : (t("changeSubjectPlaceholder") || "p. ej. Cambiar horario del turno")} />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">{t("description") || "Descripción"}</Label>
@@ -164,6 +191,9 @@ export default function ClientSolicitudesPage() {
                           <span className="text-xs text-muted-foreground">· {formatLocalDate(r.createdAt)}</span>
                         </div>
                         <div className="text-sm font-medium mt-0.5 truncate">{r.subject || "—"}</div>
+                        {(r.startDate || r.endDate) && (
+                          <div className="text-xs text-muted-foreground mt-0.5">{r.startDate ? formatLocalDate(r.startDate) : "—"}{r.endDate ? ` → ${formatLocalDate(r.endDate)}` : ""}</div>
+                        )}
                         {r.description && <div className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{r.description}</div>}
                         {r.reviewerNotes && <div className="text-xs text-muted-foreground mt-1"><b>{t("response") || "Respuesta"}:</b> {r.reviewerNotes}</div>}
                       </div>

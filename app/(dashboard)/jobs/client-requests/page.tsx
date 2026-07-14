@@ -60,7 +60,7 @@ export default function EmployerClientRequestsPage() {
       body: JSON.stringify({ status, reviewerNotes: notes || undefined }),
     })
     if (!res.ok) { toast({ title: t("error") || "Error", variant: "destructive" }); return }
-    toast({ title: status === "accepted" ? (t("requestAccepted") || "Solicitud aceptada") : (t("requestRejected") || "Solicitud rechazada") })
+    toast({ title: status === "accepted" ? (t("requestAccepted") || "Solicitud aceptada") : (t("requestRejected") || "Solicitud rechazada"), variant: "success" })
     load()
   }
 
