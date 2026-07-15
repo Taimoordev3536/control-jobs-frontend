@@ -61,18 +61,63 @@ async function readError(res: Response): Promise<ApiError> {
   return new ApiError(res.status, message, body)
 }
 
+// getSession() is a network round-trip to /api/auth/session, and every
+// apiFetch was paying it — doubling the latency of every API call. Cache
+// the token until shortly before its JWT exp (the backend validates only
+// exp, so an unexpired token can't go stale server-side), and share one
+// in-flight session lookup between concurrent calls.
+let cachedToken: string | null = null
+let cachedTokenValidUntil = 0
+let inflightTokenFetch: Promise<string | null> | null = null
+
+const TOKEN_EXP_MARGIN_MS = 30_000
+
+function jwtExpiryMs(token: string): number {
+  try {
+    const part = token.split(".")[1]
+    const payload = JSON.parse(atob(part.replace(/-/g, "+").replace(/_/g, "/")))
+    return typeof payload.exp === "number" ? payload.exp * 1000 : 0
+  } catch {
+    return 0
+  }
+}
+
+export function invalidateAccessTokenCache() {
+  cachedToken = null
+  cachedTokenValidUntil = 0
+}
+
+async function fetchFreshAccessToken(): Promise<string | null> {
+  const session = await getSession()
+  if (session?.error === "RefreshFailed") {
+    invalidateAccessTokenCache()
+    await signOut({ callbackUrl: "/login" })
+    throw new ApiError(401, "Session expired")
+  }
+  const token = session?.accessToken ?? null
+  if (token) {
+    const exp = jwtExpiryMs(token)
+    if (exp > Date.now() + TOKEN_EXP_MARGIN_MS) {
+      cachedToken = token
+      cachedTokenValidUntil = exp - TOKEN_EXP_MARGIN_MS
+    }
+  }
+  return token
+}
+
 export async function getAccessToken(unauthenticated?: boolean): Promise<string | null> {
   if (unauthenticated) return null
   if (typeof window !== "undefined") {
     const impToken = getStoredImpersonationToken()
     if (impToken) return impToken
   }
-  const session = await getSession()
-  if (session?.error === "RefreshFailed") {
-    await signOut({ callbackUrl: "/login" })
-    throw new ApiError(401, "Session expired")
+  if (cachedToken && Date.now() < cachedTokenValidUntil) return cachedToken
+  if (!inflightTokenFetch) {
+    inflightTokenFetch = fetchFreshAccessToken().finally(() => {
+      inflightTokenFetch = null
+    })
   }
-  return session?.accessToken ?? null
+  return inflightTokenFetch
 }
 
 export async function apiFetch<T = any>(
@@ -84,6 +129,7 @@ export async function apiFetch<T = any>(
   const res = await fetch(req)
 
   if (res.status === 401 && !options.unauthenticated) {
+    invalidateAccessTokenCache()
     await signOut({ callbackUrl: "/login" })
     throw new ApiError(401, "Session expired")
   }
@@ -104,6 +150,7 @@ export async function apiFetchRaw(
   const res = await fetch(req)
 
   if (res.status === 401 && !options.unauthenticated) {
+    invalidateAccessTokenCache()
     await signOut({ callbackUrl: "/login" })
     throw new ApiError(401, "Session expired")
   }
