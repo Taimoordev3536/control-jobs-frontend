@@ -1,6 +1,8 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
+import { useQuery } from "@tanstack/react-query"
+import { apiFetch } from "@/lib/api"
 import {
   Calendar,
   CheckCircle,
@@ -171,7 +173,7 @@ export default function WorkerDashboardMain() {
   const { t: tf } = useTranslation("fichaje-cards");
   const router = useRouter();
   const translateBackendError = useBackendError();
-  const { session, logout } = useAuth();
+  const { session, logout, isAuthenticated } = useAuth();
 
   const [todayAssignments, setTodayAssignments] = useState<JobAssignment[]>([]);
   const [jobSearch, setJobSearch] = useState("");
@@ -182,47 +184,73 @@ export default function WorkerDashboardMain() {
   const [jobsTab, setJobsTab] = useState<"today" | "all">("today");
   const [wd, setWd] = useState<any>({ hoursThisWeek: 0, missing: 0, payslips: [], todayIds: [] as string[] });
 
-  useEffect(() => {
-    if (!session?.accessToken) return;
-    const base = process.env.NEXT_PUBLIC_API_BASE_URL;
-    const h = { Authorization: `Bearer ${session.accessToken}` };
-    const todayKey = new Date().toLocaleDateString("en-CA", { timeZone: "Europe/Madrid" });
+  // The four summary fetches are independent; each gets its own cache entry
+  // and they are combined into `wd` below.
+  const todayKey = new Date().toLocaleDateString("en-CA", { timeZone: "Europe/Madrid" });
+  const mondayKey = (() => {
     const now = new Date();
     const dow = now.getDay();
     const monday = new Date(now);
     monday.setDate(now.getDate() - (dow === 0 ? 6 : dow - 1));
-    const mondayKey = monday.toLocaleDateString("en-CA", { timeZone: "Europe/Madrid" });
-    fetch(`${base}/jobs/worker/pending`, { headers: h })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((j) => {
-        const arr = Array.isArray(j?.data) ? j.data : [];
-        setWd((p: any) => ({ ...p, missing: arr.filter((x: any) => x.date === todayKey).length }));
-      })
-      .catch(() => {});
-    fetch(`${base}/jobs/worker/work-session-records?start=${mondayKey}&end=${todayKey}`, { headers: h })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((j) => {
-        const recs = Array.isArray(j?.data) ? j.data : [];
-        const mins = recs.reduce((s: number, r: any) => s + (Number(r.totalWorkMinutes ?? r.workedMinutes) || 0), 0);
-        setWd((p: any) => ({ ...p, hoursThisWeek: Math.round(mins / 60) }));
-      })
-      .catch(() => {});
-    fetch(`${base}/worker/me/salaries`, { headers: h })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((j) => setWd((p: any) => ({ ...p, payslips: (Array.isArray(j?.data) ? j.data : []).slice(0, 3) })))
-      .catch(() => {});
-    fetch(`${base}/jobs/worker/day`, { headers: h })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((j) => {
-        const dj = Array.isArray(j?.data?.jobs) ? j.data.jobs : Array.isArray(j?.data) ? j.data : [];
-        const liveIds = dj
-          .filter((x: any) => x.session?.checkInTime && !x.session?.checkOutTime)
-          .map((x: any) => x.publicId)
-          .filter(Boolean);
-        setWd((p: any) => ({ ...p, todayIds: dj.map((x: any) => x.publicId).filter(Boolean), liveIds }));
-      })
-      .catch(() => {});
-  }, [session?.accessToken]);
+    return monday.toLocaleDateString("en-CA", { timeZone: "Europe/Madrid" });
+  })();
+
+  const { data: pendingArr } = useQuery<any[]>({
+    queryKey: ["jobs", "worker", "pending"],
+    queryFn: async () => {
+      const j = await apiFetch<any>("/jobs/worker/pending");
+      return Array.isArray(j?.data) ? j.data : [];
+    },
+    enabled: isAuthenticated,
+  });
+
+  const { data: weekRecords } = useQuery<any[]>({
+    queryKey: ["records", "worker", "week", mondayKey, todayKey],
+    queryFn: async () => {
+      const j = await apiFetch<any>(`/jobs/worker/work-session-records?start=${mondayKey}&end=${todayKey}`);
+      return Array.isArray(j?.data) ? j.data : [];
+    },
+    enabled: isAuthenticated,
+  });
+
+  const { data: payslips } = useQuery<any[]>({
+    queryKey: ["worker", "salaries"],
+    queryFn: async () => {
+      const j = await apiFetch<any>("/worker/me/salaries");
+      return (Array.isArray(j?.data) ? j.data : []).slice(0, 3);
+    },
+    enabled: isAuthenticated,
+  });
+
+  const { data: dayJobs } = useQuery<any[]>({
+    queryKey: ["jobs", "worker", "day"],
+    queryFn: async () => {
+      const j = await apiFetch<any>("/jobs/worker/day");
+      return Array.isArray(j?.data?.jobs) ? j.data.jobs : Array.isArray(j?.data) ? j.data : [];
+    },
+    enabled: isAuthenticated,
+  });
+
+  // Depend on the query results themselves — react-query keeps a stable
+  // reference per fetch. Defaulting to `[]` here instead would allocate a new
+  // array every render and spin this effect forever.
+  useEffect(() => {
+    const mins = (weekRecords ?? []).reduce(
+      (s: number, r: any) => s + (Number(r.totalWorkMinutes ?? r.workedMinutes) || 0),
+      0,
+    );
+    const dj = dayJobs ?? [];
+    setWd({
+      missing: (pendingArr ?? []).filter((x: any) => x.date === todayKey).length,
+      hoursThisWeek: Math.round(mins / 60),
+      payslips: payslips ?? [],
+      todayIds: dj.map((x: any) => x.publicId).filter(Boolean),
+      liveIds: dj
+        .filter((x: any) => x.session?.checkInTime && !x.session?.checkOutTime)
+        .map((x: any) => x.publicId)
+        .filter(Boolean),
+    });
+  }, [pendingArr, weekRecords, payslips, dayJobs, todayKey]);
   const [currentJob, setCurrentJob] = useState<JobAssignment | null>(null);
   const [workerStats, setWorkerStats] = useState<WorkerStats>({
     todayShifts: 0,
