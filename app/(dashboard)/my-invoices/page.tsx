@@ -1,12 +1,13 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
+import { useQuery } from "@tanstack/react-query"
 import { Eye, Printer } from "lucide-react"
 import TabTableTemplate from "@/components/ui/tab-table-template"
 import { AnimatedLoader } from "@/components/animated-loader"
 import { useTranslation } from "@/hooks/use-translation"
+import { apiFetch } from "@/lib/api"
 import { formatLocalDate } from "@/lib/datetime"
 
 const eur = (n: number) => `${(Number(n) || 0).toFixed(2).replace(".", ",")} €`
@@ -14,9 +15,7 @@ const eur = (n: number) => `${(Number(n) || 0).toFixed(2).replace(".", ",")} €
 export default function MyInvoicesPage() {
   const { t } = useTranslation()
   const router = useRouter()
-  const { data: session } = useSession()
-  const [invoices, setInvoices] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const { data: session, status } = useSession()
 
   const openPdf = async (publicId: string) => {
     if (!session?.accessToken) return
@@ -29,15 +28,16 @@ export default function MyInvoicesPage() {
     setTimeout(() => URL.revokeObjectURL(url), 60000)
   }
 
-  useEffect(() => {
-    if (!session?.accessToken) return
-    setLoading(true)
-    fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/invoices?pageSize=100`, { headers: { Authorization: `Bearer ${session.accessToken}` } })
-      .then((r) => r.json())
-      .then((j) => setInvoices(Array.isArray(j?.data) ? j.data : []))
-      .catch(() => setInvoices([]))
-      .finally(() => setLoading(false))
-  }, [session?.accessToken])
+  // Same key as the admin/employer invoices page — identical endpoint and
+  // params, so both share one cache entry.
+  const { data: invoices = [], isLoading: loading } = useQuery({
+    queryKey: ["invoices", "list"],
+    queryFn: async () => {
+      const j = await apiFetch<{ data: any[] }>("/invoices?pageSize=100")
+      return Array.isArray(j?.data) ? j.data : []
+    },
+    enabled: status === "authenticated",
+  })
 
   const statusMeta = (v: string) =>
     ({

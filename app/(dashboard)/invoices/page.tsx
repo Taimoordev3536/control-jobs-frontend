@@ -1,6 +1,7 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Filter, Plus, Printer, Landmark, RefreshCw } from "lucide-react"
 import DataListTemplate, { ExcelIcon, CsvIcon, PdfIcon } from "@/components/ui/data-list-template"
 import { Button } from "@/components/ui/button"
@@ -38,14 +39,10 @@ const fmtDate = (iso: string | null | undefined): string => {
 export default function InvoicesPage() {
   const router = useRouter()
   const { t, tEnum } = useTranslation()
-  const { session, hasRole } = useAuth()
+  const { hasRole, isAuthenticated } = useAuth()
   const { toast } = useToast()
-  const [invoices, setInvoices] = useState<InvoiceRow[]>([])
-  const [employerNames, setEmployerNames] = useState<Record<number, string>>({})
-  const [isLoading, setIsLoading] = useState(true)
+  const queryClient = useQueryClient()
   const [addOpen, setAddOpen] = useState(false)
-  const [refreshKey, setRefreshKey] = useState(0)
-  const [hideEmployer, setHideEmployer] = useState(false)
   const [runningMonthly, setRunningMonthly] = useState(false)
 
   const runMonthlyClose = async () => {
@@ -55,7 +52,7 @@ export default function InvoicesPage() {
     try {
       await apiFetch<any>("/billing/run-monthly", { method: "POST" })
       toast({ title: t("monthlyCloseDone") || "Cierre mensual completado" })
-      setRefreshKey((k) => k + 1)
+      queryClient.invalidateQueries({ queryKey: ["invoices"] })
     } catch (e: any) {
       toast({ title: e.message || "Error", variant: "destructive" })
     } finally {
@@ -63,52 +60,51 @@ export default function InvoicesPage() {
     }
   }
 
+  const canCreate = hasRole("admin")
+
+  // Shares ["invoices","list"] with /my-invoices — same endpoint and params.
+  const { data: rawInvoices = [], isLoading } = useQuery({
+    queryKey: ["invoices", "list"],
+    queryFn: async () => {
+      const j = await apiFetch<{ data: any[] }>("/invoices?pageSize=100")
+      return Array.isArray(j?.data) ? j.data : []
+    },
+    enabled: isAuthenticated,
+  })
+
+  // hideEmployer is a property of the invoice payload, so derive it from the
+  // query data rather than feeding it back into the fetch.
+  const hideEmployer = !!rawInvoices[0]?.hideEmployer
   // Employer-role users only ever see their own invoices, so the column is
   // redundant. Bronze/Affiliate partners are not allowed to see employer data.
   const showEmployerColumn = !hasRole("employer") && !hideEmployer
-  const canCreate = hasRole("admin")
 
-  useEffect(() => {
-    const fetchAll = async () => {
-      if (!session?.accessToken) return
-      setIsLoading(true)
-      try {
-        const json = await apiFetch<any>("/invoices?pageSize=100")
-        setHideEmployer(!!json.data?.[0]?.hideEmployer)
-        const list: InvoiceRow[] = (json.data || []).map((i: any) => ({
-          id: i.id,
-          publicId: i.publicId,
-          invoiceNumber: i.invoiceNumber,
-          employerId: i.employerId,
-          issueDate: i.issueDate,
-          periodStart: i.periodStart,
-          periodEnd: i.periodEnd,
-          total: Number(i.total) || 0,
-          status: i.status,
-        }))
-        if (showEmployerColumn && list.length > 0) {
-          try {
-            const eJson = await apiFetch<{ data: any[] }>("/employers")
-            const map: Record<number, string> = {}
-            for (const e of eJson.data || []) {
-              map[e.id] = e.name
-            }
-            setEmployerNames(map)
-          } catch {
-            /* fall back to id */
-          }
-        }
+  const invoices: InvoiceRow[] = useMemo(
+    () =>
+      rawInvoices.map((i: any) => ({
+        id: i.id,
+        publicId: i.publicId,
+        invoiceNumber: i.invoiceNumber,
+        employerId: i.employerId,
+        issueDate: i.issueDate,
+        periodStart: i.periodStart,
+        periodEnd: i.periodEnd,
+        total: Number(i.total) || 0,
+        status: i.status,
+      })),
+    [rawInvoices],
+  )
 
-        setInvoices(list)
-      } catch (e: any) {
-        setInvoices([])
-        toast({ title: e.message || "Error", variant: "destructive" })
-      } finally {
-        setIsLoading(false)
-      }
-    }
-    fetchAll()
-  }, [session?.accessToken, showEmployerColumn, refreshKey])
+  const { data: employerNames = {} } = useQuery({
+    queryKey: ["employers", "name-map"],
+    queryFn: async () => {
+      const eJson = await apiFetch<{ data: any[] }>("/employers")
+      const map: Record<number, string> = {}
+      for (const e of eJson.data || []) map[e.id] = e.name
+      return map
+    },
+    enabled: isAuthenticated && showEmployerColumn && invoices.length > 0,
+  })
 
   const rows = useMemo(
     () =>
@@ -261,7 +257,7 @@ export default function InvoicesPage() {
         <AddInvoicesModal
           open={addOpen}
           onOpenChange={setAddOpen}
-          onCreated={() => setRefreshKey((k) => k + 1)}
+          onCreated={() => queryClient.invalidateQueries({ queryKey: ["invoices"] })}
         />
       )}
     </>
