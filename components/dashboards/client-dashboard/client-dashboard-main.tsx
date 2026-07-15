@@ -215,8 +215,8 @@ export default function ClientDashboard() {
         .catch(() => {})
     }
     fetchDay()
-    const id = setInterval(fetchDay, 45000)
-    // Real-time: refetch immediately on worker check-in/out (WebSocket), not just every 45s.
+    // Real-time: the WebSocket refetches on check-in/out events, so no
+    // interval polling is needed on top of it.
     const socket = acquireSocket(session.accessToken)
     const onAlert = (a: any) => {
       const t = a?.type
@@ -232,7 +232,6 @@ export default function ClientDashboard() {
       .catch(() => {})
     return () => {
       alive = false
-      clearInterval(id)
       socket.off("alerts:new", onAlert)
       releaseSocket(session.accessToken)
     }
