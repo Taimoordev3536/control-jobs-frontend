@@ -6,6 +6,26 @@ import { useEffect, useState, useMemo } from "react"
 import { toast } from "@/hooks/use-toast"
 import { useTranslation } from "@/hooks/use-translation"
 import { getSubUserContext, SubUserContext } from "@/lib/api/sub-users"
+
+// useAuth is mounted by ~114 components; without sharing, each mount fired
+// its own /sub-users/context request. One in-flight/settled promise is
+// shared by every consumer and reset when the session ends.
+let sharedSubUserFetch: Promise<SubUserContext> | null = null
+
+function fetchSubUserContextShared(): Promise<SubUserContext> {
+  if (!sharedSubUserFetch) {
+    sharedSubUserFetch = getSubUserContext().catch(() => {
+      // Don't cache failures — allow the next mount to retry.
+      sharedSubUserFetch = null
+      return { isSubUser: false } as SubUserContext
+    })
+  }
+  return sharedSubUserFetch
+}
+
+function clearSharedSubUserContext() {
+  sharedSubUserFetch = null
+}
 import {
   isImpersonationSession,
   getStoredImpersonationToken,
@@ -39,13 +59,14 @@ export function useAuth() {
     if (impersonating) return
 
     if (status !== "authenticated") {
+      clearSharedSubUserContext()
       setSubUser({ isSubUser: false })
       return
     }
     let cancelled = false
-    getSubUserContext()
-      .then((ctx) => { if (!cancelled) setSubUser(ctx) })
-      .catch(() => { if (!cancelled) setSubUser({ isSubUser: false }) })
+    fetchSubUserContextShared().then((ctx) => {
+      if (!cancelled) setSubUser(ctx)
+    })
     return () => { cancelled = true }
   }, [status, impersonating])
 
@@ -149,74 +170,80 @@ export function useAuth() {
     window.close()
   }
 
-  if (!hydrated) {
+  // Return a stable object so consumers (114 components) don't see a fresh
+  // reference on every unrelated re-render; `language` is a dep because the
+  // login/logout closures use t().
+  return useMemo(() => {
+    if (!hydrated) {
+      return {
+        user: undefined,
+        session: undefined,
+        isAuthenticated: false,
+        isLoading: true,
+        login,
+        logout: () => {},
+        getUserRole: () => null,
+        hasRole: () => false,
+        hasAnyRole: () => false,
+        subUser: { isSubUser: false } as SubUserContext,
+        isSubUser: false,
+        canEdit: () => false,
+        isImpersonating: false,
+        impersonationContext: { isImpersonating: false } as ImpersonationContext,
+        exitImpersonation: () => {},
+      }
+    }
+
+    if (impersonating && impersonationUser) {
+      const impSession = {
+        user: impersonationUser,
+        accessToken: impersonationUser.accessToken || getStoredImpersonationToken(),
+      }
+      return {
+        user: impersonationUser,
+        session: impSession as any,
+        isAuthenticated: true,
+        isLoading: false,
+        login,
+        logout: exitImpersonation,
+        getUserRole: () => {
+          const roleName = impersonationUser.role?.name
+          return roleName ? roleName.toLowerCase() : null
+        },
+        hasRole: (role: string) => {
+          const roleName = impersonationUser.role?.name
+          return roleName ? roleName.toLowerCase() === role.toLowerCase() : false
+        },
+        hasAnyRole: (roles: string[]) => {
+          const roleName = impersonationUser.role?.name
+          return roleName ? roles.some((r) => r.toLowerCase() === roleName.toLowerCase()) : false
+        },
+        subUser: { isSubUser: false } as SubUserContext,
+        isSubUser: false,
+        canEdit: () => true,
+        isImpersonating: true,
+        impersonationContext: impersonationCtx,
+        exitImpersonation,
+      }
+    }
+
     return {
-      user: undefined,
-      session: undefined,
-      isAuthenticated: false,
-      isLoading: true,
+      user: session?.user,
+      session,
+      isAuthenticated: status === "authenticated",
+      isLoading: status === "loading" || isLoading,
       login,
-      logout: () => {},
-      getUserRole: () => null,
-      hasRole: () => false,
-      hasAnyRole: () => false,
-      subUser: { isSubUser: false } as SubUserContext,
-      isSubUser: false,
-      canEdit: () => false,
+      logout,
+      getUserRole,
+      hasRole,
+      hasAnyRole,
+      subUser,
+      isSubUser: subUser.isSubUser,
+      canEdit,
       isImpersonating: false,
       impersonationContext: { isImpersonating: false } as ImpersonationContext,
       exitImpersonation: () => {},
     }
-  }
-
-  if (impersonating && impersonationUser) {
-    const impSession = {
-      user: impersonationUser,
-      accessToken: impersonationUser.accessToken || getStoredImpersonationToken(),
-    }
-    return {
-      user: impersonationUser,
-      session: impSession as any,
-      isAuthenticated: true,
-      isLoading: false,
-      login,
-      logout: exitImpersonation,
-      getUserRole: () => {
-        const roleName = impersonationUser.role?.name
-        return roleName ? roleName.toLowerCase() : null
-      },
-      hasRole: (role: string) => {
-        const roleName = impersonationUser.role?.name
-        return roleName ? roleName.toLowerCase() === role.toLowerCase() : false
-      },
-      hasAnyRole: (roles: string[]) => {
-        const roleName = impersonationUser.role?.name
-        return roleName ? roles.some((r) => r.toLowerCase() === roleName.toLowerCase()) : false
-      },
-      subUser: { isSubUser: false } as SubUserContext,
-      isSubUser: false,
-      canEdit: () => true,
-      isImpersonating: true,
-      impersonationContext: impersonationCtx,
-      exitImpersonation,
-    }
-  }
-
-  return {
-    user: session?.user,
-    session,
-    isAuthenticated: status === "authenticated",
-    isLoading: !hydrated || status === "loading" || isLoading,
-    login,
-    logout,
-    getUserRole,
-    hasRole,
-    hasAnyRole,
-    subUser,
-    isSubUser: subUser.isSubUser,
-    canEdit,
-    isImpersonating: false,
-    impersonationContext: { isImpersonating: false } as ImpersonationContext,
-    exitImpersonation: () => {},
-  }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated, impersonating, impersonationUser, impersonationCtx, session, status, subUser, isLoading, language])
 }
