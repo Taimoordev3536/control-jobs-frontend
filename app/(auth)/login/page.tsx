@@ -16,6 +16,7 @@ import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import ContreolJobs from "../../../icons/Logos/ControlJobs.svg"
 import { useTranslation } from "@/hooks/use-translation"
+import { AuthLanguageToggle } from "@/components/auth-language-toggle"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
@@ -25,7 +26,7 @@ export default function LoginPage() {
   const { data: session } = useSession()
   const router = useRouter()
   const [showPassword, setShowPassword] = useState(false)
-  const { t, language, setLanguage } = useTranslation("login")
+  const { t } = useTranslation("login")
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -40,10 +41,6 @@ export default function LoginPage() {
     if (!email || !password) return
 
     await login(email, password)
-  }
-
-  const toggleLanguage = () => {
-    setLanguage(language === "en" ? "es" : "en")
   }
 
   if (isLoading) {
@@ -141,15 +138,8 @@ export default function LoginPage() {
             </p>
           </div>
 
-          {/* Language Toggle Button */}
           <div className="mt-4 text-center">
-            <Button
-              variant="outline"
-              onClick={toggleLanguage}
-              className="text-sm text-muted-foreground"
-            >
-              {t("switchToLabel")} {language === "en" ? "Español" : "English"}
-            </Button>
+            <AuthLanguageToggle />
           </div>
         </CardContent>
       </Card>

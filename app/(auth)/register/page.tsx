@@ -15,12 +15,13 @@ import { useTranslation } from "@/hooks/use-translation"
 import { useToast } from "@/hooks/use-toast"
 import GoogleAddressInput from "@/components/GoogleAddressInput"
 import { normalizeFloorDoor } from "@/lib/utils/normalize-floor-door"
+import { AuthLanguageToggle } from "@/components/auth-language-toggle"
 import ContreolJobs from "../../../icons/Logos/ControlJobs.svg"
 
 export default function RegisterPage() {
   const router = useRouter()
   const { data: session } = useSession()
-  const { t, tEnum, language, setLanguage } = useTranslation()
+  const { t, tEnum } = useTranslation()
   const { toast } = useToast()
   const [step, setStep] = useState<1 | 2 | 3>(1)
   const [submitting, setSubmitting] = useState(false)
@@ -439,13 +440,7 @@ export default function RegisterPage() {
       </div>
 
       <div className="mt-4">
-        <Button
-          variant="outline"
-          onClick={() => setLanguage(language === "en" ? "es" : "en")}
-          className="text-xs text-muted-foreground"
-        >
-          {language === "en" ? "Español" : "English"}
-        </Button>
+        <AuthLanguageToggle className="text-xs" />
       </div>
     </div>
   )

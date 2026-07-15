@@ -12,6 +12,7 @@ import { LoadingSpinner } from "@/components/loading-spinner"
 import { toast } from "@/hooks/use-toast"
 import { useTranslation } from "@/hooks/use-translation"
 import { acceptInvite } from "@/lib/api/sub-users"
+import { AuthLanguageToggle } from "@/components/auth-language-toggle"
 import ContreolJobs from "../../icons/Logos/ControlJobs.svg"
 import EmployerInviteSignup from "@/components/employer-invite-signup"
 import WorkerInviteSignup from "@/components/worker-invite-signup"
@@ -185,6 +186,9 @@ function AcceptInviteForm() {
               </p>
             </CardContent>
           </Card>
+          <div className="mt-4">
+            <AuthLanguageToggle />
+          </div>
         </div>
       )
     }
@@ -200,6 +204,9 @@ function AcceptInviteForm() {
         {tokenType === "client-invite" && (
           <ClientInviteSignup token={token} verified={clientVerified!} />
         )}
+        <div className="mt-4">
+          <AuthLanguageToggle />
+        </div>
       </div>
     )
   }
@@ -311,6 +318,10 @@ function AcceptInviteForm() {
               {busy ? t("setPasswordSaving") : t("setPasswordButton")}
             </Button>
           </form>
+
+          <div className="mt-4 text-center">
+            <AuthLanguageToggle />
+          </div>
         </CardContent>
       </Card>
     </div>

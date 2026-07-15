@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { LoadingSpinner } from "@/components/loading-spinner"
 import { toast } from "@/hooks/use-toast"
 import { useTranslation } from "@/hooks/use-translation"
+import { AuthLanguageToggle } from "@/components/auth-language-toggle"
 import ContreolJobs from "../../../icons/Logos/ControlJobs.svg"
 
 function CheckYourEmailInner() {
@@ -73,6 +74,8 @@ function CheckYourEmailInner() {
           <Link href="/login" className="block text-sm text-primary hover:underline">
             {t("checkEmailBackToLogin")}
           </Link>
+
+          <AuthLanguageToggle />
         </CardContent>
       </Card>
     </div>
