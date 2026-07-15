@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { createContext, useEffect, useState } from "react"
+import { createContext, useCallback, useEffect, useMemo, useState } from "react"
 
 type Language = "en" | "es" | "de"
 
@@ -31,19 +31,18 @@ export function LanguageProvider({
     }
   }, [])
 
-  const handleSetLanguage = (newLanguage: Language) => {
+  const handleSetLanguage = useCallback((newLanguage: Language) => {
     setLanguage(newLanguage)
     localStorage.setItem("language", newLanguage)
-  }
+  }, [])
 
-  return (
-    <LanguageContext.Provider
-      value={{
-        language,
-        setLanguage: handleSetLanguage,
-      }}
-    >
-      {children}
-    </LanguageContext.Provider>
+  // Memoized: this context is consumed by nearly every component via
+  // useTranslation, so a new value object each render would re-render the
+  // whole tree.
+  const value = useMemo(
+    () => ({ language, setLanguage: handleSetLanguage }),
+    [language, handleSetLanguage],
   )
+
+  return <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>
 }

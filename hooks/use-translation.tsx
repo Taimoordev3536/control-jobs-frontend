@@ -64,7 +64,7 @@
 "use client"
 
 import { LanguageContext } from "@/components/language-provider"
-import { useContext } from "react"
+import { useCallback, useContext, useMemo } from "react"
 import translations from "@/lib/translations/translations"
 import dashboardTranslations from "@/lib/translations/dashboard"
 import workerDashboardTranslations from "@/lib/translations/worker-dashboard"
@@ -99,7 +99,7 @@ type TranslationNamespace =
 export function useTranslation(namespace: TranslationNamespace = "default") {
   const { language, setLanguage } = useContext(LanguageContext)
 
-  const getTranslationSource = (ns: TranslationNamespace) => {
+  const getTranslationSource = (ns: TranslationNamespace): any => {
     switch (ns) {
       case "dashboard":
         return dashboardTranslations
@@ -133,40 +133,48 @@ export function useTranslation(namespace: TranslationNamespace = "default") {
     }
   }
 
-  const t = (key: string, params?: Record<string, any>) => {
-    const translationSource = getTranslationSource(namespace) as any
-    const bundle = translationSource[language]
-    let translation: any =
-      bundle?.[key] !== undefined ? bundle[key] : resolvePath(bundle, key)
-    if (translation === undefined || translation === null) translation = key
+  // t and tEnum must keep a stable identity between renders: consumers put
+  // them in useMemo/useCallback dependency lists (the table templates derive
+  // their filtered rows from `t`), and a fresh function each render silently
+  // invalidates those caches.
+  const t = useCallback(
+    (key: string, params?: Record<string, any>) => {
+      const bundle = getTranslationSource(namespace)[language]
+      let translation: any =
+        bundle?.[key] !== undefined ? bundle[key] : resolvePath(bundle, key)
+      if (translation === undefined || translation === null) translation = key
 
-    // Handle interpolation for dynamic values
-    if (params && typeof translation === "string") {
-      Object.keys(params).forEach((param) => {
-        translation = translation.replace(`{{${param}}}`, params[param])
-      })
-    }
+      // Handle interpolation for dynamic values
+      if (params && typeof translation === "string") {
+        Object.keys(params).forEach((param) => {
+          translation = translation.replace(`{{${param}}}`, params[param])
+        })
+      }
 
-    return translation
-  }
+      return translation
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [namespace, language],
+  )
 
   // Translate an enum/lookup value. `category` is the namespace inside
   // `enums` (e.g. "employerType"), `value` is the language-neutral key
   // returned by the backend (e.g. "HOME"). Falls back to the raw value
   // so missing translations never break the UI.
-  const tEnum = (category: string, value: string | null | undefined) => {
-    if (value === null || value === undefined || value === "") return ""
-    const key = `enums.${category}.${value}`
-    const result = t(key)
-    return result === key ? value : result
-  }
+  const tEnum = useCallback(
+    (category: string, value: string | null | undefined) => {
+      if (value === null || value === undefined || value === "") return ""
+      const key = `enums.${category}.${value}`
+      const result = t(key)
+      return result === key ? value : result
+    },
+    [t],
+  )
 
-  return {
-    language,
-    setLanguage,
-    t,
-    tEnum,
-  }
+  return useMemo(
+    () => ({ language, setLanguage, t, tEnum }),
+    [language, setLanguage, t, tEnum],
+  )
 }
 
 // Walk a dot-notation path through the translation bundle. Only used as a

@@ -1,15 +1,18 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import dynamic from "next/dynamic"
 import { useAuth } from "@/hooks/use-auth"
 import { LoadingSpinner } from "@/components/loading-spinner"
 
-// Role-based configuration main pages
-import AdminConfigurationMainPage from "@/components/configuration/admin-configuration/mainPage"
-import PartnerConfigurationMainPage from "@/components/configuration/partner-configuration/mainPage"
-import EmployerConfigurationMainPage from "@/components/configuration/employer-configuration/mainPage"
-import ClientConfigurationMainPage from "@/components/configuration/client-configuration/mainPage"
-import WorkerConfigurationMainPage from "@/components/configuration/worker-configuration/mainPage"
+// Role-based configuration main pages — only one renders, so load on demand
+// rather than shipping all five to every user.
+const opts = { loading: () => <LoadingSpinner />, ssr: false }
+const AdminConfigurationMainPage = dynamic(() => import("@/components/configuration/admin-configuration/mainPage"), opts)
+const PartnerConfigurationMainPage = dynamic(() => import("@/components/configuration/partner-configuration/mainPage"), opts)
+const EmployerConfigurationMainPage = dynamic(() => import("@/components/configuration/employer-configuration/mainPage"), opts)
+const ClientConfigurationMainPage = dynamic(() => import("@/components/configuration/client-configuration/mainPage"), opts)
+const WorkerConfigurationMainPage = dynamic(() => import("@/components/configuration/worker-configuration/mainPage"), opts)
 
 export default function ConfigurationPage() {
   const { session, isLoading, getUserRole } = useAuth()

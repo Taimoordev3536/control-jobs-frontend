@@ -1,13 +1,19 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import dynamic from "next/dynamic"
 import { useAuth } from "@/hooks/use-auth"
 import { LoadingSpinner } from "@/components/loading-spinner"
-import WorkerDashboard from "@/components/dashboards/worker-dashboard/worker-dashboard-main"
-import EmployerDashboard from "@/components/dashboards/employer-dashboard/employer-dashboard"
-import ClientDashboard from "@/components/dashboards/client-dashboard/client-dashboard-main"
-import AdminDashboard from "@/components/dashboards/admin-dashboard"
-import PartnerDashboard from "@/components/dashboards/partner-dashboard"
+
+// Exactly one of these ever renders, but static imports put all five in the
+// /dashboard bundle — so an admin downloaded the worker's QR scanner and
+// selfie capture. Loaded on demand instead, per role.
+const opts = { loading: () => <LoadingSpinner />, ssr: false }
+const WorkerDashboard = dynamic(() => import("@/components/dashboards/worker-dashboard/worker-dashboard-main"), opts)
+const EmployerDashboard = dynamic(() => import("@/components/dashboards/employer-dashboard/employer-dashboard"), opts)
+const ClientDashboard = dynamic(() => import("@/components/dashboards/client-dashboard/client-dashboard-main"), opts)
+const AdminDashboard = dynamic(() => import("@/components/dashboards/admin-dashboard"), opts)
+const PartnerDashboard = dynamic(() => import("@/components/dashboards/partner-dashboard"), opts)
 
 export default function RoleBasedDashboard() {
   const { session, isLoading, getUserRole } = useAuth()
