@@ -7,12 +7,28 @@ import { LoadingSpinner } from "@/components/loading-spinner"
 
 // Role-based configuration main pages — only one renders, so load on demand
 // rather than shipping all five to every user.
-const opts = { loading: () => <LoadingSpinner />, ssr: false }
-const AdminConfigurationMainPage = dynamic(() => import("@/components/configuration/admin-configuration/mainPage"), opts)
-const PartnerConfigurationMainPage = dynamic(() => import("@/components/configuration/partner-configuration/mainPage"), opts)
-const EmployerConfigurationMainPage = dynamic(() => import("@/components/configuration/employer-configuration/mainPage"), opts)
-const ClientConfigurationMainPage = dynamic(() => import("@/components/configuration/client-configuration/mainPage"), opts)
-const WorkerConfigurationMainPage = dynamic(() => import("@/components/configuration/worker-configuration/mainPage"), opts)
+// next/dynamic is an SWC compile-time transform: the options must be an
+// inline object literal, not a shared variable.
+const AdminConfigurationMainPage = dynamic(() => import("@/components/configuration/admin-configuration/mainPage"), {
+  loading: () => <LoadingSpinner />,
+  ssr: false,
+})
+const PartnerConfigurationMainPage = dynamic(() => import("@/components/configuration/partner-configuration/mainPage"), {
+  loading: () => <LoadingSpinner />,
+  ssr: false,
+})
+const EmployerConfigurationMainPage = dynamic(() => import("@/components/configuration/employer-configuration/mainPage"), {
+  loading: () => <LoadingSpinner />,
+  ssr: false,
+})
+const ClientConfigurationMainPage = dynamic(() => import("@/components/configuration/client-configuration/mainPage"), {
+  loading: () => <LoadingSpinner />,
+  ssr: false,
+})
+const WorkerConfigurationMainPage = dynamic(() => import("@/components/configuration/worker-configuration/mainPage"), {
+  loading: () => <LoadingSpinner />,
+  ssr: false,
+})
 
 export default function ConfigurationPage() {
   const { session, isLoading, getUserRole } = useAuth()

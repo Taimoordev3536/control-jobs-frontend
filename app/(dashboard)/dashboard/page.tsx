@@ -8,12 +8,28 @@ import { LoadingSpinner } from "@/components/loading-spinner"
 // Exactly one of these ever renders, but static imports put all five in the
 // /dashboard bundle — so an admin downloaded the worker's QR scanner and
 // selfie capture. Loaded on demand instead, per role.
-const opts = { loading: () => <LoadingSpinner />, ssr: false }
-const WorkerDashboard = dynamic(() => import("@/components/dashboards/worker-dashboard/worker-dashboard-main"), opts)
-const EmployerDashboard = dynamic(() => import("@/components/dashboards/employer-dashboard/employer-dashboard"), opts)
-const ClientDashboard = dynamic(() => import("@/components/dashboards/client-dashboard/client-dashboard-main"), opts)
-const AdminDashboard = dynamic(() => import("@/components/dashboards/admin-dashboard"), opts)
-const PartnerDashboard = dynamic(() => import("@/components/dashboards/partner-dashboard"), opts)
+// next/dynamic is an SWC compile-time transform: the options must be an
+// inline object literal, not a shared variable.
+const WorkerDashboard = dynamic(() => import("@/components/dashboards/worker-dashboard/worker-dashboard-main"), {
+  loading: () => <LoadingSpinner />,
+  ssr: false,
+})
+const EmployerDashboard = dynamic(() => import("@/components/dashboards/employer-dashboard/employer-dashboard"), {
+  loading: () => <LoadingSpinner />,
+  ssr: false,
+})
+const ClientDashboard = dynamic(() => import("@/components/dashboards/client-dashboard/client-dashboard-main"), {
+  loading: () => <LoadingSpinner />,
+  ssr: false,
+})
+const AdminDashboard = dynamic(() => import("@/components/dashboards/admin-dashboard"), {
+  loading: () => <LoadingSpinner />,
+  ssr: false,
+})
+const PartnerDashboard = dynamic(() => import("@/components/dashboards/partner-dashboard"), {
+  loading: () => <LoadingSpinner />,
+  ssr: false,
+})
 
 export default function RoleBasedDashboard() {
   const { session, isLoading, getUserRole } = useAuth()
