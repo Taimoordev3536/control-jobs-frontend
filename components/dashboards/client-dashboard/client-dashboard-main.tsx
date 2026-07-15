@@ -1,6 +1,8 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { apiFetch } from "@/lib/api"
 import { ClipboardList, AlertCircle, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -155,9 +157,9 @@ export default function ClientDashboard() {
   const { t } = useTranslation("dashboard")
   const { t: tg, language } = useTranslation()
   const { t: tf } = useTranslation("fichaje-cards")
-  const { session, logout } = useAuth()
+  const { session, logout, isAuthenticated } = useAuth()
+  const queryClient = useQueryClient()
   const router = useRouter()
-  const [cd, setCd] = useState<any>({ workersToday: 0, checkedInNow: 0, workerNotCheckedIn: 0, pendingRequests: 0, recentRequests: [], todayIds: [] as string[], liveIds: [] as string[] })
   const [jobsTab, setJobsTab] = useState<"today" | "live" | "all">("today")
 
   // Customer-survey status per job publicId, + fill dialog.
@@ -186,56 +188,69 @@ export default function ClientDashboard() {
     setSurveyDialog(entry)
   }
 
+  const { data: dayJobs } = useQuery<any[]>({
+    queryKey: ["jobs", "client", "day"],
+    queryFn: async () => {
+      const j = await apiFetch<any>("/jobs/client/day")
+      return Array.isArray(j?.data?.jobs) ? j.data.jobs : []
+    },
+    enabled: isAuthenticated,
+  })
+
+  const { data: clientRequests } = useQuery<any[]>({
+    queryKey: ["client-requests", "mine"],
+    queryFn: async () => {
+      const j = await apiFetch<any>("/client-requests/mine")
+      return Array.isArray(j?.data) ? j.data : []
+    },
+    enabled: isAuthenticated,
+  })
+
+  // Derived straight from the queries — no state to keep in sync.
+  const cd = useMemo(() => {
+    const jobs = dayJobs ?? []
+    const reqs = clientRequests ?? []
+    let checkedIn = 0
+    let notChecked = 0
+    const workerSet = new Set<string>()
+    for (const job of jobs) {
+      for (const w of job.workers || []) {
+        workerSet.add(String(w.id ?? w.publicId ?? w.name))
+        if (w.active || w.checkInTime) checkedIn++
+        else notChecked++
+      }
+    }
+    return {
+      todayIds: jobs.map((x: any) => x.publicId).filter(Boolean),
+      liveIds: jobs
+        .filter((job: any) => (job.workers || []).some((w: any) => w.active || (w.checkInTime && !w.checkOutTime)))
+        .map((x: any) => x.publicId)
+        .filter(Boolean),
+      workersToday: workerSet.size,
+      checkedInNow: checkedIn,
+      workerNotCheckedIn: notChecked,
+      pendingRequests: reqs.filter((r: any) => r.status === "pending").length,
+      recentRequests: reqs.slice(0, 3),
+    }
+  }, [dayJobs, clientRequests])
+
+  // Real-time: the WebSocket invalidates the day query on check-in/out
+  // events, so no interval polling is needed on top of it.
   useEffect(() => {
     if (!session?.accessToken) return
-    const base = process.env.NEXT_PUBLIC_API_BASE_URL
-    const h = { Authorization: `Bearer ${session.accessToken}` }
-    let alive = true
-    // Live presence — fetched on load + auto-refreshed every 45s
-    const fetchDay = () => {
-      fetch(`${base}/jobs/client/day`, { headers: h })
-        .then((r) => (r.ok ? r.json() : null))
-        .then((j) => {
-          if (!alive) return
-          const dayJobs = Array.isArray(j?.data?.jobs) ? j.data.jobs : []
-          const todayIds = dayJobs.map((x: any) => x.publicId).filter(Boolean)
-          let checkedIn = 0
-          let notChecked = 0
-          const workerSet = new Set<string>()
-          for (const job of dayJobs) {
-            for (const w of job.workers || []) {
-              workerSet.add(String(w.id ?? w.publicId ?? w.name))
-              if (w.active || w.checkInTime) checkedIn++
-              else notChecked++
-            }
-          }
-          const liveIds = dayJobs.filter((job: any) => (job.workers || []).some((w: any) => w.active || (w.checkInTime && !w.checkOutTime))).map((x: any) => x.publicId).filter(Boolean)
-          setCd((p: any) => ({ ...p, todayIds, liveIds, workersToday: workerSet.size, checkedInNow: checkedIn, workerNotCheckedIn: notChecked }))
-        })
-        .catch(() => {})
-    }
-    fetchDay()
-    // Real-time: the WebSocket refetches on check-in/out events, so no
-    // interval polling is needed on top of it.
     const socket = acquireSocket(session.accessToken)
     const onAlert = (a: any) => {
-      const t = a?.type
-      if (t === "CHECK_IN" || t === "CHECK_OUT" || t === "BREAK_START" || t === "BREAK_END") fetchDay()
+      const type = a?.type
+      if (type === "CHECK_IN" || type === "CHECK_OUT" || type === "BREAK_START" || type === "BREAK_END") {
+        queryClient.invalidateQueries({ queryKey: ["jobs", "client", "day"] })
+      }
     }
     socket.on("alerts:new", onAlert)
-    fetch(`${base}/client-requests/mine`, { headers: h })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((j) => {
-        const reqs = Array.isArray(j?.data) ? j.data : []
-        setCd((p: any) => ({ ...p, pendingRequests: reqs.filter((r: any) => r.status === "pending").length, recentRequests: reqs.slice(0, 3) }))
-      })
-      .catch(() => {})
     return () => {
-      alive = false
       socket.off("alerts:new", onAlert)
       releaseSocket(session.accessToken)
     }
-  }, [session?.accessToken])
+  }, [session?.accessToken, queryClient])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   // Tabs removed: always show job cards directly
