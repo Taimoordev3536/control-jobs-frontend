@@ -1,7 +1,9 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 import { useSession } from "next-auth/react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { apiFetch } from "@/lib/api"
 import { ChevronLeft, ChevronRight, Plus, Loader2, ArrowLeft } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -27,16 +29,15 @@ const statusMeta: Record<string, { key: string; fallback: string; badge: string;
 export default function ClientCalendar() {
   const { t } = useTranslation()
   const router = useRouter()
-  const { data: session } = useSession()
+  const { data: session, status } = useSession()
+  const queryClient = useQueryClient()
+  const isAuthenticated = status === "authenticated"
   const base = process.env.NEXT_PUBLIC_API_BASE_URL
   const todayStr = madridTodayKey()
 
   const [tab, setTab] = useState<"laboral" | "solicitudes">("laboral")
   const [view, setView] = useState<"month" | "year">("month")
   const [cursor, setCursor] = useState(() => madridToday())
-  const [days, setDays] = useState<Record<string, any>>({})
-  const [absences, setAbsences] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
   const [from, setFrom] = useState(todayStr)
   const [to, setTo] = useState(todayStr)
   const [reason, setReason] = useState("")
@@ -48,25 +49,33 @@ export default function ClientCalendar() {
   const rangeStart = view === "year" ? new Date(cursor.getFullYear(), 0, 1) : monthStart
   const rangeEnd = view === "year" ? new Date(cursor.getFullYear(), 11, 31) : monthEnd
 
-  const load = useCallback(() => {
-    if (!session?.accessToken) return
-    const h = { Authorization: `Bearer ${session.accessToken}` }
-    setLoading(true)
-    Promise.all([
-      fetch(`${base}/jobs/client/my-calendar?start=${ymd(rangeStart)}&end=${ymd(rangeEnd)}`, { headers: h }).then((r) => r.json()),
-      fetch(`${base}/client-requests/mine`, { headers: h }).then((r) => r.json()),
-    ])
-      .then(([cal, reqs]) => {
-        const map: Record<string, any> = {}
-        ;(cal?.data || []).forEach((d: any) => (map[d.date] = d))
-        setDays(map)
-        setAbsences(Array.isArray(reqs?.data) ? reqs.data.filter((r: any) => r.type === "absence") : [])
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false))
-  }, [session?.accessToken, base, cursor, view])
+  // Keyed by the visible range, so paging back to a month already viewed
+  // renders from cache. Same key as the worker calendar's client variant.
+  const { data: days = {}, isLoading: loadingCal } = useQuery<Record<string, any>>({
+    queryKey: ["calendar", "client-my-calendar", ymd(rangeStart), ymd(rangeEnd)],
+    queryFn: async () => {
+      const cal = await apiFetch<any>(`/jobs/client/my-calendar?start=${ymd(rangeStart)}&end=${ymd(rangeEnd)}`)
+      const map: Record<string, any> = {}
+      ;(cal?.data || []).forEach((d: any) => (map[d.date] = d))
+      return map
+    },
+    enabled: isAuthenticated,
+  })
 
-  useEffect(() => { load() }, [load])
+  const { data: absences = [], isLoading: loadingReq } = useQuery<any[]>({
+    queryKey: ["client-requests", "mine", "absence"],
+    queryFn: async () => {
+      const reqs = await apiFetch<any>("/client-requests/mine")
+      return Array.isArray(reqs?.data) ? reqs.data.filter((r: any) => r.type === "absence") : []
+    },
+    enabled: isAuthenticated,
+  })
+
+  const loading = loadingCal || loadingReq
+  const load = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["calendar"] })
+    queryClient.invalidateQueries({ queryKey: ["client-requests"] })
+  }, [queryClient])
 
   const absenceDays = useMemo(() => {
     const set = new Set<string>()
