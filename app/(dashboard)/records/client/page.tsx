@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { useQuery } from "@tanstack/react-query"
+import { apiFetch } from "@/lib/api"
 import { AnimatedLoader } from "@/components/animated-loader"
 import { useAuth } from "@/hooks/use-auth"
 
@@ -11,10 +13,8 @@ import { Filter } from "lucide-react"
 
 export default function ClientRecordsPage() {
   const router = useRouter()
-  const { session, status } = useAuth() as any
+  const { status, isAuthenticated } = useAuth() as any
 
-  const [records, setRecords] = useState<any[]>([])
-  const [isLoading, setIsLoading] = useState(true)
   const [jobIdParam, setJobIdParam] = useState<string | null>(null)
   const [paramsLoaded, setParamsLoaded] = useState(false)
 
@@ -30,43 +30,18 @@ export default function ClientRecordsPage() {
     }
   }, [])
 
-  useEffect(() => {
-    const fetchRecords = async () => {
-      if (status === "loading" || !paramsLoaded) return
-      if (!session?.accessToken) {
-        setIsLoading(false)
-        return
-      }
-
-      setIsLoading(true)
-      try {
-        const url = new URL(`${process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/client/work-session-records`)
-        if (jobIdParam) url.searchParams.append("jobId", jobIdParam)
-
-        const response = await fetch(url.toString(), {
-          headers: {
-            Authorization: `Bearer ${session.accessToken}`,
-            "Content-Type": "application/json",
-          },
-        })
-
-        const result = await response.json()
-        if (result.isSuccess) {
-          setRecords(result.data)
-        } else {
-          console.error("Failed to fetch client records:", result.message, result.developerError)
-          setRecords([])
-        }
-      } catch (err) {
-        console.error("Error fetching client records:", err)
-        setRecords([])
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    fetchRecords()
-  }, [jobIdParam, session?.accessToken, status, paramsLoaded])
+  // jobId is part of the key so each filtered view caches separately.
+  const { data: records = [], isLoading: recordsLoading } = useQuery({
+    queryKey: ["records", "client", jobIdParam],
+    queryFn: async () => {
+      const qs = jobIdParam ? `?jobId=${encodeURIComponent(jobIdParam)}` : ""
+      const result = await apiFetch<any>(`/jobs/client/work-session-records${qs}`)
+      return result?.isSuccess ? result.data ?? [] : []
+    },
+    enabled: isAuthenticated && paramsLoaded,
+  })
+  // Params load client-side, so keep showing the loader until they're read.
+  const isLoading = !paramsLoaded || status === "loading" || recordsLoading
 
   const columns = [
     { key: "fecha", label: "Fecha", sortable: true },

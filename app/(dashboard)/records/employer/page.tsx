@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { useQuery } from "@tanstack/react-query"
+import { apiFetch } from "@/lib/api"
 import { useAuth } from "@/hooks/use-auth"
 import { useTranslation } from "@/hooks/use-translation"
 import { AnimatedLoader } from "@/components/animated-loader"
@@ -12,7 +14,7 @@ import { exportToCSV, exportToXLSX, exportToPDF } from "@/lib/export"
 
 export default function EmployerRecordsPage() {
   const router = useRouter()
-  const { session, isLoading: authLoading } = useAuth() as any
+  const { isLoading: authLoading, isAuthenticated } = useAuth() as any
   const { t } = useTranslation("employer-dashboard")
   const [jobIdParam, setJobIdParam] = useState<string | null>(null)
   const [paramsLoaded, setParamsLoaded] = useState(false)
@@ -31,56 +33,18 @@ export default function EmployerRecordsPage() {
     }
   }, [])
 
-  const [records, setRecords] = useState<any[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-
-  // Fetch real work session records
-  useEffect(() => {
-    const fetchRecords = async () => {
-      // Wait for session to be authenticated and params to be loaded
-      if (authLoading || !paramsLoaded) {
-        return
-      }
-
-      if (!session?.accessToken) {
-        setIsLoading(false)
-        return
-      }
-
-      setIsLoading(true)
-      try {
-        const url = new URL(`${process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/employer/work-session-records`)
-        
-        // Add jobId filter if provided
-        if (jobIdParam) {
-          url.searchParams.append('jobId', jobIdParam)
-        }
-
-        const response = await fetch(url.toString(), {
-          headers: {
-            'Authorization': `Bearer ${session.accessToken}`,
-            'Content-Type': 'application/json',
-          },
-        })
-
-        const result = await response.json()
-
-        if (result.isSuccess) {
-          setRecords(result.data)
-        } else {
-          console.error('Failed to fetch records:', result.message, result.developerError)
-          setRecords([])
-        }
-      } catch (error) {
-        console.error('Error fetching work session records:', error)
-        setRecords([])
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    fetchRecords()
-  }, [jobIdParam, session?.accessToken, authLoading, paramsLoaded])
+  // jobId is part of the key so each filtered view caches separately.
+  const { data: records = [], isLoading: recordsLoading } = useQuery({
+    queryKey: ["records", "employer", jobIdParam],
+    queryFn: async () => {
+      const qs = jobIdParam ? `?jobId=${encodeURIComponent(jobIdParam)}` : ""
+      const result = await apiFetch<any>(`/jobs/employer/work-session-records${qs}`)
+      return result?.isSuccess ? result.data ?? [] : []
+    },
+    enabled: isAuthenticated && paramsLoaded,
+  })
+  // Params load client-side, so keep showing the loader until they're read.
+  const isLoading = !paramsLoaded || authLoading || recordsLoading
 
   const columns = [
     { key: "fecha", label: t("checkInCheckOut"), sortable: true },
