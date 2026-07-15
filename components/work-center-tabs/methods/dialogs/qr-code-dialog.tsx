@@ -187,7 +187,9 @@ export function QrCodeDialog({ open, onOpenChange, workCenterId, qrData, onUpdat
     }
 
     update()
-    const interval = setInterval(update, 200)
+    // Countdown shows whole seconds — a 1s tick is enough (was 200ms,
+    // re-rendering the dialog 5x/second).
+    const interval = setInterval(update, 1000)
     return () => {
       clearInterval(interval)
       if (refetchTimer) clearTimeout(refetchTimer)
