@@ -137,7 +137,7 @@ export default function TabTableTemplate({
       if (typeof aValue === "string" && typeof bValue === "string") {
         return sortDirection === "asc"
           ? aValue.localeCompare(bValue)
-          : bValue.localeCompare(bValue)
+          : bValue.localeCompare(aValue)
       }
 
       return sortDirection === "asc"
@@ -325,7 +325,7 @@ export default function TabTableTemplate({
                               type="text"
                               size={1}
                               value={filters[column.key] || ""}
-                              onChange={(e) => setFilters((prev) => ({ ...prev, [column.key]: e.target.value }))}
+                              onChange={(e) => setFilters({ ...filters, [column.key]: e.target.value })}
                               placeholder={t("filter") + "..."}
                               className="w-full min-w-0 p-1 text-sm border rounded focus:outline-none focus:border-[#662D91] focus:ring-1 focus:ring-[#662D91]"
                             />
