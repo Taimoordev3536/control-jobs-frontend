@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react"
 import { MapPin, Crosshair, Loader2 } from "lucide-react"
+import { loadGoogleMaps } from "@/lib/google-maps-loader"
 import {
   Dialog,
   DialogContent,
@@ -189,8 +190,18 @@ export function LocationPickerDialog({
   // ---------------------------------------------------------------------------
   // Initialise map once dialog is visible and google is available
   // ---------------------------------------------------------------------------
+  const [mapsLoaded, setMapsLoaded] = useState(false)
   useEffect(() => {
-    if (!dialogReady || !mapRef.current || !window.google?.maps || mapReady)
+    if (!open) return
+    let cancelled = false
+    loadGoogleMaps()
+      .then(() => { if (!cancelled) setMapsLoaded(true) })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [open])
+
+  useEffect(() => {
+    if (!dialogReady || !mapsLoaded || !mapRef.current || !window.google?.maps || mapReady)
       return
 
     const parsedInitLat = initialLat != null ? parseFloat(String(initialLat)) : NaN
@@ -247,7 +258,7 @@ export function LocationPickerDialog({
       locateMe()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dialogReady])
+  }, [dialogReady, mapsLoaded])
 
   // ---------------------------------------------------------------------------
   // Confirm selection

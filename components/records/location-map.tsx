@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
+import { loadGoogleMaps } from "@/lib/google-maps-loader"
 
 /**
  * Read-only Google Map with a single marker — same JS Maps API flow used by the
@@ -11,28 +12,11 @@ export default function LocationMap({ lat, lng, className }: { lat: number; lng:
   const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
-    const w = window as any
-    if (w.google?.maps) {
-      setLoaded(true)
-      return
-    }
-    // If the script is already loading (e.g. from a work-center dialog), poll for readiness
-    const existing = document.querySelector('script[src*="maps.googleapis.com"]')
-    if (existing) {
-      const iv = setInterval(() => {
-        if (w.google?.maps) {
-          setLoaded(true)
-          clearInterval(iv)
-        }
-      }, 200)
-      return () => clearInterval(iv)
-    }
-    w.initRecordLocationMap = () => setLoaded(true)
-    const script = document.createElement("script")
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&callback=initRecordLocationMap`
-    script.async = true
-    script.defer = true
-    document.head.appendChild(script)
+    let cancelled = false
+    loadGoogleMaps()
+      .then(() => { if (!cancelled) setLoaded(true) })
+      .catch(() => {})
+    return () => { cancelled = true }
   }, [])
 
   useEffect(() => {

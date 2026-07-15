@@ -83,11 +83,8 @@ export default function RootLayout({
           `}
         </Script>
 
-        {/* ✅ Google Maps API Script */}
-        <Script
-          src={`https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places`}
-          strategy="afterInteractive"
-        />
+        {/* Google Maps loads on demand via lib/google-maps-loader.ts, only on
+            pages that render a map or address autocomplete. */}
 
         <AuthProvider>
           <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>

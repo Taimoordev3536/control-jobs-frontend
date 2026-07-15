@@ -11,9 +11,6 @@ const nextConfig = {
     unoptimized: true,
   },
   webpack: (config, { isServer, webpack: wp }) => {
-    // Force new content hashes every deploy by salting webpack's hash function
-    config.output.hashSalt = `deploy-${Date.now()}`;
-
     const fileLoaderRule = config.module.rules.find((rule) =>
       rule.test instanceof RegExp && rule.test.test('.svg')
     );

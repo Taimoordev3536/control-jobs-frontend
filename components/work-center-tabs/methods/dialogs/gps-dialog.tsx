@@ -10,6 +10,7 @@ import { Slider } from "@/components/ui/slider"
 import { useAuth } from "@/hooks/use-auth"
 import { useTranslation } from "@/hooks/use-translation"
 import { toast } from "@/hooks/use-toast"
+import { loadGoogleMaps } from "@/lib/google-maps-loader"
 
 declare global {
   interface Window {
@@ -206,35 +207,11 @@ export function GpsDialog({ open, onOpenChange, workCenterId, gpsData, defaultLa
   // Load Google Maps Script
   useEffect(() => {
     if (!open) return
-
-    const loadGoogleMaps = () => {
-      // Check if already loaded
-      if (window.google?.maps) {
-        setMapLoaded(true)
-        return
-      }
-
-      // Check if script is already in DOM
-      const existingScript = document.querySelector('script[src*="maps.googleapis.com"]')
-      if (existingScript) {
-        existingScript.addEventListener('load', () => setMapLoaded(true))
-        return
-      }
-
-      // Create callback
-      window.initGoogleMap = () => {
-        setMapLoaded(true)
-      }
-
-      // Load script
-      const script = document.createElement("script")
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&callback=initGoogleMap`
-      script.async = true
-      script.defer = true
-      document.head.appendChild(script)
-    }
-
+    let cancelled = false
     loadGoogleMaps()
+      .then(() => { if (!cancelled) setMapLoaded(true) })
+      .catch(() => {})
+    return () => { cancelled = true }
   }, [open])
 
   // Initialize map when loaded

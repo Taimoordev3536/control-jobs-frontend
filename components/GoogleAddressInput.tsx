@@ -1,6 +1,7 @@
 "use client"
 import React, { useEffect, useRef, useState, useCallback } from "react"
 import { normalizeFloorDoor, extractFloorDoorFromFormattedAddress } from "@/lib/utils/normalize-floor-door"
+import { loadGoogleMaps } from "@/lib/google-maps-loader"
 
 export interface AddressComponents {
   street?: string
@@ -61,13 +62,11 @@ const GoogleAddressInput: React.FC<GoogleAddressInputProps> = ({
   }, [value])
 
   useEffect(() => {
-    const checkGoogle = setInterval(() => {
-      if (window.google && window.google.maps) {
-        setIsReady(true)
-        clearInterval(checkGoogle)
-      }
-    }, 300)
-    return () => clearInterval(checkGoogle)
+    let cancelled = false
+    loadGoogleMaps()
+      .then(() => { if (!cancelled) setIsReady(true) })
+      .catch(() => {})
+    return () => { cancelled = true }
   }, [])
 
   useEffect(() => {
