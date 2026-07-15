@@ -1,6 +1,7 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Plus } from "lucide-react"
 import { useRouter } from "next/navigation"
 import DataListTemplate, { ExcelIcon, CsvIcon, PdfIcon } from "@/components/ui/data-list-template"
@@ -13,21 +14,19 @@ import { apiFetch } from "@/lib/api"
 
 export default function AllJobsPage() {
   const { t } = useTranslation()
-  const { session } = useAuth()
+  const { isAuthenticated } = useAuth()
   const router = useRouter()
-  const [jobs, setJobs] = useState<any[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const queryClient = useQueryClient()
   const [showAddJobModal, setShowAddJobModal] = useState(false)
-  const [refreshKey, setRefreshKey] = useState(0)
 
-  useEffect(() => {
-    if (!session?.accessToken) return
-    setIsLoading(true)
-    apiFetch<{ data: any[] }>("/jobs/employer/all-jobs")
-      .then((j) => setJobs(Array.isArray(j?.data) ? j.data : []))
-      .catch(() => setJobs([]))
-      .finally(() => setIsLoading(false))
-  }, [session?.accessToken, refreshKey])
+  const { data: jobs = [], isLoading } = useQuery({
+    queryKey: ["jobs", "employer-all"],
+    queryFn: async () => {
+      const j = await apiFetch<{ data: any[] }>("/jobs/employer/all-jobs")
+      return Array.isArray(j?.data) ? j.data : []
+    },
+    enabled: isAuthenticated,
+  })
 
   const estado = (s: string) => {
     if (s === "cancelled") return { label: t("statusCancelled") || "Cancelado", color: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300" }
@@ -89,7 +88,7 @@ export default function AllJobsPage() {
         onRowClick={(row: any) => router.push(`/jobs/${row.publicId}/detail`)}
         getRowId={(r: any) => r.publicId}
       />
-      <AddJobModal open={showAddJobModal} onOpenChange={setShowAddJobModal} onJobAdded={() => setRefreshKey((k) => k + 1)} />
+      <AddJobModal open={showAddJobModal} onOpenChange={setShowAddJobModal} onJobAdded={() => queryClient.invalidateQueries({ queryKey: ["jobs", "employer-all"] })} />
     </>
   )
 }

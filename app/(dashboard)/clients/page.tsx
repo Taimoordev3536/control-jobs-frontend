@@ -5,21 +5,32 @@ import { exportToCSV, exportToXLSX, exportToPDF } from "@/lib/export"
 import { useRouter } from "next/navigation"
 import { Plus, Filter } from "lucide-react"
 import { useTranslation } from "@/hooks/use-translation"
-import { useState, useEffect, useCallback } from "react"
+import { useState, useMemo } from "react"
 import AddClientModal from "@/components/add-client-modal"
 import { useAuth } from "@/hooks/use-auth"
 import { AnimatedLoader } from "@/components/animated-loader"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { apiFetch } from "@/lib/api"
 
 export default function ClientsPage() {
   const router = useRouter()
   const { t } = useTranslation()
-  const { session } = useAuth()
+  const { isAuthenticated } = useAuth()
+  const queryClient = useQueryClient()
 
   const [showAddModal, setShowAddModal] = useState(false)
-  const [clients, setClients] = useState<any[]>([])
-  const [isLoading, setIsLoading] = useState(true)
 
-  // Map backend client data to table row format
+  // Cache holds raw rows; mapping stays outside so type labels re-translate
+  // when the language changes.
+  const { data: rawClients = [], isLoading } = useQuery({
+    queryKey: ["clients"],
+    queryFn: async () => {
+      const body = await apiFetch("/client")
+      return body?.data || []
+    },
+    enabled: isAuthenticated,
+  })
+
   const mapClient = (c: any) => ({
     id: c.publicId || c.id?.toString() || c.clientId?.toString() || "",
     name: c.name || "-",
@@ -30,49 +41,8 @@ export default function ClientsPage() {
     asset: c.active === true || c.active === "true",
   })
 
-  const fetchClients = useCallback(async () => {
-    if (!session?.accessToken) return
-    setIsLoading(true)
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/client`, {
-        headers: {
-          Authorization: `Bearer ${session.accessToken}`,
-          "Content-Type": "application/json",
-        },
-      })
-      if (!res.ok) throw new Error("Failed to fetch clients")
-      const data = await res.json()
-      const mappedClients = (data.data || []).map(mapClient)
-      setClients(mappedClients)
-    } catch (err) {
-      console.error("Error fetching clients:", err)
-      setClients([])
-    } finally {
-      setIsLoading(false)
-    }
-  }, [session?.accessToken])
-
-  useEffect(() => {
-    fetchClients()
-  }, [fetchClients])
-
-  // Re-fetch client list when user navigates back to this page
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        fetchClients()
-      }
-    }
-    const handleFocus = () => {
-      fetchClients()
-    }
-    document.addEventListener("visibilitychange", handleVisibilityChange)
-    window.addEventListener("focus", handleFocus)
-    return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange)
-      window.removeEventListener("focus", handleFocus)
-    }
-  }, [fetchClients])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const clients = useMemo(() => rawClients.map(mapClient), [rawClients, t])
 
   const columns = [
     { key: "name", label: t("name"), sortable: true },
@@ -160,7 +130,8 @@ export default function ClientsPage() {
         open={showAddModal}
         onOpenChange={setShowAddModal}
         onClientAdded={(newClient) => {
-          setClients((prev) => [mapClient(newClient), ...prev])
+          queryClient.setQueryData(["clients"], (prev: any[] = []) => [newClient, ...prev])
+          queryClient.invalidateQueries({ queryKey: ["clients"] })
           setShowAddModal(false)
         }}
       />

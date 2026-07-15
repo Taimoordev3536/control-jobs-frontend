@@ -6,54 +6,39 @@ import AddWorkerModal from "@/components/add-worker-modal"
 import { useRouter } from "next/navigation"
 import { Plus, Filter } from "lucide-react"
 import { useTranslation } from "@/hooks/use-translation"
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useAuth } from "@/hooks/use-auth"
 import { AnimatedLoader } from "@/components/animated-loader"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { apiFetch } from "@/lib/api"
+
+// Map backend worker data to table row format
+const mapWorker = (w: any) => ({
+  id: w.publicId || w.id?.toString() || w.workerId?.toString() || "",
+  name: w.name || w.fullName || w.workerName || "-",
+  occupation: w.occupation || "-",
+  telephones: w.mobile || "-",
+  population: w.locality || w.city || w.address || "-",
+  postalCode: w.postalCode || "-",
+  asset: w.asset !== undefined ? (w.asset === "yeah" || w.asset === true) : (w.active === true || w.active === "true"),
+})
 
 export default function WorkersPage() {
   const router = useRouter()
   const { t } = useTranslation()
-  const { session } = useAuth()
+  const { isAuthenticated } = useAuth()
+  const queryClient = useQueryClient()
 
-  const [workers, setWorkers] = useState<any[]>([])
-  const [isLoading, setIsLoading] = useState(true)
   const [showAddModal, setShowAddModal] = useState(false)
 
-  // Map backend worker data to table row format
-  const mapWorker = (w: any) => ({
-    id: w.publicId || w.id?.toString() || w.workerId?.toString() || "",
-    name: w.name || w.fullName || w.workerName || "-",
-    occupation: w.occupation || "-",
-    telephones: w.mobile || "-",
-    population: w.locality || w.city || w.address || "-",
-    postalCode: w.postalCode || "-",
-    asset: w.asset !== undefined ? (w.asset === "yeah" || w.asset === true) : (w.active === true || w.active === "true"),
+  const { data: workers = [], isLoading } = useQuery({
+    queryKey: ["workers"],
+    queryFn: async () => {
+      const body = await apiFetch("/worker")
+      return (body?.data || []).map(mapWorker)
+    },
+    enabled: isAuthenticated,
   })
-
-  useEffect(() => {
-    const fetchWorkers = async () => {
-      if (!session?.accessToken) return
-      setIsLoading(true)
-      try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/worker`, {
-          headers: {
-            Authorization: `Bearer ${session.accessToken}`,
-            "Content-Type": "application/json",
-          },
-        })
-        if (!res.ok) throw new Error("Failed to fetch workers")
-        const data = await res.json()
-        const mapped = (data.data || []).map(mapWorker)
-        setWorkers(mapped)
-      } catch (err) {
-        console.error("Error fetching workers:", err)
-        setWorkers([])
-      } finally {
-        setIsLoading(false)
-      }
-    }
-    fetchWorkers()
-  }, [session?.accessToken])
 
   const columns = [
     { key: "name", label: t("name"), sortable: true },
@@ -138,7 +123,8 @@ export default function WorkersPage() {
         open={showAddModal}
         onOpenChange={setShowAddModal}
         onWorkerAdded={(newWorker) => {
-          setWorkers((prev) => [mapWorker(newWorker), ...prev])
+          queryClient.setQueryData(["workers"], (prev: any[] = []) => [mapWorker(newWorker), ...prev])
+          queryClient.invalidateQueries({ queryKey: ["workers"] })
           setShowAddModal(false)
         }}
       />
