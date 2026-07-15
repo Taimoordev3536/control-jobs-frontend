@@ -239,7 +239,6 @@ export default function WorkerDashboardMain() {
     city: "San Francisco",
     country: "United States",
   });
-  const [currentTime, setCurrentTime] = useState(new Date());
   const [loading, setLoading] = useState(true);
   // removed tab menu - show assignments directly
   const [error, setError] = useState<string | null>(null);
@@ -575,12 +574,6 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
     fetchWorkerJobs();
   }, [session?.accessToken]);
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
 
   useEffect(() => {
     const checkLocation = () => {

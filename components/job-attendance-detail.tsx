@@ -202,7 +202,6 @@ export function JobAttendanceDetail({ job, jobId, jobData, onBack }: JobAttendan
   const router = useRouter()
   const { session } = useAuth()
   const { t } = useTranslation("job-attendance-detail")
-  const [currentTime, setCurrentTime] = useState(new Date())
   const [expandedHistoryCards, setExpandedHistoryCards] = useState<{ [key: string]: boolean }>({})
   const [historyFilters, setHistoryFilters] = useState({
     dateRange: "thisMonth",
@@ -419,12 +418,6 @@ export function JobAttendanceDetail({ job, jobId, jobData, onBack }: JobAttendan
     }
   }, [job?.id, jobId, session?.accessToken, historyFilters.dateRange])
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date())
-    }, 1000)
-    return () => clearInterval(timer)
-  }, [])
 
   const toggleHistoryCard = (date: string) => {
     setExpandedHistoryCards((prev) => ({

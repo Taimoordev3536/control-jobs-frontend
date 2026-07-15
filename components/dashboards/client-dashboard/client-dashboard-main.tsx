@@ -236,7 +236,6 @@ export default function ClientDashboard() {
       releaseSocket(session.accessToken)
     }
   }, [session?.accessToken])
-  const [currentTime, setCurrentTime] = useState(new Date())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   // Tabs removed: always show job cards directly
@@ -466,12 +465,6 @@ export default function ClientDashboard() {
     }
   }, [session?.accessToken])
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date())
-    }, 1000)
-    return () => clearInterval(timer)
-  }, [])
 
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString("en-US", {
