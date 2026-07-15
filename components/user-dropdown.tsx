@@ -17,6 +17,8 @@ import {
 import { useTranslation } from "@/hooks/use-translation"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
+import { useQuery } from "@tanstack/react-query"
+import { apiFetch } from "@/lib/api"
 import { useBackendError } from "@/lib/backend-error"
 import { logoEndpointsFor } from "@/lib/logo-endpoints"
 import { LogOut, CreditCard, DollarSign, Plus, Loader2, Calendar, FileText } from "lucide-react"
@@ -24,7 +26,7 @@ import Link from "next/link"
 
 export function UserDropdown() {
   const { t } = useTranslation()
-  const { user, session, logout, getUserRole, isSubUser, isImpersonating } = useAuth()
+  const { user, session, logout, getUserRole, isSubUser, isImpersonating, isAuthenticated } = useAuth()
   const { toast } = useToast()
   const translateBackendError = useBackendError()
   const userRole = getUserRole()
@@ -41,39 +43,29 @@ export function UserDropdown() {
   const canUploadLogo = !!identityUploadEndpoint && !isImpersonating
   const displayLogoUrl = logoUrl
 
-  // Fetch the active user's avatar (employer: profilePhotoUrl, every other
-  // role: logoUrl) for both the navbar trigger and the dropdown header.
+  // The active user's avatar (employer: profilePhotoUrl, every other role:
+  // logoUrl). For employers endpoints.read is "/employers/me" — the same key
+  // the dashboard uses, so the two share one request instead of duplicating.
+  const { data: identity } = useQuery({
+    queryKey: endpoints?.read === "/employers/me" ? ["employers", "me"] : ["identity", endpoints?.read],
+    queryFn: async () => (await apiFetch<{ data: any }>(endpoints!.read))?.data ?? null,
+    enabled: !!endpoints?.read && isAuthenticated,
+  })
+
   // Listens to a global event so a /mydata or +button upload reflects
   // immediately without a page reload.
   useEffect(() => {
-    if (!endpoints || !session?.accessToken) {
-      setLogoUrl(null)
-      return
-    }
-    let cancelled = false
-    const load = async () => {
-      try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}${endpoints.read}`, {
-          headers: { Authorization: `Bearer ${session.accessToken}` },
-        })
-        if (!res.ok) return
-        const result = await res.json()
-        if (!cancelled) setLogoUrl(result?.data?.[identityUrlField] ?? null)
-      } catch {
-        // swallow — no avatar just means we render initials/placeholder
-      }
-    }
-    load()
+    setLogoUrl(identity?.[identityUrlField] ?? null)
+  }, [identity, identityUrlField])
+
+  useEffect(() => {
     const onIdentityChanged = (e: Event) => {
       const next = (e as CustomEvent<{ url: string | null }>).detail?.url ?? null
       setLogoUrl(next)
     }
     window.addEventListener("user-identity-changed", onIdentityChanged as EventListener)
-    return () => {
-      cancelled = true
-      window.removeEventListener("user-identity-changed", onIdentityChanged as EventListener)
-    }
-  }, [endpoints?.read, session?.accessToken, identityUrlField])
+    return () => window.removeEventListener("user-identity-changed", onIdentityChanged as EventListener)
+  }, [])
 
   const onPickFile = (e: React.MouseEvent) => {
     // Prevent the dropdown from treating this as an item click that would

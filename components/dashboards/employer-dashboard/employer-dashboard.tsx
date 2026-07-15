@@ -1,7 +1,9 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useRouter } from "next/navigation"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { apiFetch } from "@/lib/api"
 import { acquireSocket, releaseSocket } from "@/lib/socket"
 import {
   Search,
@@ -175,104 +177,51 @@ export default function EmployerDashboard() {
   const router = useRouter()
   const { t } = useTranslation("employer-dashboard")
   const { t: tg, language } = useTranslation()
-  const { session, logout } = useAuth()
+  const { session, logout, isAuthenticated } = useAuth()
+  const queryClient = useQueryClient()
 
-  const [jobs, setJobs] = useState<Job[]>([])
-  const [stats, setStats] = useState<Stats>({
-    totalJobs: 0,
-    inProgressJobs: 0,
-    totalWorkers: 0,
-    completionRate: 0,
-    avgRating: 0,
-    totalClients: 0,
-    pendingJobs: 0,
-    completedJobs: 0,
-    totalRevenue: 0,
-    monthlyGrowth: 0,
-  })
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [occupationFilter, setOccupationFilter] = useState("all")
   const [workCenterFilter, setWorkCenterFilter] = useState("all")
   const [dateFilter, setDateFilter] = useState("all")
-  const [loading, setLoading] = useState(true)
   const [showAddJobModal, setShowAddJobModal] = useState(false)
-  const [error, setError] = useState<string | null>(null)
   const [selectedJobForDetail, setSelectedJobForDetail] = useState<string | null>(null)
   const [manualAttendanceJob, setManualAttendanceJob] = useState<any>(null)
   const [showManualAttendanceForm, setShowManualAttendanceForm] = useState(false)
-  const [pendingRequestsCount, setPendingRequestsCount] = useState(0)
-  // Trial-end / payment-method state — drives the AWAITING_PAYMENT_METHOD
-  // banner and the modal triggered from it. We poll once on mount; the
-  // modal's `onSaved` callback flips this locally so the banner disappears
-  // immediately on save without needing another round-trip.
-  const [billingStatus, setBillingStatus] = useState<string | null>(null)
-  const [currentPaymentMethodId, setCurrentPaymentMethodId] = useState<number | null>(null)
+  // Trial-end / payment-method banner state comes from the ["employers","me"]
+  // query below; the modal's `onSaved` patches that cache entry so the banner
+  // clears immediately without another round-trip.
   const [showPaymentMethodModal, setShowPaymentMethodModal] = useState(false)
-  const [pendingRateChange, setPendingRateChange] = useState<{
-    effectiveAt: string
-    monthlyFixed: number
-    perWorkCenter: number
-    perWorker: number
-  } | null>(null)
-  const [attn, setAttn] = useState({ incidents: 0, clientRequests: 0, absences: 0, overdueInvoices: 0 })
   const [jobsTab, setJobsTab] = useState<"today" | "live" | "all">("today")
   const [clientFilter, setClientFilter] = useState("all")
   const [workerFilter, setWorkerFilter] = useState("all")
-  const [todayJobIds, setTodayJobIds] = useState<Set<string>>(new Set())
-  const [liveJobIds, setLiveJobIds] = useState<Set<string>>(new Set())
-  const [liveStats, setLiveStats] = useState({ workingNow: 0, notChecked: 0, checkedOut: 0 })
 
-  useEffect(() => {
-    if (!session?.accessToken) return
-    let cancelled = false
-    const load = async () => {
-      try {
-        const meRes = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/employers/me`, {
-          headers: { Authorization: `Bearer ${session.accessToken}` },
-        })
-        if (!meRes.ok) return
-        const meJson = await meRes.json()
-        if (cancelled) return
-        const employerId = meJson?.data?.id
-        setBillingStatus(meJson?.data?.billingStatus ?? null)
-        setCurrentPaymentMethodId(meJson?.data?.paymentMethodId ?? null)
+  // /employers/me is shared with other screens via this key; the billing
+  // preview genuinely depends on the employerId it returns, so it stays
+  // chained (enabled on employerId) rather than parallel.
+  const { data: me } = useQuery({
+    queryKey: ["employers", "me"],
+    queryFn: async () => (await apiFetch<{ data: any }>("/employers/me"))?.data ?? null,
+    enabled: isAuthenticated,
+  })
+  const employerId = me?.id ?? null
+  const billingStatus: string | null = me?.billingStatus ?? null
+  const currentPaymentMethodId: number | null = me?.paymentMethodId ?? null
 
-        if (employerId) {
-          const previewRes = await fetch(
-            `${process.env.NEXT_PUBLIC_API_BASE_URL}/billing/preview`,
-            {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${session.accessToken}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({ employerId }),
-            },
-          )
-          if (previewRes.ok && !cancelled) {
-            const previewJson = await previewRes.json()
-            setPendingRateChange(previewJson?.data?.pendingChange ?? null)
-          }
-        }
-      } catch {
-        /* swallow — banner just won't render */
-      }
-    }
-    load()
-    return () => {
-      cancelled = true
-    }
-  }, [session?.accessToken])
+  const { data: pendingRateChange = null } = useQuery({
+    queryKey: ["billing", "preview", employerId],
+    queryFn: async () => {
+      const json = await apiFetch<{ data: any }>("/billing/preview", {
+        method: "POST",
+        body: JSON.stringify({ employerId }),
+      })
+      return json?.data?.pendingChange ?? null
+    },
+    enabled: isAuthenticated && !!employerId,
+  })
 
   const occupations = [t("cleaning"), t("security"), t("maintenance"), t("delivery"), t("itSupport"), t("landscaping")]
-
-  // Get unique work centers from jobs data (support workCenter or workCenters)
-  const workCenters = Array.from(
-    new Set(
-      jobs.map((job) => job.workCenter?.name || (job as any).workCenters?.[0]?.name || (job as any).workCenterNames || "")
-    )
-  ).filter(Boolean)
 
   // Format date for display
   const formatDateOnly = (date: Date) => {
@@ -501,144 +450,130 @@ export default function EmployerDashboard() {
     }
   }
 
-  // Fetch jobs from API
-  const fetchJobs = async () => {
-    if (!session?.accessToken) {
-      setError(t("unauthorized"))
-      setLoading(false)
-      return
-    }
-
-    setLoading(true)
-    setError(null)
-
-    try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/employer/all-jobs`, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${session.accessToken}`,
-          "Content-Type": "application/json",
-        },
-      })
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          logout()
-          return
-        }
-        throw new Error(`HTTP error! status: ${response.status}`)
+  // Shares the ["jobs","employer-all"] key with the /jobs/all page, so
+  // moving between dashboard and jobs list is served from one cache entry.
+  const {
+    data: jobs = [],
+    isLoading: loading,
+    error: jobsError,
+    refetch: fetchJobs,
+  } = useQuery({
+    queryKey: ["jobs", "employer-all"],
+    queryFn: async () => {
+      const data = await apiFetch<ApiResponse>("/jobs/employer/all-jobs")
+      if (!data?.isSuccess || !data.data) {
+        throw new Error(data?.developerError || data?.message || t("failedToLoadJobs"))
       }
+      return data.data.map(transformApiJobToJob)
+    },
+    enabled: isAuthenticated,
+  })
+  const error = jobsError ? (jobsError as Error).message : null
 
-      const data: ApiResponse = await response.json()
-
-      if (data.isSuccess && data.data) {
-        const transformedJobs = data.data.map(transformApiJobToJob)
-        setJobs(transformedJobs)
-
-        // Calculate stats from real data
-        const totalJobs = transformedJobs.length
-        const inProgressJobs = transformedJobs.filter((job) => job.status === "in_progress").length
-        const scheduledJobs = transformedJobs.filter((job) => job.status === "scheduled").length
-        const completedJobs = transformedJobs.filter((job) => job.status === "completed").length
-        const totalWorkers = new Set(transformedJobs.flatMap((job) => job.workers.map((w) => w.id))).size
-        const uniqueClients = new Set(transformedJobs.map((job) => job.client.name)).size
-
-        setStats({
-          totalJobs,
-          inProgressJobs,
-          totalWorkers,
-          completionRate: totalJobs > 0 ? Math.round((completedJobs / totalJobs) * 100) : 0,
-          avgRating: 4.8, // Static for now
-          totalClients: uniqueClients,
-          pendingJobs: scheduledJobs, // Use scheduled instead of pending
-          completedJobs,
-          totalRevenue: 2450000, // Static for now
-          monthlyGrowth: 18.5, // Static for now
-        })
-      } else {
-        throw new Error(data.developerError || data.message || t("failedToLoadJobs"))
-      }
-    } catch (error) {
-      console.error("Error fetching jobs:", error)
-      setError(error instanceof Error ? error.message : t("failedToLoadJobs"))
-      setJobs([])
-    } finally {
-      setLoading(false)
+  const stats: Stats = useMemo(() => {
+    const totalJobs = jobs.length
+    const completedJobs = jobs.filter((job) => job.status === "completed").length
+    return {
+      totalJobs,
+      inProgressJobs: jobs.filter((job) => job.status === "in_progress").length,
+      totalWorkers: new Set(jobs.flatMap((job) => job.workers.map((w) => w.id))).size,
+      completionRate: totalJobs > 0 ? Math.round((completedJobs / totalJobs) * 100) : 0,
+      avgRating: 4.8, // Static for now
+      totalClients: new Set(jobs.map((job) => job.client.name)).size,
+      pendingJobs: jobs.filter((job) => job.status === "scheduled").length,
+      completedJobs,
+      totalRevenue: 2450000, // Static for now
+      monthlyGrowth: 18.5, // Static for now
     }
-  }
+  }, [jobs])
 
-  useEffect(() => {
-    fetchJobs()
-    // Fetch pending manual attendance requests count
-    if (session?.accessToken) {
-      fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/manual-attendance/requests/pending/count`, {
-        headers: { Authorization: `Bearer ${session.accessToken}` },
-      })
-        .then((r) => r.ok ? r.json() : null)
-        .then((data) => { if (data?.data?.count) setPendingRequestsCount(data.data.count) })
-        .catch(() => {})
+  // Unique work centers from jobs data (support workCenter or workCenters)
+  const workCenters = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          jobs.map((job) => job.workCenter?.name || (job as any).workCenters?.[0]?.name || (job as any).workCenterNames || ""),
+        ),
+      ).filter(Boolean),
+    [jobs],
+  )
 
-      // (live control data — todayJobIds, liveJobIds, liveStats — is fetched + auto-refreshed in a dedicated effect below)
+  const { data: pendingRequestsCount = 0 } = useQuery({
+    queryKey: ["manual-attendance", "pending-count"],
+    queryFn: async () => {
+      const j = await apiFetch<any>("/manual-attendance/requests/pending/count")
+      return j?.data?.count ?? 0
+    },
+    enabled: isAuthenticated,
+  })
 
+  // The four "needs your attention" counters are independent — one query
+  // fetching them in parallel keeps them a single cache entry.
+  const { data: attn = { incidents: 0, clientRequests: 0, absences: 0, overdueInvoices: 0 } } = useQuery({
+    queryKey: ["dashboard", "attention"],
+    queryFn: async () => {
       const countList = (url: string, filter?: (x: any) => boolean) =>
-        fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}${url}`, { headers: { Authorization: `Bearer ${session.accessToken}` } })
-          .then((r) => (r.ok ? r.json() : null))
+        apiFetch<any>(url)
           .then((j) => {
             const arr = Array.isArray(j?.data) ? j.data : Array.isArray(j) ? j : []
             return filter ? arr.filter(filter).length : arr.length
           })
           .catch(() => 0)
-      Promise.all([
+      const [incidents, clientRequests, absences, overdueInvoices] = await Promise.all([
         countList("/jobs/incidents"),
         countList("/client-requests", (r) => (r.status || "").toLowerCase() === "pending"),
         countList("/absences", (r) => (r.status || "").toLowerCase() === "pending"),
         countList("/client/all/invoices", (r) => (r.status || "").toUpperCase() === "OVERDUE"),
-      ]).then(([incidents, clientRequests, absences, overdueInvoices]) =>
-        setAttn({ incidents, clientRequests, absences, overdueInvoices }),
-      )
-    }
-  }, [session?.accessToken])
+      ])
+      return { incidents, clientRequests, absences, overdueInvoices }
+    },
+    enabled: isAuthenticated,
+  })
 
-  // Live presence — fetched on load + auto-refreshed every 45s
+  // Live presence
+  const { data: control = [] } = useQuery({
+    queryKey: ["jobs", "control"],
+    queryFn: async () => {
+      const j = await apiFetch<any>("/jobs/control")
+      return Array.isArray(j?.data) ? j.data : Array.isArray(j?.data?.jobs) ? j.data.jobs : []
+    },
+    enabled: isAuthenticated,
+  })
+
+  const { todayJobIds, liveJobIds, liveStats } = useMemo(() => {
+    const today = new Set<string>(control.map((x: any) => x.publicId).filter(Boolean))
+    const live = new Set<string>(
+      control
+        .filter((x: any) => Array.isArray(x.workers) && x.workers.some((w: any) => (w.checkedIn || w.checkInTime) && !w.checkOutTime))
+        .map((x: any) => x.publicId)
+        .filter(Boolean),
+    )
+    let workingNow = 0, notChecked = 0, checkedOut = 0
+    for (const x of control) for (const w of x.workers || []) {
+      if (w.checkOutTime) checkedOut++
+      else if (w.checkedIn || w.checkInTime) workingNow++
+      else notChecked++
+    }
+    return { todayJobIds: today, liveJobIds: live, liveStats: { workingNow, notChecked, checkedOut } }
+  }, [control])
+
+  // Real-time: the WebSocket invalidates the control query on check-in/out
+  // events, so no interval polling is needed on top of it.
   useEffect(() => {
     if (!session?.accessToken) return
-    let alive = true
-    const fetchControl = () => {
-      fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/control`, { headers: { Authorization: `Bearer ${session.accessToken}` } })
-        .then((r) => (r.ok ? r.json() : null))
-        .then((j) => {
-          if (!alive) return
-          const arr = Array.isArray(j?.data) ? j.data : Array.isArray(j?.data?.jobs) ? j.data.jobs : []
-          setTodayJobIds(new Set(arr.map((x: any) => x.publicId).filter(Boolean)))
-          const live = arr.filter((x: any) => Array.isArray(x.workers) && x.workers.some((w: any) => (w.checkedIn || w.checkInTime) && !w.checkOutTime))
-          setLiveJobIds(new Set(live.map((x: any) => x.publicId).filter(Boolean)))
-          let workingNow = 0
-          let notChecked = 0
-          let checkedOut = 0
-          for (const x of arr) for (const w of x.workers || []) {
-            if (w.checkOutTime) checkedOut++
-            else if (w.checkedIn || w.checkInTime) workingNow++
-            else notChecked++
-          }
-          setLiveStats({ workingNow, notChecked, checkedOut })
-        })
-        .catch(() => {})
-    }
-    fetchControl()
-    // Real-time: the WebSocket refetches on check-in/out events, so no
-    // interval polling is needed on top of it.
     const socket = acquireSocket(session.accessToken)
     const onAlert = (a: any) => {
-      const t = a?.type
-      if (t === "CHECK_IN" || t === "CHECK_OUT" || t === "BREAK_START" || t === "BREAK_END") fetchControl()
+      const type = a?.type
+      if (type === "CHECK_IN" || type === "CHECK_OUT" || type === "BREAK_START" || type === "BREAK_END") {
+        queryClient.invalidateQueries({ queryKey: ["jobs", "control"] })
+      }
     }
     socket.on("alerts:new", onAlert)
     return () => {
-      alive = false
       socket.off("alerts:new", onAlert)
       releaseSocket(session.accessToken)
     }
-  }, [session?.accessToken])
+  }, [session?.accessToken, queryClient])
 
   const handleViewDetails = (job: Job) => {
     router.push(`/jobs/${job.publicId || job.id}/detail`)
@@ -725,7 +660,7 @@ export default function EmployerDashboard() {
             </div>
             <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">{t("errorLoadingJobs")}</h3>
             <p className="text-gray-600 dark:text-gray-400 mb-4 text-sm">{error}</p>
-            <Button size="sm" className="bg-purple-600 hover:bg-purple-700 text-white" onClick={fetchJobs}>
+            <Button size="sm" className="bg-purple-600 hover:bg-purple-700 text-white" onClick={() => fetchJobs()}>
               {t("tryAgain")}
             </Button>
           </CardContent>
@@ -1036,8 +971,13 @@ export default function EmployerDashboard() {
         initialPaymentMethodId={currentPaymentMethodId}
         trialEndedMode={billingStatus === "AWAITING_PAYMENT_METHOD"}
         onSaved={({ paymentMethodId, billingStatus: nextStatus }) => {
-          setCurrentPaymentMethodId(paymentMethodId)
-          if (nextStatus) setBillingStatus(nextStatus)
+          // Patch the cache so the banner clears immediately, same as the
+          // old local state did — no extra round trip.
+          queryClient.setQueryData(["employers", "me"], (prev: any) =>
+            prev
+              ? { ...prev, paymentMethodId, ...(nextStatus ? { billingStatus: nextStatus } : {}) }
+              : prev,
+          )
         }}
       />
     </div>
