@@ -1,7 +1,9 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useState } from "react"
 import { useSession } from "next-auth/react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { apiFetch } from "@/lib/api"
 import { Plus, Loader2, ChevronLeft, ChevronRight, ArrowLeft } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -35,7 +37,9 @@ export default function CalendarPage() {
 function WorkerCalendarView() {
   const { t } = useTranslation()
   const router = useRouter()
-  const { data: session } = useSession()
+  const { data: session, status } = useSession()
+  const queryClient = useQueryClient()
+  const isAuthenticated = status === "authenticated"
   const base = process.env.NEXT_PUBLIC_API_BASE_URL
   const todayStr = madridTodayKey()
 
@@ -43,8 +47,6 @@ function WorkerCalendarView() {
 
   // --- Laboral (month calendar) ---
   const [cursor, setCursor] = useState(() => madridToday())
-  const [days, setDays] = useState<Record<string, any>>({})
-  const [loadingCal, setLoadingCal] = useState(true)
   const [view, setView] = useState<"month" | "year">("month")
 
   const monthStart = new Date(cursor.getFullYear(), cursor.getMonth(), 1)
@@ -52,21 +54,18 @@ function WorkerCalendarView() {
   const rangeStart = view === "year" ? new Date(cursor.getFullYear(), 0, 1) : monthStart
   const rangeEnd = view === "year" ? new Date(cursor.getFullYear(), 11, 31) : monthEnd
 
-  const loadCal = useCallback(() => {
-    if (!session?.accessToken) return
-    setLoadingCal(true)
-    fetch(`${base}/jobs/worker/my-calendar?start=${ymd(rangeStart)}&end=${ymd(rangeEnd)}`, { headers: { Authorization: `Bearer ${session.accessToken}` } })
-      .then((r) => r.json())
-      .then((j) => {
-        const map: Record<string, any> = {}
-        ;(j?.data || []).forEach((d: any) => (map[d.date] = d))
-        setDays(map)
-      })
-      .catch(() => setDays({}))
-      .finally(() => setLoadingCal(false))
-  }, [session?.accessToken, base, cursor, view])
-
-  useEffect(() => { loadCal() }, [loadCal])
+  // The visible range is part of the key, so paging back to a month you've
+  // already viewed renders from cache instead of refetching.
+  const { data: days = {}, isLoading: loadingCal } = useQuery<Record<string, any>>({
+    queryKey: ["calendar", "my-calendar", ymd(rangeStart), ymd(rangeEnd)],
+    queryFn: async () => {
+      const j = await apiFetch<any>(`/jobs/worker/my-calendar?start=${ymd(rangeStart)}&end=${ymd(rangeEnd)}`)
+      const map: Record<string, any> = {}
+      ;(j?.data || []).forEach((d: any) => (map[d.date] = d))
+      return map
+    },
+    enabled: isAuthenticated,
+  })
 
   const step = (dir: number) => setCursor((c) => view === "year" ? new Date(c.getFullYear() + dir, c.getMonth(), 1) : new Date(c.getFullYear(), c.getMonth() + dir, 1))
   const monthLabel = cursor.toLocaleDateString("es-ES", { month: "long", year: "numeric" })
@@ -82,25 +81,20 @@ function WorkerCalendarView() {
   const [startDate, setStartDate] = useState(todayStr)
   const [endDate, setEndDate] = useState(todayStr)
   const [reason, setReason] = useState("")
-  const [list, setList] = useState<any[]>([])
-  const [loadingReq, setLoadingReq] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [filter, setFilter] = useState("")
 
   const typeLabel = (v: string) =>
     ({ vacation: t("absVacation") || "Vacaciones", permit: t("absPermit") || "Permiso", sick: t("absSick") || "Baja", other: t("absOther") || "Otro" } as Record<string, string>)[v] || v
 
-  const loadReq = useCallback(() => {
-    if (!session?.accessToken) return
-    setLoadingReq(true)
-    fetch(`${base}/absences/mine`, { headers: { Authorization: `Bearer ${session.accessToken}` } })
-      .then((r) => r.json())
-      .then((j) => setList(Array.isArray(j?.data) ? j.data : Array.isArray(j) ? j : []))
-      .catch(() => setList([]))
-      .finally(() => setLoadingReq(false))
-  }, [session?.accessToken, base])
-
-  useEffect(() => { loadReq() }, [loadReq])
+  const { data: list = [], isLoading: loadingReq } = useQuery<any[]>({
+    queryKey: ["absences", "mine"],
+    queryFn: async () => {
+      const j = await apiFetch<any>("/absences/mine")
+      return Array.isArray(j?.data) ? j.data : Array.isArray(j) ? j : []
+    },
+    enabled: isAuthenticated,
+  })
 
   const counts = {
     pending: list.filter((r) => r.status === "pending").length,
@@ -125,7 +119,9 @@ function WorkerCalendarView() {
       if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.message || "failed") }
       toast({ title: t("requestSubmitted") || "Solicitud enviada", variant: "success" })
       setType("vacation"); setStartDate(todayStr); setEndDate(todayStr); setReason("")
-      loadReq(); loadCal()
+      // A new absence changes both the request list and the calendar days.
+      queryClient.invalidateQueries({ queryKey: ["absences"] })
+      queryClient.invalidateQueries({ queryKey: ["calendar"] })
     } catch (e: any) {
       toast({ title: e.message || t("error") || "Error", variant: "destructive" })
     } finally {

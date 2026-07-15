@@ -1,6 +1,7 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useMemo, useState } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Filter, Check, X } from "lucide-react"
 import DataListTemplate, { ExcelIcon, CsvIcon } from "@/components/ui/data-list-template"
 import { Button } from "@/components/ui/button"
@@ -25,10 +26,9 @@ function Field({ label, value, multiline }: { label: string; value: string; mult
 
 export default function AbsencesPage() {
   const { t } = useTranslation()
-  const { session } = useAuth()
+  const { session, isAuthenticated } = useAuth()
   const { toast } = useToast()
-  const [data, setData] = useState<any[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const queryClient = useQueryClient()
   const [selected, setSelected] = useState<any | null>(null)
   const [notes, setNotes] = useState("")
   const [saving, setSaving] = useState(false)
@@ -42,16 +42,19 @@ export default function AbsencesPage() {
       rejected: { label: t("rejected") || "Rechazada", color: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300" },
     } as Record<string, { label: string; color: string }>)[v] || { label: v, color: "bg-muted text-muted-foreground" }
 
-  const load = useCallback(() => {
-    if (!session?.accessToken) return
-    setIsLoading(true)
-    apiFetch<{ data: any[] }>("/absences")
-      .then((j) => setData(Array.isArray(j?.data) ? j.data : Array.isArray(j as any) ? (j as any) : []))
-      .catch(() => setData([]))
-      .finally(() => setIsLoading(false))
-  }, [session?.accessToken])
+  const { data = [], isLoading } = useQuery<any[]>({
+    queryKey: ["absences", "list"],
+    queryFn: async () => {
+      const j = await apiFetch<{ data: any[] }>("/absences")
+      return Array.isArray(j?.data) ? j.data : Array.isArray(j as any) ? (j as any) : []
+    },
+    enabled: isAuthenticated,
+  })
 
-  useEffect(() => { load() }, [load])
+  const load = useCallback(
+    () => queryClient.invalidateQueries({ queryKey: ["absences"] }),
+    [queryClient],
+  )
 
   const rows = useMemo(
     () =>
