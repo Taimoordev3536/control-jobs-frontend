@@ -1,7 +1,8 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import { useSession } from "next-auth/react"
+import { useQuery } from "@tanstack/react-query"
+import { apiFetch } from "@/lib/api"
 import TabTableTemplate from "@/components/ui/tab-table-template"
 import { useTranslation } from "@/hooks/use-translation"
 
@@ -11,9 +12,7 @@ interface WorkerClientTabProps {
 
 export function WorkerClientTab({ workerId }: WorkerClientTabProps) {
   const { t } = useTranslation()
-  const { data: session } = useSession()
-  const [data, setData] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const { status } = useSession()
 
   const columns = [
     { key: "name", label: t("name"), sortable: true },
@@ -23,17 +22,14 @@ export function WorkerClientTab({ workerId }: WorkerClientTabProps) {
     { key: "postalCode", label: t("postalCode"), sortable: true },
   ]
 
-  useEffect(() => {
-    if (!session?.accessToken || !workerId) return
-    setLoading(true)
-    fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/worker/${workerId}/clients`, {
-      headers: { Authorization: `Bearer ${session.accessToken}` },
-    })
-      .then((r) => r.json())
-      .then((j) => setData(Array.isArray(j?.data) ? j.data : []))
-      .catch(() => setData([]))
-      .finally(() => setLoading(false))
-  }, [session?.accessToken, workerId])
+  const { data = [], isLoading: loading } = useQuery<any[]>({
+    queryKey: ["worker", workerId, "clients"],
+    queryFn: async () => {
+      const j = await apiFetch<any>(`/worker/${workerId}/clients`)
+      return Array.isArray(j?.data) ? j.data : []
+    },
+    enabled: status === "authenticated" && !!workerId,
+  })
 
   return <TabTableTemplate columns={columns} data={data} loading={loading} emptyMessage={t("noCustomersAvailable")} />
 }

@@ -1,7 +1,8 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import { useSession } from "next-auth/react"
+import { useQuery } from "@tanstack/react-query"
+import { apiFetch } from "@/lib/api"
 import TabTableTemplate from "@/components/ui/tab-table-template"
 import { useTranslation } from "@/hooks/use-translation"
 import { formatLocalDate, formatLocalTime } from "@/lib/datetime"
@@ -20,9 +21,7 @@ const statusStyle = (s: string) =>
 
 export function WorkerSolicitudesTab({ workerId }: WorkerSolicitudesTabProps) {
   const { t } = useTranslation()
-  const { data: session } = useSession()
-  const [data, setData] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const { status } = useSession()
 
   const typeLabel = (v: string) =>
     ({
@@ -58,17 +57,14 @@ export function WorkerSolicitudesTab({ workerId }: WorkerSolicitudesTabProps) {
     },
   ]
 
-  useEffect(() => {
-    if (!session?.accessToken || !workerId) return
-    setLoading(true)
-    fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/manual-attendance/requests?workerId=${workerId}`, {
-      headers: { Authorization: `Bearer ${session.accessToken}` },
-    })
-      .then((r) => r.json())
-      .then((j) => setData(Array.isArray(j?.data) ? j.data : Array.isArray(j) ? j : []))
-      .catch(() => setData([]))
-      .finally(() => setLoading(false))
-  }, [session?.accessToken, workerId])
+  const { data = [], isLoading: loading } = useQuery<any[]>({
+    queryKey: ["manual-attendance", "requests", workerId],
+    queryFn: async () => {
+      const j = await apiFetch<any>(`/manual-attendance/requests?workerId=${workerId}`)
+      return Array.isArray(j?.data) ? j.data : Array.isArray(j) ? j : []
+    },
+    enabled: status === "authenticated" && !!workerId,
+  })
 
   return <TabTableTemplate columns={columns} data={data} loading={loading} emptyMessage={t("noRequestsYet") || "No requests yet"} />
 }
