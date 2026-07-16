@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -132,49 +133,31 @@ export function CurrentJobCard({
   const [selectedWorkCenter, setSelectedWorkCenter] = useState<string | null>(
     null
   );
-  const [todayTasks, setTodayTasks] = useState<any>(null);
-  const [loadingTasks, setLoadingTasks] = useState(false);
+  const [toggling, setToggling] = useState(false);
 
   // Fetch today's tasks grouped by work center
-  const fetchTodayTasks = async () => {
-    if (!job || !session?.accessToken) return;
-
-    setLoadingTasks(true);
-    try {
+  const { data: todayTasks = null, isFetching, refetch } = useQuery<any>({
+    queryKey: ["jobs", job?.publicId || job?.id, "today-tasks"],
+    enabled: !!job && !!session?.accessToken,
+    queryFn: async () => {
       const baseUrl =
         process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001";
       const response = await fetch(`${baseUrl}/jobs/${job.publicId || job.id}/today-tasks`, {
-        headers: {
-          Authorization: `Bearer ${session.accessToken}`,
-        },
+        headers: { Authorization: `Bearer ${session!.accessToken}` },
       });
+      if (!response.ok) return null;
+      const result = await response.json();
+      return result.isSuccess ? result.data : null;
+    },
+  });
+  const loadingTasks = isFetching || toggling;
 
-      if (response.ok) {
-        const result = await response.json();
-        if (result.isSuccess) {
-          setTodayTasks(result.data);
-          // Auto-select first work center if available
-          if (
-            result.data.workCenters &&
-            result.data.workCenters.length > 0 &&
-            !selectedWorkCenter
-          ) {
-            setSelectedWorkCenter(
-              String(result.data.workCenters[0].workCenterId)
-            );
-          }
-        }
-      }
-    } catch (error) {
-      console.error("Failed to fetch today's tasks:", error);
-    } finally {
-      setLoadingTasks(false);
-    }
-  };
-
+  // Auto-select the first work center once tasks load.
   useEffect(() => {
-    fetchTodayTasks();
-  }, [job, session]);
+    if (todayTasks?.workCenters?.length && !selectedWorkCenter) {
+      setSelectedWorkCenter(String(todayTasks.workCenters[0].workCenterId));
+    }
+  }, [todayTasks, selectedWorkCenter]);
 
   const breakTypes = [
     { value: "personal", label: t("personal") },
@@ -188,20 +171,18 @@ export function CurrentJobCard({
   // Handle task completion - mark as complete and reload tasks
   const handleTaskToggleConfirm = async (taskId: number) => {
     try {
-      setLoadingTasks(true);
+      setToggling(true);
       await onTaskToggle(job.id, taskId);
 
       // Wait a bit for the backend to process
       await new Promise((resolve) => setTimeout(resolve, 500));
 
       // Reload tasks to show updated completion status
-      await fetchTodayTasks();
-
-      console.log("✅ Task marked and UI refreshed");
+      await refetch();
     } catch (error) {
       console.error("Failed to toggle task:", error);
     } finally {
-      setLoadingTasks(false);
+      setToggling(false);
     }
   };
 

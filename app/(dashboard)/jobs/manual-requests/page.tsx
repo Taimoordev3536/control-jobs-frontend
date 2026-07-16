@@ -1,6 +1,7 @@
 "use client"
 
-import { useEffect, useState, useCallback, useMemo } from "react"
+import { useState, useMemo } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useAuth } from "@/hooks/use-auth"
 import { useTranslation } from "@/hooks/use-translation"
 import { Card, CardContent } from "@/components/ui/card"
@@ -81,40 +82,31 @@ function MyAttendanceRequestsPage() {
   const isWorker = userRole === "worker"
   const isClient = userRole === "client"
 
-  const [isLoading, setIsLoading] = useState(true)
-  const [requests, setRequests] = useState<ManualAttendanceRequest[]>([])
+  const queryClient = useQueryClient()
   const [activeFilter, setActiveFilter] = useState<StatusFilter>(isWorker ? "all" : "PENDING")
   const [showRequestForm, setShowRequestForm] = useState(false)
   const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({})
   const [reviewingId, setReviewingId] = useState<string | null>(null)
 
-  const fetchMyRequests = useCallback(async () => {
-    if (!session?.accessToken) return
-    setIsLoading(true)
-    try {
+  const { data: requests = [], isLoading } = useQuery<ManualAttendanceRequest[]>({
+    queryKey: ["manual-attendance", "my-requests", isWorker],
+    enabled: !!session?.accessToken,
+    queryFn: async () => {
       const endpoint = isWorker
         ? `${process.env.NEXT_PUBLIC_API_BASE_URL}/manual-attendance/requests/my`
         : `${process.env.NEXT_PUBLIC_API_BASE_URL}/manual-attendance/requests`
-
       const res = await fetch(endpoint, {
         headers: {
-          Authorization: `Bearer ${session.accessToken}`,
+          Authorization: `Bearer ${session!.accessToken}`,
           "Content-Type": "application/json",
         },
       })
       if (!res.ok) throw new Error("Failed to fetch")
       const result = await res.json()
-      setRequests(result.data || [])
-    } catch {
-      setRequests([])
-    } finally {
-      setIsLoading(false)
-    }
-  }, [session?.accessToken, isWorker])
-
-  useEffect(() => {
-    fetchMyRequests()
-  }, [fetchMyRequests])
+      return result.data || []
+    },
+  })
+  const fetchMyRequests = () => queryClient.invalidateQueries({ queryKey: ["manual-attendance", "my-requests"] })
 
   const handleCancel = async (publicId: string) => {
     if (!session?.accessToken) return

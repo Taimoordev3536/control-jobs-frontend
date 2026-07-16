@@ -1,7 +1,8 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useState } from "react"
 import { useSession } from "next-auth/react"
+import { useQuery } from "@tanstack/react-query"
 import { ChevronLeft, ChevronRight, Radio } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -19,30 +20,24 @@ export default function ClientControl() {
   const base = process.env.NEXT_PUBLIC_API_BASE_URL
 
   const [cursor, setCursor] = useState(() => madridToday())
-  const [day, setDay] = useState<any | null>(null)
-  const [allJobs, setAllJobs] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<any | null>(null)
 
   const dateStr = ymd(cursor)
 
-  const load = useCallback(() => {
-    if (!session?.accessToken) return
-    const h = { Authorization: `Bearer ${session.accessToken}` }
-    setLoading(true)
-    Promise.all([
-      fetch(`${base}/jobs/client/day?date=${dateStr}`, { headers: h }).then((r) => r.json()),
-      fetch(`${base}/jobs/client/all-jobs`, { headers: h }).then((r) => r.json()),
-    ])
-      .then(([d, a]) => {
-        setDay(d?.data || null)
-        setAllJobs(Array.isArray(a?.data) ? a.data : [])
-      })
-      .catch(() => { setDay(null); setAllJobs([]) })
-      .finally(() => setLoading(false))
-  }, [session?.accessToken, base, dateStr])
-
-  useEffect(() => { load() }, [load])
+  const { data, isLoading: loading } = useQuery<{ day: any | null; allJobs: any[] }>({
+    queryKey: ["client-control", dateStr],
+    enabled: !!session?.accessToken,
+    queryFn: async () => {
+      const h = { Authorization: `Bearer ${session!.accessToken}` }
+      const [d, a] = await Promise.all([
+        fetch(`${base}/jobs/client/day?date=${dateStr}`, { headers: h }).then((r) => r.json()),
+        fetch(`${base}/jobs/client/all-jobs`, { headers: h }).then((r) => r.json()),
+      ])
+      return { day: d?.data || null, allJobs: Array.isArray(a?.data) ? a.data : [] }
+    },
+  })
+  const day = data?.day || null
+  const allJobs = data?.allJobs || []
 
   const step = (dir: number) => { const d = new Date(cursor); d.setDate(d.getDate() + dir); setCursor(d) }
   const dateLabel = cursor.toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
