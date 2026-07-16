@@ -1,6 +1,7 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useMemo } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { useRouter } from "next/navigation"
 import { Plus, Filter, Printer, Landmark } from "lucide-react"
 import DataListTemplate, { ExcelIcon, CsvIcon, PdfIcon } from "@/components/ui/data-list-template"
@@ -17,28 +18,27 @@ const eur = (n: number) => `${(n || 0).toFixed(2).replace(".", ",")} €`
 export default function CommissionsPage() {
   const router = useRouter()
   const { t } = useTranslation()
-  const { session, hasRole } = useAuth()
+  const { session, hasRole, isAuthenticated } = useAuth()
   const { toast } = useToast()
-  const [data, setData] = useState<any[]>([])
-  const [isLoading, setIsLoading] = useState(true)
   const isAdmin = hasRole("admin")
-  const [companyName, setCompanyName] = useState<string>("ControlJobs")
 
-  useEffect(() => {
-    if (!session?.accessToken) return
-    setIsLoading(true)
-    apiFetch<{ data: any[] }>("/commissions")
-      .then((j) => setData(Array.isArray(j?.data) ? j.data : []))
-      .catch(() => setData([]))
-      .finally(() => setIsLoading(false))
-  }, [session?.accessToken])
+  const { data = [], isLoading } = useQuery<any[]>({
+    queryKey: ["commissions", "list"],
+    queryFn: async () => {
+      const j = await apiFetch<{ data: any[] }>("/commissions")
+      return Array.isArray(j?.data) ? j.data : []
+    },
+    enabled: isAuthenticated,
+  })
 
-  useEffect(() => {
-    if (isAdmin || !session?.accessToken) return
-    apiFetch<any>("/commissions/context")
-      .then((j) => { const c = (j?.data || j)?.company; if (c?.name) setCompanyName(c.name) })
-      .catch(() => {})
-  }, [isAdmin, session?.accessToken])
+  const { data: companyName = "ControlJobs" } = useQuery<string>({
+    queryKey: ["commissions", "company-name"],
+    queryFn: async () => {
+      const j = await apiFetch<any>("/commissions/context")
+      return (j?.data || j)?.company?.name || "ControlJobs"
+    },
+    enabled: isAuthenticated && !isAdmin,
+  })
 
   const statusMeta = (v: string) =>
     ({

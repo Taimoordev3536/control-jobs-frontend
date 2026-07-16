@@ -1,7 +1,9 @@
 
 "use client"
 
-import { useCallback, useState, useEffect } from "react"
+import { useState } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { apiFetch } from "@/lib/api"
 import { Plus, Filter } from "lucide-react"
 import { useRouter } from "next/navigation"
 import DataListTemplate, { ExcelIcon, CsvIcon, PdfIcon } from "@/components/ui/data-list-template"
@@ -27,81 +29,47 @@ interface Employer {
 export default function EmployersPage() {
   const { t, tEnum } = useTranslation()
   const router = useRouter()
-  const { session } = useAuth()
-  const [employers, setEmployers] = useState<Employer[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const { session, isAuthenticated } = useAuth()
+  const queryClient = useQueryClient()
   const [showAddModal, setShowAddModal] = useState(false)
-  const [pendingItems, setPendingItems] = useState<PendingItem[]>([])
-  const [pendingLoading, setPendingLoading] = useState(true)
   const isAdmin =
     String(session?.user?.role?.name || "").toLowerCase() === "admin"
+  const roleName = session?.user?.role?.name?.toLowerCase()
+  const partnerId = session?.user?.partnerId
 
-  const loadPending = useCallback(async () => {
-    if (!session?.accessToken) return
-    setPendingLoading(true)
-    try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/employers/pending`,
-        {
-          headers: {
-            Authorization: `Bearer ${session.accessToken}`,
-            "Content-Type": "application/json",
-          },
-        },
-      )
-      if (!res.ok) throw new Error("Failed to fetch pending employers")
-      const payload = await res.json()
-      setPendingItems(payload?.data || [])
-    } catch {
-      setPendingItems([])
-    } finally {
-      setPendingLoading(false)
-    }
-  }, [session?.accessToken])
+  const { data: pendingItems = [], isLoading: pendingLoading } = useQuery<PendingItem[]>({
+    queryKey: ["employers", "pending"],
+    queryFn: async () => {
+      const j = await apiFetch<{ data: PendingItem[] }>("/employers/pending")
+      return j?.data || []
+    },
+    enabled: isAuthenticated,
+  })
 
-  useEffect(() => {
-    loadPending()
-  }, [loadPending])
+  const { data: employers = [], isLoading } = useQuery<Employer[]>({
+    // partnerId is in the key so a partner and an admin don't share a cache entry
+    queryKey: ["employers", "list", roleName, partnerId],
+    queryFn: async () => {
+      const path =
+        roleName === "partner" && partnerId ? `/employers?partnerId=${partnerId}` : "/employers"
+      const data = await apiFetch<{ data: any[] }>(path)
+      return (data.data || []).map((e: any) => ({
+        id: e.publicId || e.id,
+        name: e.name,
+        class: e.class,
+        type: e.type,
+        lack: e.createdAt ? formatLocalDate(e.createdAt) : "-",
+        partner: e.partnerName || "-",
+        trial: typeof e.trialDaysRemaining === "number" && e.trialDaysRemaining > 0
+          ? e.trialDaysRemaining
+          : "—",
+        billing: e.billing || "0 €",
+      }))
+    },
+    enabled: isAuthenticated,
+  })
 
-  useEffect(() => {
-    const fetchEmployers = async () => {
-      if (!session?.accessToken) return
-      setIsLoading(true)
-      try {
-        let url = `${process.env.NEXT_PUBLIC_API_BASE_URL}/employers`
-        // If user is partner, filter by partnerId
-        if (session?.user?.role?.name?.toLowerCase() === "partner" && session.user.partnerId) {
-          url += `?partnerId=${session.user.partnerId}`
-        }
-        const res = await fetch(url, {
-          headers: {
-            Authorization: `Bearer ${session.accessToken}`,
-            "Content-Type": "application/json",
-          },
-        })
-        if (!res.ok) throw new Error("Failed to fetch employers")
-        const data = await res.json()
-        const mapped = (data.data || []).map((e: any) => ({
-          id: e.publicId || e.id,
-          name: e.name,
-          class: e.class,
-          type: e.type,
-          lack: e.createdAt ? formatLocalDate(e.createdAt) : "-",
-          partner: e.partnerName || "-",
-          trial: typeof e.trialDaysRemaining === "number" && e.trialDaysRemaining > 0
-            ? e.trialDaysRemaining
-            : "—",
-          billing: e.billing || "0 €",
-        }))
-        setEmployers(mapped)
-      } catch (err) {
-        setEmployers([])
-      } finally {
-        setIsLoading(false)
-      }
-    }
-    fetchEmployers()
-  }, [session?.accessToken, session?.user?.role?.name, session?.user?.partnerId])
+  const loadPending = () => queryClient.invalidateQueries({ queryKey: ["employers", "pending"] })
 
   const handleRowClick = (row: any) => {
     const name = row?.name || ""
@@ -110,7 +78,11 @@ export default function EmployersPage() {
 
   // Callback to handle new employer addition - adds to the beginning of the list
   const handleEmployerAdded = (newEmployer: Employer) => {
-    setEmployers((prev) => [newEmployer, ...prev])
+    queryClient.setQueryData(
+      ["employers", "list", roleName, partnerId],
+      (prev: Employer[] = []) => [newEmployer, ...prev],
+    )
+    queryClient.invalidateQueries({ queryKey: ["employers", "list"] })
   }
 
   // Define columns for employers

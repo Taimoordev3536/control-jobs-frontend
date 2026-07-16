@@ -1,7 +1,9 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 import { useSession } from "next-auth/react"
+import { useQuery } from "@tanstack/react-query"
+import { apiFetch } from "@/lib/api"
 import { ChevronLeft, ChevronRight, MapPin, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { AnimatedLoader } from "@/components/animated-loader"
@@ -24,15 +26,13 @@ const hhmm = (t: string | null) => (t ? t.slice(0, 5) : null)
 
 export default function OccupationPage() {
   const { t } = useTranslation()
-  const { data: session } = useSession()
+  const { status } = useSession()
+  const isAuthenticated = status === "authenticated"
 
   const [view, setView] = useState<"week" | "month">("week")
   const [cursor, setCursor] = useState(() => madridToday())
-  const [allWorkers, setAllWorkers] = useState<{ id: string; name: string }[]>([])
   const [selected, setSelected] = useState<string[]>([])
   const [showPicker, setShowPicker] = useState(false)
-  const [data, setData] = useState<{ workers: { id: string; name: string }[]; days: string[]; cells: Cell[]; holidays?: Record<string, string> }>({ workers: [], days: [], cells: [], holidays: {} })
-  const [loading, setLoading] = useState(true)
   const [plannerOpen, setPlannerOpen] = useState(false)
 
   const range = useMemo(() => {
@@ -48,33 +48,28 @@ export default function OccupationPage() {
     return { start, end }
   }, [cursor, view])
 
-  useEffect(() => {
-    if (!session?.accessToken) return
-    fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/worker`, { headers: { Authorization: `Bearer ${session.accessToken}` } })
-      .then((r) => r.json())
-      .then((j) => {
-        const rows = Array.isArray(j?.data) ? j.data : Array.isArray(j) ? j : []
-        setAllWorkers(rows.map((w: any) => ({ id: w.publicId, name: w.name || w.code })))
-      })
-      .catch(() => setAllWorkers([]))
-  }, [session?.accessToken])
+  const { data: allWorkers = [] } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ["workers", "picker"],
+    queryFn: async () => {
+      const j = await apiFetch<any>("/worker")
+      const rows = Array.isArray(j?.data) ? j.data : Array.isArray(j) ? j : []
+      return rows.map((w: any) => ({ id: w.publicId, name: w.name || w.code }))
+    },
+    enabled: isAuthenticated,
+  })
 
-  const load = useCallback(async () => {
-    if (!session?.accessToken) return
-    setLoading(true)
-    try {
+  type OccupationData = { workers: { id: string; name: string }[]; days: string[]; cells: Cell[]; holidays?: Record<string, string> }
+  const EMPTY_GRID: OccupationData = { workers: [], days: [], cells: [], holidays: {} }
+  const { data = EMPTY_GRID, isLoading: loading } = useQuery<OccupationData>({
+    // range + selected workers in the key so each view/filter caches separately
+    queryKey: ["occupation", ymd(range.start), ymd(range.end), selected.join(",")],
+    queryFn: async () => {
       const q = `start=${ymd(range.start)}&end=${ymd(range.end)}${selected.length ? `&workerIds=${selected.join(",")}` : ""}`
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/occupation?${q}`, { headers: { Authorization: `Bearer ${session.accessToken}` } })
-      const body = await res.json()
-      setData(body?.data || { workers: [], days: [], cells: [], holidays: {} })
-    } catch {
-      setData({ workers: [], days: [], cells: [], holidays: {} })
-    } finally {
-      setLoading(false)
-    }
-  }, [session?.accessToken, range, selected])
-
-  useEffect(() => { load() }, [load])
+      const body = await apiFetch<any>(`/jobs/occupation?${q}`)
+      return body?.data || EMPTY_GRID
+    },
+    enabled: isAuthenticated,
+  })
 
   const grid = useMemo(() => {
     const m: Record<string, Record<string, Cell[]>> = {}

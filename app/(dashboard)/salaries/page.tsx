@@ -1,6 +1,7 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useMemo } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { Filter } from "lucide-react"
 import DataListTemplate, { ExcelIcon, CsvIcon, PdfIcon } from "@/components/ui/data-list-template"
 import { useTranslation } from "@/hooks/use-translation"
@@ -14,18 +15,16 @@ const eur = (n: number) => `${(n || 0).toFixed(2).replace(".", ",")} €`
 
 export default function SalariesPage() {
   const { t } = useTranslation()
-  const { session } = useAuth()
-  const [data, setData] = useState<any[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const { isAuthenticated } = useAuth()
 
-  useEffect(() => {
-    if (!session?.accessToken) return
-    setIsLoading(true)
-    apiFetch<{ data: any[] }>("/worker/all/salaries")
-      .then((j) => setData(Array.isArray(j?.data) ? j.data : []))
-      .catch(() => setData([]))
-      .finally(() => setIsLoading(false))
-  }, [session?.accessToken])
+  const { data = [], isLoading } = useQuery<any[]>({
+    queryKey: ["salaries", "all"],
+    queryFn: async () => {
+      const j = await apiFetch<{ data: any[] }>("/worker/all/salaries")
+      return Array.isArray(j?.data) ? j.data : []
+    },
+    enabled: isAuthenticated,
+  })
 
   const rows = useMemo(
     () =>
