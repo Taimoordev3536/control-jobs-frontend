@@ -13,6 +13,7 @@ import { Info, Loader2, AlertCircle, RefreshCw } from "lucide-react"
 import { useTranslation } from "@/hooks/use-translation"
 import { useAuth } from "@/hooks/use-auth"
 import { useState, useEffect, useRef } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { useRouter } from "next/navigation"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AnimatedLoader } from "@/components/animated-loader"
@@ -84,7 +85,6 @@ export function ClientDataTab({ clientId, selfService = false }: ClientDataTabPr
   const { toast } = useToast()
   const [clientData, setClientData] = useState<ClientData | null>(null)
   const [originalData, setOriginalData] = useState<ClientData | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
@@ -110,70 +110,55 @@ export function ClientDataTab({ clientId, selfService = false }: ClientDataTabPr
     }
   }
 
+  const invalidId = !meMode && (!clientId || clientId === "undefined")
+
+  const { data: fetchedClient, isLoading, isError, error: queryError, refetch } = useQuery<ClientData>({
+    queryKey: ["client", meMode ? "me" : clientId, "data"],
+    enabled: !!session?.accessToken && !invalidId,
+    queryFn: async () => {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/client/${meMode ? "me" : clientId}`, {
+        headers: {
+          Authorization: `Bearer ${session!.accessToken}`,
+          "Content-Type": "application/json",
+        },
+      })
+      if (!response.ok) throw new Error(`Failed to fetch client data: ${response.status}`)
+      const result = await response.json()
+      if (!(result.isSuccess && result.data)) throw new Error(result.message || "Failed to fetch client data")
+      // Normalize the address into the canonical "Street, Number" format.
+      // Older client rows may have stored address without the comma; rebuild
+      // from structured street/streetNumber columns when both are available.
+      const normalizeAddress = (data: any): string => {
+        const street = (data.street || "").toString().trim()
+        const number = (data.streetNumber || "").toString().trim()
+        if (street && number) return `${street}, ${number}`
+        if (street) return street
+        if (number) return number
+        return data.address || ""
+      }
+      return {
+        ...result.data,
+        address: normalizeAddress(result.data),
+        active: result.data.active !== undefined ? result.data.active : true,
+      }
+    },
+  })
+
+  // Seed the editable form + reset baseline once the record loads. Nothing
+  // invalidates this query, so edits are never clobbered by a refetch.
   useEffect(() => {
-    const fetchClientData = async () => {
-      if ((!clientId || clientId === "undefined") && !meMode) {
-        setError("Invalid client ID")
-        setIsLoading(false)
-        return
-      }
-
-      // Wait for session to be available (don't show error while auth is loading)
-      if (!session?.accessToken) {
-        return
-      }
-
-      setIsLoading(true)
-      setError(null)
-
-      try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/client/${meMode ? "me" : clientId}`, {
-          headers: {
-            Authorization: `Bearer ${session.accessToken}`,
-            "Content-Type": "application/json",
-          },
-        })
-
-        if (!response.ok) {
-          throw new Error(`Failed to fetch client data: ${response.status}`)
-        }
-
-        const result = await response.json()
-
-        if (result.isSuccess && result.data) {
-          // Normalize the address into the canonical "Street, Number" format.
-          // Older client rows (created via the sign-up flow) may have stored
-          // the address without the comma between street name and number;
-          // rebuild it from the structured street/streetNumber columns when
-          // both are available so the field always renders correctly.
-          const normalizeAddress = (data: any): string => {
-            const street = (data.street || "").toString().trim()
-            const number = (data.streetNumber || "").toString().trim()
-            if (street && number) return `${street}, ${number}`
-            if (street) return street
-            if (number) return number
-            return data.address || ""
-          }
-          const mapped = {
-            ...result.data,
-            address: normalizeAddress(result.data),
-            active: result.data.active !== undefined ? result.data.active : true,
-          }
-          setClientData(mapped)
-          setOriginalData(mapped)
-        } else {
-          throw new Error(result.message || "Failed to fetch client data")
-        }
-      } catch (err) {
-        console.error("Error fetching client data:", err)
-        setError(err instanceof Error ? err.message : "An error occurred")
-      } finally {
-        setIsLoading(false)
-      }
+    if (fetchedClient) {
+      setClientData(fetchedClient)
+      setOriginalData(fetchedClient)
     }
+  }, [fetchedClient])
 
-    fetchClientData()
-  }, [clientId, session?.accessToken])
+  const readError = invalidId
+    ? "Invalid client ID"
+    : isError
+      ? (queryError instanceof Error ? queryError.message : "An error occurred")
+      : null
+  const displayError = error || readError
 
   const handleInputChange = (field: keyof ClientData, value: string | number | boolean | null) => {
     if (!clientData) return
@@ -307,23 +292,22 @@ export function ClientDataTab({ clientId, selfService = false }: ClientDataTabPr
 
   const handleRetry = () => {
     setError(null)
-    setIsLoading(true)
-    window.location.reload()
+    refetch()
   }
 
-  if (isLoading) {
+  if (isLoading && !invalidId) {
     return (
       <AnimatedLoader size={32} className="p-8" />
     )
   }
 
-  if (error) {
+  if (displayError) {
     return (
       <div className="p-6">
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription className="flex items-center justify-between">
-            <span>{error}</span>
+            <span>{displayError}</span>
             <Button variant="outline" size="sm" onClick={handleRetry}>
               <RefreshCw className="h-4 w-4 mr-2" />
               {t("retry") || "Retry"}
