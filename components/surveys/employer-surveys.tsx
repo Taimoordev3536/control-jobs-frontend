@@ -1,7 +1,9 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useSession } from "next-auth/react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { apiFetch } from "@/lib/api"
 import { Plus, Trash2, BarChart2, Pencil, Loader2, Play, Square, X, ShieldCheck, Users, Settings } from "lucide-react"
 import SurvayIcon from "@/icons/Menu/surveys.svg"
 import { Button } from "@/components/ui/button"
@@ -32,10 +34,9 @@ const emptyQuestion = (): QDraft => ({ text: "", type: "rating", required: true,
 export function EmployerSurveys({ audience }: { audience: Audience }) {
   const { t } = useTranslation()
   const { data: session } = useSession()
+  const queryClient = useQueryClient()
   const base = process.env.NEXT_PUBLIC_API_BASE_URL
 
-  const [list, setList] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
   const [builderOpen, setBuilderOpen] = useState(false)
   const [editing, setEditing] = useState<any | null>(null)
   const [resultsId, setResultsId] = useState<string | null>(null)
@@ -44,17 +45,16 @@ export function EmployerSurveys({ audience }: { audience: Audience }) {
 
   const auth = { Authorization: `Bearer ${session?.accessToken}`, "Content-Type": "application/json" }
 
-  const load = useCallback(() => {
-    if (!session?.accessToken) return
-    setLoading(true)
-    fetch(`${base}/survey-forms`, { headers: { Authorization: `Bearer ${session.accessToken}` } })
-      .then((r) => r.json())
-      .then((j) => setList((Array.isArray(j?.data) ? j.data : []).filter((s: any) => s.audience === audience)))
-      .catch(() => setList([]))
-      .finally(() => setLoading(false))
-  }, [session?.accessToken, base, audience])
-
-  useEffect(() => { load() }, [load])
+  const { data: rawList = [], isLoading: loading } = useQuery<any[]>({
+    queryKey: ["survey-forms", "list"],
+    queryFn: async () => {
+      const j = await apiFetch<any>("/survey-forms")
+      return Array.isArray(j?.data) ? j.data : []
+    },
+    enabled: !!session?.accessToken,
+  })
+  const list = useMemo(() => rawList.filter((s: any) => s.audience === audience), [rawList, audience])
+  const load = () => queryClient.invalidateQueries({ queryKey: ["survey-forms", "list"] })
 
   const setStatus = async (s: any, status: string) => {
     const res = await fetch(`${base}/survey-forms/${s.id}`, { method: "PATCH", headers: auth, body: JSON.stringify({ status }) })
@@ -334,17 +334,18 @@ function RetentionSettingsDialog({ onClose }: { onClose: () => void }) {
   const { data: session } = useSession()
   const base = process.env.NEXT_PUBLIC_API_BASE_URL
   const [days, setDays] = useState("")
-  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
+  // Read seeds the editable `days` field (retry + refetch via React Query).
+  const { data: settings, isLoading: loading } = useQuery<any>({
+    queryKey: ["survey-forms", "settings"],
+    queryFn: async () => (await apiFetch<any>("/survey-forms/settings"))?.data ?? null,
+    enabled: !!session?.accessToken,
+  })
   useEffect(() => {
-    if (!session?.accessToken) return
-    fetch(`${base}/survey-forms/settings`, { headers: { Authorization: `Bearer ${session.accessToken}` } })
-      .then((r) => r.json())
-      .then((j) => setDays(j?.data?.retentionDays != null ? String(j.data.retentionDays) : ""))
-      .catch(() => {})
-      .finally(() => setLoading(false))
-  }, [session?.accessToken, base])
+    if (settings === undefined) return
+    setDays(settings?.retentionDays != null ? String(settings.retentionDays) : "")
+  }, [settings])
 
   const save = async () => {
     if (!session?.accessToken) return
