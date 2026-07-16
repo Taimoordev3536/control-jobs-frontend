@@ -2,6 +2,8 @@
 
 import { Suspense, useCallback, useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { apiFetch } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -49,15 +51,16 @@ function humanSize(n: number): string {
 
 function BackupPageInner() {
   const { t } = useTranslation()
-  const { session } = useAuth()
+  const { session, isAuthenticated } = useAuth()
   const { toast } = useToast()
   const router = useRouter()
   const params = useSearchParams()
   const api = process.env.NEXT_PUBLIC_API_BASE_URL
-  const [backups, setBackups] = useState<Backup[]>([])
+  const queryClient = useQueryClient()
+  // providers + settings stay as local state (settings is edited in a form
+  // below); only the read-only backup list moved to React Query.
   const [providers, setProviders] = useState<Provider[]>([])
   const [settings, setSettings] = useState<Settings | null>(null)
-  const [loading, setLoading] = useState(true)
   const [running, setRunning] = useState(false)
   const [savingSettings, setSavingSettings] = useState(false)
 
@@ -69,28 +72,38 @@ function BackupPageInner() {
     [session?.accessToken],
   )
 
-  const load = useCallback(async () => {
+  const { data: backups = [], isLoading: loading } = useQuery<Backup[]>({
+    queryKey: ["backup", "list"],
+    queryFn: async () => {
+      const b = await apiFetch<{ data: Backup[] }>("/backup")
+      return b.data || []
+    },
+    enabled: isAuthenticated,
+  })
+
+  const loadMeta = useCallback(async () => {
     if (!session?.accessToken) return
-    setLoading(true)
     try {
-      const [b, p, s] = await Promise.all([
-        fetch(`${api}/backup`, { headers: headers() }).then((r) => r.json()),
+      const [p, s] = await Promise.all([
         fetch(`${api}/backup/providers`, { headers: headers() }).then((r) => r.json()),
         fetch(`${api}/backup/settings`, { headers: headers() }).then((r) => r.json()),
       ])
-      setBackups(b.data || [])
       setProviders(p.data || [])
       setSettings(s.data || null)
     } catch (e) {
       console.error(e)
-    } finally {
-      setLoading(false)
     }
   }, [api, headers, session?.accessToken])
 
+  // Reused by every mutation handler to refresh everything after an action.
+  const load = useCallback(async () => {
+    queryClient.invalidateQueries({ queryKey: ["backup", "list"] })
+    await loadMeta()
+  }, [queryClient, loadMeta])
+
   useEffect(() => {
-    load()
-  }, [load])
+    loadMeta()
+  }, [loadMeta])
 
   useEffect(() => {
     const cloud = params.get("cloud")

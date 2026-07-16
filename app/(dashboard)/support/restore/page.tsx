@@ -1,6 +1,8 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useState } from "react"
+import { useQuery } from "@tanstack/react-query"
+import { apiFetch } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import DataListTemplate from "@/components/ui/data-list-template"
 import { AlertTriangle, RotateCcw } from "lucide-react"
@@ -28,11 +30,9 @@ function humanSize(n: number): string {
 
 export default function RestorePage() {
   const { t } = useTranslation()
-  const { session, logout } = useAuth()
+  const { session, logout, isAuthenticated } = useAuth()
   const { toast } = useToast()
   const api = process.env.NEXT_PUBLIC_API_BASE_URL
-  const [backups, setBackups] = useState<Backup[]>([])
-  const [loading, setLoading] = useState(true)
   const [restoringId, setRestoringId] = useState<string | null>(null)
 
   const headers = useCallback(
@@ -40,23 +40,16 @@ export default function RestorePage() {
     [session?.accessToken],
   )
 
-  const load = useCallback(async () => {
-    if (!session?.accessToken) return
-    setLoading(true)
-    try {
-      const res = await fetch(`${api}/backup`, { headers: headers() })
-      const body = await res.json()
-      setBackups((body.data || []).filter((b: Backup) => b.status === "SUCCESS"))
-    } catch (e) {
-      console.error(e)
-    } finally {
-      setLoading(false)
-    }
-  }, [api, headers, session?.accessToken])
-
-  useEffect(() => {
-    load()
-  }, [load])
+  // Read-only list of backups. Only this list-load moved to React Query;
+  // the restore handler below is untouched.
+  const { data: backups = [], isLoading: loading } = useQuery<Backup[]>({
+    queryKey: ["backup", "list"],
+    queryFn: async () => {
+      const body = await apiFetch<{ data: Backup[] }>("/backup")
+      return (body.data || []).filter((b: Backup) => b.status === "SUCCESS")
+    },
+    enabled: isAuthenticated,
+  })
 
   const restore = async (b: Backup) => {
     const msg =

@@ -1,6 +1,8 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
+import { useQuery } from "@tanstack/react-query"
+import { apiFetch } from "@/lib/api"
 import { Loader2, Trash2, Upload, ImageIcon, UserCircle2, CreditCard, Pencil } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useTranslation } from "@/hooks/use-translation"
@@ -281,8 +283,6 @@ export default function MyDataPage() {
   const isEmployer = role === "employer"
   const isPersonal = role === "worker" || role === "admin"
 
-  const [isLoading, setIsLoading] = useState(true)
-
   // Employer-only payment-method panel. Loaded once when the role is
   // employer; the modal flips both billingStatus locally on save.
   const [paymentMethodId, setPaymentMethodId] = useState<number | null>(null)
@@ -306,57 +306,33 @@ export default function MyDataPage() {
     urlField: "profilePhotoUrl",
   })
 
+  // Employer billing info (read-only). Retries on a transient failure.
+  const { data: employerMe } = useQuery<any>({
+    queryKey: ["employers", "me"],
+    queryFn: async () => (await apiFetch<{ data: any }>("/employers/me"))?.data ?? null,
+    enabled: isEmployer && !!session?.accessToken,
+  })
   useEffect(() => {
-    if (!isEmployer || !session?.accessToken) return
-    let cancelled = false
-    const load = async () => {
-      try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/employers/me`, {
-          headers: { Authorization: `Bearer ${session.accessToken}` },
-        })
-        if (!res.ok) return
-        const json = await res.json()
-        if (!cancelled) {
-          setPaymentMethodId(json?.data?.paymentMethodId ?? null)
-          setBillingStatus(json?.data?.billingStatus ?? null)
-        }
-      } catch {
-        /* swallow */
-      }
-    }
-    load()
-    return () => {
-      cancelled = true
-    }
-  }, [isEmployer, session?.accessToken])
+    if (!employerMe) return
+    setPaymentMethodId(employerMe.paymentMethodId ?? null)
+    setBillingStatus(employerMe.billingStatus ?? null)
+  }, [employerMe])
 
+  // Identity (logo / profile photo) read. The upload/delete handlers are
+  // untouched; this only seeds the display from the current values.
+  const { data: identity, isLoading: identityLoading } = useQuery<any>({
+    queryKey: ["mydata", "identity", endpoints?.read],
+    queryFn: async () => (await apiFetch<{ data: any }>(endpoints!.read))?.data ?? null,
+    enabled: !!session?.accessToken && !!endpoints?.read,
+  })
   useEffect(() => {
-    if (!session?.accessToken || !endpoints) {
-      setIsLoading(false)
-      return
-    }
-    const load = async () => {
-      try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}${endpoints.read}`, {
-          headers: { Authorization: `Bearer ${session.accessToken}` },
-        })
-        if (res.ok) {
-          const result = await res.json()
-          logoUpload.setImageUrl(result?.data?.logoUrl ?? null)
-          if (endpoints.profile) {
-            profileUpload.setImageUrl(result?.data?.profilePhotoUrl ?? null)
-          }
-        }
-      } finally {
-        setIsLoading(false)
-      }
-    }
-    load()
-    // We intentionally re-run only when the read endpoint / token changes;
-    // the setter refs from useImageUpload are stable.
+    if (identity === undefined) return
+    logoUpload.setImageUrl(identity?.logoUrl ?? null)
+    if (endpoints?.profile) profileUpload.setImageUrl(identity?.profilePhotoUrl ?? null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session?.accessToken, endpoints?.read])
+  }, [identity, endpoints?.profile])
 
+  const isLoading = !!endpoints && identityLoading
   if (isLoading) return <AnimatedLoader />
 
   if (!endpoints) {

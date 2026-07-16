@@ -1,6 +1,8 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { apiFetch } from "@/lib/api"
 import { Copy, Plus, Filter, Pencil, Trash2, X } from "lucide-react"
 import { useTranslation } from "@/hooks/use-translation"
 import { useAuth } from "@/hooks/use-auth"
@@ -41,6 +43,7 @@ interface PartnerOption {
 export default function InvitePage() {
   const { t } = useTranslation()
   const { session, hasRole, isLoading: isAuthLoading, logout } = useAuth()
+  const queryClient = useQueryClient()
   const { toast } = useToast()
 
   const isAdmin = hasRole("admin")
@@ -49,59 +52,34 @@ export default function InvitePage() {
   const canIssue = isAdmin || isPartner || isEmployer
 
   // Data
-  const [partners, setPartners] = useState<PartnerOption[]>([])
-  const [invitations, setInvitations] = useState<Invitation[]>([])
-  const [isLoading, setIsLoading] = useState(true)
   const [drawerInvitation, setDrawerInvitation] = useState<Invitation | null>(null)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [editingInvitation, setEditingInvitation] = useState<Invitation | null>(null)
 
-  useEffect(() => {
-    if (!isAdmin || !session?.accessToken) return
-    ;(async () => {
-      try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/partners`, {
-          headers: { Authorization: `Bearer ${session.accessToken}` },
-        })
-        if (res.ok) {
-          const json = await res.json()
-          setPartners((json.data || []).map((p: any) => ({ id: p.id, name: p.name })))
-        }
-      } catch {
-        /* ignore */
-      }
-    })()
-  }, [isAdmin, session?.accessToken])
+  // Partner options (admin only) — read-only.
+  const { data: partners = [] } = useQuery<PartnerOption[]>({
+    queryKey: ["partners", "options"],
+    queryFn: async () => {
+      const json = await apiFetch<{ data: any[] }>("/partners")
+      return (json.data || []).map((p: any) => ({ id: p.id, name: p.name }))
+    },
+    enabled: isAdmin && !!session?.accessToken,
+  })
 
-  const fetchInvitations = async () => {
-    if (!session?.accessToken) return
-    // Employer-only users land in the worker/client tabs branch and don't
-    // need to hit the employer-invitations endpoint (they're not allowed to).
-    if (isEmployer && !isAdmin && !isPartner) {
-      setIsLoading(false)
-      return
-    }
-    setIsLoading(true)
-    try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/employer-invitations`,
-        { headers: { Authorization: `Bearer ${session.accessToken}` } },
-      )
-      if (!res.ok) throw new Error("Failed to load")
-      const json = await res.json()
-      setInvitations(json.data || [])
-    } catch (e: any) {
-      toast({ title: e.message || "Error", variant: "destructive" })
-    } finally {
-      setIsLoading(false)
-    }
-  }
+  // Employer-only users land in the worker/client tabs and are not allowed
+  // to hit the employer-invitations endpoint, so the query is disabled for them.
+  const canListInvitations = !!session?.accessToken && !(isEmployer && !isAdmin && !isPartner)
+  const { data: invitations = [], isLoading } = useQuery<Invitation[]>({
+    queryKey: ["employer-invitations", "list"],
+    queryFn: async () => {
+      const json = await apiFetch<{ data: Invitation[] }>("/employer-invitations")
+      return json.data || []
+    },
+    enabled: canListInvitations,
+  })
 
-  useEffect(() => {
-    setInvitations([])
-    fetchInvitations()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session?.accessToken, isEmployer, isAdmin, isPartner])
+  // Reused by the create/delete handlers and onCreated callbacks.
+  const fetchInvitations = () => queryClient.invalidateQueries({ queryKey: ["employer-invitations"] })
 
   const copyLink = async (link?: string) => {
     if (!link) {

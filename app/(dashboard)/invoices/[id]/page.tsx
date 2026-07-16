@@ -1,7 +1,8 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { useParams, useRouter } from "next/navigation"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { ArrowLeft, CheckCircle2, XCircle, Trash2, Pencil } from "lucide-react"
 import PdfIconDefault from "@/icons/Controles/pdf1.svg"
 import PdfIconHover from "@/icons/Controles/pdf2.svg"
@@ -17,33 +18,22 @@ export default function InvoiceDetailPage() {
   const router = useRouter()
   const { id: publicId } = useParams() as { id: string }
   const { session, hasRole } = useAuth()
+  const queryClient = useQueryClient()
   const { toast } = useToast()
   // Mark-paid + cancel are admin-only operations (accounting actions).
   const canManage = hasRole("admin")
 
-  const [invoice, setInvoice] = useState<any | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
   const [isActing, setIsActing] = useState(false)
   const [pdfHovered, setPdfHovered] = useState(false)
   const [editData, setEditData] = useState<any | null>(null)
 
-  const fetchInvoice = async () => {
-    if (!session?.accessToken) return
-    setIsLoading(true)
-    try {
-      const json = await apiFetch<{ data: any }>(`/invoices/${publicId}`)
-      setInvoice(json.data)
-    } catch (e: any) {
-      toast({ title: e.message || "Error", variant: "destructive" })
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    fetchInvoice()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [publicId, session?.accessToken])
+  const { data: invoice = null, isLoading } = useQuery<any | null>({
+    queryKey: ["invoices", "detail", publicId],
+    queryFn: async () => (await apiFetch<{ data: any }>(`/invoices/${publicId}`))?.data ?? null,
+    enabled: !!session?.accessToken && !!publicId,
+  })
+  // Reused by mark-paid / cancel / saveEdit to refresh after an action.
+  const fetchInvoice = () => queryClient.invalidateQueries({ queryKey: ["invoices", "detail", publicId] })
 
   const markPaid = async () => {
     if (!invoice || !session?.accessToken) return
