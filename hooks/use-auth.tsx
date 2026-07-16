@@ -2,10 +2,12 @@
 
 import { useSession, signIn, signOut } from "next-auth/react"
 import { useRouter } from "next/navigation"
+import { useQueryClient } from "@tanstack/react-query"
 import { useEffect, useState, useMemo } from "react"
 import { toast } from "@/hooks/use-toast"
 import { useTranslation } from "@/hooks/use-translation"
 import { getSubUserContext, SubUserContext } from "@/lib/api/sub-users"
+import { invalidateAccessTokenCache } from "@/lib/api"
 
 // useAuth is mounted by ~114 components; without sharing, each mount fired
 // its own /sub-users/context request. One in-flight/settled promise is
@@ -38,6 +40,7 @@ import {
 export function useAuth() {
   const { data: session, status } = useSession()
   const router = useRouter()
+  const queryClient = useQueryClient()
   const [isLoading, setIsLoading] = useState(false)
   const [subUser, setSubUser] = useState<SubUserContext>({ isSubUser: false })
   const { language, setLanguage, t } = useTranslation("login") // Explicitly set namespace to "login"
@@ -99,6 +102,14 @@ export function useAuth() {
         variant: "success",
       })
 
+      // A previous account's token/data can survive in the same tab (the API
+      // token is cached at module scope, React Query holds the old user's
+      // lists). Clear both so the new session fetches with the new token
+      // instead of the stale one — otherwise pages 404/500/empty until a full
+      // page refresh resets the module cache.
+      invalidateAccessTokenCache()
+      queryClient.clear()
+
       // Redirect to dashboard after successful login
       router.push("/dashboard")
       return true
@@ -129,6 +140,10 @@ export function useAuth() {
         }
       }
       await signOut({ redirect: false })
+      // Drop the cached API token + all cached query data so the next login
+      // (possibly a different account in the same tab) starts clean.
+      invalidateAccessTokenCache()
+      queryClient.clear()
       toast({
         title: t("logoutTitle"),
         description: t("logoutDescription"),
