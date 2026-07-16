@@ -1,6 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useQuery } from "@tanstack/react-query"
+import { apiFetch } from "@/lib/api"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
 import { useTranslation } from "@/hooks/use-translation"
@@ -125,26 +127,18 @@ function SurveyStatusCard({ title, entry, onFill }: { title: string; entry: Surv
 
 export default function RecordDetail({ recordId, backHref }: { recordId: string; backHref: string }) {
   const router = useRouter()
-  const { session } = useAuth() as any
+  const { session, isAuthenticated } = useAuth() as any
   const { t } = useTranslation("record-detail")
-  const [d, setD] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState("summary")
   const [survey, setSurvey] = useState<SurveyStatus | null>(null)
   const [surveyDialog, setSurveyDialog] = useState<{ entry: SurveyEntry; title: string } | null>(null)
   const [correctionOpen, setCorrectionOpen] = useState(false)
 
-  useEffect(() => {
-    if (!session?.accessToken || !recordId) return
-    setLoading(true)
-    fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/record/${recordId}`, {
-      headers: { Authorization: `Bearer ${session.accessToken}` },
-    })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((j) => setD(j?.data || null))
-      .catch(() => setD(null))
-      .finally(() => setLoading(false))
-  }, [session?.accessToken, recordId])
+  const { data: d = null, isLoading: loading } = useQuery<any>({
+    queryKey: ["records", "detail", recordId],
+    queryFn: async () => (await apiFetch<any>(`/jobs/record/${recordId}`))?.data ?? null,
+    enabled: isAuthenticated && !!recordId,
+  })
 
   const loadSurvey = () => {
     if (!session?.accessToken || !d?.job?.publicId) return

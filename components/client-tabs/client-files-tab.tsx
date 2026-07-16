@@ -1,7 +1,9 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useRef, useState } from "react"
 import { useSession } from "next-auth/react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { apiFetch } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { AnimatedLoader } from "@/components/animated-loader"
@@ -27,9 +29,8 @@ const downloadUrl = (url: string) =>
 export function ClientFilesTab({ clientId }: ClientFilesTabProps) {
   const { t } = useTranslation()
   const { toast } = useToast()
-  const { data: session } = useSession()
-  const [files, setFiles] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const { data: session, status } = useSession()
+  const queryClient = useQueryClient()
   const [uploading, setUploading] = useState(false)
   const [description, setDescription] = useState("")
   const fileRef = useRef<HTMLInputElement>(null)
@@ -37,16 +38,19 @@ export function ClientFilesTab({ clientId }: ClientFilesTabProps) {
   const base = process.env.NEXT_PUBLIC_API_BASE_URL
   const authHeader = { Authorization: `Bearer ${session?.accessToken}` }
 
-  const load = () => {
-    if (!session?.accessToken || !clientId) return
-    setLoading(true)
-    fetch(`${base}/client/${clientId}/files`, { headers: authHeader })
-      .then((r) => r.json())
-      .then((j) => setFiles(Array.isArray(j?.data) ? j.data : []))
-      .catch(() => setFiles([]))
-      .finally(() => setLoading(false))
-  }
-  useEffect(load, [session?.accessToken, clientId])
+  const filesKey = ["client", clientId, "files"]
+  const { data: files = [], isLoading: loading } = useQuery<any[]>({
+    queryKey: filesKey,
+    queryFn: async () => {
+      const j = await apiFetch<any>(`/client/${clientId}/files`)
+      return Array.isArray(j?.data) ? j.data : []
+    },
+    enabled: status === "authenticated" && !!clientId,
+  })
+  // Upload/delete keep hitting the API directly; these refresh the read.
+  const load = () => queryClient.invalidateQueries({ queryKey: filesKey })
+  const setFiles = (updater: (prev: any[]) => any[]) =>
+    queryClient.setQueryData(filesKey, (prev: any[] = []) => updater(prev))
 
   const onPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]

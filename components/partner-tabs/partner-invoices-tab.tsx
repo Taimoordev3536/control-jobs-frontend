@@ -1,7 +1,8 @@
 "use client"
 
-import { useEffect, useState, type ComponentType } from "react"
+import { useState, type ComponentType } from "react"
 import { useRouter } from "next/navigation"
+import { useQuery } from "@tanstack/react-query"
 import TabTableTemplate, { type TabTableColumn } from "@/components/ui/tab-table-template"
 import FilterIcon1 from "@/icons/Controles/filter1.svg"
 import FilterIcon2 from "@/icons/Controles/filter2.svg"
@@ -30,28 +31,23 @@ const STATUS_BADGE: Record<string, string> = {
 export default function PartnerInvoicesTab({ partnerId }: PartnerInvoicesTabProps) {
   const { t, tEnum } = useTranslation()
   const router = useRouter()
-  const [rows, setRows] = useState<any[]>([])
-  const [employerNames, setEmployerNames] = useState<Record<number, string>>({})
-  const [loading, setLoading] = useState(true)
   const [filtersVisible, setFiltersVisible] = useState(false)
 
-  useEffect(() => {
-    if (!partnerId) return
-    setLoading(true)
-    Promise.all([
-      apiFetch<{ data: any[] }>(`/invoices?partnerId=${encodeURIComponent(partnerId)}&pageSize=100`).catch(() => ({ data: [] })),
-      apiFetch<{ data: any[] }>(`/employers?partnerId=${encodeURIComponent(partnerId)}`).catch(() => ({ data: [] })),
-    ])
-      .then(([inv, emp]) => {
-        setRows(inv.data || [])
-        const map: Record<number, string> = {}
-        ;(emp.data || []).forEach((e: any) => {
-          map[e.id] = e.name
-        })
-        setEmployerNames(map)
-      })
-      .finally(() => setLoading(false))
-  }, [partnerId])
+  const { data, isLoading: loading } = useQuery({
+    queryKey: ["partner", partnerId, "invoices"],
+    queryFn: async () => {
+      const [inv, emp] = await Promise.all([
+        apiFetch<{ data: any[] }>(`/invoices?partnerId=${encodeURIComponent(partnerId)}&pageSize=100`).catch(() => ({ data: [] })),
+        apiFetch<{ data: any[] }>(`/employers?partnerId=${encodeURIComponent(partnerId)}`).catch(() => ({ data: [] })),
+      ])
+      const map: Record<number, string> = {}
+      ;(emp.data || []).forEach((e: any) => { map[e.id] = e.name })
+      return { rows: inv.data || [], employerNames: map }
+    },
+    enabled: !!partnerId,
+  })
+  const rows = data?.rows ?? []
+  const employerNames = data?.employerNames ?? {}
 
   const columns: TabTableColumn[] = [
     {

@@ -1,6 +1,8 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
+import { useQuery } from "@tanstack/react-query"
+import { apiFetch } from "@/lib/api"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
 import { useTranslation } from "@/hooks/use-translation"
@@ -108,23 +110,15 @@ function SurveyCard({ title, tone, s }: { title: string; tone: "brand" | "info";
 
 export default function JobDetailView({ jobId, backHref = "/jobs/all" }: { jobId: string; backHref?: string }) {
   const router = useRouter()
-  const { session } = useAuth() as any
+  const { isAuthenticated } = useAuth() as any
   const { t } = useTranslation("job-detail")
-  const [d, setD] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState("overview")
 
-  useEffect(() => {
-    if (!session?.accessToken || !jobId) return
-    setLoading(true)
-    fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/${jobId}`, {
-      headers: { Authorization: `Bearer ${session.accessToken}` },
-    })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((j) => setD(j?.data || null))
-      .catch(() => setD(null))
-      .finally(() => setLoading(false))
-  }, [session?.accessToken, jobId])
+  const { data: d = null, isLoading: loading } = useQuery<any>({
+    queryKey: ["jobs", "detail", jobId],
+    queryFn: async () => (await apiFetch<any>(`/jobs/${jobId}`))?.data ?? null,
+    enabled: isAuthenticated && !!jobId,
+  })
 
   if (loading) return <div className="min-h-[60vh] flex items-center justify-center"><AnimatedLoader size={32} /></div>
   if (!d)

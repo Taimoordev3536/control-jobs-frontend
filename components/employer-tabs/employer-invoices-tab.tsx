@@ -1,7 +1,8 @@
 "use client"
 
-import { useEffect, useState, type ComponentType } from "react"
+import { useState, type ComponentType } from "react"
 import { useRouter } from "next/navigation"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import TabTableTemplate, { type TabTableColumn } from "@/components/ui/tab-table-template"
 import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog"
 import { TrendingUp } from "lucide-react"
@@ -39,22 +40,21 @@ export default function EmployerInvoicesTab({ employerId }: EmployerInvoicesTabP
   const { hasRole } = useAuth()
   const canCreate = hasRole("admin")
   const router = useRouter()
-  const [rows, setRows] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
   const [filtersVisible, setFiltersVisible] = useState(false)
   const [estimationOpen, setEstimationOpen] = useState(false)
   const [addOpen, setAddOpen] = useState(false)
 
-  const fetchInvoices = () => {
-    if (!employerId) return
-    setLoading(true)
-    apiFetch<{ data: any[] }>(`/invoices?employerId=${encodeURIComponent(employerId)}&pageSize=100`)
-      .then((j) => setRows(j.data || []))
-      .catch(() => setRows([]))
-      .finally(() => setLoading(false))
-  }
-
-  useEffect(fetchInvoices, [employerId])
+  const invoicesKey = ["employer", employerId, "invoices"]
+  const { data: rows = [], isLoading: loading } = useQuery<any[]>({
+    queryKey: invoicesKey,
+    queryFn: async () => {
+      const j = await apiFetch<{ data: any[] }>(`/invoices?employerId=${encodeURIComponent(employerId)}&pageSize=100`)
+      return j.data || []
+    },
+    enabled: !!employerId,
+  })
+  const fetchInvoices = () => queryClient.invalidateQueries({ queryKey: invoicesKey })
 
   const columns: TabTableColumn[] = [
     { key: "invoiceNumber", label: t("invoiceNo"), sortable: true },
