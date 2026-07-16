@@ -1,7 +1,9 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 import { useSession } from "next-auth/react"
+import { useQuery } from "@tanstack/react-query"
+import { apiFetch } from "@/lib/api"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { AnimatedLoader } from "@/components/animated-loader"
@@ -18,15 +20,14 @@ interface SchedDay { date: string; holiday: boolean; holidayName: string | null;
 
 export default function PresenceSchedulePage() {
   const { t } = useTranslation()
-  const { data: session } = useSession()
+  const { status } = useSession()
   const { getUserRole } = useAuth()
-  const scope = getUserRole() === "client" ? "client" : "worker"
-  const base = process.env.NEXT_PUBLIC_API_BASE_URL
+  const role = getUserRole()
+  const scope = role === "client" ? "client" : "worker"
+  const isAuthenticated = status === "authenticated"
 
   const [view, setView] = useState<"week" | "month">("week")
   const [cursor, setCursor] = useState(() => madridToday())
-  const [days, setDays] = useState<Record<string, SchedDay>>({})
-  const [loading, setLoading] = useState(true)
 
   const typeLabel = (v: string) =>
     ({ vacation: t("absVacation") || "Vacaciones", permit: t("absPermit") || "Permiso", sick: t("absSick") || "Baja", other: t("absOther") || "Otro" } as Record<string, string>)[v] || v
@@ -41,21 +42,24 @@ export default function PresenceSchedulePage() {
     return { start, end: new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6) }
   }, [cursor, view])
 
-  const load = useCallback(() => {
-    if (!session?.accessToken) return
-    setLoading(true)
-    fetch(`${base}/jobs/${scope}/my-calendar?start=${ymd(range.start)}&end=${ymd(range.end)}`, { headers: { Authorization: `Bearer ${session.accessToken}` } })
-      .then((r) => r.json())
-      .then((j) => {
-        const map: Record<string, SchedDay> = {}
-        ;(j?.data || []).forEach((d: SchedDay) => (map[d.date] = d))
-        setDays(map)
-      })
-      .catch(() => setDays({}))
-      .finally(() => setLoading(false))
-  }, [session?.accessToken, range])
-
-  useEffect(() => { load() }, [load])
+  // `scope` is IN the query key: previously the raw effect captured a stale
+  // scope="worker" when getUserRole() hadn't resolved yet, then never
+  // refetched once the role became "client" (scope wasn't in its deps) —
+  // that's exactly why a client saw an empty schedule until refresh. Now the
+  // key changes worker->client and React Query refetches automatically.
+  // Query also stays disabled until the role is known, so no wrong-scope call.
+  const { data: days = {}, isLoading: loading } = useQuery<Record<string, SchedDay>>({
+    queryKey: ["schedule", scope, ymd(range.start), ymd(range.end)],
+    queryFn: async () => {
+      const j = await apiFetch<{ data: SchedDay[] }>(
+        `/jobs/${scope}/my-calendar?start=${ymd(range.start)}&end=${ymd(range.end)}`,
+      )
+      const map: Record<string, SchedDay> = {}
+      ;(j?.data || []).forEach((d: SchedDay) => (map[d.date] = d))
+      return map
+    },
+    enabled: isAuthenticated && !!role,
+  })
 
   const step = (dir: number) => {
     const d = new Date(cursor)
