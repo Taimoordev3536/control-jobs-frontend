@@ -1,6 +1,7 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useState } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useAuth } from "@/hooks/use-auth"
 import { useTranslation } from "@/hooks/use-translation"
 import { Card, CardContent } from "@/components/ui/card"
@@ -32,6 +33,7 @@ interface ManualAttendanceRequest {
   reason?: string
   workerNotes?: string
   requestedByRole: string
+  reviewedByRole?: string
   reviewerNotes?: string
   reviewedAt?: string
   createdAt: string
@@ -73,42 +75,34 @@ export default function ControlManualTab({
 }) {
   const { t } = useTranslation()
   const { session } = useAuth()
-  const [isLoading, setIsLoading] = useState(true)
-  const [requests, setRequests] = useState<ManualAttendanceRequest[]>([])
+  const queryClient = useQueryClient()
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({})
   const [reviewingId, setReviewingId] = useState<string | null>(null)
   const [activeFilter, setActiveFilter] = useState<"all" | "PENDING" | "APPROVED" | "REJECTED">("PENDING")
 
-  const fetchRequests = useCallback(async () => {
-    if (!session?.accessToken) return
-    setIsLoading(true)
-    try {
+  const requestsKey = ["manual-attendance", "requests", activeFilter]
+  const { data: requests = [], isLoading } = useQuery<ManualAttendanceRequest[]>({
+    queryKey: requestsKey,
+    enabled: !!session?.accessToken,
+    queryFn: async () => {
       const params = new URLSearchParams()
       if (activeFilter !== "all") params.set("status", activeFilter)
-
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_BASE_URL}/manual-attendance/requests?${params}`,
         {
           headers: {
-            Authorization: `Bearer ${session.accessToken}`,
+            Authorization: `Bearer ${session!.accessToken}`,
             "Content-Type": "application/json",
           },
         }
       )
       if (!res.ok) throw new Error("Failed to fetch")
       const result = await res.json()
-      setRequests(result.data || [])
-    } catch {
-      setRequests([])
-    } finally {
-      setIsLoading(false)
-    }
-  }, [session?.accessToken, activeFilter])
-
-  useEffect(() => {
-    fetchRequests()
-  }, [fetchRequests])
+      return result.data || []
+    },
+  })
+  const fetchRequests = () => queryClient.invalidateQueries({ queryKey: ["manual-attendance", "requests"] })
 
   const handleReview = async (publicId: string, action: "APPROVE" | "REJECT") => {
     if (!session?.accessToken) return

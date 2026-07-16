@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import TabTableTemplate, { type TabTableColumn } from "@/components/ui/tab-table-template"
 import { useTranslation } from "@/hooks/use-translation"
 import { useAuth } from "@/hooks/use-auth"
@@ -18,8 +18,6 @@ export default function ControlSurveysTab({
 }) {
   const { t } = useTranslation()
   const { session } = useAuth()
-  const [isLoading, setIsLoading] = useState(true)
-  const [surveysData, setSurveysData] = useState<any[]>([])
 
   const columns: TabTableColumn[] = [
     { key: "holder", label: t("client"), sortable: true },
@@ -30,43 +28,29 @@ export default function ControlSurveysTab({
     { key: "notification", label: t("notification"), sortable: false, align: "center" },
   ]
 
-  useEffect(() => {
-    const fetchSurveys = async () => {
-      if (!session?.accessToken) return
-      setIsLoading(true)
-
-      try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/tasks-tab`, {
-          headers: {
-            Authorization: `Bearer ${session.accessToken}`,
-            "Content-Type": "application/json",
-          },
-        })
-
-        if (!res.ok) throw new Error("Failed to fetch surveys")
-
-        const result = await res.json()
-
-        const formatted = (result.data || []).map((item: any) => ({
-          id: item.id,
-          holder: item.clientName || item.client?.name || "-",
-          job: item.jobName || "-",
-          workCenter: item.workCenter?.name || "-",
-          respondent: item.workers?.map((w: any) => w.name || w.code).join(", ") || "-",
-          worth: "-", // Placeholder; replace if survey worth value is returned from backend
-          notification: "", // Optional
-        }))
-
-        setSurveysData(formatted)
-      } catch (error) {
-        setSurveysData([])
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    fetchSurveys()
-  }, [session?.accessToken])
+  const { data: surveysData = [], isLoading } = useQuery<any[]>({
+    queryKey: ["control", "tasks-tab", "surveys"],
+    enabled: !!session?.accessToken,
+    queryFn: async () => {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/tasks-tab`, {
+        headers: {
+          Authorization: `Bearer ${session!.accessToken}`,
+          "Content-Type": "application/json",
+        },
+      })
+      if (!res.ok) throw new Error("Failed to fetch surveys")
+      const result = await res.json()
+      return (result.data || []).map((item: any) => ({
+        id: item.id,
+        holder: item.clientName || item.client?.name || "-",
+        job: item.jobName || "-",
+        workCenter: item.workCenter?.name || "-",
+        respondent: item.workers?.map((w: any) => w.name || w.code).join(", ") || "-",
+        worth: "-", // Placeholder; replace if survey worth value is returned from backend
+        notification: "",
+      }))
+    },
+  })
 
   return (
     <TabTableTemplate
