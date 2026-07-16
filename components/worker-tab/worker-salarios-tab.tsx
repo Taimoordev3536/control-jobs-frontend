@@ -1,7 +1,8 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useEffect, useState } from "react"
 import { useSession } from "next-auth/react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Plus, Trash2, Eye, Printer, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -22,14 +23,13 @@ const eur = (n: number) => `${(n || 0).toFixed(2)} €`
 export function WorkerSalariosTab({ workerId }: WorkerSalariosTabProps) {
   const { t } = useTranslation()
   const { toast } = useToast()
-  const { data: session } = useSession()
+  const { data: session, status } = useSession()
+  const queryClient = useQueryClient()
   const base = process.env.NEXT_PUBLIC_API_BASE_URL
   const authHeader = { Authorization: `Bearer ${session?.accessToken}`, "Content-Type": "application/json" }
 
-  const [loading, setLoading] = useState(true)
   const [cfg, setCfg] = useState<{ fixedAmount: number | null; hoursLabel: string; hourRate: number | null }>({ fixedAmount: null, hoursLabel: "Horas de trabajo", hourRate: null })
   const [savingCfg, setSavingCfg] = useState(false)
-  const [receipts, setReceipts] = useState<any[]>([])
   const [selected, setSelected] = useState<any | null>(null)
 
   const [showGen, setShowGen] = useState(false)
@@ -40,25 +40,41 @@ export function WorkerSalariosTab({ workerId }: WorkerSalariosTabProps) {
   const [calculating, setCalculating] = useState(false)
   const [issuing, setIssuing] = useState(false)
 
-  const load = useCallback(async () => {
-    if (!session?.accessToken || !workerId) return
-    setLoading(true)
-    try {
-      const [c, r] = await Promise.all([
-        fetch(`${base}/worker/${workerId}/salary-config`, { headers: authHeader }).then((x) => x.json()),
-        fetch(`${base}/worker/${workerId}/salaries`, { headers: authHeader }).then((x) => x.json()),
-      ])
-      const cfgData = c?.data || c
-      if (cfgData) setCfg({ fixedAmount: cfgData.fixedAmount ?? null, hoursLabel: cfgData.hoursLabel || "Horas de trabajo", hourRate: cfgData.hourRate ?? null })
-      setReceipts(Array.isArray(r?.data) ? r.data : Array.isArray(r) ? r : [])
-    } catch {
-      setReceipts([])
-    } finally {
-      setLoading(false)
-    }
-  }, [session?.accessToken, workerId])
+  const cfgKey = ["worker", workerId, "salary-config"]
+  const receiptsKey = ["worker", workerId, "salaries"]
 
-  useEffect(() => { load() }, [load])
+  const { data: fetchedCfg, isLoading: cfgLoading } = useQuery<{ fixedAmount: number | null; hoursLabel: string; hourRate: number | null } | null>({
+    queryKey: cfgKey,
+    enabled: status === "authenticated" && !!workerId,
+    queryFn: async () => {
+      const c = await fetch(`${base}/worker/${workerId}/salary-config`, { headers: authHeader }).then((x) => x.json())
+      const cfgData = c?.data || c
+      if (!cfgData) return null
+      return { fixedAmount: cfgData.fixedAmount ?? null, hoursLabel: cfgData.hoursLabel || "Horas de trabajo", hourRate: cfgData.hourRate ?? null }
+    },
+  })
+  // Seed the editable salary-rates form once loaded (no invalidation on edit
+  // -> in-progress edits are never clobbered).
+  useEffect(() => {
+    if (fetchedCfg) setCfg(fetchedCfg)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fetchedCfg])
+
+  const { data: receipts = [], isLoading: receiptsLoading } = useQuery<any[]>({
+    queryKey: receiptsKey,
+    enabled: status === "authenticated" && !!workerId,
+    queryFn: async () => {
+      const r = await fetch(`${base}/worker/${workerId}/salaries`, { headers: authHeader }).then((x) => x.json())
+      return Array.isArray(r?.data) ? r.data : Array.isArray(r) ? r : []
+    },
+  })
+  const loading = cfgLoading || receiptsLoading
+  const load = () => {
+    queryClient.invalidateQueries({ queryKey: cfgKey })
+    queryClient.invalidateQueries({ queryKey: receiptsKey })
+  }
+  const setReceipts = (updater: (prev: any[]) => any[]) =>
+    queryClient.setQueryData(receiptsKey, (prev: any[] = []) => updater(prev))
 
   const saveCfg = async () => {
     setSavingCfg(true)

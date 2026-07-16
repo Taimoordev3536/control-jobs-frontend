@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
 import { useTranslation } from "@/hooks/use-translation"
@@ -15,25 +16,24 @@ export default function BillingPage() {
   const router = useRouter()
   const { t } = useTranslation()
   const { toast } = useToast()
-  const [employerId, setEmployerId] = useState<string | null>(null)
   const [billingStatus, setBillingStatus] = useState<string | null>(null)
   const [isCancelling, setIsCancelling] = useState(false)
 
+  const { data: me } = useQuery<{ id: number | null; billingStatus: string | null }>({
+    queryKey: ["employers", "me", "billing"],
+    enabled: !!session?.accessToken,
+    queryFn: async () => {
+      const r = await apiFetch<{ data: { id: number; billingStatus?: string } }>("/employers/me")
+      return { id: r?.data?.id ?? null, billingStatus: r?.data?.billingStatus || null }
+    },
+  })
+  const employerId = me?.id != null ? String(me.id) : null
+
+  // Local state so cancelSubscription can optimistically flip to CANCELLED;
+  // seeded from the query once loaded.
   useEffect(() => {
-    const load = async () => {
-      if (!session?.accessToken) return
-      try {
-        const me = await apiFetch<{ data: { id: number; billingStatus?: string } }>(
-          "/employers/me",
-        )
-        setEmployerId(String(me?.data?.id))
-        setBillingStatus(me?.data?.billingStatus || null)
-      } catch (e: any) {
-        toast({ title: e.message || "Error", variant: "destructive" })
-      }
-    }
-    load()
-  }, [session?.accessToken, toast])
+    if (me) setBillingStatus(me.billingStatus)
+  }, [me])
 
   const cancelSubscription = async () => {
     if (!confirm(t("confirmCancelSubscription") || "Cancel your subscription? You'll keep access until the end of the current billing period.")) return

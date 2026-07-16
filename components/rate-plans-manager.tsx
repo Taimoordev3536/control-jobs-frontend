@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Calendar, Clock, Loader2 } from "lucide-react"
@@ -46,6 +47,7 @@ export default function RatePlansManager() {
   const { t } = useTranslation()
   const { session, hasRole } = useAuth()
   const { toast } = useToast()
+  const queryClient = useQueryClient()
   const canEdit = hasRole("admin")
 
   const [plans, setPlans] = useState<Record<ColumnCode, RatePlan | null>>({
@@ -53,46 +55,51 @@ export default function RatePlansManager() {
     BUSINESS_STATIC: null,
     BUSINESS_REMOTE: null,
   })
-  const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [isDirty, setIsDirty] = useState(false)
 
   // Inputs always show the CURRENT live values (what's billed today).
   // Pending (scheduled) values appear only in the banner above so admins
   // can't confuse "what's billed now" with "what's coming."
-  const loadPlans = async () => {
-    if (!session?.accessToken) return
-    const json = await apiFetch<{ data: RatePlan[] }>("/rate-plans")
-    const next: Record<ColumnCode, RatePlan | null> = {
-      PARTICULAR_HOME: null,
-      BUSINESS_STATIC: null,
-      BUSINESS_REMOTE: null,
-    }
-    for (const p of json.data || []) {
-      if ((COLUMN_CODES as readonly string[]).includes(p.code)) {
-        next[p.code as ColumnCode] = {
-          ...p,
-          monthlyFixed: Number(p.monthlyFixed),
-          perWorkCenter: Number(p.perWorkCenter),
-          perWorker: Number(p.perWorker),
-          pendingMonthlyFixed: p.pendingMonthlyFixed,
-          pendingPerWorkCenter: p.pendingPerWorkCenter,
-          pendingPerWorker: p.pendingPerWorker,
-          pendingEffectiveAt: p.pendingEffectiveAt,
+  const { data: fetchedPlans, isLoading } = useQuery<Record<ColumnCode, RatePlan | null>>({
+    queryKey: ["rate-plans"],
+    enabled: !!session?.accessToken,
+    queryFn: async () => {
+      const json = await apiFetch<{ data: RatePlan[] }>("/rate-plans")
+      const next: Record<ColumnCode, RatePlan | null> = {
+        PARTICULAR_HOME: null,
+        BUSINESS_STATIC: null,
+        BUSINESS_REMOTE: null,
+      }
+      for (const p of json.data || []) {
+        if ((COLUMN_CODES as readonly string[]).includes(p.code)) {
+          next[p.code as ColumnCode] = {
+            ...p,
+            monthlyFixed: Number(p.monthlyFixed),
+            perWorkCenter: Number(p.perWorkCenter),
+            perWorker: Number(p.perWorker),
+            pendingMonthlyFixed: p.pendingMonthlyFixed,
+            pendingPerWorkCenter: p.pendingPerWorkCenter,
+            pendingPerWorker: p.pendingPerWorker,
+            pendingEffectiveAt: p.pendingEffectiveAt,
+          }
         }
       }
-    }
-    setPlans(next)
-    setIsDirty(false)
-  }
+      return next
+    },
+  })
 
+  // Seed the editable rate inputs once loaded; re-seeds after save/cancel
+  // (which invalidate). Nothing else invalidates, so in-progress edits are
+  // never clobbered.
   useEffect(() => {
-    setIsLoading(true)
-    loadPlans()
-      .catch((e) => toast({ title: e.message || "Error", variant: "destructive" }))
-      .finally(() => setIsLoading(false))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session?.accessToken])
+    if (fetchedPlans) {
+      setPlans(fetchedPlans)
+      setIsDirty(false)
+    }
+  }, [fetchedPlans])
+
+  const loadPlans = () => queryClient.invalidateQueries({ queryKey: ["rate-plans"] })
 
   const handleChange = (
     code: ColumnCode,

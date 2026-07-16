@@ -26,6 +26,7 @@ import { useTranslation } from "@/hooks/use-translation"
 import { useAuth } from "@/hooks/use-auth"
 import { useParams, useRouter } from "next/navigation"
 import { useState, useEffect } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { useToast } from "@/hooks/use-toast"
 import { impersonateUser } from "@/lib/api/impersonate"
 import impersonationTranslations from "@/lib/translations/impersonation"
@@ -121,7 +122,6 @@ export function WorkerDataTab({ selfService = false }: { selfService?: boolean }
     bankHolder: "",
   })
 
-  const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
@@ -129,75 +129,65 @@ export function WorkerDataTab({ selfService = false }: { selfService?: boolean }
   const [hasChanges, setHasChanges] = useState(false)
   const [originalData, setOriginalData] = useState<WorkerData | null>(null)
 
-  useEffect(() => {
-    const fetchWorkerData = async () => {
-      if (!session?.accessToken || (!workerId && !meMode)) return
+  const invalidId = !workerId && !meMode
 
-      setIsLoading(true)
-      setError(null)
-
-      try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/worker/${meMode ? "me" : workerId}`, {
-          headers: {
-            Authorization: `Bearer ${session.accessToken}`,
-            "Content-Type": "application/json",
-          },
-        })
-
-        if (!response.ok) {
-          throw new Error(`Failed to fetch worker data: ${response.status}`)
-        }
-
-        const result = await response.json()
-
-        if (result.isSuccess && result.data) {
-          const apiData = result.data
-          const mappedData: WorkerData = {
-            id: apiData.id || 0,
-            code: apiData.code || "",
-            nif: apiData.nif || "",
-            naf: apiData.naf || "",
-            name: apiData.name || "",
-            lastName: apiData.lastName || "",
-            address: apiData.address || "",
-            street: apiData.street || "",
-            streetNumber: apiData.streetNumber || "",
-            floorDoor: apiData.floorDoor || "",
-            postalCode: apiData.postalCode || "",
-            city: apiData.city || "",
-            province: apiData.province || "",
-            country: apiData.country || "",
-            latitude: apiData.latitude || "",
-            longitude: apiData.longitude || "",
-            landline: apiData.landline || "",
-            mobile: apiData.mobile || "",
-            email: apiData.email || "",
-            occupation: apiData.occupation || "",
-            sex: apiData.sex || "man",
-            birthday: apiData.birthday ? apiData.birthday.split("T")[0] : "",
-            active: apiData.active !== undefined ? apiData.active : true,
-            observation: apiData.observation || "",
-            bankIban: apiData.bankIban || "",
-            bankSwift: apiData.bankSwift || "",
-            bankHolder: apiData.bankHolder || "",
-            logoUrl: apiData.logoUrl || "",
-          }
-
-          setWorkerData(mappedData)
-          setOriginalData(mappedData)
-        } else {
-          throw new Error(result.developerError || "Failed to load worker data")
-        }
-      } catch (err) {
-        console.error("Error fetching worker data:", err)
-        setError(err instanceof Error ? err.message : "Failed to load worker data")
-      } finally {
-        setIsLoading(false)
+  const { data: fetchedWorker, isLoading, isError, error: queryError, refetch } = useQuery<WorkerData>({
+    queryKey: ["worker", meMode ? "me" : workerId, "data"],
+    enabled: !!session?.accessToken && !invalidId,
+    queryFn: async () => {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/worker/${meMode ? "me" : workerId}`, {
+        headers: {
+          Authorization: `Bearer ${session!.accessToken}`,
+          "Content-Type": "application/json",
+        },
+      })
+      if (!response.ok) throw new Error(`Failed to fetch worker data: ${response.status}`)
+      const result = await response.json()
+      if (!(result.isSuccess && result.data)) throw new Error(result.developerError || "Failed to load worker data")
+      const apiData = result.data
+      return {
+        id: apiData.id || 0,
+        code: apiData.code || "",
+        nif: apiData.nif || "",
+        naf: apiData.naf || "",
+        name: apiData.name || "",
+        lastName: apiData.lastName || "",
+        address: apiData.address || "",
+        street: apiData.street || "",
+        streetNumber: apiData.streetNumber || "",
+        floorDoor: apiData.floorDoor || "",
+        postalCode: apiData.postalCode || "",
+        city: apiData.city || "",
+        province: apiData.province || "",
+        country: apiData.country || "",
+        latitude: apiData.latitude || "",
+        longitude: apiData.longitude || "",
+        landline: apiData.landline || "",
+        mobile: apiData.mobile || "",
+        email: apiData.email || "",
+        occupation: apiData.occupation || "",
+        sex: apiData.sex || "man",
+        birthday: apiData.birthday ? apiData.birthday.split("T")[0] : "",
+        active: apiData.active !== undefined ? apiData.active : true,
+        observation: apiData.observation || "",
+        bankIban: apiData.bankIban || "",
+        bankSwift: apiData.bankSwift || "",
+        bankHolder: apiData.bankHolder || "",
+        logoUrl: apiData.logoUrl || "",
       }
-    }
+    },
+  })
 
-    fetchWorkerData()
-  }, [session?.accessToken, workerId])
+  // Seed the editable form + reset baseline once loaded (no invalidation ->
+  // in-progress edits are never clobbered by a refetch).
+  useEffect(() => {
+    if (fetchedWorker) {
+      setWorkerData(fetchedWorker)
+      setOriginalData(fetchedWorker)
+    }
+  }, [fetchedWorker])
+
+  const displayError = error || (isError ? (queryError instanceof Error ? queryError.message : "Failed to load worker data") : null)
 
   const handleInputChange = (field: keyof WorkerData, value: string | boolean) => {
     setWorkerData((prev) => {
@@ -321,24 +311,22 @@ export function WorkerDataTab({ selfService = false }: { selfService?: boolean }
 
   const retryFetch = () => {
     setError(null)
-    setIsLoading(true)
-    // Re-trigger the useEffect
-    window.location.reload()
+    refetch()
   }
 
-  if (isLoading) {
+  if (isLoading && !invalidId) {
     return (
       <AnimatedLoader size={32} className="p-8" />
     )
   }
 
-  if (error) {
+  if (displayError) {
     return (
       <div className="p-6">
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription className="flex items-center justify-between">
-            <span>{error}</span>
+            <span>{displayError}</span>
             <Button variant="outline" size="sm" onClick={retryFetch}>
               <RefreshCw className="h-4 w-4 mr-2" />
               {t("retry") || "Retry"}

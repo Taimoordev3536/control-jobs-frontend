@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { History, Info } from "lucide-react"
 import {
   Tooltip,
@@ -57,10 +58,9 @@ export default function AnnouncementsPage() {
 function AnnouncementsManageView() {
   const { t } = useTranslation("announcements")
   const { getUserRole } = useAuth()
+  const queryClient = useQueryClient()
   const [role, setRole] = useState<string | null>(null)
 
-  const [audiences, setAudiences] = useState<Audience[]>([])
-  const [audiencesLoading, setAudiencesLoading] = useState(true)
   const [selected, setSelected] = useState<string[]>([])
   const [severity, setSeverity] = useState<Severity>("INFO")
   const [subject, setSubject] = useState("")
@@ -70,7 +70,6 @@ function AnnouncementsManageView() {
   const [schedTime, setSchedTime] = useState("")
   const [reach, setReach] = useState<number | null>(null)
   const [submitting, setSubmitting] = useState(false)
-  const [history, setHistory] = useState<HistoryItem[]>([])
 
   useEffect(() => {
     setRole(getUserRole())
@@ -78,31 +77,25 @@ function AnnouncementsManageView() {
 
   const allowed = role === "admin" || role === "partner" || role === "employer"
 
-  const loadHistory = async () => {
-    try {
-      const res = await apiFetch<{ data: { items: HistoryItem[] } }>(
-        "/announcements",
-      )
-      setHistory(res.data?.items || [])
-    } catch {}
-  }
+  const { data: audiences = [], isLoading: audiencesLoading } = useQuery<Audience[]>({
+    queryKey: ["announcements", "audiences"],
+    enabled: allowed,
+    queryFn: async () => {
+      const res = await apiFetch<{ data: Audience[] }>("/announcements/audiences")
+      return res.data || []
+    },
+  })
 
-  useEffect(() => {
-    if (!allowed) return
-    ;(async () => {
-      setAudiencesLoading(true)
-      try {
-        const res = await apiFetch<{ data: Audience[] }>(
-          "/announcements/audiences",
-        )
-        setAudiences(res.data || [])
-      } catch {
-      } finally {
-        setAudiencesLoading(false)
-      }
-    })()
-    loadHistory()
-  }, [allowed])
+  const { data: history = [] } = useQuery<HistoryItem[]>({
+    queryKey: ["announcements", "history"],
+    enabled: allowed,
+    queryFn: async () => {
+      const res = await apiFetch<{ data: { items: HistoryItem[] } }>("/announcements")
+      return res.data?.items || []
+    },
+  })
+  // Send/cancel refresh the sent-history list.
+  const loadHistory = () => queryClient.invalidateQueries({ queryKey: ["announcements", "history"] })
 
   useEffect(() => {
     if (selected.length === 0) {
