@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { useRouter, useSearchParams } from "next/navigation"
 import { ArrowLeft } from "lucide-react"
 import { useTranslation } from "@/hooks/use-translation"
@@ -58,129 +59,73 @@ export default function WorkCenterDetailView({ workCenterId, onBack }: WorkCente
   const { session } = useAuth()
   const router = useRouter()
   
-  const [workCenter, setWorkCenter] = useState<WorkCenter | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
   const [activeTab, setActiveTab] = useState("description")
 
-  useEffect(() => {
-    if (session?.accessToken && workCenterId) {
-      fetchWorkCenterData()
-    }
-  }, [workCenterId, session?.accessToken])
-
-  const fetchWorkCenterData = async () => {
-    if (!session?.accessToken || !workCenterId) return
-
-    setIsLoading(true)
-    try {
+  const { data: workCenter = null, isLoading, refetch } = useQuery<WorkCenter | null>({
+    queryKey: ["work-centers", "detail", workCenterId],
+    enabled: !!session?.accessToken && !!workCenterId,
+    queryFn: async () => {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/work-centers/${workCenterId}`, {
         headers: {
-          Authorization: `Bearer ${session.accessToken}`,
+          Authorization: `Bearer ${session!.accessToken}`,
           "Content-Type": "application/json",
         },
       })
-
       if (!response.ok) {
         const errBody = await response.json().catch(() => ({}))
         console.error("GET work-center error body:", errBody)
         throw new Error("Failed to fetch work center")
       }
-      
       const result = await response.json()
-      if (result.data) {
-        // Map backend fields to frontend fields
-        const backendData = result.data
-        setWorkCenter({
-          id: backendData.id,
-          publicId: backendData.publicId,
-          clientId: backendData.client?.publicId || backendData.clientId || undefined,
-          clientName: backendData.client?.name || "",
-          code: backendData.code || `WC${backendData.id.toString().padStart(3, '0')}`,
-          name: backendData.name,
-          denomination: backendData.name, // name -> denomination
-          responsible: backendData.contactName || "", // contactName -> responsible
-          address: backendData.address || "",
-          street: backendData.street || "",
-          streetNumber: backendData.streetNumber || "",
-          floorDoor: backendData.floor || "",
-          postalCode: backendData.postalCode || "",
-          city: backendData.locality || "",
-          province: backendData.province || "",
-          country: backendData.country || "",
-          latitude: backendData.latitude ?? null,
-          longitude: backendData.longitude ?? null,
-          phone: backendData.landline || "",
-          mobile: backendData.contactPhone || "",
-          email: backendData.contactEmail || "",
-          observations: backendData.observations || "",
-          signingMethods: {
-            mobile: {
-              qrCode: { active: backendData.isQrcodeActive ?? false, code: "" },
-              wifi: { active: false, ssid: "" },
-              gps: {
-                active: backendData.isGpsActive ?? false,
-                latitude: Number(backendData.latitude) || 0,
-                longitude: Number(backendData.longitude) || 0,
-                radius: Number(backendData.gpsRadius) || 100,
-              },
-            },
-            computer: {
-              ip: { active: backendData.isIpActive ?? false, ipAddress: backendData.allowedIp || "" },
-              wifi: { active: false, ssid: "" },
-            },
-            phone: {
-              callerId: { active: false },
+      if (!result.data) return null
+      const backendData = result.data
+      return {
+        id: backendData.id,
+        publicId: backendData.publicId,
+        clientId: backendData.client?.publicId || backendData.clientId || undefined,
+        clientName: backendData.client?.name || "",
+        code: backendData.code || `WC${backendData.id.toString().padStart(3, '0')}`,
+        name: backendData.name,
+        denomination: backendData.name,
+        responsible: backendData.contactName || "",
+        address: backendData.address || "",
+        street: backendData.street || "",
+        streetNumber: backendData.streetNumber || "",
+        floorDoor: backendData.floor || "",
+        postalCode: backendData.postalCode || "",
+        city: backendData.locality || "",
+        province: backendData.province || "",
+        country: backendData.country || "",
+        latitude: backendData.latitude ?? null,
+        longitude: backendData.longitude ?? null,
+        phone: backendData.landline || "",
+        mobile: backendData.contactPhone || "",
+        email: backendData.contactEmail || "",
+        observations: backendData.observations || "",
+        signingMethods: {
+          mobile: {
+            qrCode: { active: backendData.isQrcodeActive ?? false, code: "" },
+            wifi: { active: false, ssid: "" },
+            gps: {
+              active: backendData.isGpsActive ?? false,
+              latitude: Number(backendData.latitude) || 0,
+              longitude: Number(backendData.longitude) || 0,
+              radius: Number(backendData.gpsRadius) || 100,
             },
           },
-        })
-      } else {
-        console.warn("Unexpected response format:", result)
-      }
-    } catch (error) {
-      console.error("Error fetching work center:", error)
-      // Leave workCenter as null to show error state
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const loadSampleData = () => {
-    setWorkCenter({
-      id: Number.parseInt(workCenterId),
-      code: "WC001",
-      name: "Sucursal 1",
-      denomination: "Sucursal 1",
-      responsible: "Responsable 1",
-      address: "Gran Vía 25",
-      street: "Gran Vía",
-      streetNumber: "25",
-      floorDoor: "5º",
-      postalCode: "49123",
-      city: "Sevilla",
-      latitude: null,
-      longitude: null,
-      province: "Sevilla",
-      country: "España",
-      phone: "946123555",
-      mobile: "645888999",
-      email: "sucursal@cliente1.com",
-      observations: "",
-      signingMethods: {
-        mobile: {
-          qrCode: { active: false, code: "controljobs" },
-          wifi: { active: false, ssid: "" },
-          gps: { active: false, latitude: 37.3891, longitude: -5.9845, radius: 100 }
+          computer: {
+            ip: { active: backendData.isIpActive ?? false, ipAddress: backendData.allowedIp || "" },
+            wifi: { active: false, ssid: "" },
+          },
+          phone: {
+            callerId: { active: false },
+          },
         },
-        computer: {
-          ip: { active: false, ipAddress: "" },
-          wifi: { active: false, ssid: "" }
-        },
-        phone: {
-          callerId: { active: false }
-        }
       }
-    })
-  }
+    },
+  })
+  // Child tabs call this after saving to refresh the record.
+  const fetchWorkCenterData = () => refetch()
 
   const handleBack = () => {
     if (onBack) {

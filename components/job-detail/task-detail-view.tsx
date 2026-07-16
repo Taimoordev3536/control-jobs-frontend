@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { useRouter } from "next/navigation"
 import {
   ArrowLeft,
@@ -53,7 +54,6 @@ export default function TaskDetailView({ taskId }: TaskDetailViewProps) {
   const { t } = useTranslation("job-detail")
   const { session } = useAuth()
   const router = useRouter()
-  const [isLoading, setIsLoading] = useState(true)
   const [task, setTask] = useState<TaskData | null>(null)
   const [showRecurrence, setShowRecurrence] = useState(false)
   const [currentDate, setCurrentDate] = useState(new Date())
@@ -62,65 +62,57 @@ export default function TaskDetailView({ taskId }: TaskDetailViewProps) {
   const [recurrenceError, setRecurrenceError] = useState<string | null>(null)
   const [recurrenceFetched, setRecurrenceFetched] = useState(false)
 
-  useEffect(() => {
-    const fetchTask = async () => {
-      if (!taskId || !session?.accessToken) return
-
-      try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/tasks/${taskId}`, {
-          headers: {
-            Authorization: `Bearer ${session.accessToken}`,
-            Accept: "application/json",
-          },
-        })
-
-        const json = await res.json()
-        if (!json?.isSuccess) {
-          console.error("Failed to fetch task", json)
-          setIsLoading(false)
-          return
-        }
-
-        const data = json.data
-
-        // normalize fields to match TaskData shape used by the component
-        const normalized: TaskData = {
-          id: data.id,
-          name: data.name,
-          note: data.note,
-          expectedDuration: data.expectedDuration,
-          shift: data.shift,
-          timing: data.timing,
-          periodicity: data.periodicity,
-          alertTask: !!data.alertTask,
-          jobId: data.job?.id || data.jobId,
-          jobName: data.job?.jobName || data.jobName || "",
-          clientName: data.job?.clientName || data.clientName || "",
-          workCenter: data.job?.workCenter || data.workCenter || "",
-          workerName: data.workerName || "",
-          weeklyDays: data.weeklyDays
-            ? Array.isArray(data.weeklyDays)
-              ? data.weeklyDays.join(",")
-              : data.weeklyDays
-            : undefined,
-          startDate: data.startDate ? String(data.startDate) : "",
-          endDate: data.endDate || "",
-          interval: data.interval || 1,
-          periodicityValue: data.periodicityValue || "",
-        }
-
-        setTask(normalized)
-        // Pre-fill scheduledDates using client-side calculation as a fallback
-        calculateScheduledDates(normalized, data)
-      } catch (error) {
-        console.error("Error fetching task:", error)
-      } finally {
-        setIsLoading(false)
+  const { data: taskResult = null, isLoading } = useQuery<{ task: TaskData; raw: any } | null>({
+    queryKey: ["jobs", "tasks", taskId],
+    enabled: !!taskId && !!session?.accessToken,
+    queryFn: async () => {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/tasks/${taskId}`, {
+        headers: {
+          Authorization: `Bearer ${session!.accessToken}`,
+          Accept: "application/json",
+        },
+      })
+      if (!res.ok) throw new Error("Failed to fetch task")
+      const json = await res.json()
+      if (!json?.isSuccess) return null
+      const data = json.data
+      const normalized: TaskData = {
+        id: data.id,
+        name: data.name,
+        note: data.note,
+        expectedDuration: data.expectedDuration,
+        shift: data.shift,
+        timing: data.timing,
+        periodicity: data.periodicity,
+        alertTask: !!data.alertTask,
+        jobId: data.job?.id || data.jobId,
+        jobName: data.job?.jobName || data.jobName || "",
+        clientName: data.job?.clientName || data.clientName || "",
+        workCenter: data.job?.workCenter || data.workCenter || "",
+        workerName: data.workerName || "",
+        weeklyDays: data.weeklyDays
+          ? Array.isArray(data.weeklyDays)
+            ? data.weeklyDays.join(",")
+            : data.weeklyDays
+          : undefined,
+        startDate: data.startDate ? String(data.startDate) : "",
+        endDate: data.endDate || "",
+        interval: data.interval || 1,
+        periodicityValue: data.periodicityValue || "",
       }
-    }
+      return { task: normalized, raw: data }
+    },
+  })
 
-    fetchTask()
-  }, [taskId, session?.accessToken])
+  // Seed the local (mutable) task + client-side schedule fallback once loaded.
+  // task stays local state because the recurrence panel patches periodicityValue.
+  useEffect(() => {
+    if (taskResult) {
+      setTask(taskResult.task)
+      calculateScheduledDates(taskResult.task, taskResult.raw)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [taskResult])
 
   // When the recurrence panel is opened, fetch generated recurrence from backend
   useEffect(() => {

@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import {
   Clock,
   Calendar,
@@ -209,10 +210,6 @@ export function JobAttendanceDetail({ job, jobId, jobData, onBack }: JobAttendan
     worker: "all",
     searchTerm: "",
   })
-  const [jobHistoryData, setJobHistoryData] = useState<JobHistoryData[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [taskHistoryByDate, setTaskHistoryByDate] = useState<Record<string, { id: number; name: string; completed: boolean; completedByWorkerId: number }[]>>({})
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
 
   const handleBack = () => {
@@ -227,196 +224,129 @@ export function JobAttendanceDetail({ job, jobId, jobData, onBack }: JobAttendan
     }
   }
 
-  // Fetch job scan history from API
-  useEffect(() => {
-    const fetchJobScanHistory = async () => {
-      if (!session?.accessToken) {
-        setError("No authentication token available")
-        setLoading(false)
-        return
+  const jobKey = job?.publicId || job?.id
+
+  // Fetch job scan history from API (self-heals on transient failure via retry).
+  const {
+    data: scanData,
+    isLoading: loading,
+    isError,
+    error: queryError,
+    refetch,
+  } = useQuery<{ history: JobHistoryData[]; taskMap: Record<string, { id: number; name: string; completed: boolean; completedByWorkerId: number }[]> }>({
+    queryKey: ["jobs", "scan-history", jobKey || jobId, historyFilters.dateRange],
+    enabled: !!session?.accessToken && !!(jobKey || jobId),
+    queryFn: async () => {
+      const buildTaskMap = (data: any[]) => {
+        const taskMap: Record<string, { id: number; name: string; completed: boolean; completedByWorkerId: number }[]> = {}
+        for (const d of data || []) {
+          if (d.tasks && Array.isArray(d.tasks)) taskMap[d.date] = d.tasks
+        }
+        return taskMap
       }
 
-      try {
-        setLoading(true)
-        setError(null)
-
-        // Use the same pattern as employer dashboard - direct API call with session token
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/${job?.publicId || job?.id}/scan-history`, {
+      if (jobKey) {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/${jobKey}/scan-history`, {
           method: "GET",
           headers: {
-            Authorization: `Bearer ${session.accessToken}`,
+            Authorization: `Bearer ${session!.accessToken}`,
             "Content-Type": "application/json",
           },
         })
-
         if (!response.ok) {
-          if (response.status === 401) {
-            throw new Error("Authentication failed. Please log in again.")
-          }
-          if (response.status === 404) {
-            throw new Error("Job scan history endpoint not found. Please check the job ID.")
-          }
+          if (response.status === 401) throw new Error("Authentication failed. Please log in again.")
+          if (response.status === 404) throw new Error("Job scan history endpoint not found. Please check the job ID.")
           throw new Error(`HTTP error! status: ${response.status}`)
         }
-
         const result: ApiScanHistoryResponse = await response.json()
+        if (!result.isSuccess) throw new Error(result.developerError || result.message || "Failed to fetch job scan history")
 
-        if (result.isSuccess) {
-          // Regroup by Europe/Madrid day to avoid UTC / viewer-tz day shifts
-          const dateKeyInTz = (date: string | Date) => madridYmd(date)
-
-          // Flatten scans and sessions coming from server (which may be UTC-grouped)
-          const allScans: any[] = []
-          const allSessions: any[] = []
-          for (const day of result.data || []) {
-            for (const s of day.scans || []) allScans.push(s)
-            for (const sess of day.sessions || []) allSessions.push(sess)
-          }
-
-          // Group scans by local day
-          const scansByDate: Record<string, any[]> = {}
-          for (const s of allScans) {
-            const key = dateKeyInTz(s.scanTime)
-            if (!scansByDate[key]) scansByDate[key] = []
-            scansByDate[key].push(s)
-          }
-
-          // Group sessions by local day (based on check-in time)
-          const sessionsByDate: Record<string, any[]> = {}
-          for (const sess of allSessions) {
-            const key = dateKeyInTz(sess.checkInTime)
-            if (!sessionsByDate[key]) sessionsByDate[key] = []
-            sessionsByDate[key].push(sess)
-          }
-
-          // Recompute breaks per local day by pairing break-start -> break-end in chronological order
-          const breaksByDate: Record<string, any[]> = {}
-          for (const [dateKey, scans] of Object.entries(scansByDate)) {
-            const sorted = [...scans].sort((a, b) => new Date(a.scanTime).getTime() - new Date(b.scanTime).getTime())
-            const dayBreaks: any[] = []
-            let currentStart: any | null = null
-            for (const log of sorted) {
-              if (log.scanType === 'break-start') {
-                currentStart = log
-              } else if (log.scanType === 'break-end' && currentStart) {
-                const durationMinutes = Math.floor((new Date(log.scanTime).getTime() - new Date(currentStart.scanTime).getTime()) / (1000 * 60))
-                dayBreaks.push({
-                  breakStart: { id: currentStart.id, scanTime: currentStart.scanTime, notes: currentStart.notes },
-                  breakEnd: { id: log.id, scanTime: log.scanTime, notes: log.notes },
-                  durationMinutes,
-                  worker: log.worker,
-                })
-                currentStart = null
-              }
-            }
-            breaksByDate[dateKey] = dayBreaks
-          }
-
-          // Build tasksByDate from API response so we don't lose dates that only have tasks
-          const tasksByDate: Record<string, any[]> = {}
-          for (const d of result.data || []) {
-            if (d.tasks && Array.isArray(d.tasks)) {
-              tasksByDate[d.date] = d.tasks
-            }
-          }
-
-          // Build final localized daily cards using all dates (scans, sessions, tasks)
-          const allDatesSet = new Set<string>([
-            ...Object.keys(scansByDate),
-            ...Object.keys(sessionsByDate),
-            ...Object.keys(tasksByDate),
-          ])
-
-          const localizedData: JobHistoryData[] = Array.from(allDatesSet)
-            .sort() // ascending by date string YYYY-MM-DD
-            .map(date => ({
-              date,
-              scans: scansByDate[date] || [],
-              breaks: breaksByDate[date] || [],
-              sessions: sessionsByDate[date] || [],
-              tasks: tasksByDate[date] || [],
-            }))
-
-          setJobHistoryData(localizedData)
-
-          // Build task map for fast lookup in UI — use API result directly to avoid missing dates
-          const taskMap: Record<string, { id: number; name: string; completed: boolean; completedByWorkerId: number }[]> = {}
-          for (const d of result.data || []) {
-            if (d.tasks && Array.isArray(d.tasks)) {
-              taskMap[d.date] = d.tasks
-            }
-          }
-          setTaskHistoryByDate(taskMap)
-        } else {
-          throw new Error(result.developerError || result.message || "Failed to fetch job scan history")
+        // Regroup by Europe/Madrid day to avoid UTC / viewer-tz day shifts
+        const dateKeyInTz = (date: string | Date) => madridYmd(date)
+        const allScans: any[] = []
+        const allSessions: any[] = []
+        for (const day of result.data || []) {
+          for (const s of day.scans || []) allScans.push(s)
+          for (const sess of day.sessions || []) allSessions.push(sess)
         }
-      } catch (err) {
-        console.error("Error fetching job scan history:", err)
-        setError(err instanceof Error ? err.message : "Failed to fetch job scan history")
-        // Fallback to empty data
-        setJobHistoryData([])
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    if ((job?.publicId || job?.id) && session?.accessToken) {
-      fetchJobScanHistory()
-    } else if (jobId && session?.accessToken) {
-      // Use jobId from props if job object is not available
-      const fetchJobScanHistoryById = async () => {
-        try {
-          setLoading(true)
-          setError(null)
-          
-          const { start: apiStart, end: apiEnd } = computeRange(historyFilters.dateRange)
-          const dateQuery = apiStart && apiEnd ? `?startDate=${apiStart}&endDate=${apiEnd}` : ""
-          const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/${jobId}/scan-history${dateQuery}`, {
-            method: "GET",
-            headers: {
-              Authorization: `Bearer ${session.accessToken}`,
-              "Content-Type": "application/json",
-            },
-          })
-
-          // Rest of fetch logic remains the same
-          if (!response.ok) {
-            if (response.status === 401) {
-              throw new Error("Authentication failed. Please log in again.")
-            }
-            if (response.status === 404) {
-              throw new Error("Job scan history endpoint not found. Please check the job ID.")
-            }
-            throw new Error(`HTTP error! status: ${response.status}`)
-          }
-
-          const result: ApiScanHistoryResponse = await response.json()
-          // Process result same as in fetchJobScanHistory
-          if (result.isSuccess) {
-            setJobHistoryData(result.data || [])
-            // populate taskHistoryByDate for this simpler branch as well
-            const taskMap: Record<string, { id: number; name: string; completed: boolean; completedByWorkerId: number }[]> = {}
-            for (const d of result.data || []) {
-              if (d.tasks && Array.isArray(d.tasks)) {
-                taskMap[d.date] = d.tasks
-              }
-            }
-            setTaskHistoryByDate(taskMap)
-          } else {
-            throw new Error(result.developerError || result.message || "Failed to fetch job scan history")
-          }
-        } catch (err) {
-          console.error("Error fetching job scan history:", err)
-          setError(err instanceof Error ? err.message : "Failed to fetch job scan history")
-          setJobHistoryData([])
-        } finally {
-          setLoading(false)
+        const scansByDate: Record<string, any[]> = {}
+        for (const s of allScans) {
+          const key = dateKeyInTz(s.scanTime)
+          if (!scansByDate[key]) scansByDate[key] = []
+          scansByDate[key].push(s)
         }
+        const sessionsByDate: Record<string, any[]> = {}
+        for (const sess of allSessions) {
+          const key = dateKeyInTz(sess.checkInTime)
+          if (!sessionsByDate[key]) sessionsByDate[key] = []
+          sessionsByDate[key].push(sess)
+        }
+        const breaksByDate: Record<string, any[]> = {}
+        for (const [dateKey, scans] of Object.entries(scansByDate)) {
+          const sorted = [...scans].sort((a, b) => new Date(a.scanTime).getTime() - new Date(b.scanTime).getTime())
+          const dayBreaks: any[] = []
+          let currentStart: any | null = null
+          for (const log of sorted) {
+            if (log.scanType === 'break-start') {
+              currentStart = log
+            } else if (log.scanType === 'break-end' && currentStart) {
+              const durationMinutes = Math.floor((new Date(log.scanTime).getTime() - new Date(currentStart.scanTime).getTime()) / (1000 * 60))
+              dayBreaks.push({
+                breakStart: { id: currentStart.id, scanTime: currentStart.scanTime, notes: currentStart.notes },
+                breakEnd: { id: log.id, scanTime: log.scanTime, notes: log.notes },
+                durationMinutes,
+                worker: log.worker,
+              })
+              currentStart = null
+            }
+          }
+          breaksByDate[dateKey] = dayBreaks
+        }
+        const tasksByDate: Record<string, any[]> = {}
+        for (const d of result.data || []) {
+          if (d.tasks && Array.isArray(d.tasks)) tasksByDate[d.date] = d.tasks
+        }
+        const allDatesSet = new Set<string>([
+          ...Object.keys(scansByDate),
+          ...Object.keys(sessionsByDate),
+          ...Object.keys(tasksByDate),
+        ])
+        const localizedData: JobHistoryData[] = Array.from(allDatesSet)
+          .sort()
+          .map(date => ({
+            date,
+            scans: scansByDate[date] || [],
+            breaks: breaksByDate[date] || [],
+            sessions: sessionsByDate[date] || [],
+            tasks: tasksByDate[date] || [],
+          }))
+        return { history: localizedData, taskMap: buildTaskMap(result.data || []) }
       }
-      
-      fetchJobScanHistoryById()
-    }
-  }, [job?.id, jobId, session?.accessToken, historyFilters.dateRange])
+
+      // Fallback branch: fetch by jobId prop with the selected date range.
+      const { start: apiStart, end: apiEnd } = computeRange(historyFilters.dateRange)
+      const dateQuery = apiStart && apiEnd ? `?startDate=${apiStart}&endDate=${apiEnd}` : ""
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/${jobId}/scan-history${dateQuery}`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${session!.accessToken}`,
+          "Content-Type": "application/json",
+        },
+      })
+      if (!response.ok) {
+        if (response.status === 401) throw new Error("Authentication failed. Please log in again.")
+        if (response.status === 404) throw new Error("Job scan history endpoint not found. Please check the job ID.")
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+      const result: ApiScanHistoryResponse = await response.json()
+      if (!result.isSuccess) throw new Error(result.developerError || result.message || "Failed to fetch job scan history")
+      return { history: result.data || [], taskMap: buildTaskMap(result.data || []) }
+    },
+  })
+
+  const jobHistoryData = scanData?.history || []
+  const taskHistoryByDate = scanData?.taskMap || {}
+  const error = isError ? (queryError instanceof Error ? queryError.message : "Failed to fetch job scan history") : null
 
 
   const toggleHistoryCard = (date: string) => {
@@ -623,12 +553,7 @@ export function JobAttendanceDetail({ job, jobId, jobData, onBack }: JobAttendan
 
   // Retry function
   const handleRetry = () => {
-    if ((job?.publicId || job?.id) && session?.accessToken) {
-      setError(null)
-      setLoading(true)
-      // Re-trigger the useEffect by updating a dependency
-      window.location.reload()
-    }
+    refetch()
   }
 
   const getActivityName = (scanType: string) => {
