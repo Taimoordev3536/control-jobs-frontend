@@ -1,7 +1,9 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useState } from "react"
 import Link from "next/link"
+import { useQuery } from "@tanstack/react-query"
+import { apiFetch } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Copy, Check, Share2, FileText } from "lucide-react"
@@ -12,35 +14,19 @@ import { AnimatedLoader } from "@/components/animated-loader"
 
 export default function MarketingPage() {
   const { t } = useTranslation()
-  const { session } = useAuth()
+  const { isAuthenticated } = useAuth()
   const { toast } = useToast()
-  const [link, setLink] = useState<string>("")
-  const [loading, setLoading] = useState(true)
   const [copied, setCopied] = useState(false)
 
-  const load = useCallback(async () => {
-    if (!session?.accessToken) return
-    setLoading(true)
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/employer-invitations`, {
-        headers: { Authorization: `Bearer ${session.accessToken}` },
-      })
-      if (res.ok) {
-        const json = await res.json()
-        const rows = json?.data || []
-        const withLink = rows.find((r: any) => r.inviteLink)
-        setLink(withLink?.inviteLink || "")
-      }
-    } catch {
-      /* swallow */
-    } finally {
-      setLoading(false)
-    }
-  }, [session?.accessToken])
-
-  useEffect(() => {
-    load()
-  }, [load])
+  const { data: link = "", isLoading: loading } = useQuery<string>({
+    queryKey: ["employer-invitations", "link"],
+    queryFn: async () => {
+      const json = await apiFetch<any>("/employer-invitations")
+      const rows = json?.data || []
+      return rows.find((r: any) => r.inviteLink)?.inviteLink || ""
+    },
+    enabled: isAuthenticated,
+  })
 
   const copy = async () => {
     try {

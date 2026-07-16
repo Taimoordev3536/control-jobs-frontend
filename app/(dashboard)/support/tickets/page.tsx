@@ -2,7 +2,9 @@
 
 import DataListTemplate from "@/components/ui/data-list-template"
 import { useTranslation } from "@/hooks/use-translation"
-import { useState, useEffect, useCallback } from "react"
+import { useState } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { apiFetch } from "@/lib/api"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { AnimatedLoader } from "@/components/animated-loader"
@@ -13,48 +15,34 @@ import { Button } from "@/components/ui/button"
 
 export default function SupportTicketsPage() {
   const { t } = useTranslation()
-  const { session } = useAuth()
+  const { session, isAuthenticated } = useAuth()
   const { toast } = useToast()
-  const [tickets, setTickets] = useState<any[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const queryClient = useQueryClient()
   const [selected, setSelected] = useState<any | null>(null)
   const [reply, setReply] = useState("")
   const [sending, setSending] = useState(false)
 
-  const fetchTickets = useCallback(async () => {
-    if (!session?.accessToken) return
-    setIsLoading(true)
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/support/tickets`, {
-        headers: { Authorization: `Bearer ${session.accessToken}` },
-      })
-      if (!res.ok) throw new Error("Failed to fetch tickets")
-      const data = await res.json()
-      setTickets(
-        (data.data || []).map((r: any) => ({
-          id: r.publicId || r.id,
-          publicId: r.publicId,
-          date: formatLocalDateTime(r.createdAt),
-          requester: r.requesterName || "-",
-          role: r.requesterRole || "-",
-          message: r.message || "-",
-          status: r.status || "OPEN",
-          response: r.response || "",
-          respondedByName: r.respondedByName || "",
-          respondedAt: r.respondedAt ? formatLocalDateTime(r.respondedAt) : "",
-        })),
-      )
-    } catch (err) {
-      console.error("Error fetching tickets:", err)
-      setTickets([])
-    } finally {
-      setIsLoading(false)
-    }
-  }, [session?.accessToken])
+  const { data: tickets = [], isLoading } = useQuery<any[]>({
+    queryKey: ["support", "tickets"],
+    queryFn: async () => {
+      const data = await apiFetch<{ data: any[] }>("/support/tickets")
+      return (data.data || []).map((r: any) => ({
+        id: r.publicId || r.id,
+        publicId: r.publicId,
+        date: formatLocalDateTime(r.createdAt),
+        requester: r.requesterName || "-",
+        role: r.requesterRole || "-",
+        message: r.message || "-",
+        status: r.status || "OPEN",
+        response: r.response || "",
+        respondedByName: r.respondedByName || "",
+        respondedAt: r.respondedAt ? formatLocalDateTime(r.respondedAt) : "",
+      }))
+    },
+    enabled: isAuthenticated,
+  })
 
-  useEffect(() => {
-    fetchTickets()
-  }, [fetchTickets])
+  const fetchTickets = () => queryClient.invalidateQueries({ queryKey: ["support", "tickets"] })
 
   const openTicket = (row: any) => {
     setSelected(row)

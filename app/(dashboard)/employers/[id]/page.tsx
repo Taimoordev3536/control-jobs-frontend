@@ -3,8 +3,10 @@
 
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
+import { useQuery } from "@tanstack/react-query"
+import { apiFetch } from "@/lib/api"
 import { ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useTranslation } from "@/hooks/use-translation"
@@ -40,44 +42,19 @@ export default function EmployerDetailPage() {
   const { id } = useParams() as { id: string }
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [employer, setEmployer] = useState<Employer | null>(null)
   const initialName = searchParams.get("name") || ""
-  const [isLoading, setIsLoading] = useState(true)
   const [activeTab, setActiveTab] = useState("data")
-  const { session } = useAuth()
+  const { isAuthenticated } = useAuth()
 
-  useEffect(() => {
-    const fetchEmployer = async () => {
-      if (!id || !session?.accessToken) return
-
-      try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/employers/${id}`, {
-          headers: {
-            Authorization: `Bearer ${session.accessToken}`,
-            "Content-Type": "application/json",
-          },
-        })
-
-        if (!response.ok) {
-          throw new Error("Failed to fetch employer")
-        }
-
-        const result = await response.json()
-        if (result.isSuccess && result.data) {
-          setEmployer(result.data)
-        } else {
-          throw new Error(result.developerError || "Failed to fetch employer")
-        }
-      } catch (error) {
-        console.error("Error fetching employer:", error)
-        setEmployer(null)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    fetchEmployer()
-  }, [id, session?.accessToken])
+  const { data: employer = null, isLoading } = useQuery<Employer | null>({
+    queryKey: ["employers", "detail", id],
+    queryFn: async () => {
+      const result = await apiFetch<any>(`/employers/${id}`)
+      if (result?.isSuccess && result.data) return result.data
+      throw new Error(result?.developerError || "Failed to fetch employer")
+    },
+    enabled: isAuthenticated && !!id,
+  })
 
   const getTypeLabel = (typeId: number) => {
     const keys: Record<number, string> = { 1: "HOME", 2: "STATIC", 3: "REMOTE" }

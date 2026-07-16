@@ -1,7 +1,9 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useState } from "react"
 import { useSession } from "next-auth/react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { apiFetch } from "@/lib/api"
 import { Plus, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -23,36 +25,40 @@ const statusMeta: Record<string, { key: string; fallback: string; cls: string; a
 
 export default function ClientSolicitudesPage() {
   const { t } = useTranslation()
-  const { data: session } = useSession()
+  const { data: session, status } = useSession()
+  const isAuthenticated = status === "authenticated"
+  const queryClient = useQueryClient()
   const base = process.env.NEXT_PUBLIC_API_BASE_URL
 
   const [type, setType] = useState<"new_job" | "change">("new_job")
   const [jobPublicId, setJobPublicId] = useState("")
   const [subject, setSubject] = useState("")
   const [description, setDescription] = useState("")
-  const [jobs, setJobs] = useState<any[]>([])
-  const [list, setList] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [filter, setFilter] = useState("")
 
-  const load = useCallback(() => {
-    if (!session?.accessToken) return
-    const h = { Authorization: `Bearer ${session.accessToken}` }
-    setLoading(true)
-    Promise.all([
-      fetch(`${base}/client-requests/mine`, { headers: h }).then((r) => r.json()),
-      fetch(`${base}/jobs/client/all-jobs`, { headers: h }).then((r) => r.json()),
-    ])
-      .then(([reqs, js]) => {
-        setList(Array.isArray(reqs?.data) ? reqs.data.filter((r: any) => r.type !== "absence") : [])
-        setJobs(Array.isArray(js?.data) ? js.data : [])
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false))
-  }, [session?.accessToken, base])
+  const { data: list = [], isLoading: listLoading } = useQuery<any[]>({
+    queryKey: ["client-requests", "mine", "non-absence"],
+    queryFn: async () => {
+      const reqs = await apiFetch<any>("/client-requests/mine")
+      return Array.isArray(reqs?.data) ? reqs.data.filter((r: any) => r.type !== "absence") : []
+    },
+    enabled: isAuthenticated,
+  })
+  const { data: jobs = [], isLoading: jobsLoading } = useQuery<any[]>({
+    queryKey: ["jobs", "client", "all-jobs"],
+    queryFn: async () => {
+      const js = await apiFetch<any>("/jobs/client/all-jobs")
+      return Array.isArray(js?.data) ? js.data : []
+    },
+    enabled: isAuthenticated,
+  })
+  const loading = listLoading || jobsLoading
 
-  useEffect(() => { load() }, [load])
+  const load = () => {
+    queryClient.invalidateQueries({ queryKey: ["client-requests"] })
+    queryClient.invalidateQueries({ queryKey: ["jobs", "client", "all-jobs"] })
+  }
 
   const submit = async () => {
     if (!session?.accessToken || !subject.trim()) {
