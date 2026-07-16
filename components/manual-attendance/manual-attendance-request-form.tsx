@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect } from "react"
+import { useQuery } from "@tanstack/react-query"
 import {
   Dialog,
   DialogContent,
@@ -103,9 +104,7 @@ export default function ManualAttendanceRequestForm({
   const [workerNotes, setWorkerNotes] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState("")
-  const [availableJobs, setAvailableJobs] = useState<Job[]>([])
   const [selectedJobId, setSelectedJobId] = useState("")
-  const [isLoadingJobs, setIsLoadingJobs] = useState(false)
 
   const userRole = (session as any)?.user?.role?.name?.toLowerCase() || ""
 
@@ -126,38 +125,34 @@ export default function ManualAttendanceRequestForm({
   }, [open, preSelectedType, preSelectedDate, preSelectedWorker])
 
   // Fetch the current user's jobs when no job is passed in
-  useEffect(() => {
-    if (!open || job || !session?.accessToken) return
-
-    const endpoint =
-      userRole === "worker"
-        ? `${process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/worker/all-jobs`
-        : userRole === "client"
-          ? `${process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/client/all-jobs`
-          : `${process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/employer/all-jobs`
-
-    setIsLoadingJobs(true)
-    fetch(endpoint, {
-      headers: {
-        Authorization: `Bearer ${session.accessToken}`,
-        "Content-Type": "application/json",
-      },
-    })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        const list: Job[] = (data?.data || []).map((j: any) => ({
-          id: j.id,
-          publicId: j.publicId || j.jobId,
-          title: j.title || j.jobName,
-          jobName: j.jobName || j.title,
-          workers: j.workers || [],
-          workCenters: j.workCenters || (j.workCenter ? [j.workCenter] : []),
-        }))
-        setAvailableJobs(list)
+  const { data: availableJobs = [], isLoading: isLoadingJobs } = useQuery<Job[]>({
+    queryKey: ["manual-attendance", "request-jobs", userRole],
+    enabled: open && !job && !!session?.accessToken,
+    queryFn: async () => {
+      const endpoint =
+        userRole === "worker"
+          ? `${process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/worker/all-jobs`
+          : userRole === "client"
+            ? `${process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/client/all-jobs`
+            : `${process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/employer/all-jobs`
+      const r = await fetch(endpoint, {
+        headers: {
+          Authorization: `Bearer ${session!.accessToken}`,
+          "Content-Type": "application/json",
+        },
       })
-      .catch(() => setAvailableJobs([]))
-      .finally(() => setIsLoadingJobs(false))
-  }, [open, job, session?.accessToken, userRole])
+      if (!r.ok) return []
+      const data = await r.json()
+      return (data?.data || []).map((j: any) => ({
+        id: j.id,
+        publicId: j.publicId || j.jobId,
+        title: j.title || j.jobName,
+        jobName: j.jobName || j.title,
+        workers: j.workers || [],
+        workCenters: j.workCenters || (j.workCenter ? [j.workCenter] : []),
+      }))
+    },
+  })
 
   // Resolve active job: prop-provided OR selected from the list
   const activeJob: Job | undefined =

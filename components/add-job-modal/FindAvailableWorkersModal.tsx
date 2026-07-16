@@ -1,7 +1,8 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { useSession } from "next-auth/react"
+import { useQuery } from "@tanstack/react-query"
 import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -28,24 +29,22 @@ export default function FindAvailableWorkersModal({
   onToggle,
 }: FindAvailableWorkersModalProps) {
   const { t } = useTranslation()
-  const { data: session } = useSession()
-  const [workers, setWorkers] = useState<any[]>([])
-  const [loading, setLoading] = useState(false)
+  const { data: session, status } = useSession()
   const [query, setQuery] = useState("")
   const [onlyAvailable, setOnlyAvailable] = useState(true)
 
-  useEffect(() => {
-    if (!open || !session?.accessToken) return
-    setLoading(true)
-    const qs = startDate && endDate ? `?startDate=${startDate}&endDate=${endDate}` : ""
-    fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/worker/find-available${qs}`, {
-      headers: { Authorization: `Bearer ${session.accessToken}` },
-    })
-      .then((r) => r.json())
-      .then((j) => setWorkers(Array.isArray(j?.data) ? j.data : []))
-      .catch(() => setWorkers([]))
-      .finally(() => setLoading(false))
-  }, [open, session?.accessToken, startDate, endDate])
+  const { data: workers = [], isLoading: loading } = useQuery<any[]>({
+    queryKey: ["worker", "find-available", startDate, endDate],
+    enabled: open && status === "authenticated",
+    queryFn: async () => {
+      const qs = startDate && endDate ? `?startDate=${startDate}&endDate=${endDate}` : ""
+      const r = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/worker/find-available${qs}`, {
+        headers: { Authorization: `Bearer ${session!.accessToken}` },
+      })
+      const j = await r.json()
+      return Array.isArray(j?.data) ? j.data : []
+    },
+  })
 
   const q = query.trim().toLowerCase()
   const filtered = workers.filter((w) => {

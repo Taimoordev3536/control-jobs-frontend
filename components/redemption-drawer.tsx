@@ -1,6 +1,7 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useMemo } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { Filter } from "lucide-react"
 import {
   Dialog,
@@ -10,7 +11,6 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog"
 import { useAuth } from "@/hooks/use-auth"
-import { useToast } from "@/hooks/use-toast"
 import { useTranslation } from "@/hooks/use-translation"
 import DataListTemplate, {
   ExcelIcon,
@@ -58,40 +58,22 @@ export default function RedemptionDrawer({
   target?: RedemptionTarget
 }) {
   const { session } = useAuth()
-  const { toast } = useToast()
   const { t } = useTranslation()
-  const [rows, setRows] = useState<Redemption[]>([])
-  // Start true so the spinner shows immediately when the drawer opens,
-  // before the first fetch resolves.
-  const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    if (!invitation || !session?.accessToken) return
-    let cancelled = false
-    // Reset on every open so a stale "no redemptions" from the previous
-    // invitation doesn't flash before the new fetch lands.
-    setRows([])
-    setLoading(true)
-    ;(async () => {
-      try {
-        const resource = RESOURCE_BY_TARGET[target]
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_BASE_URL}/${resource}/${invitation.publicId}/redemptions`,
-          { headers: { Authorization: `Bearer ${session.accessToken}` } },
-        )
-        if (!res.ok) throw new Error("Failed to load redemptions")
-        const json = await res.json()
-        if (!cancelled) setRows(json.data || [])
-      } catch (e: any) {
-        if (!cancelled) toast({ title: e.message, variant: "destructive" })
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [invitation, session?.accessToken, target, toast])
+  const { data: rows = [], isLoading: loading } = useQuery<Redemption[]>({
+    queryKey: ["redemptions", target, invitation?.publicId],
+    queryFn: async () => {
+      const resource = RESOURCE_BY_TARGET[target]
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/${resource}/${invitation!.publicId}/redemptions`,
+        { headers: { Authorization: `Bearer ${session!.accessToken}` } },
+      )
+      if (!res.ok) throw new Error("Failed to load redemptions")
+      const json = await res.json()
+      return json.data || []
+    },
+    enabled: !!invitation && !!session?.accessToken,
+  })
 
   const nameLabel =
     target === "worker"

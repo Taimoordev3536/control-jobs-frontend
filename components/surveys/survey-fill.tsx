@@ -1,7 +1,8 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useState } from "react"
 import { useSession } from "next-auth/react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Loader2, CheckCircle2, ShieldCheck, Eye } from "lucide-react"
 import SurvayIcon from "@/icons/Menu/surveys.svg"
 import { Button } from "@/components/ui/button"
@@ -14,25 +15,23 @@ import { formatLocalDate } from "@/lib/datetime"
 
 export function SurveyFill() {
   const { t } = useTranslation()
-  const { data: session } = useSession()
+  const { data: session, status } = useSession()
   const base = process.env.NEXT_PUBLIC_API_BASE_URL
-  const [list, setList] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
   const [active, setActive] = useState<any | null>(null)
   const [viewing, setViewing] = useState<any | null>(null)
   const [filter, setFilter] = useState("")
 
-  const load = useCallback(() => {
-    if (!session?.accessToken) return
-    setLoading(true)
-    fetch(`${base}/survey-forms/mine`, { headers: { Authorization: `Bearer ${session.accessToken}` } })
-      .then((r) => r.json())
-      .then((j) => setList(Array.isArray(j?.data) ? j.data : []))
-      .catch(() => setList([]))
-      .finally(() => setLoading(false))
-  }, [session?.accessToken, base])
-
-  useEffect(() => { load() }, [load])
+  const { data: list = [], isLoading: loading } = useQuery<any[]>({
+    queryKey: ["survey-forms", "mine"],
+    queryFn: async () => {
+      const r = await fetch(`${base}/survey-forms/mine`, { headers: { Authorization: `Bearer ${session!.accessToken}` } })
+      const j = await r.json()
+      return Array.isArray(j?.data) ? j.data : []
+    },
+    enabled: status === "authenticated",
+  })
+  const load = () => queryClient.invalidateQueries({ queryKey: ["survey-forms", "mine"] })
 
   const counts = { pending: list.filter((s) => !s.filled).length, completed: list.filter((s) => s.filled).length }
   const filtered = filter === "pending" ? list.filter((s) => !s.filled) : filter === "completed" ? list.filter((s) => s.filled) : list
@@ -116,20 +115,18 @@ export function SurveyFill() {
 
 function MyResponseDialog({ survey, onClose }: { survey: any; onClose: () => void }) {
   const { t } = useTranslation()
-  const { data: session } = useSession()
+  const { data: session, status } = useSession()
   const base = process.env.NEXT_PUBLIC_API_BASE_URL
-  const [data, setData] = useState<any | null>(null)
-  const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    if (!session?.accessToken) return
-    setLoading(true)
-    fetch(`${base}/survey-forms/${survey.id}/my-response`, { headers: { Authorization: `Bearer ${session.accessToken}` } })
-      .then((r) => r.json())
-      .then((j) => setData(j?.data || null))
-      .catch(() => setData(null))
-      .finally(() => setLoading(false))
-  }, [session?.accessToken, base, survey.id])
+  const { data = null, isLoading: loading } = useQuery<any | null>({
+    queryKey: ["survey-forms", survey.id, "my-response"],
+    queryFn: async () => {
+      const r = await fetch(`${base}/survey-forms/${survey.id}/my-response`, { headers: { Authorization: `Bearer ${session!.accessToken}` } })
+      const j = await r.json()
+      return j?.data || null
+    },
+    enabled: status === "authenticated" && !!survey.id,
+  })
 
   const render = (v: any) => (Array.isArray(v) ? v.join(", ") : v === true ? (t("yes") || "Sí") : v === false ? (t("no") || "No") : String(v ?? "—"))
 
