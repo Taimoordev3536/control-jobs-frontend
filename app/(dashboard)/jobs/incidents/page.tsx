@@ -1,8 +1,10 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
+import { apiFetch } from "@/lib/api"
 import { useTranslation } from "@/hooks/use-translation"
 import { Button } from "@/components/ui/button"
 import { DateInput } from "@/components/ui/date-input"
@@ -34,10 +36,8 @@ interface IncRow {
 
 export default function IncidentsPage() {
   const { t } = useTranslation()
-  const { session } = useAuth()
+  const { isAuthenticated } = useAuth()
   const [date, setDate] = useState(todayStr())
-  const [rows, setRows] = useState<IncRow[]>([])
-  const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<IncRow | null>(null)
 
   const incidentLabel = (i: string) =>
@@ -54,23 +54,14 @@ export default function IncidentsPage() {
 
   const rowHour = (r: IncRow) => (r.startTime ? hhmm(r.startTime) : isoHHMM(r.firstCheckIn) || "—")
 
-  const load = useCallback(async () => {
-    if (!session?.accessToken) return
-    setLoading(true)
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/incidents?date=${date}`, {
-        headers: { Authorization: `Bearer ${session.accessToken}` },
-      })
-      const body = await res.json()
-      setRows(res.ok ? body.data || [] : [])
-    } catch {
-      setRows([])
-    } finally {
-      setLoading(false)
-    }
-  }, [date, session?.accessToken])
-
-  useEffect(() => { load() }, [load])
+  const { data: rows = [], isLoading: loading } = useQuery<IncRow[]>({
+    queryKey: ["jobs", "incidents", date],
+    queryFn: async () => {
+      const body = await apiFetch<{ data: IncRow[] }>(`/jobs/incidents?date=${date}`)
+      return body?.data || []
+    },
+    enabled: isAuthenticated,
+  })
 
   const isToday = date === todayStr()
 

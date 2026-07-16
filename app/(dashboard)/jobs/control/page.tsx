@@ -1,8 +1,10 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
+import { apiFetch } from "@/lib/api"
 import { useTranslation } from "@/hooks/use-translation"
 import { Button } from "@/components/ui/button"
 import { DateInput } from "@/components/ui/date-input"
@@ -74,10 +76,8 @@ export default function JobsControlPage() {
 
 function EmployerControlView() {
   const { t } = useTranslation()
-  const { session } = useAuth()
+  const { isAuthenticated } = useAuth()
   const [date, setDate] = useState(todayStr())
-  const [rows, setRows] = useState<ControlRow[]>([])
-  const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState("")
   const [selected, setSelected] = useState<ControlRow | null>(null)
 
@@ -89,25 +89,14 @@ function EmployerControlView() {
       duration: t("alertDuration") || "Duración",
     } as Record<string, string>)[a] || a
 
-  const load = useCallback(async () => {
-    if (!session?.accessToken) return
-    setLoading(true)
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/control?date=${date}`, {
-        headers: { Authorization: `Bearer ${session.accessToken}` },
-      })
-      const body = await res.json()
-      setRows(res.ok ? body.data || [] : [])
-    } catch {
-      setRows([])
-    } finally {
-      setLoading(false)
-    }
-  }, [date, session?.accessToken])
-
-  useEffect(() => {
-    load()
-  }, [load])
+  const { data: rows = [], isLoading: loading } = useQuery<ControlRow[]>({
+    queryKey: ["jobs", "control", date],
+    queryFn: async () => {
+      const body = await apiFetch<{ data: ControlRow[] }>(`/jobs/control?date=${date}`)
+      return body?.data || []
+    },
+    enabled: isAuthenticated,
+  })
 
   const shown = useMemo(() => {
     if (!query.trim()) return rows
