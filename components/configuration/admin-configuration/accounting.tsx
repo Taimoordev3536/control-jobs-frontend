@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -41,45 +42,37 @@ export default function Accounting() {
   const { session } = useAuth()
   const { toast } = useToast()
   const [config, setConfig] = useState<AccountingConfig>(emptyConfig)
-  const [loaded, setLoaded] = useState(false)
   const [saving, setSaving] = useState(false)
 
-  useEffect(() => {
-    if (!session?.accessToken) return
-    let cancelled = false
-    const load = async () => {
-      try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/admin/config`, {
-          headers: { Authorization: `Bearer ${session.accessToken}` },
-        })
-        if (res.ok) {
-          const d = await res.json()
-          if (d && !cancelled) {
-            setConfig({
-              companyName: d.companyName ?? "",
-              address: d.address ?? "",
-              vatRate: d.vatRate != null ? Number(d.vatRate) : 21,
-              invoiceSeries: d.invoiceSeries ?? "CJOBS",
-              paymentDetails: d.paymentDetails ?? "",
-              ivaTextParticularesTai: d.ivaTextParticularesTai ?? "",
-              ivaTextAutonomosFueraTai: d.ivaTextAutonomosFueraTai ?? "",
-              iban: d.iban ?? "",
-              swiftBic: d.swiftBic ?? "",
-              paypal: d.paypal ?? "",
-            })
-          }
-        }
-      } catch {
-        /* no existing config yet — keep defaults */
-      } finally {
-        if (!cancelled) setLoaded(true)
+  const { data: fetchedConfig, isLoading } = useQuery<AccountingConfig | null>({
+    queryKey: ["admin", "config"],
+    enabled: !!session?.accessToken,
+    queryFn: async () => {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/admin/config`, {
+        headers: { Authorization: `Bearer ${session!.accessToken}` },
+      })
+      if (!res.ok) throw new Error(`Error ${res.status}`)
+      const d = await res.json()
+      if (!d) return null
+      return {
+        companyName: d.companyName ?? "",
+        address: d.address ?? "",
+        vatRate: d.vatRate != null ? Number(d.vatRate) : 21,
+        invoiceSeries: d.invoiceSeries ?? "CJOBS",
+        paymentDetails: d.paymentDetails ?? "",
+        ivaTextParticularesTai: d.ivaTextParticularesTai ?? "",
+        ivaTextAutonomosFueraTai: d.ivaTextAutonomosFueraTai ?? "",
+        iban: d.iban ?? "",
+        swiftBic: d.swiftBic ?? "",
+        paypal: d.paypal ?? "",
       }
-    }
-    load()
-    return () => {
-      cancelled = true
-    }
-  }, [session?.accessToken])
+    },
+  })
+
+  // Seed the editable form once loaded (no invalidation -> edits kept).
+  useEffect(() => {
+    if (fetchedConfig) setConfig(fetchedConfig)
+  }, [fetchedConfig])
 
   const set = (key: keyof AccountingConfig, value: string | number) =>
     setConfig((prev) => ({ ...prev, [key]: value }))
@@ -106,7 +99,7 @@ export default function Accounting() {
     }
   }
 
-  if (!loaded) {
+  if (isLoading) {
     return (
       <div className="flex justify-center py-12">
         <AnimatedLoader size={32} />

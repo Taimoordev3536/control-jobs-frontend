@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
@@ -13,24 +14,26 @@ export default function Tariffs() {
   const { session } = useAuth()
   const { toast } = useToast()
   const base = process.env.NEXT_PUBLIC_API_BASE_URL
-  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [billing, setBilling] = useState<any>({ fixedAmount: null, hoursLabel: "Horas de servicio", hourRate: null, vatPct: 21 })
   const [salary, setSalary] = useState<any>({ fixedAmount: null, hoursLabel: "Horas de trabajo", hourRate: null })
 
+  const { data: tariffData, isLoading: loading } = useQuery<{ billing: any; salary: any }>({
+    queryKey: ["employers", "me", "tariffs"],
+    enabled: !!session?.accessToken,
+    queryFn: async () => {
+      const r = await fetch(`${base}/employers/me/tariffs`, { headers: { Authorization: `Bearer ${session!.accessToken}` } })
+      const j = await r.json()
+      const d = j?.data || j
+      return { billing: d?.billing ?? null, salary: d?.salary ?? null }
+    },
+  })
+
+  // Seed the editable forms once loaded (no invalidation -> edits kept).
   useEffect(() => {
-    if (!session?.accessToken) return
-    setLoading(true)
-    fetch(`${base}/employers/me/tariffs`, { headers: { Authorization: `Bearer ${session.accessToken}` } })
-      .then((r) => r.json())
-      .then((j) => {
-        const d = j?.data || j
-        if (d?.billing) setBilling(d.billing)
-        if (d?.salary) setSalary(d.salary)
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false))
-  }, [session?.accessToken])
+    if (tariffData?.billing) setBilling(tariffData.billing)
+    if (tariffData?.salary) setSalary(tariffData.salary)
+  }, [tariffData])
 
   const save = async () => {
     setSaving(true)

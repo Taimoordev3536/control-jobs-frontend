@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { Loader2, Info } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Button } from "@/components/ui/button"
@@ -64,53 +65,49 @@ export function AdminProfileTab() {
   const [adminData, setAdminData] = useState<AdminData>(emptyAdminData)
   const [originalData, setOriginalData] = useState<AdminData>(emptyAdminData)
   const [isSaving, setIsSaving] = useState(false)
-  const [loaded, setLoaded] = useState(false)
   const [resetKey, setResetKey] = useState(0)
 
-  useEffect(() => {
-    if (!session?.accessToken) return
-    let cancelled = false
-    const load = async () => {
-      try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/users/admin/me`, {
-          headers: { Authorization: `Bearer ${session.accessToken}` },
-        })
-        if (res.ok) {
-          const json = await res.json()
-          const d = json?.data
-          if (d && !cancelled) {
-            const mapped: AdminData = {
-              nif: d.nif || "",
-              name: d.name || "",
-              responsible: d.responsible || "",
-              address: d.address || "",
-              street: d.street || "",
-              streetNumber: d.streetNumber || "",
-              floorDoor: d.floorDoor || "",
-              postalCode: d.postalCode || "",
-              city: d.city || "",
-              province: d.province || "",
-              country: d.country || "",
-              latitude: d.latitude != null ? Number(d.latitude) : null,
-              longitude: d.longitude != null ? Number(d.longitude) : null,
-              landline: d.landline || "",
-              mobile: d.mobile || "",
-              email: d.email || "",
-              logoUrl: d.logoUrl ?? null,
-            }
-            setAdminData(mapped)
-            setOriginalData(mapped)
-          }
-        }
-      } finally {
-        if (!cancelled) setLoaded(true)
+  const { data: fetchedAdmin, isLoading } = useQuery<AdminData | null>({
+    queryKey: ["users", "admin", "me"],
+    enabled: !!session?.accessToken,
+    queryFn: async () => {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/users/admin/me`, {
+        headers: { Authorization: `Bearer ${session!.accessToken}` },
+      })
+      if (!res.ok) throw new Error(`Error ${res.status}`)
+      const json = await res.json()
+      const d = json?.data
+      if (!d) return null
+      return {
+        nif: d.nif || "",
+        name: d.name || "",
+        responsible: d.responsible || "",
+        address: d.address || "",
+        street: d.street || "",
+        streetNumber: d.streetNumber || "",
+        floorDoor: d.floorDoor || "",
+        postalCode: d.postalCode || "",
+        city: d.city || "",
+        province: d.province || "",
+        country: d.country || "",
+        latitude: d.latitude != null ? Number(d.latitude) : null,
+        longitude: d.longitude != null ? Number(d.longitude) : null,
+        landline: d.landline || "",
+        mobile: d.mobile || "",
+        email: d.email || "",
+        logoUrl: d.logoUrl ?? null,
       }
+    },
+  })
+
+  // Seed the editable form + reset baseline once loaded (no invalidation ->
+  // edits are never clobbered by a refetch).
+  useEffect(() => {
+    if (fetchedAdmin) {
+      setAdminData(fetchedAdmin)
+      setOriginalData(fetchedAdmin)
     }
-    load()
-    return () => {
-      cancelled = true
-    }
-  }, [session?.accessToken])
+  }, [fetchedAdmin])
 
   const handleInputChange = (field: keyof AdminData, value: string | number | null) => {
     setAdminData((prev) => ({ ...prev, [field]: value }))
@@ -164,7 +161,7 @@ export function AdminProfileTab() {
     setResetKey((k) => k + 1)
   }
 
-  if (!loaded) {
+  if (isLoading) {
     return <AnimatedLoader size={32} className="p-8" />
   }
 
