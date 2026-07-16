@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { Loader2, AlertCircle, RefreshCw, Info } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Button } from "@/components/ui/button"
@@ -90,7 +91,6 @@ export default function PartnerDataTab({ partnerId, onNameChange, onSystemChange
 
   const [partnerData, setPartnerData] = useState<PartnerData | null>(null)
   const [originalData, setOriginalData] = useState<PartnerData | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
@@ -117,72 +117,74 @@ export default function PartnerDataTab({ partnerId, onNameChange, onSystemChange
     }
   }
 
-  // Fetch partner data
+  const invalidId = !partnerId && !meMode
+
+  const { data: fetched, isLoading, isError, error: queryError, refetch } = useQuery<{ mapped: PartnerData; isSystem: boolean }>({
+    queryKey: ["partners", meMode ? "me" : partnerId, "data"],
+    enabled: !!session?.accessToken && !invalidId,
+    queryFn: async () => {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/partners/${meMode ? "me" : partnerId}`, {
+        headers: {
+          Authorization: `Bearer ${session!.accessToken}`,
+          "Content-Type": "application/json",
+        },
+      })
+      if (!response.ok) throw new Error(`Failed to fetch partner data: ${response.status}`)
+      const result = await response.json()
+      if (!(result.isSuccess && result.data)) throw new Error(result.message || "Failed to fetch partner data")
+      const d = result.data
+      const mapped: PartnerData = {
+        id: d.id,
+        taxId: d.taxId || "",
+        name: d.name || "",
+        responsible: d.responsible || "",
+        address: d.address || "",
+        street: d.street || "",
+        streetNumber: d.streetNumber || "",
+        floorDoor: d.floorDoor || "",
+        postalCode: d.postalCode || "",
+        city: d.city || "",
+        province: d.province || "",
+        country: d.country || "",
+        latitude: d.latitude != null ? Number(d.latitude) : null,
+        longitude: d.longitude != null ? Number(d.longitude) : null,
+        landline: d.landline || "",
+        mobile: d.mobile || "",
+        email: d.email || "",
+        typeOfPartner: (d.typeOfPartner || "").toUpperCase(),
+        commission: d.commission ?? "",
+        retention: d.retention ?? "",
+        paymentMethod: (d.paymentMethod || "")
+          .toUpperCase()
+          .replace(/\s+/g, "_")
+          .replace(/^DIRECT_DEBIT$/, "DIRECT_DEBIT"),
+        accountIban: d.accountIban || "",
+        bicSwift: d.bicSwift || "",
+        partnerTierId: d.partnerTier?.id ?? d.partnerTierId ?? 0,
+        logoUrl: d.logoUrl ?? null,
+      }
+      return { mapped, isSystem: !!d.isSystem }
+    },
+  })
+
+  // Seed the editable form + reset baseline once loaded; notify parent of
+  // name/system. Nothing invalidates this query, so edits aren't clobbered.
   useEffect(() => {
-    const fetchPartnerData = async () => {
-      if (!session?.accessToken || (!partnerId && !meMode)) {
-        setError("Invalid partner ID or no authentication")
-        setIsLoading(false)
-        return
-      }
-      setIsLoading(true)
-      setError(null)
-      try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/partners/${meMode ? "me" : partnerId}`, {
-          headers: {
-            Authorization: `Bearer ${session.accessToken}`,
-            "Content-Type": "application/json",
-          },
-        })
-        if (!response.ok) throw new Error(`Failed to fetch partner data: ${response.status}`)
-        const result = await response.json()
-        if (result.isSuccess && result.data) {
-          const d = result.data
-          const mapped: PartnerData = {
-            id: d.id,
-            taxId: d.taxId || "",
-            name: d.name || "",
-            responsible: d.responsible || "",
-            address: d.address || "",
-            street: d.street || "",
-            streetNumber: d.streetNumber || "",
-            floorDoor: d.floorDoor || "",
-            postalCode: d.postalCode || "",
-            city: d.city || "",
-            province: d.province || "",
-            country: d.country || "",
-            latitude: d.latitude != null ? Number(d.latitude) : null,
-            longitude: d.longitude != null ? Number(d.longitude) : null,
-            landline: d.landline || "",
-            mobile: d.mobile || "",
-            email: d.email || "",
-            typeOfPartner: (d.typeOfPartner || "").toUpperCase(),
-            commission: d.commission ?? "",
-            retention: d.retention ?? "",
-            paymentMethod: (d.paymentMethod || "")
-              .toUpperCase()
-              .replace(/\s+/g, "_")
-              .replace(/^DIRECT_DEBIT$/, "DIRECT_DEBIT"),
-            accountIban: d.accountIban || "",
-            bicSwift: d.bicSwift || "",
-            partnerTierId: d.partnerTier?.id ?? d.partnerTierId ?? 0,
-            logoUrl: d.logoUrl ?? null,
-          }
-          setPartnerData(mapped)
-          setOriginalData(mapped)
-          onNameChange?.(mapped.name)
-          onSystemChange?.(!!d.isSystem)
-        } else {
-          throw new Error(result.message || "Failed to fetch partner data")
-        }
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "An error occurred")
-      } finally {
-        setIsLoading(false)
-      }
+    if (fetched) {
+      setPartnerData(fetched.mapped)
+      setOriginalData(fetched.mapped)
+      onNameChange?.(fetched.mapped.name)
+      onSystemChange?.(fetched.isSystem)
     }
-    fetchPartnerData()
-  }, [partnerId, session?.accessToken])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fetched])
+
+  const readError = invalidId
+    ? "Invalid partner ID or no authentication"
+    : isError
+      ? (queryError instanceof Error ? queryError.message : "An error occurred")
+      : null
+  const displayError = error || readError
 
   const handleInputChange = (field: keyof PartnerData, value: string | number | null) => {
     if (!partnerData) return
@@ -301,21 +303,20 @@ export default function PartnerDataTab({ partnerId, onNameChange, onSystemChange
 
   const handleRetry = () => {
     setError(null)
-    setIsLoading(true)
-    window.location.reload()
+    refetch()
   }
 
-  if (isLoading) {
+  if (isLoading && !invalidId) {
     return <AnimatedLoader size={32} className="p-8" />
   }
 
-  if (error) {
+  if (displayError) {
     return (
       <div className="p-6">
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription className="flex items-center justify-between">
-            <span>{error}</span>
+            <span>{displayError}</span>
             <Button variant="outline" size="sm" onClick={handleRetry}>
               <RefreshCw className="h-4 w-4 mr-2" />
               {t("retry") || "Retry"}

@@ -5,6 +5,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { Loader2, AlertCircle, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -97,7 +98,6 @@ export default function EmployerDataTab({ employerId, selfServiceLogo = false, s
 
   const [employerData, setEmployerData] = useState<EmployerData | null>(null)
   const [originalData, setOriginalData] = useState<EmployerData | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
@@ -124,10 +124,28 @@ export default function EmployerDataTab({ employerId, selfServiceLogo = false, s
     }
   }
 
-  // Dropdown data
-  const [partners, setPartners] = useState<
-    { id: string | number; name: string; commission: number; isSystem: boolean }[]
-  >([])
+  // Partners dropdown list (read-only; not shown in self-service mode).
+  const { data: partners = [] } = useQuery<{ id: string | number; name: string; commission: number; isSystem: boolean }[]>({
+    queryKey: ["partners", "dropdown"],
+    enabled: !!session?.accessToken && !meMode,
+    queryFn: async () => {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/partners`, {
+        headers: {
+          Authorization: `Bearer ${session!.accessToken}`,
+          "Content-Type": "application/json",
+        },
+      })
+      if (!res.ok) return []
+      const data = await res.json()
+      return (data.data || []).map((p: any) => ({
+        id: p.publicId || p.id,
+        name: p.name,
+        commission: Number(p.commission ?? 0),
+        isSystem: Boolean(p.isSystem),
+      }))
+    },
+  })
+
   const [employerTypes, setEmployerTypes] = useState<{ id: number; name: string }[]>([])
 
   const subTypeOptions = [
@@ -167,83 +185,46 @@ export default function EmployerDataTab({ employerId, selfServiceLogo = false, s
     { id: 3, key: "REMOTE" },
   ].filter((f) => allowedFeeIds.includes(f.id))
 
-  // Fetch employer data
+  const invalidId = !employerId && !meMode
+
+  const { data: fetchedEmployer, isLoading, isError, error: queryError, refetch } = useQuery<EmployerData>({
+    queryKey: ["employers", meMode ? "me" : employerId, "data"],
+    enabled: !!session?.accessToken && !invalidId,
+    queryFn: async () => {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/employers/${meMode ? "me" : employerId}`, {
+        headers: {
+          Authorization: `Bearer ${session!.accessToken}`,
+          "Content-Type": "application/json",
+        },
+      })
+      if (!response.ok) throw new Error(`Failed to fetch employer data: ${response.status}`)
+      const result = await response.json()
+      if (!(result.isSuccess && result.data)) throw new Error(result.message || "Failed to fetch employer data")
+      return {
+        ...result.data,
+        probationPeriod:
+          typeof result.data.trialDaysRemaining === "number"
+            ? String(result.data.trialDaysRemaining)
+            : result.data.probationPeriod || "0",
+      }
+    },
+  })
+
+  // Seed the editable form + reset baseline once loaded. Nothing invalidates
+  // this query, so in-progress edits are never clobbered by a refetch.
   useEffect(() => {
-    const fetchEmployerData = async () => {
-      if (!session?.accessToken || (!employerId && !meMode)) {
-        setError("Invalid employer ID or no authentication")
-        setIsLoading(false)
-        return
-      }
-
-      setIsLoading(true)
-      setError(null)
-
-      try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/employers/${meMode ? "me" : employerId}`, {
-          headers: {
-            Authorization: `Bearer ${session.accessToken}`,
-            "Content-Type": "application/json",
-          },
-        })
-
-        if (!response.ok) {
-          throw new Error(`Failed to fetch employer data: ${response.status}`)
-        }
-
-        const result = await response.json()
-        if (result.isSuccess && result.data) {
-          const normalized = {
-            ...result.data,
-            probationPeriod:
-              typeof result.data.trialDaysRemaining === "number"
-                ? String(result.data.trialDaysRemaining)
-                : result.data.probationPeriod || "0",
-          }
-          setEmployerData(normalized)
-          setOriginalData(normalized)
-        } else {
-          throw new Error(result.message || "Failed to fetch employer data")
-        }
-      } catch (err) {
-        console.error("Error fetching employer data:", err)
-        setError(err instanceof Error ? err.message : "An error occurred")
-      } finally {
-        setIsLoading(false)
-      }
+    if (fetchedEmployer) {
+      setEmployerData(fetchedEmployer)
+      setOriginalData(fetchedEmployer)
     }
+  }, [fetchedEmployer])
 
-    fetchEmployerData()
-  }, [employerId, session?.accessToken])
-
-  // Fetch partners for dropdown
-  useEffect(() => {
-    const fetchPartners = async () => {
-      if (!session?.accessToken || meMode) return
-      try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/partners`, {
-          headers: {
-            Authorization: `Bearer ${session.accessToken}`,
-            "Content-Type": "application/json",
-          },
-        })
-        if (res.ok) {
-          const data = await res.json()
-          setPartners(
-            (data.data || []).map((p: any) => ({
-              id: p.publicId || p.id,
-              name: p.name,
-              commission: Number(p.commission ?? 0),
-              isSystem: Boolean(p.isSystem),
-            })),
-          )
-        }
-      } catch {
-        setPartners([])
-      }
-    }
-    fetchPartners()
-  }, [session?.accessToken])
+  const readError = invalidId
+    ? "Invalid employer ID or no authentication"
+    : isError
+      ? (queryError instanceof Error ? queryError.message : "An error occurred")
+      : null
+  const displayError = error || readError
 
   const handleInputChange = (field: keyof EmployerData, value: string | number | boolean | null) => {
     if (!employerData) return
@@ -402,21 +383,20 @@ export default function EmployerDataTab({ employerId, selfServiceLogo = false, s
 
   const handleRetry = () => {
     setError(null)
-    setIsLoading(true)
-    window.location.reload()
+    refetch()
   }
 
-  if (isLoading) {
+  if (isLoading && !invalidId) {
     return <AnimatedLoader size={32} className="p-8" />
   }
 
-  if (error) {
+  if (displayError) {
     return (
       <div className="p-6">
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription className="flex items-center justify-between">
-            <span>{error}</span>
+            <span>{displayError}</span>
             <Button variant="outline" size="sm" onClick={handleRetry}>
               <RefreshCw className="h-4 w-4 mr-2" />
               {t("retry") || "Retry"}
