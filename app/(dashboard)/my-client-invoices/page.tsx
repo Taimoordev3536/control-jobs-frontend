@@ -1,7 +1,9 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { useSession } from "next-auth/react"
+import { useQuery } from "@tanstack/react-query"
+import { apiFetch } from "@/lib/api"
 import { Eye, Printer } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -14,10 +16,17 @@ const eur = (n: number) => `${(n || 0).toFixed(2)} €`
 
 export default function MyClientInvoicesPage() {
   const { t } = useTranslation()
-  const { data: session } = useSession()
-  const [invoices, setInvoices] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const { data: session, status } = useSession()
   const [selected, setSelected] = useState<any | null>(null)
+
+  const { data: invoices = [], isLoading: loading } = useQuery<any[]>({
+    queryKey: ["client", "me", "invoices"],
+    queryFn: async () => {
+      const j = await apiFetch<any>("/client/me/invoices")
+      return Array.isArray(j?.data) ? j.data : Array.isArray(j) ? j : []
+    },
+    enabled: status === "authenticated",
+  })
 
   const openPdf = async (id: string) => {
     if (!session?.accessToken) return
@@ -30,15 +39,6 @@ export default function MyClientInvoicesPage() {
     setTimeout(() => URL.revokeObjectURL(url), 60000)
   }
 
-  useEffect(() => {
-    if (!session?.accessToken) return
-    setLoading(true)
-    fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/client/me/invoices`, { headers: { Authorization: `Bearer ${session.accessToken}` } })
-      .then((r) => r.json())
-      .then((j) => setInvoices(Array.isArray(j?.data) ? j.data : Array.isArray(j) ? j : []))
-      .catch(() => setInvoices([]))
-      .finally(() => setLoading(false))
-  }, [session?.accessToken])
 
   const columns = [
     { key: "invoiceNumber", label: t("number") || "Nº", render: (v: string) => v || "—" },

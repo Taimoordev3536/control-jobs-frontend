@@ -1,6 +1,8 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { apiFetch } from "@/lib/api"
 import { Plus, Filter } from "lucide-react"
 import { useRouter } from "next/navigation"
 import DataListTemplate, { ExcelIcon, CsvIcon, PdfIcon } from "@/components/ui/data-list-template"
@@ -14,44 +16,28 @@ import { formatLocalDate } from "@/lib/datetime"
 export default function PartnersList() {
   const { t } = useTranslation()
   const router = useRouter()
-  const { session } = useAuth()
-  const [partners, setPartners] = useState<any[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const { isAuthenticated } = useAuth()
+  const queryClient = useQueryClient()
   const [isAddPartnerModalOpen, setIsAddPartnerModalOpen] = useState(false)
 
-  useEffect(() => {
-    const fetchPartners = async () => {
-      if (!session?.accessToken) return
-      setIsLoading(true)
-      try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/partners`, {
-          headers: {
-            Authorization: `Bearer ${session.accessToken}`,
-            "Content-Type": "application/json",
-          },
-        })
-        if (!res.ok) throw new Error("Failed to fetch partners")
-        const data = await res.json()
-        const mapped = (data.data || []).map((p: any) => ({
-          id: p.publicId || p.id,
-          name: p.name,
-          tier: p.partnerTier?.name || p.typeOfPartner || "-",
-          createdAt: p.createdAt ? formatLocalDate(p.createdAt) : "-",
-          employersCount: p.employersCount ?? 0,
-          billing: "0 €", // Replace with real value if available
-          _createdAtRaw: p.createdAt || "", // for sorting
-        }))
-        // Sort by createdAt descending
-        mapped.sort((a, b) => (b._createdAtRaw > a._createdAtRaw ? 1 : b._createdAtRaw < a._createdAtRaw ? -1 : 0))
-        setPartners(mapped)
-      } catch (err) {
-        setPartners([])
-      } finally {
-        setIsLoading(false)
-      }
-    }
-    fetchPartners()
-  }, [session?.accessToken])
+  const { data: partners = [], isLoading } = useQuery<any[]>({
+    queryKey: ["partners", "list"],
+    queryFn: async () => {
+      const data = await apiFetch<{ data: any[] }>("/partners")
+      const mapped = (data.data || []).map((p: any) => ({
+        id: p.publicId || p.id,
+        name: p.name,
+        tier: p.partnerTier?.name || p.typeOfPartner || "-",
+        createdAt: p.createdAt ? formatLocalDate(p.createdAt) : "-",
+        employersCount: p.employersCount ?? 0,
+        billing: "0 €", // Replace with real value if available
+        _createdAtRaw: p.createdAt || "", // for sorting
+      }))
+      mapped.sort((a, b) => (b._createdAtRaw > a._createdAtRaw ? 1 : b._createdAtRaw < a._createdAtRaw ? -1 : 0))
+      return mapped
+    },
+    enabled: isAuthenticated,
+  })
 
   const handleRowClick = (row: any) => {
     const name = row?.name || ""
@@ -126,7 +112,8 @@ export default function PartnersList() {
 
   // Callback to handle new partner addition
   const handlePartnerAdded = (newPartner: any) => {
-    setPartners((prev) => [newPartner, ...prev])
+    queryClient.setQueryData(["partners", "list"], (prev: any[] = []) => [newPartner, ...prev])
+    queryClient.invalidateQueries({ queryKey: ["partners", "list"] })
   }
 
   return (

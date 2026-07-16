@@ -4,51 +4,40 @@ import DataListTemplate, { ExcelIcon, CsvIcon, PdfIcon } from "@/components/ui/d
 import { exportToCSV, exportToXLSX, exportToPDF } from "@/lib/export"
 import { Filter } from "lucide-react"
 import { useTranslation } from "@/hooks/use-translation"
-import { useState, useEffect, useCallback } from "react"
+import { useMemo } from "react"
+import { useQuery } from "@tanstack/react-query"
+import { apiFetch } from "@/lib/api"
 import { useAuth } from "@/hooks/use-auth"
 import { AnimatedLoader } from "@/components/animated-loader"
 
 export default function AdminClientsPage() {
   const { t } = useTranslation()
-  const { session } = useAuth()
+  const { isAuthenticated } = useAuth()
 
-  const [clients, setClients] = useState<any[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-
-  const mapClient = (c: any) => ({
-    id: c.publicId || c.id?.toString() || "",
-    name: c.name || "-",
-    city: c.city || "-",
-    province: c.province || "-",
-    type: c.type === "company" ? t("company") : c.type === "particular" ? t("particular") : c.type || "-",
-    employer: c.employer || "-",
-    asset: c.active === true || c.active === "true",
+  const { data: rawClients = [], isLoading } = useQuery<any[]>({
+    queryKey: ["admin", "clients"],
+    queryFn: async () => {
+      const data = await apiFetch<{ data: any[] }>("/client/admin")
+      return data.data || []
+    },
+    enabled: isAuthenticated,
   })
 
-  const fetchClients = useCallback(async () => {
-    if (!session?.accessToken) return
-    setIsLoading(true)
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/client/admin`, {
-        headers: {
-          Authorization: `Bearer ${session.accessToken}`,
-          "Content-Type": "application/json",
-        },
-      })
-      if (!res.ok) throw new Error("Failed to fetch clients")
-      const data = await res.json()
-      setClients((data.data || []).map(mapClient))
-    } catch (err) {
-      console.error("Error fetching clients:", err)
-      setClients([])
-    } finally {
-      setIsLoading(false)
-    }
-  }, [session?.accessToken])
-
-  useEffect(() => {
-    fetchClients()
-  }, [fetchClients])
+  // Mapping stays outside the cache so type labels re-translate on language switch.
+  const clients = useMemo(
+    () =>
+      rawClients.map((c: any) => ({
+        id: c.publicId || c.id?.toString() || "",
+        name: c.name || "-",
+        city: c.city || "-",
+        province: c.province || "-",
+        type: c.type === "company" ? t("company") : c.type === "particular" ? t("particular") : c.type || "-",
+        employer: c.employer || "-",
+        asset: c.active === true || c.active === "true",
+      })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [rawClients, t],
+  )
 
   const columns = [
     { key: "name", label: t("name"), sortable: true },

@@ -4,51 +4,31 @@ import DataListTemplate, { ExcelIcon, CsvIcon, PdfIcon } from "@/components/ui/d
 import { exportToCSV, exportToXLSX, exportToPDF } from "@/lib/export"
 import { Filter } from "lucide-react"
 import { useTranslation } from "@/hooks/use-translation"
-import { useState, useEffect, useCallback } from "react"
+import { useQuery } from "@tanstack/react-query"
+import { apiFetch } from "@/lib/api"
 import { useAuth } from "@/hooks/use-auth"
 import { AnimatedLoader } from "@/components/animated-loader"
 
 export default function AdminWorkersPage() {
   const { t } = useTranslation()
-  const { session } = useAuth()
+  const { isAuthenticated } = useAuth()
 
-  const [workers, setWorkers] = useState<any[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-
-  const mapWorker = (w: any) => ({
-    id: w.publicId || w.id?.toString() || "",
-    name: w.name || "-",
-    city: w.city || "-",
-    province: w.province || "-",
-    occupation: w.occupation || "-",
-    employer: w.employer || "-",
-    asset: w.active === true || w.active === "true",
+  const { data: workers = [], isLoading } = useQuery<any[]>({
+    queryKey: ["admin", "workers"],
+    queryFn: async () => {
+      const data = await apiFetch<{ data: any[] }>("/worker/admin")
+      return (data.data || []).map((w: any) => ({
+        id: w.publicId || w.id?.toString() || "",
+        name: w.name || "-",
+        city: w.city || "-",
+        province: w.province || "-",
+        occupation: w.occupation || "-",
+        employer: w.employer || "-",
+        asset: w.active === true || w.active === "true",
+      }))
+    },
+    enabled: isAuthenticated,
   })
-
-  const fetchWorkers = useCallback(async () => {
-    if (!session?.accessToken) return
-    setIsLoading(true)
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/worker/admin`, {
-        headers: {
-          Authorization: `Bearer ${session.accessToken}`,
-          "Content-Type": "application/json",
-        },
-      })
-      if (!res.ok) throw new Error("Failed to fetch workers")
-      const data = await res.json()
-      setWorkers((data.data || []).map(mapWorker))
-    } catch (err) {
-      console.error("Error fetching workers:", err)
-      setWorkers([])
-    } finally {
-      setIsLoading(false)
-    }
-  }, [session?.accessToken])
-
-  useEffect(() => {
-    fetchWorkers()
-  }, [fetchWorkers])
 
   const columns = [
     { key: "name", label: t("name"), sortable: true },

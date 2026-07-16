@@ -1,8 +1,10 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
+import { useQuery } from "@tanstack/react-query"
+import { apiFetch } from "@/lib/api"
 import { Download, FileText, Eye, Printer, ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -24,12 +26,22 @@ type Tab = "salarios" | "justificantes" | "otros"
 export default function MyDocumentsPage() {
   const { t } = useTranslation()
   const router = useRouter()
-  const { data: session } = useSession()
-  const [docs, setDocs] = useState<any[]>([])
-  const [receipts, setReceipts] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const { data: session, status } = useSession()
   const [selected, setSelected] = useState<any | null>(null)
   const [activeTab, setActiveTab] = useState<Tab>("salarios")
+
+  const asArray = (x: any) => (Array.isArray(x?.data) ? x.data : Array.isArray(x) ? x : [])
+  const { data: docs = [], isLoading: docsLoading } = useQuery<any[]>({
+    queryKey: ["worker", "me", "documents"],
+    queryFn: async () => asArray(await apiFetch<any>("/worker/me/documents")),
+    enabled: status === "authenticated",
+  })
+  const { data: receipts = [], isLoading: recLoading } = useQuery<any[]>({
+    queryKey: ["worker", "me", "salaries"],
+    queryFn: async () => asArray(await apiFetch<any>("/worker/me/salaries")),
+    enabled: status === "authenticated",
+  })
+  const loading = docsLoading || recLoading
 
   const openPdf = async (id: string) => {
     if (!session?.accessToken) return
@@ -42,22 +54,6 @@ export default function MyDocumentsPage() {
     setTimeout(() => URL.revokeObjectURL(url), 60000)
   }
 
-  useEffect(() => {
-    if (!session?.accessToken) return
-    const h = { Authorization: `Bearer ${session.accessToken}` }
-    const base = process.env.NEXT_PUBLIC_API_BASE_URL
-    setLoading(true)
-    Promise.all([
-      fetch(`${base}/worker/me/documents`, { headers: h }).then((r) => r.json()),
-      fetch(`${base}/worker/me/salaries`, { headers: h }).then((r) => r.json()),
-    ])
-      .then(([d, s]) => {
-        setDocs(Array.isArray(d?.data) ? d.data : Array.isArray(d) ? d : [])
-        setReceipts(Array.isArray(s?.data) ? s.data : Array.isArray(s) ? s : [])
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false))
-  }, [session?.accessToken])
 
   const columns = [
     { key: "receiptNumber", label: t("number") || "Nº", sortable: true, render: (v: string) => v || "—" },
