@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Plus, Filter } from "lucide-react"
 import { useRouter } from "next/navigation"
 import DataListTemplate, { ExcelIcon, CsvIcon, PdfIcon } from "@/components/ui/data-list-template"
@@ -18,53 +19,44 @@ export function ClientWorkCenterTab({ clientId }: ClientWorkCenterTabProps) {
   const { t } = useTranslation()
   const router = useRouter()
   const { session } = useAuth()
+  const queryClient = useQueryClient()
 
-  const [workCenters, setWorkCenters] = useState<any[]>([])
   const [isAddOpen, setIsAddOpen] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
 
-  useEffect(() => {
-    const fetchWorkCenters = async () => {
-      if (!session?.accessToken || !clientId) return
-      setIsLoading(true)
-      try {
-        // Use new unified endpoint with clientId filter
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_BASE_URL}/work-centers?clientId=${clientId}`,
-          {
-            headers: {
-              Authorization: `Bearer ${session.accessToken}`,
-              "Content-Type": "application/json",
-            },
-          }
-        )
-
-        if (!res.ok) throw new Error("Failed to fetch work centers")
-        const data = await res.json()
-        const mapped = (data.data || []).map((w: any) => ({
-          id: w.publicId || w.id,
-          code: w.code || "",
-          denomination: w.name || w.denomination || "-",
-          address: w.address || "-",
-          locality: w.locality || w.city || "-",
-          postalCode: w.postalCode || w.zip || "-",
-          employees: w.employeesCount ?? (Array.isArray(w.employees) ? w.employees.length : 0),
-          established: w.establishedAt ? formatLocalDate(w.establishedAt) : "-",
-          _establishedRaw: w.establishedAt || "",
-        }))
-
-        // Sort by established (most recent first)
-        mapped.sort((a: any, b: any) => (b._establishedRaw > a._establishedRaw ? 1 : b._establishedRaw < a._establishedRaw ? -1 : 0))
-        setWorkCenters(mapped)
-      } catch (err) {
-        setWorkCenters([])
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    fetchWorkCenters()
-  }, [session?.accessToken, clientId])
+  const workCentersKey = ["work-centers", "by-client", clientId]
+  const { data: workCenters = [], isLoading } = useQuery<any[]>({
+    queryKey: workCentersKey,
+    enabled: !!session?.accessToken && !!clientId,
+    queryFn: async () => {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/work-centers?clientId=${clientId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${session!.accessToken}`,
+            "Content-Type": "application/json",
+          },
+        }
+      )
+      if (!res.ok) throw new Error("Failed to fetch work centers")
+      const data = await res.json()
+      const mapped = (data.data || []).map((w: any) => ({
+        id: w.publicId || w.id,
+        code: w.code || "",
+        denomination: w.name || w.denomination || "-",
+        address: w.address || "-",
+        locality: w.locality || w.city || "-",
+        postalCode: w.postalCode || w.zip || "-",
+        employees: w.employeesCount ?? (Array.isArray(w.employees) ? w.employees.length : 0),
+        established: w.establishedAt ? formatLocalDate(w.establishedAt) : "-",
+        _establishedRaw: w.establishedAt || "",
+      }))
+      mapped.sort((a: any, b: any) => (b._establishedRaw > a._establishedRaw ? 1 : b._establishedRaw < a._establishedRaw ? -1 : 0))
+      return mapped
+    },
+  })
+  // Modal-add prepends into the cached list for immediate visibility.
+  const setWorkCenters = (updater: (prev: any[]) => any[]) =>
+    queryClient.setQueryData(workCentersKey, (prev: any[] = []) => updater(prev))
 
   const handleRowClick = (row: any) => {
     console.log("Work center row clicked:", row)

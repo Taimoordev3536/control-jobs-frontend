@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import TabTableTemplate, { type TabTableColumn } from "@/components/ui/tab-table-template"
 import { useTranslation } from "@/hooks/use-translation"
 import { useAuth } from "@/hooks/use-auth"
@@ -26,70 +27,43 @@ interface ClientJobRow {
 export function ClientJobsTab({ clientId }: ClientJobsTabProps) {
   const { t } = useTranslation()
   const { session } = useAuth()
-  const [isLoading, setIsLoading] = useState(true)
-  const [jobs, setJobs] = useState<ClientJobRow[]>([])
   // When a row is clicked we swap the list out for JobAttendanceDetail (which
   // internally fetches /jobs/:jobId/scan-history). Keeping this state local to
   // the tab avoids a route change and preserves the parent Clients page tabs.
   const [selectedJob, setSelectedJob] = useState<ClientJobRow | null>(null)
 
-  useEffect(() => {
-    if (!clientId || !session?.accessToken) return
-
-    const fetchJobs = async () => {
-      setIsLoading(true)
-      try {
-        const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/by-client/${clientId}`,
-          {
-            headers: {
-              Authorization: `Bearer ${session.accessToken}`,
-            },
-          }
-        )
-        if (!response.ok) {
-          setJobs([])
-          return
+  const { data: jobs = [], isLoading } = useQuery<ClientJobRow[]>({
+    queryKey: ["jobs", "by-client", clientId],
+    enabled: !!clientId && !!session?.accessToken,
+    queryFn: async () => {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/by-client/${clientId}`,
+        { headers: { Authorization: `Bearer ${session!.accessToken}` } }
+      )
+      if (!response.ok) return []
+      const result = await response.json()
+      const data = Array.isArray(result?.data) ? result.data : []
+      return data.map((j: any) => {
+        const workCenters: Array<{ name?: string }> = Array.isArray(j.workCenters) ? j.workCenters : []
+        const workers: Array<{ name?: string | null }> = Array.isArray(j.workers) ? j.workers : []
+        return {
+          jobId: j.jobId,
+          publicId: j.publicId,
+          jobName: j.jobName,
+          workCenters: j.workCenters,
+          workCenterNames: j.workCenterNames,
+          workers: j.workers,
+          denomination: j.jobName,
+          workCentersLabel:
+            j.workCenterNames || workCenters.map((w) => w?.name || "").filter(Boolean).join("\n"),
+          workersLabel: workers
+            .map((w: any) => w?.name || (w?.code ? `Worker ${w.code}` : ""))
+            .filter(Boolean)
+            .join("\n"),
         }
-        const result = await response.json()
-        const data = Array.isArray(result?.data) ? result.data : []
-        setJobs(
-          data.map((j: any) => {
-            const workCenters: Array<{ name?: string }> = Array.isArray(j.workCenters)
-              ? j.workCenters
-              : []
-            const workers: Array<{ name?: string | null }> = Array.isArray(j.workers)
-              ? j.workers
-              : []
-            return {
-              jobId: j.jobId,
-              publicId: j.publicId,
-              jobName: j.jobName,
-              workCenters: j.workCenters,
-              workCenterNames: j.workCenterNames,
-              workers: j.workers,
-              denomination: j.jobName,
-              // Sort/filter values: newline-joined so the natural string compare
-              // still works while the column render below shows one item per line.
-              workCentersLabel:
-                j.workCenterNames || workCenters.map((w) => w?.name || "").filter(Boolean).join("\n"),
-              workersLabel: workers
-                .map((w: any) => w?.name || (w?.code ? `Worker ${w.code}` : ""))
-                .filter(Boolean)
-                .join("\n"),
-            }
-          }),
-        )
-      } catch (error) {
-        console.error("Error fetching client jobs:", error)
-        setJobs([])
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    fetchJobs()
-  }, [clientId, session?.accessToken])
+      })
+    },
+  })
 
   if (selectedJob) {
     return (

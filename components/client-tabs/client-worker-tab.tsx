@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { useRouter } from "next/navigation"
 import TabTableTemplate, { type TabTableColumn } from "@/components/ui/tab-table-template"
 import { useTranslation } from "@/hooks/use-translation"
@@ -30,8 +30,6 @@ export function ClientWorkerTab({ clientId }: ClientWorkerTabProps) {
   const { t } = useTranslation()
   const { session } = useAuth()
   const router = useRouter()
-  const [isLoading, setIsLoading] = useState(true)
-  const [workers, setWorkers] = useState<ConnectedWorker[]>([])
 
   // Mirror the sidebar Workers list behavior: clicking a row navigates to
   // /workers/[publicId] which renders the worker detail tabs (Data, Calendar,
@@ -43,34 +41,19 @@ export function ClientWorkerTab({ clientId }: ClientWorkerTabProps) {
     router.push(`/workers/${row.publicId}${qs}`)
   }
 
-  useEffect(() => {
-    if (!clientId || !session?.accessToken) return
-    let cancelled = false
-    const load = async () => {
-      setIsLoading(true)
-      try {
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_BASE_URL}/worker/by-client/${clientId}`,
-          { headers: { Authorization: `Bearer ${session.accessToken}` } },
-        )
-        if (!res.ok) {
-          if (!cancelled) setWorkers([])
-          return
-        }
-        const result = await res.json()
-        const data: ConnectedWorker[] = Array.isArray(result?.data) ? result.data : []
-        if (!cancelled) setWorkers(data)
-      } catch {
-        if (!cancelled) setWorkers([])
-      } finally {
-        if (!cancelled) setIsLoading(false)
-      }
-    }
-    load()
-    return () => {
-      cancelled = true
-    }
-  }, [clientId, session?.accessToken])
+  const { data: workers = [], isLoading } = useQuery<ConnectedWorker[]>({
+    queryKey: ["worker", "by-client", clientId],
+    enabled: !!clientId && !!session?.accessToken,
+    queryFn: async () => {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/worker/by-client/${clientId}`,
+        { headers: { Authorization: `Bearer ${session!.accessToken}` } },
+      )
+      if (!res.ok) return []
+      const result = await res.json()
+      return Array.isArray(result?.data) ? result.data : []
+    },
+  })
 
   const columns: TabTableColumn[] = [
     { key: "name", label: t("name"), sortable: true, width: "35%" },

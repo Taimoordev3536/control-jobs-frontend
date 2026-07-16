@@ -1,7 +1,8 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useSession } from "next-auth/react"
+import { useQuery } from "@tanstack/react-query"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { AnimatedLoader } from "@/components/animated-loader"
@@ -30,37 +31,31 @@ export function ClientCalendarioTab({ clientId }: ClientCalendarioTabProps) {
     const d = madridToday()
     return new Date(d.getFullYear(), d.getMonth(), 1)
   })
-  const [days, setDays] = useState<Record<string, CalDay>>({})
-  const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<string | null>(null)
 
   const monthStart = useMemo(() => new Date(cursor.getFullYear(), cursor.getMonth(), 1), [cursor])
   const monthEnd = useMemo(() => new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0), [cursor])
+  const mStart = ymd(monthStart)
+  const mEnd = ymd(monthEnd)
 
-  const load = useCallback(async () => {
-    if (!session?.accessToken || !clientId) return
-    setLoading(true)
-    try {
+  const { data: days = {}, isLoading: loading } = useQuery<Record<string, CalDay>>({
+    queryKey: ["jobs", "client-calendar", clientId, mStart, mEnd],
+    enabled: !!session?.accessToken && !!clientId,
+    queryFn: async () => {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/client-calendar/${clientId}?start=${ymd(monthStart)}&end=${ymd(monthEnd)}`,
-        { headers: { Authorization: `Bearer ${session.accessToken}` } },
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/client-calendar/${clientId}?start=${mStart}&end=${mEnd}`,
+        { headers: { Authorization: `Bearer ${session!.accessToken}` } },
       )
       const body = await res.json()
       const list: CalDay[] = Array.isArray(body?.data) ? body.data : []
       const map: Record<string, CalDay> = {}
       list.forEach((d) => (map[d.date] = d))
-      setDays(map)
-    } catch {
-      setDays({})
-    } finally {
-      setLoading(false)
-    }
-  }, [session?.accessToken, clientId, monthStart, monthEnd])
+      return map
+    },
+  })
 
-  useEffect(() => {
-    load()
-    setSelected(null)
-  }, [load])
+  // Clear the day selection when the visible month changes.
+  useEffect(() => setSelected(null), [mStart, mEnd])
 
   const weekdays = [t("mon") || "Lun", t("tue") || "Mar", t("wed") || "Mié", t("thu") || "Jue", t("fri") || "Vie", t("sat") || "Sáb", t("sun") || "Dom"]
   const monthLabel = cursor.toLocaleDateString("es-ES", { month: "long", year: "numeric", timeZone: "Europe/Madrid" })
