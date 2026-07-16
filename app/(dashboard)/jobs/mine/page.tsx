@@ -1,7 +1,9 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useState } from "react"
 import { useSession } from "next-auth/react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { apiFetch } from "@/lib/api"
 import { ChevronLeft, ChevronRight, CalendarClock, MapPin } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { AnimatedLoader } from "@/components/animated-loader"
@@ -21,50 +23,48 @@ type Tab = "hoy" | "pend"
 
 export default function MyJobsPage() {
   const { t } = useTranslation()
-  const { data: session } = useSession()
-  const base = process.env.NEXT_PUBLIC_API_BASE_URL
+  const { status } = useSession()
+  const isAuthenticated = status === "authenticated"
+  const queryClient = useQueryClient()
 
   const [tab, setTab] = useState<Tab>("hoy")
   const [cursor, setCursor] = useState(() => madridToday())
-  const [day, setDay] = useState<WorkerDay | null>(null)
-  const [allJobs, setAllJobs] = useState<any[]>([])
-  const [pending, setPending] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [pendLoading, setPendLoading] = useState(true)
   const [formJob, setFormJob] = useState<any>(null)
   const [formDate, setFormDate] = useState<string>("")
   const [showForm, setShowForm] = useState(false)
 
   const dateStr = ymd(cursor)
 
-  const loadDay = useCallback(() => {
-    if (!session?.accessToken) return
-    const h = { Authorization: `Bearer ${session.accessToken}` }
-    setLoading(true)
-    Promise.all([
-      fetch(`${base}/jobs/worker/day?date=${dateStr}`, { headers: h }).then((r) => r.json()),
-      fetch(`${base}/jobs/worker/all-jobs`, { headers: h }).then((r) => r.json()),
-    ])
-      .then(([d, a]) => {
-        setDay(d?.data || null)
-        setAllJobs(Array.isArray(a?.data) ? a.data : [])
-      })
-      .catch(() => { setDay(null); setAllJobs([]) })
-      .finally(() => setLoading(false))
-  }, [session?.accessToken, base, dateStr])
+  const { data: day = null, isLoading: dayLoading } = useQuery<WorkerDay | null>({
+    queryKey: ["jobs", "worker", "day", dateStr],
+    queryFn: async () => (await apiFetch<any>(`/jobs/worker/day?date=${dateStr}`))?.data ?? null,
+    enabled: isAuthenticated,
+  })
+  const { data: allJobs = [], isLoading: allLoading } = useQuery<any[]>({
+    queryKey: ["jobs", "worker", "all-jobs"],
+    queryFn: async () => {
+      const a = await apiFetch<any>("/jobs/worker/all-jobs")
+      return Array.isArray(a?.data) ? a.data : []
+    },
+    enabled: isAuthenticated,
+  })
+  const loading = dayLoading || allLoading
 
-  const loadPending = useCallback(() => {
-    if (!session?.accessToken) return
-    setPendLoading(true)
-    fetch(`${base}/jobs/worker/pending?days=30`, { headers: { Authorization: `Bearer ${session.accessToken}` } })
-      .then((r) => r.json())
-      .then((j) => setPending(Array.isArray(j?.data) ? j.data : []))
-      .catch(() => setPending([]))
-      .finally(() => setPendLoading(false))
-  }, [session?.accessToken, base])
+  const { data: pending = [], isLoading: pendLoading } = useQuery<any[]>({
+    queryKey: ["jobs", "worker", "pending", 30],
+    queryFn: async () => {
+      const j = await apiFetch<any>("/jobs/worker/pending?days=30")
+      return Array.isArray(j?.data) ? j.data : []
+    },
+    enabled: isAuthenticated,
+  })
 
-  useEffect(() => { loadDay() }, [loadDay])
-  useEffect(() => { loadPending() }, [loadPending])
+  const loadDay = () => {
+    queryClient.invalidateQueries({ queryKey: ["jobs", "worker", "day"] })
+    queryClient.invalidateQueries({ queryKey: ["jobs", "worker", "all-jobs"] })
+  }
+  const loadPending = () => queryClient.invalidateQueries({ queryKey: ["jobs", "worker", "pending"] })
+
 
   const step = (dir: number) => { const d = new Date(cursor); d.setDate(d.getDate() + dir); setCursor(d) }
 

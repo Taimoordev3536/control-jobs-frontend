@@ -1,7 +1,8 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
+import { useQuery } from "@tanstack/react-query"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import DataListTemplate, { ExcelIcon, CsvIcon, PdfIcon } from "@/components/ui/data-list-template"
 import { Button } from "@/components/ui/button"
@@ -17,26 +18,27 @@ const ymd = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.ge
 
 export default function PresenceHistoryPage() {
   const { t } = useTranslation()
-  const { session, getUserRole } = useAuth()
-  const isClient = getUserRole() === "client"
+  const { getUserRole, isAuthenticated } = useAuth()
+  const role = getUserRole()
+  const isClient = role === "client"
+  const scope = isClient ? "client" : "worker"
   const router = useRouter()
   const [cursor, setCursor] = useState(() => { const d = madridToday(); return new Date(d.getFullYear(), d.getMonth(), 1) })
-  const [data, setData] = useState<any[]>([])
-  const [isLoading, setIsLoading] = useState(true)
 
   const monthStart = new Date(cursor.getFullYear(), cursor.getMonth(), 1)
   const monthEnd = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0)
 
-  const load = useCallback(() => {
-    if (!session?.accessToken) return
-    setIsLoading(true)
-    apiFetch<any>(`/jobs/${isClient ? "client" : "worker"}/work-session-records?startDate=${ymd(monthStart)}&endDate=${ymd(monthEnd)}`)
-      .then((j) => setData(Array.isArray(j?.data) ? j.data : Array.isArray(j) ? j : []))
-      .catch(() => setData([]))
-      .finally(() => setIsLoading(false))
-  }, [session?.accessToken, cursor])
-
-  useEffect(() => { load() }, [load])
+  // scope + month in the key (same scope-timing bug as the schedule page):
+  // gated on role so no wrong-scope call, and the key changes worker->client
+  // to refetch once the role resolves.
+  const { data = [], isLoading } = useQuery<any[]>({
+    queryKey: ["presence-history", scope, ymd(monthStart), ymd(monthEnd)],
+    queryFn: async () => {
+      const j = await apiFetch<any>(`/jobs/${scope}/work-session-records?startDate=${ymd(monthStart)}&endDate=${ymd(monthEnd)}`)
+      return Array.isArray(j?.data) ? j.data : Array.isArray(j) ? j : []
+    },
+    enabled: isAuthenticated && !!role,
+  })
 
   const rows = useMemo(
     () =>

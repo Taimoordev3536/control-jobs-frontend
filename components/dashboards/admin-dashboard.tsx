@@ -1,7 +1,8 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Ticket, Megaphone, CheckCircle2 } from "lucide-react"
 import InvoicesIcon from "../../icons/Menu/invoices.svg"
 import EmployerIcon from "../../icons/Menu/employer.svg"
@@ -40,23 +41,18 @@ const roleChipCls: Record<string, string> = {
 
 export default function AdminDashboard() {
   const { t, language } = useTranslation()
-  const { session } = useAuth()
+  const { session, isAuthenticated } = useAuth()
   const router = useRouter()
   const { toast } = useToast()
-  const [data, setData] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
   const [running, setRunning] = useState(false)
 
-  const load = () => {
-    apiFetch<any>("/dashboard/admin")
-      .then((j) => setData(j.data))
-      .catch(() => setData(null))
-      .finally(() => setLoading(false))
-  }
-  useEffect(() => {
-    if (!session?.accessToken) return
-    load()
-  }, [session?.accessToken])
+  const { data = null, isLoading: loading } = useQuery<any>({
+    queryKey: ["dashboard", "admin"],
+    queryFn: async () => (await apiFetch<any>("/dashboard/admin"))?.data ?? null,
+    enabled: isAuthenticated,
+  })
+  const load = () => queryClient.invalidateQueries({ queryKey: ["dashboard", "admin"] })
 
   const runMonthly = async () => {
     if (running) return

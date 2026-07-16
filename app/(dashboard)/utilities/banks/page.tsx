@@ -1,6 +1,7 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Check, Trash2, Loader2, CalendarClock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { DateInput } from "@/components/ui/date-input"
@@ -25,9 +26,8 @@ export default function BanksPage() {
     ? [{ key: "FACTURAS", label: t("invoices") || "Facturas" }, { key: "COMISIONES", label: t("commissions") || "Comisiones" }]
     : [{ key: "FACTURAS", label: t("invoices") || "Facturas" }, { key: "SALARIOS", label: t("salaries") || "Salarios" }]
 
+  const queryClient = useQueryClient()
   const [tab, setTab] = useState(tabs[0].key)
-  const [rows, setRows] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
 
   const now = new Date()
@@ -36,15 +36,15 @@ export default function BanksPage() {
   const [pStart, setPStart] = useState(prevStart)
   const [pEnd, setPEnd] = useState(prevEnd)
 
-  const load = useCallback(() => {
-    if (!session?.accessToken) return
-    setLoading(true)
-    apiFetch<any>(`/bank-operations?tab=${tab}`)
-      .then((j) => setRows(Array.isArray(j?.data) ? j.data : []))
-      .catch(() => setRows([]))
-      .finally(() => setLoading(false))
-  }, [session?.accessToken, tab])
-  useEffect(() => { load() }, [load])
+  const { data: rows = [], isLoading: loading } = useQuery<any[]>({
+    queryKey: ["bank-operations", tab],
+    queryFn: async () => {
+      const j = await apiFetch<any>(`/bank-operations?tab=${tab}`)
+      return Array.isArray(j?.data) ? j.data : []
+    },
+    enabled: !!session?.accessToken,
+  })
+  const load = () => queryClient.invalidateQueries({ queryKey: ["bank-operations"] })
 
   const closeMonth = async () => {
     setBusy(true)

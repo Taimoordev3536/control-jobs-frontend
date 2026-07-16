@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { useRouter } from "next/navigation"
 import EmployerIcon from "../../icons/Menu/employer.svg"
 import InviteIcon from "../../icons/Menu/Invite.svg"
@@ -28,18 +28,14 @@ const employerChipCls = (s: string) =>
 
 export default function PartnerDashboard() {
   const { t, language } = useTranslation()
-  const { session } = useAuth()
+  const { session, isAuthenticated } = useAuth()
   const router = useRouter()
-  const [data, setData] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    if (!session?.accessToken) return
-    apiFetch<any>("/dashboard/partner")
-      .then((j) => setData(j.data))
-      .catch(() => setData(null))
-      .finally(() => setLoading(false))
-  }, [session?.accessToken])
+  const { data = null, isLoading: loading } = useQuery<any>({
+    queryKey: ["dashboard", "partner"],
+    queryFn: async () => (await apiFetch<any>("/dashboard/partner"))?.data ?? null,
+    enabled: isAuthenticated,
+  })
 
   const name = (session?.user as any)?.name || "Partner"
   const localeMap: Record<string, string> = { en: "en-GB", es: "es-ES", de: "de-DE" }
