@@ -1,7 +1,8 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import { useSession } from "next-auth/react"
+import { useQuery } from "@tanstack/react-query"
+import { apiFetch } from "@/lib/api"
 import { ShieldCheck, MessageSquare, Star } from "lucide-react"
 import { AnimatedLoader } from "@/components/animated-loader"
 import { useTranslation } from "@/hooks/use-translation"
@@ -9,20 +10,13 @@ import { formatLocalDate } from "@/lib/datetime"
 
 export function SurveyResultsView({ surveyId }: { surveyId: string }) {
   const { t } = useTranslation()
-  const { data: session } = useSession()
-  const base = process.env.NEXT_PUBLIC_API_BASE_URL
-  const [data, setData] = useState<any | null>(null)
-  const [loading, setLoading] = useState(true)
+  const { status } = useSession()
 
-  useEffect(() => {
-    if (!session?.accessToken) return
-    setLoading(true)
-    fetch(`${base}/survey-forms/${surveyId}/results`, { headers: { Authorization: `Bearer ${session.accessToken}` } })
-      .then((r) => r.json())
-      .then((j) => setData(j?.data || null))
-      .catch(() => setData(null))
-      .finally(() => setLoading(false))
-  }, [session?.accessToken, base, surveyId])
+  const { data = null, isLoading: loading } = useQuery<any | null>({
+    queryKey: ["survey-forms", surveyId, "results"],
+    queryFn: async () => (await apiFetch<any>(`/survey-forms/${surveyId}/results`))?.data ?? null,
+    enabled: status === "authenticated" && !!surveyId,
+  })
 
   if (loading) return <div className="flex justify-center py-12"><AnimatedLoader /></div>
   if (!data) return <p className="text-sm text-muted-foreground text-center py-8">{t("error") || "Error"}</p>

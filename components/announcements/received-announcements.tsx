@@ -1,7 +1,8 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import { useSession } from "next-auth/react"
+import { useQuery } from "@tanstack/react-query"
+import { apiFetch } from "@/lib/api"
 import { Megaphone, Info, AlertTriangle } from "lucide-react"
 import { AnimatedLoader } from "@/components/animated-loader"
 import { useTranslation } from "@/hooks/use-translation"
@@ -9,18 +10,16 @@ import { formatLocalDateTime } from "@/lib/datetime"
 
 export default function ReceivedAnnouncements() {
   const { t } = useTranslation()
-  const { data: session } = useSession()
-  const [items, setItems] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const { status } = useSession()
 
-  useEffect(() => {
-    if (!session?.accessToken) return
-    fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/alerts/announcements`, { headers: { Authorization: `Bearer ${session.accessToken}` } })
-      .then((r) => r.json())
-      .then((j) => setItems(Array.isArray(j?.data) ? j.data : []))
-      .catch(() => {})
-      .finally(() => setLoading(false))
-  }, [session?.accessToken])
+  const { data: items = [], isLoading: loading } = useQuery<any[]>({
+    queryKey: ["alerts", "announcements"],
+    queryFn: async () => {
+      const j = await apiFetch<any>("/alerts/announcements")
+      return Array.isArray(j?.data) ? j.data : []
+    },
+    enabled: status === "authenticated",
+  })
 
   const sev = (s: string) =>
     s === "CRITICAL"
