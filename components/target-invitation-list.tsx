@@ -1,6 +1,7 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Copy, Trash2, Plus, Filter, Pencil, X } from "lucide-react"
 import { useTranslation } from "@/hooks/use-translation"
 import { useAuth } from "@/hooks/use-auth"
@@ -49,36 +50,26 @@ export default function TargetInvitationList({ target }: { target: Target }) {
   const { toast } = useToast()
 
   const apiPath = RESOURCE_BY_TARGET[target]
+  const queryClient = useQueryClient()
 
-  const [invitations, setInvitations] = useState<Invitation[]>([])
-  const [isLoading, setIsLoading] = useState(true)
   const [drawerInvitation, setDrawerInvitation] = useState<Invitation | null>(null)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [editingInvitation, setEditingInvitation] = useState<Invitation | null>(null)
 
-  const fetchInvitations = async () => {
-    if (!session?.accessToken) return
-    setIsLoading(true)
-    try {
+  const { data: invitations = [], isLoading } = useQuery<Invitation[]>({
+    queryKey: ["invitations", apiPath],
+    enabled: !!session?.accessToken,
+    queryFn: async () => {
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_BASE_URL}/${apiPath}`,
-        { headers: { Authorization: `Bearer ${session.accessToken}` } },
+        { headers: { Authorization: `Bearer ${session!.accessToken}` } },
       )
       if (!res.ok) throw new Error("Failed to load")
       const json = await res.json()
-      setInvitations(json.data || [])
-    } catch (e: any) {
-      toast({ title: e.message || "Error", variant: "destructive" })
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    setInvitations([])
-    fetchInvitations()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session?.accessToken, apiPath])
+      return json.data || []
+    },
+  })
+  const fetchInvitations = () => queryClient.invalidateQueries({ queryKey: ["invitations", apiPath] })
 
   const copyLink = async (link?: string) => {
     if (!link) {

@@ -1,6 +1,7 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useMemo, useState } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import DataListTemplate from "@/components/ui/data-list-template"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
@@ -31,9 +32,8 @@ export default function AidCenter() {
   const { t } = useTranslation()
   const { session, getUserRole } = useAuth()
   const { toast } = useToast()
+  const queryClient = useQueryClient()
   const isAdmin = getUserRole() === "admin"
-  const [faqs, setFaqs] = useState<Faq[]>([])
-  const [isLoading, setIsLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [viewing, setViewing] = useState<Faq | null>(null)
   const [form, setForm] = useState({ ...emptyForm })
@@ -48,25 +48,17 @@ export default function AidCenter() {
     [session?.accessToken],
   )
 
-  const fetchFaqs = useCallback(async () => {
-    if (!session?.accessToken) return
-    setIsLoading(true)
-    try {
+  const { data: faqs = [], isLoading } = useQuery<Faq[]>({
+    queryKey: ["faqs"],
+    enabled: !!session?.accessToken,
+    queryFn: async () => {
       const res = await fetch(`${apiBase}/faqs`, { headers: authHeaders() })
       if (!res.ok) throw new Error("Failed to fetch FAQs")
       const data = await res.json()
-      setFaqs(Array.isArray(data) ? data : data.data || [])
-    } catch (err) {
-      console.error("Error fetching FAQs:", err)
-      setFaqs([])
-    } finally {
-      setIsLoading(false)
-    }
-  }, [apiBase, authHeaders, session?.accessToken])
-
-  useEffect(() => {
-    fetchFaqs()
-  }, [fetchFaqs])
+      return Array.isArray(data) ? data : data.data || []
+    },
+  })
+  const fetchFaqs = () => queryClient.invalidateQueries({ queryKey: ["faqs"] })
 
   // Non-admins only see FAQs for everyone or their own role. Sorted by role
   // (Roll) then by the assigned order, per the admin manager requirement.

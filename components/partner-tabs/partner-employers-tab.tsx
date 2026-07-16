@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Plus, Filter, Trash2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import DataListTemplate, { ExcelIcon, CsvIcon, PdfIcon } from "@/components/ui/data-list-template"
@@ -32,49 +33,43 @@ export default function PartnerEmployersTab({ partnerId }: PartnerEmployersTabPr
   const translateBackendError = useBackendError()
   const router = useRouter()
   const { session } = useAuth()
+  const queryClient = useQueryClient()
 
-  const [employers, setEmployers] = useState<any[]>([])
-  const [isLoading, setIsLoading] = useState(true)
   const [showAddModal, setShowAddModal] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
 
-  useEffect(() => {
-    const fetchEmployers = async () => {
-      if (!session?.accessToken || !partnerId) return
-      setIsLoading(true)
-      try {
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_BASE_URL}/employers?partnerId=${partnerId}`,
-          {
-            headers: {
-              Authorization: `Bearer ${session.accessToken}`,
-              "Content-Type": "application/json",
-            },
-          }
-        )
-        if (!res.ok) throw new Error("Failed to fetch employers")
-        const data = await res.json()
-        const mapped = (data.data || []).map((e: any) => ({
-          id: e.publicId || e.id,
-          name: e.name || "-",
-          class: e.class || "-",
-          type: e.type || "-",
-          discount: e.discount || "0",
-          highDate: e.createdAt ? formatLocalDate(e.createdAt) : "-",
-          partner: e.partnerName || "-",
-          billing: e.billing || "0 €",
-        }))
-        setEmployers(mapped)
-      } catch (err) {
-        setEmployers([])
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    fetchEmployers()
-  }, [session?.accessToken, partnerId])
+  const employersKey = ["employers", "by-partner", partnerId]
+  const { data: employers = [], isLoading } = useQuery<any[]>({
+    queryKey: employersKey,
+    enabled: !!session?.accessToken && !!partnerId,
+    queryFn: async () => {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/employers?partnerId=${partnerId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${session!.accessToken}`,
+            "Content-Type": "application/json",
+          },
+        }
+      )
+      if (!res.ok) throw new Error("Failed to fetch employers")
+      const data = await res.json()
+      return (data.data || []).map((e: any) => ({
+        id: e.publicId || e.id,
+        name: e.name || "-",
+        class: e.class || "-",
+        type: e.type || "-",
+        discount: e.discount || "0",
+        highDate: e.createdAt ? formatLocalDate(e.createdAt) : "-",
+        partner: e.partnerName || "-",
+        billing: e.billing || "0 €",
+      }))
+    },
+  })
+  // Modal-add prepend + row delete update the cached list directly.
+  const setEmployers = (updater: (prev: any[]) => any[]) =>
+    queryClient.setQueryData(employersKey, (prev: any[] = []) => updater(prev))
 
   const handleRowClick = (row: any) => {
     router.push(`/employers/${row.id}`)

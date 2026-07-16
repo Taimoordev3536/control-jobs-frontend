@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Plus, Filter } from "lucide-react"
 import { useRouter } from "next/navigation"
 import DataListTemplate, { ExcelIcon, CsvIcon, PdfIcon } from "@/components/ui/data-list-template"
@@ -17,55 +18,46 @@ export default function Workcenter({ clientId }: ClientWorkCenterTabProps) {
   const { t } = useTranslation()
   const router = useRouter()
   const { session } = useAuth()
+  const queryClient = useQueryClient()
 
-  const [workCenters, setWorkCenters] = useState<any[]>([])
   const [isAddOpen, setIsAddOpen] = useState(false)
 
-  useEffect(() => {
-    const fetchWorkCenters = async () => {
-      if (!session?.accessToken) return
-      // Use new unified work-centers endpoint
-      // For employer config page, fetch employer-owned work centers (no clientId filter)
-      // For client page, filter by clientId
-      try {
-        let url = `${process.env.NEXT_PUBLIC_API_BASE_URL}/work-centers`
-        
-        // If clientId is provided and is a valid number, filter by it
-        if (clientId && clientId !== 'employer' && !isNaN(Number(clientId))) {
-          url += `?clientId=${clientId}`
-        }
-
-        const res = await fetch(url, {
-          headers: {
-            Authorization: `Bearer ${session.accessToken}`,
-            "Content-Type": "application/json",
-          },
-        })
-
-        if (!res.ok) throw new Error("Failed to fetch work centers")
-        const data = await res.json()
-        const mapped = (data.data || []).map((w: any) => ({
-          id: w.publicId || w.id,
-          code: w.code || "",
-          denomination: w.name || w.denomination || "-",
-          address: w.address || "-",
-          locality: w.locality || w.city || "-",
-          postalCode: w.postalCode || w.zip || "-",
-          employees: w.employeesCount ?? (Array.isArray(w.employees) ? w.employees.length : 0),
-          established: w.establishedAt ? formatLocalDate(w.establishedAt) : "-",
-          _establishedRaw: w.establishedAt || "",
-        }))
-
-        // Sort by established (most recent first)
-        mapped.sort((a: any, b: any) => (b._establishedRaw > a._establishedRaw ? 1 : b._establishedRaw < a._establishedRaw ? -1 : 0))
-        setWorkCenters(mapped)
-      } catch (err) {
-        setWorkCenters([])
+  const workCentersKey = ["work-centers", "config", clientId ?? "employer"]
+  const { data: workCenters = [] } = useQuery<any[]>({
+    queryKey: workCentersKey,
+    enabled: !!session?.accessToken,
+    queryFn: async () => {
+      let url = `${process.env.NEXT_PUBLIC_API_BASE_URL}/work-centers`
+      // For the employer config page, fetch employer-owned centers (no filter);
+      // when a numeric clientId is passed, filter by it.
+      if (clientId && clientId !== "employer" && !isNaN(Number(clientId))) {
+        url += `?clientId=${clientId}`
       }
-    }
-
-    fetchWorkCenters()
-  }, [session?.accessToken, clientId])
+      const res = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${session!.accessToken}`,
+          "Content-Type": "application/json",
+        },
+      })
+      if (!res.ok) throw new Error("Failed to fetch work centers")
+      const data = await res.json()
+      const mapped = (data.data || []).map((w: any) => ({
+        id: w.publicId || w.id,
+        code: w.code || "",
+        denomination: w.name || w.denomination || "-",
+        address: w.address || "-",
+        locality: w.locality || w.city || "-",
+        postalCode: w.postalCode || w.zip || "-",
+        employees: w.employeesCount ?? (Array.isArray(w.employees) ? w.employees.length : 0),
+        established: w.establishedAt ? formatLocalDate(w.establishedAt) : "-",
+        _establishedRaw: w.establishedAt || "",
+      }))
+      mapped.sort((a: any, b: any) => (b._establishedRaw > a._establishedRaw ? 1 : b._establishedRaw < a._establishedRaw ? -1 : 0))
+      return mapped
+    },
+  })
+  const setWorkCenters = (updater: (prev: any[]) => any[]) =>
+    queryClient.setQueryData(workCentersKey, (prev: any[] = []) => updater(prev))
 
   const handleRowClick = (row: any) => {
     router.push(`/work-centers/${row.id}`)
