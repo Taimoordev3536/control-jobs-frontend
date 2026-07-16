@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { Plus, Trash2, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -65,12 +66,10 @@ export default function AutofacturaForm({ mode, autofactura, onSaved, onCancel }
   const editable = !isView
   const todayIso = ymd(new Date())
 
-  const [partners, setPartners] = useState<{ id: string; name: string }[]>([])
   const [partnerId, setPartnerId] = useState<string>(autofactura?.partnerId || "")
   const [company, setCompany] = useState<any>(autofactura?.company || null)
   const [partner, setPartner] = useState<any>(autofactura?.partner || null)
   const [nextNumber, setNextNumber] = useState<string | null>(null)
-  const [ctxLoading, setCtxLoading] = useState(false)
 
   const [periodStart, setPeriodStart] = useState(autofactura?.periodStart || `${todayIso.slice(0, 8)}01`)
   const [periodEnd, setPeriodEnd] = useState(autofactura?.periodEnd || todayIso)
@@ -81,29 +80,48 @@ export default function AutofacturaForm({ mode, autofactura, onSaved, onCancel }
   )
   const [saving, setSaving] = useState(false)
 
-  useEffect(() => {
-    if (isView || !session?.accessToken) return
-    apiFetch<any>("/partners").then((j) => {
+  const { data: partners = [] } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ["autofactura", "partners"],
+    enabled: !isView && !!session?.accessToken,
+    queryFn: async () => {
+      const j = await apiFetch<any>("/partners")
       const r = Array.isArray(j?.data) ? j.data : Array.isArray(j) ? j : []
-      setPartners(r.map((p: any) => ({ id: p.publicId, name: p.name })))
-    }).catch(() => setPartners([]))
-    apiFetch<any>("/commissions/context").then((j) => setCompany((j?.data || j)?.company)).catch(() => {})
-  }, [isView, session?.accessToken])
+      return r.map((p: any) => ({ id: p.publicId, name: p.name }))
+    },
+  })
 
-  useEffect(() => {
-    if (isView || !partnerId || !session?.accessToken) return
-    setCtxLoading(true)
-    apiFetch<any>(`/commissions/context?partnerId=${partnerId}`).then((j) => {
+  // Base context (no partner) and per-partner context share one endpoint;
+  // keying on partnerId refetches when a partner is picked.
+  const { data: ctxData, isFetching: ctxFetching } = useQuery<{ company: any; partner: any; nextNumber: string | null }>({
+    queryKey: ["commissions", "context", partnerId],
+    enabled: !isView && !!session?.accessToken,
+    queryFn: async () => {
+      const url = partnerId ? `/commissions/context?partnerId=${partnerId}` : "/commissions/context"
+      const j = await apiFetch<any>(url)
       const d = j?.data || j
-      setCompany(d.company); setPartner(d.partner); setNextNumber(d.nextNumber)
+      return { company: d?.company ?? null, partner: d?.partner ?? null, nextNumber: d?.nextNumber ?? null }
+    },
+  })
+  const ctxLoading = ctxFetching && !!partnerId
+
+  // Seed company always; when a partner is picked also seed partner/number and
+  // derive the payment date if the user hasn't set one (replaces the old
+  // per-partner fetch effect; no invalidation -> edits aren't clobbered).
+  useEffect(() => {
+    if (isView || !ctxData) return
+    setCompany(ctxData.company)
+    if (partnerId) {
+      setPartner(ctxData.partner)
+      setNextNumber(ctxData.nextNumber)
       if (!paymentDate) {
         const [ey, em] = periodEnd.split("-").map(Number)
         const pm = em === 12 ? 1 : em + 1
         const py = em === 12 ? ey + 1 : ey
         setPaymentDate(`${py}-${pad(pm)}-05`)
       }
-    }).catch(() => {}).finally(() => setCtxLoading(false))
-  }, [isView, partnerId, session?.accessToken])
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ctxData, partnerId, isView])
 
   const retentionPct = isView ? Number(autofactura?.retentionPct) || 0 : Number(partner?.retention) || 0
   const subtotal = useMemo(() => Math.round(lines.reduce((s, l) => s + (Number(l.amount) || 0), 0) * 100) / 100, [lines])

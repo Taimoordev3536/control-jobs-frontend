@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -99,8 +100,6 @@ export default function InvoiceForm({ mode, invoice, onSubmitted, onCancel, allo
   const isEdit = mode === "edit"
   const editGen = mode === "generate" || mode === "edit"
 
-  const [ctx, setCtx] = useState<FormContext | null>(null)
-  const [employers, setEmployers] = useState<{ id: number; name: string }[]>([])
   const [selectedEmployer, setSelectedEmployer] = useState<string>("")
   const [lines, setLines] = useState<Line[]>([])
   const [discountPct, setDiscountPct] = useState(0)
@@ -113,22 +112,43 @@ export default function InvoiceForm({ mode, invoice, onSubmitted, onCancel, allo
   const [remarks, setRemarks] = useState("")
   const [paymentMethodId, setPaymentMethodId] = useState("")
   const [submitting, setSubmitting] = useState(false)
-  const [ctxLoading, setCtxLoading] = useState(false)
 
   // generate/edit editable state
   const [genWcSel, setGenWcSel] = useState<Set<number>>(new Set())
   const [genWorkerSel, setGenWorkerSel] = useState<Set<number>>(new Set())
   const [genFixedFee, setGenFixedFee] = useState("0")
 
+  const { data: employers = [] } = useQuery<{ id: number; name: string }[]>({
+    queryKey: ["invoices", "employers"],
+    enabled: mode === "create",
+    queryFn: async () => {
+      const j = await apiFetch<{ data: any[] }>("/employers")
+      return (j.data || []).map((e) => ({ id: e.id, name: e.name }))
+    },
+  })
+
+  // Base form-context (no employer) and the per-employer context share one
+  // endpoint; keying on selectedEmployer refetches when an employer is picked.
+  const { data: ctx = null, isFetching: ctxFetching } = useQuery<FormContext | null>({
+    queryKey: ["invoices", "form-context", selectedEmployer],
+    enabled: mode === "create",
+    queryFn: async () => {
+      const url = selectedEmployer ? `/invoices/form-context?employerId=${selectedEmployer}` : "/invoices/form-context"
+      const j = await apiFetch<{ data: FormContext }>(url)
+      return j.data
+    },
+  })
+  const ctxLoading = ctxFetching && !!selectedEmployer
+
+  // When an employer is picked, seed the editable discount + payment method
+  // from that employer's context (replaces the old per-employer fetch effect).
   useEffect(() => {
-    if (mode !== "create") return
-    apiFetch<{ data: any[] }>("/employers")
-      .then((j) => setEmployers((j.data || []).map((e) => ({ id: e.id, name: e.name }))))
-      .catch(() => setEmployers([]))
-    apiFetch<{ data: FormContext }>("/invoices/form-context")
-      .then((j) => setCtx(j.data))
-      .catch(() => {})
-  }, [mode])
+    if (mode === "create" && selectedEmployer && ctx) {
+      setDiscountPct(ctx.defaultDiscount || 0)
+      if (ctx.payment?.methodId) setPaymentMethodId(String(ctx.payment.methodId))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ctx, selectedEmployer])
 
   useEffect(() => {
     if (mode === "view" && invoice?.payment?.methodId) {
@@ -164,18 +184,6 @@ export default function InvoiceForm({ mode, invoice, onSubmitted, onCancel, allo
     }
   }
 
-  useEffect(() => {
-    if (mode !== "create" || !selectedEmployer) return
-    setCtxLoading(true)
-    apiFetch<{ data: FormContext }>(`/invoices/form-context?employerId=${selectedEmployer}`)
-      .then((j) => {
-        setCtx(j.data)
-        setDiscountPct(j.data.defaultDiscount || 0)
-        if (j.data.payment?.methodId) setPaymentMethodId(String(j.data.payment.methodId))
-      })
-      .catch(() => {})
-      .finally(() => setCtxLoading(false))
-  }, [mode, selectedEmployer])
 
   const addLine = () =>
     setLines((p) => [...p, { id: `${p.length}-${p.reduce((s, l) => s + l.unitPrice, 0)}-${p.length}`, description: "", quantity: 1, unitPrice: 0 }])
