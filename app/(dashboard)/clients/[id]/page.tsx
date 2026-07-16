@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { useParams, useSearchParams, useRouter } from "next/navigation"
 import { ArrowLeft } from "lucide-react"
 import { ClientDataTab } from "@/components/client-tabs/client-data-tab"
@@ -22,28 +23,28 @@ export default function ClientDetailPage() {
   const { session } = useAuth()
   const router = useRouter()
   const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "data")
+  // Local state so the Data tab can push name edits via onNameChange; seeded
+  // from the query below (which self-heals on transient failure).
   const [clientName, setClientName] = useState(searchParams.get("name") || "")
 
+  const { data: fetchedName } = useQuery<string>({
+    queryKey: ["client", "name", params.id],
+    enabled: !!session?.accessToken && !!params.id,
+    queryFn: async () => {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/client/${params.id}`, {
+        headers: {
+          Authorization: `Bearer ${session!.accessToken}`,
+          "Content-Type": "application/json",
+        },
+      })
+      if (!res.ok) throw new Error("Failed to fetch client")
+      const result = await res.json()
+      return result.data?.name || ""
+    },
+  })
   useEffect(() => {
-    const fetchClientName = async () => {
-      if (!session?.accessToken || !params.id) return
-      try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/client/${params.id}`, {
-          headers: {
-            Authorization: `Bearer ${session.accessToken}`,
-            "Content-Type": "application/json",
-          },
-        })
-        if (res.ok) {
-          const result = await res.json()
-          setClientName(result.data?.name || "")
-        }
-      } catch (err) {
-        console.error("Error fetching client name:", err)
-      }
-    }
-    fetchClientName()
-  }, [session?.accessToken, params.id])
+    if (fetchedName != null) setClientName(fetchedName)
+  }, [fetchedName])
 
   const tabs = [
     { key: "data", label: t("data") },
