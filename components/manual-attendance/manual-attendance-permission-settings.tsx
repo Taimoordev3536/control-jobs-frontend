@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -42,7 +43,6 @@ export default function ManualAttendancePermissionSettings({
   const { session } = useAuth()
   const { t } = useTranslation("manual-attendance")
   const [settings, setSettings] = useState<PermissionSettings>(DEFAULT_SETTINGS)
-  const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
@@ -55,40 +55,35 @@ export default function ManualAttendancePermissionSettings({
     }
   }, [level, jobId])
 
-  // Load existing settings
-  useEffect(() => {
-    const fetchSettings = async () => {
-      if (!session?.accessToken) return
-      setIsLoading(true)
-      try {
-        const res = await fetch(getEndpoint(), {
-          headers: {
-            Authorization: `Bearer ${session.accessToken}`,
-            "Content-Type": "application/json",
-          },
-        })
-        if (res.ok) {
-          const result = await res.json()
-          if (result.data) {
-            setSettings({
-              isEnabled: result.data.isEnabled ?? DEFAULT_SETTINGS.isEnabled,
-              workerCanRequest: result.data.workerCanRequest ?? DEFAULT_SETTINGS.workerCanRequest,
-              employerCanCreate: result.data.employerCanCreate ?? DEFAULT_SETTINGS.employerCanCreate,
-              clientCanCreate: result.data.clientCanCreate ?? DEFAULT_SETTINGS.clientCanCreate,
-              maxRetroactiveDays: result.data.maxRetroactiveDays ?? DEFAULT_SETTINGS.maxRetroactiveDays,
-              maxRequestsPerWorkerMonth: result.data.maxRequestsPerWorkerMonth ?? DEFAULT_SETTINGS.maxRequestsPerWorkerMonth,
-              requireReason: result.data.requireReason ?? DEFAULT_SETTINGS.requireReason,
-            })
-          }
-        }
-      } catch {
-        // Use defaults
-      } finally {
-        setIsLoading(false)
+  const { data: fetchedSettings, isLoading } = useQuery<PermissionSettings | null>({
+    queryKey: ["manual-attendance", "permissions", level, jobId],
+    enabled: !!session?.accessToken,
+    queryFn: async () => {
+      const res = await fetch(getEndpoint(), {
+        headers: {
+          Authorization: `Bearer ${session!.accessToken}`,
+          "Content-Type": "application/json",
+        },
+      })
+      if (!res.ok) throw new Error(`Error ${res.status}`)
+      const result = await res.json()
+      if (!result.data) return null
+      return {
+        isEnabled: result.data.isEnabled ?? DEFAULT_SETTINGS.isEnabled,
+        workerCanRequest: result.data.workerCanRequest ?? DEFAULT_SETTINGS.workerCanRequest,
+        employerCanCreate: result.data.employerCanCreate ?? DEFAULT_SETTINGS.employerCanCreate,
+        clientCanCreate: result.data.clientCanCreate ?? DEFAULT_SETTINGS.clientCanCreate,
+        maxRetroactiveDays: result.data.maxRetroactiveDays ?? DEFAULT_SETTINGS.maxRetroactiveDays,
+        maxRequestsPerWorkerMonth: result.data.maxRequestsPerWorkerMonth ?? DEFAULT_SETTINGS.maxRequestsPerWorkerMonth,
+        requireReason: result.data.requireReason ?? DEFAULT_SETTINGS.requireReason,
       }
-    }
-    fetchSettings()
-  }, [session?.accessToken, getEndpoint])
+    },
+  })
+
+  // Seed the editable form once loaded (no invalidation -> edits kept).
+  useEffect(() => {
+    if (fetchedSettings) setSettings(fetchedSettings)
+  }, [fetchedSettings])
 
   const handleSave = async () => {
     if (!session?.accessToken) return

@@ -1,7 +1,8 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useEffect, useState } from "react"
 import { useSession } from "next-auth/react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Plus, Trash2, Eye, Printer, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -22,14 +23,13 @@ const eur = (n: number) => `${(n || 0).toFixed(2)} €`
 export function ClientFacturasTab({ clientId }: ClientFacturasTabProps) {
   const { t } = useTranslation()
   const { toast } = useToast()
-  const { data: session } = useSession()
+  const { data: session, status } = useSession()
+  const queryClient = useQueryClient()
   const base = process.env.NEXT_PUBLIC_API_BASE_URL
   const authHeader = { Authorization: `Bearer ${session?.accessToken}`, "Content-Type": "application/json" }
 
-  const [loading, setLoading] = useState(true)
   const [cfg, setCfg] = useState<{ fixedAmount: number | null; hoursLabel: string; hourRate: number | null; vatPct: number }>({ fixedAmount: null, hoursLabel: "Horas de servicio", hourRate: null, vatPct: 21 })
   const [savingCfg, setSavingCfg] = useState(false)
-  const [invoices, setInvoices] = useState<any[]>([])
   const [selected, setSelected] = useState<any | null>(null)
 
   const [showGen, setShowGen] = useState(false)
@@ -46,25 +46,42 @@ export function ClientFacturasTab({ clientId }: ClientFacturasTabProps) {
     return { ...p, subtotal, vatAmount, total: Math.round((subtotal + vatAmount) * 100) / 100 }
   }
 
-  const load = useCallback(async () => {
-    if (!session?.accessToken || !clientId) return
-    setLoading(true)
-    try {
-      const [c, r] = await Promise.all([
-        fetch(`${base}/client/${clientId}/billing-config`, { headers: authHeader }).then((x) => x.json()),
-        fetch(`${base}/client/${clientId}/invoices`, { headers: authHeader }).then((x) => x.json()),
-      ])
-      const cfgData = c?.data || c
-      if (cfgData) setCfg({ fixedAmount: cfgData.fixedAmount ?? null, hoursLabel: cfgData.hoursLabel || "Horas de servicio", hourRate: cfgData.hourRate ?? null, vatPct: cfgData.vatPct ?? 21 })
-      setInvoices(Array.isArray(r?.data) ? r.data : Array.isArray(r) ? r : [])
-    } catch {
-      setInvoices([])
-    } finally {
-      setLoading(false)
-    }
-  }, [session?.accessToken, clientId])
+  const cfgKey = ["client", clientId, "billing-config"]
+  const invoicesKey = ["client", clientId, "invoices"]
 
-  useEffect(() => { load() }, [load])
+  const { data: fetchedCfg, isLoading: cfgLoading } = useQuery<{ fixedAmount: number | null; hoursLabel: string; hourRate: number | null; vatPct: number } | null>({
+    queryKey: cfgKey,
+    enabled: status === "authenticated" && !!clientId,
+    queryFn: async () => {
+      const c = await fetch(`${base}/client/${clientId}/billing-config`, { headers: authHeader }).then((x) => x.json())
+      const cfgData = c?.data || c
+      if (!cfgData) return null
+      return { fixedAmount: cfgData.fixedAmount ?? null, hoursLabel: cfgData.hoursLabel || "Horas de servicio", hourRate: cfgData.hourRate ?? null, vatPct: cfgData.vatPct ?? 21 }
+    },
+  })
+  // Seed the editable billing-config form once loaded (no invalidation on
+  // edit -> in-progress edits are never clobbered).
+  useEffect(() => {
+    if (fetchedCfg) setCfg(fetchedCfg)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fetchedCfg])
+
+  const { data: invoices = [], isLoading: invLoading } = useQuery<any[]>({
+    queryKey: invoicesKey,
+    enabled: status === "authenticated" && !!clientId,
+    queryFn: async () => {
+      const r = await fetch(`${base}/client/${clientId}/invoices`, { headers: authHeader }).then((x) => x.json())
+      return Array.isArray(r?.data) ? r.data : Array.isArray(r) ? r : []
+    },
+  })
+  const loading = cfgLoading || invLoading
+  // Mutations (issue/remove) refresh the read via these.
+  const load = () => {
+    queryClient.invalidateQueries({ queryKey: cfgKey })
+    queryClient.invalidateQueries({ queryKey: invoicesKey })
+  }
+  const setInvoices = (updater: (prev: any[]) => any[]) =>
+    queryClient.setQueryData(invoicesKey, (prev: any[] = []) => updater(prev))
 
   const saveCfg = async () => {
     setSavingCfg(true)

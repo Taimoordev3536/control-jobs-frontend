@@ -57,9 +57,8 @@ function BackupPageInner() {
   const params = useSearchParams()
   const api = process.env.NEXT_PUBLIC_API_BASE_URL
   const queryClient = useQueryClient()
-  // providers + settings stay as local state (settings is edited in a form
-  // below); only the read-only backup list moved to React Query.
-  const [providers, setProviders] = useState<Provider[]>([])
+  // settings stays local state (it is edited in a form below); providers +
+  // the backup list are read-only React Query reads.
   const [settings, setSettings] = useState<Settings | null>(null)
   const [running, setRunning] = useState(false)
   const [savingSettings, setSavingSettings] = useState(false)
@@ -81,29 +80,39 @@ function BackupPageInner() {
     enabled: isAuthenticated,
   })
 
-  const loadMeta = useCallback(async () => {
-    if (!session?.accessToken) return
-    try {
-      const [p, s] = await Promise.all([
-        fetch(`${api}/backup/providers`, { headers: headers() }).then((r) => r.json()),
-        fetch(`${api}/backup/settings`, { headers: headers() }).then((r) => r.json()),
-      ])
-      setProviders(p.data || [])
-      setSettings(s.data || null)
-    } catch (e) {
-      console.error(e)
-    }
-  }, [api, headers, session?.accessToken])
+  const { data: providers = [] } = useQuery<Provider[]>({
+    queryKey: ["backup", "providers"],
+    enabled: isAuthenticated,
+    queryFn: async () => {
+      const p = await fetch(`${api}/backup/providers`, { headers: headers() }).then((r) => r.json())
+      return p.data || []
+    },
+  })
+
+  const { data: fetchedSettings } = useQuery<Settings | null>({
+    queryKey: ["backup", "settings"],
+    enabled: isAuthenticated,
+    queryFn: async () => {
+      const s = await fetch(`${api}/backup/settings`, { headers: headers() }).then((r) => r.json())
+      return s.data || null
+    },
+  })
+  // Seed the editable settings form once loaded (no invalidation on edit ->
+  // in-progress edits are never clobbered). Mutations call load() to refresh.
+  useEffect(() => {
+    if (fetchedSettings) setSettings(fetchedSettings)
+  }, [fetchedSettings])
+
+  const loadMeta = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["backup", "providers"] })
+    queryClient.invalidateQueries({ queryKey: ["backup", "settings"] })
+  }, [queryClient])
 
   // Reused by every mutation handler to refresh everything after an action.
-  const load = useCallback(async () => {
+  const load = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ["backup", "list"] })
-    await loadMeta()
-  }, [queryClient, loadMeta])
-
-  useEffect(() => {
     loadMeta()
-  }, [loadMeta])
+  }, [queryClient, loadMeta])
 
   useEffect(() => {
     const cloud = params.get("cloud")
