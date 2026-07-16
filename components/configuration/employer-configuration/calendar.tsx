@@ -1,6 +1,8 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { apiFetch } from "@/lib/api"
 import { ChevronLeft, ChevronRight, Trash2, Plus } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
@@ -17,41 +19,39 @@ const ymd = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.ge
 export default function CalendarConfig() {
   const { t } = useTranslation()
   const { session } = useAuth()
+  const queryClient = useQueryClient()
   const { toast } = useToast()
   const base = process.env.NEXT_PUBLIC_API_BASE_URL
   const authHeader = { Authorization: `Bearer ${session?.accessToken}` }
 
   const [cursor, setCursor] = useState(() => { const d = madridToday(); return new Date(d.getFullYear(), d.getMonth(), 1) })
-  const [holidays, setHolidays] = useState<{ id: string; date: string; name: string | null }[]>([])
-  const [loading, setLoading] = useState(true)
   const [newDate, setNewDate] = useState(madridTodayKey())
   const [newName, setNewName] = useState("")
-  const [workDays, setWorkDays] = useState<Set<string>>(new Set())
 
-  const load = useCallback(() => {
-    if (!session?.accessToken) return
-    setLoading(true)
-    fetch(`${base}/employers/me/holidays`, { headers: authHeader })
-      .then((r) => r.json())
-      .then((j) => setHolidays(Array.isArray(j?.data) ? j.data : Array.isArray(j) ? j : []))
-      .catch(() => setHolidays([]))
-      .finally(() => setLoading(false))
-  }, [session?.accessToken])
+  const holidaysKey = ["employers", "me", "holidays"]
+  const { data: holidays = [], isLoading: loading } = useQuery<{ id: string; date: string; name: string | null }[]>({
+    queryKey: holidaysKey,
+    queryFn: async () => {
+      const j = await apiFetch<any>("/employers/me/holidays")
+      return Array.isArray(j?.data) ? j.data : Array.isArray(j) ? j : []
+    },
+    enabled: !!session?.accessToken,
+  })
+  // add/delete handlers hit the API directly; these refresh the read.
+  const load = () => queryClient.invalidateQueries({ queryKey: holidaysKey })
+  const setHolidays = (updater: (prev: any[]) => any[]) =>
+    queryClient.setQueryData(holidaysKey, (prev: any[] = []) => updater(prev))
 
-  useEffect(() => { load() }, [load])
-
-  useEffect(() => {
-    if (!session?.accessToken) return
-    const mStart = ymd(new Date(cursor.getFullYear(), cursor.getMonth(), 1))
-    const mEnd = ymd(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0))
-    fetch(`${base}/jobs/occupation?start=${mStart}&end=${mEnd}`, { headers: authHeader })
-      .then((r) => r.json())
-      .then((j) => {
-        const cells = j?.data?.cells || []
-        setWorkDays(new Set(cells.map((c: any) => c.date)))
-      })
-      .catch(() => setWorkDays(new Set()))
-  }, [session?.accessToken, cursor])
+  const mStart = ymd(new Date(cursor.getFullYear(), cursor.getMonth(), 1))
+  const mEnd = ymd(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0))
+  const { data: workDays = new Set<string>() } = useQuery<Set<string>>({
+    queryKey: ["jobs", "occupation", "workdays", mStart, mEnd],
+    queryFn: async () => {
+      const j = await apiFetch<any>(`/jobs/occupation?start=${mStart}&end=${mEnd}`)
+      return new Set<string>((j?.data?.cells || []).map((c: any) => c.date))
+    },
+    enabled: !!session?.accessToken,
+  })
 
   const byDate = useMemo(() => {
     const m: Record<string, { id: string; name: string | null }> = {}

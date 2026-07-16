@@ -1,6 +1,7 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useState } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useParams, useRouter } from "next/navigation"
 import { ArrowLeft, CheckCircle2, XCircle, Trash2, Loader2 } from "lucide-react"
 import PdfIconDefault from "@/icons/Controles/pdf1.svg"
@@ -19,22 +20,24 @@ export default function CommissionDetailPage() {
   const { t } = useTranslation()
   const { session, hasRole } = useAuth()
   const { toast } = useToast()
+  const queryClient = useQueryClient()
   const params = useParams()
   const router = useRouter()
   const id = params.id as string
   const isAdmin = hasRole("admin")
 
-  const [af, setAf] = useState<any | null>(null)
-  const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [pdfHovered, setPdfHovered] = useState(false)
 
-  const load = useCallback(() => {
-    if (!session?.accessToken || !id) return
-    setLoading(true)
-    apiFetch<any>(`/commissions/${id}`).then((j) => setAf(j?.data || j)).catch(() => setAf(null)).finally(() => setLoading(false))
-  }, [session?.accessToken, id])
-  useEffect(() => { load() }, [load])
+  const { data: af = null, isLoading: loading } = useQuery<any | null>({
+    queryKey: ["commissions", "detail", id],
+    queryFn: async () => {
+      const j = await apiFetch<any>(`/commissions/${id}`)
+      return j?.data || j || null
+    },
+    enabled: !!session?.accessToken && !!id,
+  })
+  const load = () => queryClient.invalidateQueries({ queryKey: ["commissions", "detail", id] })
 
   const openPdf = async () => {
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/commissions/${id}/pdf`, { headers: { Authorization: `Bearer ${session?.accessToken}` } })
