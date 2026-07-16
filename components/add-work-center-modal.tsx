@@ -197,9 +197,10 @@ export default function AddWorkCenterModal({
         });
       }, 1000);
     } catch (err: any) {
-      setError(err.message);
+      const friendly = translateBackendError(err);
+      setError(friendly);
       toast({
-        title: translateBackendError(err),
+        title: friendly,
         variant: "destructive",
       });
     } finally {

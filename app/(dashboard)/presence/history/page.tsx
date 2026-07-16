@@ -17,7 +17,7 @@ const pad = (n: number) => String(n).padStart(2, "0")
 const ymd = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 
 export default function PresenceHistoryPage() {
-  const { t } = useTranslation()
+  const { t, language } = useTranslation()
   const { getUserRole, isAuthenticated } = useAuth()
   const role = getUserRole()
   const isClient = role === "client"
@@ -42,33 +42,46 @@ export default function PresenceHistoryPage() {
 
   const rows = useMemo(
     () =>
-      data.map((r) => ({
-        id: r.id,
-        recordId: r.id,
-        fecha: r.fecha,
-        job: r.job || "—",
-        worker: r.worker || "—",
-        entrada: r.entrada || "—",
-        salida: r.salida || "—",
-        total: r.total || "—",
-        alerts: r.alerts && r.alerts !== "None" ? r.alerts : "—",
-        punctuality: r.punctuality || null,
-        lateMinutes: r.lateMinutes ?? null,
-      })),
-    [data],
+      data.map((r) => {
+        // A session with no check-out that's still active is "in progress".
+        // The API also ships a pre-localized Spanish label in fecha/salida;
+        // ignore it and compose the label client-side so it follows the UI
+        // language (and exports stay consistent).
+        const inProgress = !r.checkOutTime && !!r.isActive
+        const fechaStart = String(r.fecha ?? "").split(" - ")[0]
+        return {
+          id: r.id,
+          recordId: r.id,
+          fecha: inProgress ? `${fechaStart} - ${t("inProgress")}` : (r.fecha || "—"),
+          job: r.job || "—",
+          worker: r.worker || "—",
+          entrada: r.entrada || "—",
+          salida: r.checkOutTime ? (r.salida || "—") : (inProgress ? t("inProgress") : "—"),
+          total: r.total || "—",
+          isActive: !!r.isActive,
+          checkOutTime: r.checkOutTime ?? null,
+          punctuality: r.punctuality || null,
+          lateMinutes: r.lateMinutes ?? null,
+        }
+      }),
+    [data, t],
   )
 
   const renderPunctuality = (_v: any, row: any) => {
     const p = row.punctuality
-    if (!p) return <span className="text-muted-foreground">{row.alerts && row.alerts !== "—" ? row.alerts : "—"}</span>
     const map: Record<string, { label: string; cls: string }> = {
       early: { label: t("early") || "Anticipado", cls: "bg-indigo-100 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300" },
       onTime: { label: t("onTime") || "A tiempo", cls: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300" },
       late: { label: `${t("late") || "Tarde"}${row.lateMinutes ? ` +${row.lateMinutes}m` : ""}`, cls: "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300" },
     }
-    const m = map[p]
-    if (!m) return <span className="text-muted-foreground">—</span>
-    return <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-semibold ${m.cls}`}>{m.label}</span>
+    const m = p ? map[p] : null
+    if (m) return <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-semibold ${m.cls}`}>{m.label}</span>
+    // No punctuality code (e.g. no shift scheduled): show a translated
+    // active-session indicator instead of the API's raw Spanish alert text.
+    if (row.isActive && !row.checkOutTime) {
+      return <span className="text-muted-foreground">{t("activeSession") || "Active session"}</span>
+    }
+    return <span className="text-muted-foreground">—</span>
   }
 
   const columns = [
@@ -87,7 +100,7 @@ export default function PresenceHistoryPage() {
     { icon: PdfIcon, onClick: () => exportToPDF(rows, columns, "historial.pdf"), title: t("exportPdf") || "Export PDF", type: "pdf" as any },
   ]
 
-  const monthLabel = cursor.toLocaleDateString("es-ES", { month: "long", year: "numeric", timeZone: "Europe/Madrid" })
+  const monthLabel = cursor.toLocaleDateString(language, { month: "long", year: "numeric", timeZone: "Europe/Madrid" })
 
   return (
     <div className="w-full space-y-2">

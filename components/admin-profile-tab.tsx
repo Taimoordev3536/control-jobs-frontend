@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useAuth } from "@/hooks/use-auth"
+import { useSession } from "next-auth/react"
 import { useTranslation } from "@/hooks/use-translation"
 import { useToast } from "@/hooks/use-toast"
 import { useBackendError } from "@/lib/backend-error"
@@ -59,6 +60,7 @@ const emptyAdminData: AdminData = {
 export function AdminProfileTab() {
   const { t } = useTranslation()
   const { session } = useAuth()
+  const { update: updateSession } = useSession()
   const { toast } = useToast()
   const translateBackendError = useBackendError()
 
@@ -148,6 +150,8 @@ export function AdminProfileTab() {
         throw new Error(err.message || `Error ${res.status}`)
       }
       setOriginalData(adminData)
+      // Refresh the session name so the header/avatar reflect it immediately.
+      await updateSession({ name: adminData.name })
       toast({ title: t("profileUpdatedSuccessfully"), variant: "success" })
     } catch (err: any) {
       toast({ title: translateBackendError(err), variant: "destructive" })

@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useTranslation } from "@/hooks/use-translation"
 import { useAuth } from "@/hooks/use-auth"
+import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
 import { useBackendError } from "@/lib/backend-error"
@@ -84,6 +85,7 @@ export default function PartnerDataTab({ partnerId, onNameChange, onSystemChange
   const meMode = selfService
   const { t, language, tEnum } = useTranslation()
   const { session, isImpersonating, isSubUser, hasRole, canEdit } = useAuth()
+  const { update: updateSession } = useSession()
   const ti = (key: string) => (impersonationTranslations as any)[language]?.[key] || key
   const router = useRouter()
   const { toast } = useToast()
@@ -253,6 +255,11 @@ export default function PartnerDataTab({ partnerId, onNameChange, onSystemChange
         setHasChanges(false)
         setOriginalData(partnerData)
         onNameChange?.(partnerData.name)
+        // Self-service edit of one's own profile: refresh the session name so
+        // the header/avatar reflect it immediately (skip when impersonating).
+        if (meMode && !isImpersonating) {
+          await updateSession({ name: partnerData.name })
+        }
         toast({ title: t("partnerUpdatedSuccessfully") || "Partner updated successfully", variant: "success" })
       } else {
         throw new Error(result.message || "Failed to save partner data")

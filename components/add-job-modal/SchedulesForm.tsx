@@ -131,7 +131,7 @@ export default function SchedulesForm({
                   tabIndex={-1}
                   placeholder="DD/MM"
                   value={clientSummerPeriod?.startDate || ""}
-                  className="h-7 w-20 text-xs text-center bg-gray-100 border-gray-300 cursor-not-allowed"
+                  className="h-7 w-20 text-xs text-center bg-muted border-input cursor-not-allowed"
                 />
               </div>
               <span className="text-sm mt-3">{t("to") || "to"}</span>
@@ -144,7 +144,7 @@ export default function SchedulesForm({
                   tabIndex={-1}
                   placeholder="DD/MM"
                   value={clientSummerPeriod?.endDate || ""}
-                  className="h-7 w-20 text-xs text-center bg-gray-100 border-gray-300 cursor-not-allowed"
+                  className="h-7 w-20 text-xs text-center bg-muted border-input cursor-not-allowed"
                 />
               </div>
             </div>
@@ -161,7 +161,7 @@ export default function SchedulesForm({
         <div className="w-full">
           <table className="w-full border-collapse">
             <thead>
-              <tr className="bg-gray-100 border-b-[3px] border-[#7547a3]">
+              <tr className="bg-muted border-b-[3px] border-[#7547a3]">
                 <th className="border border-border px-2 py-1 text-center font-medium text-sm w-20">
                   {t("day") || "Day"}
                 </th>
@@ -195,7 +195,7 @@ export default function SchedulesForm({
                                 inputMode="numeric"
                                 pattern="[0-9:]*"
                                 maxLength={5}
-                                className={`w-[4.5rem] h-6 text-xs text-center pr-7 pl-1 border-gray-300 ${parentVal ? "bg-gray-100" : ""}`}
+                                className={`w-[4.5rem] h-6 text-xs text-center pr-7 pl-1 border-input ${parentVal ? "bg-muted" : ""}`}
                                 value={shown}
                                 onChange={(e) => setTempValues((p) => ({ ...p, [cellKey]: formatAsYouType(e.target.value) }))}
                                 onBlur={() => commitValue(cellKey, tempValues[cellKey] || "")}
@@ -230,7 +230,7 @@ export default function SchedulesForm({
                                 inputMode="numeric"
                                 pattern="[0-9:]*"
                                 maxLength={5}
-                                className={`w-[4.5rem] h-6 text-xs text-center pr-7 pl-1 border-gray-300 ${parentVal ? "bg-gray-100" : ""}`}
+                                className={`w-[4.5rem] h-6 text-xs text-center pr-7 pl-1 border-input ${parentVal ? "bg-muted" : ""}`}
                                 value={shown}
                                 onChange={(e) => setTempValues((p) => ({ ...p, [cellKey]: formatAsYouType(e.target.value) }))}
                                 onBlur={() => commitValue(cellKey, tempValues[cellKey] || "")}
@@ -259,7 +259,7 @@ export default function SchedulesForm({
                   <td
                     className={`border border-border px-2 py-2 text-center font-mono text-xs ${
                       formData.schedules[formData.currentSeason][day.key]?.total && formData.schedules[formData.currentSeason][day.key]?.total !== "00:00"
-                        ? "bg-gray-100"
+                        ? "bg-muted"
                         : "bg-muted/5"
                     }`}
                   >
@@ -270,7 +270,7 @@ export default function SchedulesForm({
             </tbody>
           </table>
           <div className="flex justify-end mt-1">
-            <div className="bg-gray-100 text-sm px-3 py-1 rounded">{formData.totalWeeklyHours || "00:00"}</div>
+            <div className="bg-muted text-sm px-3 py-1 rounded">{formData.totalWeeklyHours || "00:00"}</div>
           </div>
         </div>
       )}

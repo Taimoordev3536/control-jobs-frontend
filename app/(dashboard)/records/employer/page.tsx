@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
 import { apiFetch } from "@/lib/api"
@@ -46,17 +46,43 @@ export default function EmployerRecordsPage() {
   // Params load client-side, so keep showing the loader until they're read.
   const isLoading = !paramsLoaded || authLoading || recordsLoading
 
+  // The API ships pre-localized Spanish in fecha/salida/puntualidad; derive the
+  // labels client-side from the neutral flags so they follow the UI language.
+  const rows = useMemo(
+    () =>
+      (records ?? []).map((r: any) => {
+        const inProgress = !r.checkOutTime && !!r.isActive
+        const fechaStart = String(r.fecha ?? "").split(" - ")[0]
+        const punct = r.punctuality
+          ? r.punctuality === "late"
+            ? `${t("late")}${r.lateMinutes ? ` +${r.lateMinutes}m` : ""}`
+            : r.punctuality === "early"
+              ? t("early")
+              : t("onTime")
+          : inProgress
+            ? t("activeSession")
+            : "—"
+        return {
+          ...r,
+          fecha: inProgress ? `${fechaStart} - ${t("inProgress")}` : r.fecha || "—",
+          salida: r.checkOutTime ? r.salida || "—" : inProgress ? t("inProgress") : "—",
+          puntualidad: punct,
+        }
+      }),
+    [records, t],
+  )
+
   const columns = [
     { key: "fecha", label: t("checkInCheckOut"), sortable: true },
     { key: "job", label: t("job"), sortable: true },
     { key: "trabajador", label: t("trabajador"), sortable: true },
-    { key: "centro", label: "Centro", sortable: true },
+    { key: "centro", label: t("workCenter"), sortable: true },
     { key: "entrada", label: t("entrada") },
     { key: "salida", label: t("salida") },
     { key: "total", label: t("total"), sortable: true },
-    { key: "extra", label: "Extra", sortable: true },
-    { key: "metodo", label: "Método" },
-    { key: "puntualidad", label: "Puntualidad" },
+    { key: "extra", label: t("extra"), sortable: true },
+    { key: "metodo", label: t("method") },
+    { key: "puntualidad", label: t("punctuality") },
   ]
 
   // ---------------------------
@@ -71,19 +97,19 @@ export default function EmployerRecordsPage() {
     },
     {
       icon: ExcelIcon,
-      onClick: () => exportToXLSX(records, columns, "employer-records.xlsx"),
+      onClick: () => exportToXLSX(rows, columns, "employer-records.xlsx"),
       title: t("exportExcel"),
       type: "excel",
     },
     {
       icon: CsvIcon,
-      onClick: () => exportToCSV(records, columns, "employer-records.csv"),
+      onClick: () => exportToCSV(rows, columns, "employer-records.csv"),
       title: t("exportCSV"),
       type: "csv",
     },
     {
       icon: PdfIcon,
-      onClick: () => exportToPDF(records, columns, "employer-records.pdf"),
+      onClick: () => exportToPDF(rows, columns, "employer-records.pdf"),
       title: t("exportPDF"),
       type: "pdf",
     },
@@ -103,7 +129,7 @@ export default function EmployerRecordsPage() {
   return (
     <DataListTemplate
       title={t("recordsTitle")}
-      data={records}
+      data={rows}
       columns={columns}
       onRowClick={handleRowClick}
       actionButtons={actionButtons}

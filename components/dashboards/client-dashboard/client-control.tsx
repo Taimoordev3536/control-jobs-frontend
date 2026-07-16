@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { AnimatedLoader } from "@/components/animated-loader"
 import { useTranslation } from "@/hooks/use-translation"
+import { localeForLanguage } from "@/lib/date-locale"
 import { madridToday, madridTodayKey, formatLocalTime } from "@/lib/datetime"
 import ClientJobCard from "@/components/dashboards/worker-dashboard/job-card"
 
@@ -15,7 +16,7 @@ const pad = (n: number) => String(n).padStart(2, "0")
 const ymd = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 
 export default function ClientControl() {
-  const { t } = useTranslation()
+  const { t, language } = useTranslation()
   const { data: session } = useSession()
   const base = process.env.NEXT_PUBLIC_API_BASE_URL
 
@@ -40,7 +41,7 @@ export default function ClientControl() {
   const allJobs = data?.allJobs || []
 
   const step = (dir: number) => { const d = new Date(cursor); d.setDate(d.getDate() + dir); setCursor(d) }
-  const dateLabel = cursor.toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
+  const dateLabel = cursor.toLocaleDateString(localeForLanguage(language), { weekday: "long", day: "numeric", month: "long", year: "numeric" })
 
   const byPublicId = new Map(allJobs.map((j) => [j.publicId, j]))
   const cards = (day?.jobs || [])

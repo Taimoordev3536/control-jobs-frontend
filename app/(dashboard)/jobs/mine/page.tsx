@@ -8,6 +8,7 @@ import { ChevronLeft, ChevronRight, CalendarClock, MapPin } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { AnimatedLoader } from "@/components/animated-loader"
 import { useTranslation } from "@/hooks/use-translation"
+import { localeForLanguage } from "@/lib/date-locale"
 import { toast } from "@/hooks/use-toast"
 import { madridToday, madridTodayKey } from "@/lib/datetime"
 import ClientJobCard from "@/components/dashboards/worker-dashboard/job-card"
@@ -22,7 +23,7 @@ interface WorkerDay { date: string; isHoliday: boolean; holidayName: string | nu
 type Tab = "hoy" | "pend"
 
 export default function MyJobsPage() {
-  const { t } = useTranslation()
+  const { t, language } = useTranslation()
   const { status } = useSession()
   const isAuthenticated = status === "authenticated"
   const queryClient = useQueryClient()
@@ -71,7 +72,7 @@ export default function MyJobsPage() {
   const typeLabel = (v: string) =>
     ({ vacation: t("absVacation") || "Vacaciones", permit: t("absPermit") || "Permiso", sick: t("absSick") || "Baja", other: t("absOther") || "Otro" } as Record<string, string>)[v] || v
 
-  const dateLabel = cursor.toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
+  const dateLabel = cursor.toLocaleDateString(localeForLanguage(language), { weekday: "long", day: "numeric", month: "long", year: "numeric" })
 
   const byPublicId = new Map(allJobs.map((j) => [j.publicId, j]))
   const cards = (day?.jobs || [])
@@ -167,7 +168,7 @@ export default function MyJobsPage() {
               {pending.map((item) => {
                 const d = new Date(`${item.date}T12:00:00`)
                 const dayNum = d.getDate()
-                const monthShort = d.toLocaleDateString("es-ES", { month: "short" })
+                const monthShort = d.toLocaleDateString(localeForLanguage(language), { month: "short" })
                 return (
                   <div key={`${item.publicId}-${item.date}`} className="rounded-xl border border-border bg-card p-3 flex items-center gap-4 relative overflow-hidden">
                     <span className="absolute left-0 top-0 bottom-0 w-1 bg-red-500" />

@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Info, Loader2, AlertCircle, RefreshCw } from "lucide-react"
 import { useTranslation } from "@/hooks/use-translation"
 import { useAuth } from "@/hooks/use-auth"
+import { useSession } from "next-auth/react"
 import { useState, useEffect, useRef } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { useRouter } from "next/navigation"
@@ -80,6 +81,7 @@ export function ClientDataTab({ clientId, selfService = false }: ClientDataTabPr
   const meMode = selfService
   const { t, language } = useTranslation()
   const { session, isImpersonating, isSubUser, hasRole, canEdit } = useAuth()
+  const { update: updateSession } = useSession()
   const ti = (key: string) => (impersonationTranslations as any)[language]?.[key] || key
   const router = useRouter()
   const { toast } = useToast()
@@ -231,6 +233,11 @@ export function ClientDataTab({ clientId, selfService = false }: ClientDataTabPr
       if (result.isSuccess) {
         setHasChanges(false)
         setOriginalData(clientData)
+        // Self-service edit of one's own profile: refresh the session name so
+        // the header/avatar reflect it immediately (skip when impersonating).
+        if (meMode && !isImpersonating) {
+          await updateSession({ name: clientData.name })
+        }
         toast({
           title: t("clientUpdatedSuccessfully") || "Client updated successfully!",
           variant: "success",

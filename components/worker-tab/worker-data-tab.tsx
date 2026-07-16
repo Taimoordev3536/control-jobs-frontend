@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { useTranslation } from "@/hooks/use-translation"
 import { useAuth } from "@/hooks/use-auth"
+import { useSession } from "next-auth/react"
 import { useParams, useRouter } from "next/navigation"
 import { useState, useEffect } from "react"
 import { useQuery } from "@tanstack/react-query"
@@ -67,6 +68,7 @@ export function WorkerDataTab({ selfService = false }: { selfService?: boolean }
   const meMode = selfService
   const { t, language, tEnum } = useTranslation()
   const { session, isImpersonating, isSubUser, hasRole, canEdit } = useAuth()
+  const { update: updateSession } = useSession()
   const ti = (key: string) => (impersonationTranslations as any)[language]?.[key] || key
   const params = useParams()
   const router = useRouter()
@@ -253,6 +255,11 @@ export function WorkerDataTab({ selfService = false }: { selfService?: boolean }
       if (result.isSuccess) {
         setOriginalData(workerData)
         setHasChanges(false)
+        // Self-service edit of one's own profile: refresh the session name so
+        // the header/avatar reflect it immediately (skip when impersonating).
+        if (meMode && !isImpersonating) {
+          await updateSession({ name: workerData.name })
+        }
         toast({
           title: t("workerUpdatedSuccessfully") || "Worker updated successfully!",
           variant: "success",

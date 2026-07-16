@@ -7,6 +7,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { AnimatedLoader } from "@/components/animated-loader"
 import { useTranslation } from "@/hooks/use-translation"
+import { localeForLanguage } from "@/lib/date-locale"
 import { madridToday, madridTodayKey } from "@/lib/datetime"
 
 interface ClientCalendarioTabProps {
@@ -25,7 +26,7 @@ const ymd = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.ge
 const hhmm = (t: string | null) => (t ? t.slice(0, 5) : null)
 
 export function ClientCalendarioTab({ clientId }: ClientCalendarioTabProps) {
-  const { t } = useTranslation()
+  const { t, language } = useTranslation()
   const { data: session } = useSession()
   const [cursor, setCursor] = useState(() => {
     const d = madridToday()
@@ -58,7 +59,7 @@ export function ClientCalendarioTab({ clientId }: ClientCalendarioTabProps) {
   useEffect(() => setSelected(null), [mStart, mEnd])
 
   const weekdays = [t("mon") || "Lun", t("tue") || "Mar", t("wed") || "Mié", t("thu") || "Jue", t("fri") || "Vie", t("sat") || "Sáb", t("sun") || "Dom"]
-  const monthLabel = cursor.toLocaleDateString("es-ES", { month: "long", year: "numeric", timeZone: "Europe/Madrid" })
+  const monthLabel = cursor.toLocaleDateString(localeForLanguage(language), { month: "long", year: "numeric", timeZone: "Europe/Madrid" })
 
   // Monday-first offset for the 1st of the month.
   const firstWeekday = (monthStart.getDay() + 6) % 7
@@ -131,7 +132,7 @@ export function ClientCalendarioTab({ clientId }: ClientCalendarioTabProps) {
           {selectedDay && (
             <div className="rounded-md border border-border p-3">
               <div className="text-sm font-semibold mb-2">
-                {new Date(`${selectedDay.date}T12:00:00`).toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long", timeZone: "Europe/Madrid" })}
+                {new Date(`${selectedDay.date}T12:00:00`).toLocaleDateString(localeForLanguage(language), { weekday: "long", day: "numeric", month: "long", timeZone: "Europe/Madrid" })}
               </div>
               <ul className="divide-y divide-border">
                 {selectedDay.jobs.map((j) => (

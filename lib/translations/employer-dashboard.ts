@@ -35,6 +35,13 @@ const employerDashboardTranslations: Record<string, Record<string, string>> = {
 
     // Job Status
     inProgress: "In Progress",
+    activeSession: "Active session",
+    extra: "Extra",
+    method: "Method",
+    punctuality: "Punctuality",
+    early: "Early",
+    onTime: "On time",
+    late: "Late",
     scheduled: "Scheduled",
     completed: "Completed",
     paused: "Paused",
@@ -322,6 +329,13 @@ const employerDashboardTranslations: Record<string, Record<string, string>> = {
 
     // Job Status
     inProgress: "En Progreso",
+    activeSession: "Sesión activa",
+    extra: "Extra",
+    method: "Método",
+    punctuality: "Puntualidad",
+    early: "Anticipado",
+    onTime: "A tiempo",
+    late: "Tarde",
     scheduled: "Programado",
     completed: "Completado",
     paused: "Pausado",

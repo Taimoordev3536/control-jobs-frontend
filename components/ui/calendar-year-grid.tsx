@@ -1,4 +1,5 @@
 "use client"
+import { localeForLanguage } from "@/lib/date-locale"
 
 import { useTranslation } from "@/hooks/use-translation"
 import { madridTodayKey } from "@/lib/datetime"
@@ -39,7 +40,7 @@ export function CalendarYearGrid({
         for (let i = 0; i < firstWeekday; i++) cells.push(null)
         for (let d = 1; d <= daysInMonth; d++) cells.push(d)
         while (cells.length % 7 !== 0) cells.push(null)
-        const label = new Date(year, month, 1).toLocaleDateString(language === "en" ? "en-US" : "es-ES", { month: "long" })
+        const label = new Date(year, month, 1).toLocaleDateString(localeForLanguage(language), { month: "long" })
         return (
           <button
             key={month}

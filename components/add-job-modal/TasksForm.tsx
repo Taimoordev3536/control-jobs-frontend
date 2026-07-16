@@ -688,7 +688,7 @@ export default function TasksForm({
                       return (
                         <tr
                           key={task.id}
-                          className={`border-t hover:bg-gray-50 ${isDragOver ? "bg-muted/20" : ""}`}
+                          className={`border-t hover:bg-muted ${isDragOver ? "bg-muted/20" : ""}`}
                           draggable
                           onDragStart={(e) => handleDragStart(e, index)}
                           onDragEnter={(e) => handleDragEnter(e, index)}
@@ -777,7 +777,7 @@ export default function TasksForm({
                       )
                     })}
                   </tbody>
-                  <tfoot className="bg-gray-200">
+                  <tfoot className="bg-muted">
                     <tr>
                       <td />
                       <td />

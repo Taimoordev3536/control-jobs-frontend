@@ -8,6 +8,7 @@ import { ChevronLeft, ChevronRight, MapPin, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { AnimatedLoader } from "@/components/animated-loader"
 import { useTranslation } from "@/hooks/use-translation"
+import { localeForLanguage } from "@/lib/date-locale"
 import { PlanificadorDialog } from "@/components/occupation/planificador-dialog"
 import { madridToday, madridTodayKey } from "@/lib/datetime"
 
@@ -25,7 +26,7 @@ const ymd = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.ge
 const hhmm = (t: string | null) => (t ? t.slice(0, 5) : null)
 
 export default function OccupationPage() {
-  const { t } = useTranslation()
+  const { t, language } = useTranslation()
   const { status } = useSession()
   const isAuthenticated = status === "authenticated"
 
@@ -89,8 +90,8 @@ export default function OccupationPage() {
 
   const periodLabel =
     view === "month"
-      ? cursor.toLocaleDateString("es-ES", { month: "long", year: "numeric", timeZone: "Europe/Madrid" })
-      : `${range.start.toLocaleDateString("es-ES", { day: "numeric", month: "short" })} – ${range.end.toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" })}`
+      ? cursor.toLocaleDateString(localeForLanguage(language), { month: "long", year: "numeric", timeZone: "Europe/Madrid" })
+      : `${range.start.toLocaleDateString(localeForLanguage(language), { day: "numeric", month: "short" })} – ${range.end.toLocaleDateString(localeForLanguage(language), { day: "numeric", month: "short", year: "numeric" })}`
 
   const todayStr = madridTodayKey()
   const toggleWorker = (id: string) => setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]))
@@ -154,7 +155,7 @@ export default function OccupationPage() {
                   const holiday = holidayName !== undefined
                   return (
                     <th key={d} title={holiday ? holidayName || t("holiday") || "Festivo" : ""} className={`border-b border-r border-border px-2 py-1 text-center font-medium min-w-[92px] ${holiday ? "bg-rose-50 dark:bg-rose-950/30" : weekend ? "bg-muted/40" : "bg-purple-50 dark:bg-purple-950/50"} ${d === todayStr ? "text-[#662D91]" : ""}`}>
-                      <div className="capitalize text-[11px]">{dd.toLocaleDateString("es-ES", { weekday: "short" })}</div>
+                      <div className="capitalize text-[11px]">{dd.toLocaleDateString(localeForLanguage(language), { weekday: "short" })}</div>
                       <div className="text-xs">{dd.getDate()}</div>
                       {holiday && <div className="text-[9px] text-rose-600 dark:text-rose-400 truncate leading-none">{t("holiday") || "Festivo"}</div>}
                     </th>

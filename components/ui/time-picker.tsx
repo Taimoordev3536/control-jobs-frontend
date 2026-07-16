@@ -231,7 +231,7 @@ export function TimePicker({ value = "", onChange, className, debug = false, dis
       {isOpen && isPositioned && typeof document !== 'undefined' && createPortal(
         <div
           ref={dropdownRef}
-          className="bg-white border border-gray-300 rounded-md shadow-lg p-2 z-50"
+          className="bg-popover text-popover-foreground border border-border rounded-md shadow-lg p-2 z-50"
       style={{ 
         ...dropdownStyle,
         width: "110px",
@@ -250,7 +250,7 @@ export function TimePicker({ value = "", onChange, className, debug = false, dis
             <div className="flex gap-0.5">
               {/* Hours Column - Custom Scrollable Div */}
               <div className="w-[48px]">
-                <div className="text-xs font-medium text-center mb-1 text-gray-600">{t("hour")}</div>
+                <div className="text-xs font-medium text-center mb-1 text-muted-foreground">{t("hour")}</div>
                 <div 
                   className="h-24 w-full border rounded text-xs overflow-y-auto"
                   style={{ 
@@ -269,7 +269,7 @@ export function TimePicker({ value = "", onChange, className, debug = false, dis
                   {hours.map((hour) => (
                     <div 
                       key={hour}
-                      className={`text-center py-1 cursor-pointer hover:bg-gray-100 ${
+                      className={`text-center py-1 cursor-pointer hover:bg-muted ${
                         selectedHour === hour ? 'bg-blue-500 text-white' : ''
                       }`}
                       onClick={(e) => {
@@ -290,7 +290,7 @@ export function TimePicker({ value = "", onChange, className, debug = false, dis
 
               {/* Minutes Column - Custom Scrollable Div */}
               <div className="w-[48px]">
-                <div className="text-xs font-medium text-center mb-1 text-gray-600">{t("min")}</div>
+                <div className="text-xs font-medium text-center mb-1 text-muted-foreground">{t("min")}</div>
                 <div 
                   className="h-24 w-full border rounded text-xs overflow-y-auto"
                   style={{ 
@@ -309,7 +309,7 @@ export function TimePicker({ value = "", onChange, className, debug = false, dis
                   {minutes.map((minute) => (
                     <div 
                       key={minute}
-                      className={`text-center py-1 cursor-pointer hover:bg-gray-100 ${
+                      className={`text-center py-1 cursor-pointer hover:bg-muted ${
                         selectedMinute === minute ? 'bg-blue-500 text-white' : ''
                       }`}
                       onClick={(e) => {
@@ -337,7 +337,7 @@ export function TimePicker({ value = "", onChange, className, debug = false, dis
 
             <button
               type="button"
-              className="w-full text-xs text-gray-600 hover:text-red-600 border-t border-gray-200 pt-1.5 mt-0.5"
+              className="w-full text-xs text-muted-foreground hover:text-red-600 border-t border-border pt-1.5 mt-0.5"
               onClick={(e) => {
                 e.preventDefault()
                 e.stopPropagation()

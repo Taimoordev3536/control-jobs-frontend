@@ -8,6 +8,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { AnimatedLoader } from "@/components/animated-loader"
 import { useTranslation } from "@/hooks/use-translation"
+import { localeForLanguage } from "@/lib/date-locale"
 import { useAuth } from "@/hooks/use-auth"
 import { madridToday, madridTodayKey } from "@/lib/datetime"
 
@@ -19,7 +20,7 @@ interface SchedJob { jobName: string; workCenterName: string; startTime: string 
 interface SchedDay { date: string; holiday: boolean; holidayName: string | null; absence: { type: string } | null; working: boolean; jobs: SchedJob[] }
 
 export default function PresenceSchedulePage() {
-  const { t } = useTranslation()
+  const { t, language } = useTranslation()
   const { status } = useSession()
   const { getUserRole } = useAuth()
   const role = getUserRole()
@@ -79,8 +80,8 @@ export default function PresenceSchedulePage() {
   const weekdays = [t("mon") || "Lun", t("tue") || "Mar", t("wed") || "Mié", t("thu") || "Jue", t("fri") || "Vie", t("sat") || "Sáb", t("sun") || "Dom"]
   const periodLabel =
     view === "month"
-      ? cursor.toLocaleDateString("es-ES", { month: "long", year: "numeric", timeZone: "Europe/Madrid" })
-      : `${range.start.toLocaleDateString("es-ES", { day: "numeric", month: "short" })} – ${range.end.toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" })}`
+      ? cursor.toLocaleDateString(localeForLanguage(language), { month: "long", year: "numeric", timeZone: "Europe/Madrid" })
+      : `${range.start.toLocaleDateString(localeForLanguage(language), { day: "numeric", month: "short" })} – ${range.end.toLocaleDateString(localeForLanguage(language), { day: "numeric", month: "short", year: "numeric" })}`
   const todayStr = madridTodayKey()
 
   return (

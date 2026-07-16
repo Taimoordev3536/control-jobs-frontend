@@ -101,7 +101,7 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         token.accessToken = (user as any).accessToken
         token.refreshToken = (user as any).refreshToken
@@ -113,6 +113,15 @@ export const authOptions: NextAuthOptions = {
         token.firstName = user.firstName
         token.lastName = user.lastName
         return token
+      }
+
+      // A profile edit on /mydata calls session.update({...}); merge the new
+      // display name into the token so the header reflects it without a
+      // re-login. The refresh flow below preserves these via `...token`.
+      if (trigger === "update" && session) {
+        if (typeof session.name === "string") token.name = session.name
+        if ("firstName" in session) token.firstName = session.firstName ?? null
+        if ("lastName" in session) token.lastName = session.lastName ?? null
       }
 
       if (
@@ -134,6 +143,7 @@ export const authOptions: NextAuthOptions = {
         session.user.roleId = token.roleId as number
         session.user.partnerId = token.partnerId as number | null
         session.user.role = token.role as User["role"]
+        session.user.name = (token.name as string | null | undefined) ?? session.user.name
         session.user.firstName = token.firstName as string | null
         session.user.lastName = token.lastName as string | null
         if (token.error) session.error = token.error

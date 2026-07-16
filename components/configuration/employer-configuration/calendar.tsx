@@ -11,13 +11,14 @@ import { Input } from "@/components/ui/input"
 import { DateInput } from "@/components/ui/date-input"
 import { AnimatedLoader } from "@/components/animated-loader"
 import { useTranslation } from "@/hooks/use-translation"
+import { localeForLanguage } from "@/lib/date-locale"
 import { madridToday, madridTodayKey } from "@/lib/datetime"
 
 const pad = (n: number) => String(n).padStart(2, "0")
 const ymd = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 
 export default function CalendarConfig() {
-  const { t } = useTranslation()
+  const { t, language } = useTranslation()
   const { session } = useAuth()
   const queryClient = useQueryClient()
   const { toast } = useToast()
@@ -91,7 +92,7 @@ export default function CalendarConfig() {
   for (let d = 1; d <= monthEnd.getDate(); d++) cells.push(new Date(cursor.getFullYear(), cursor.getMonth(), d))
   while (cells.length % 7 !== 0) cells.push(null)
   const weekdays = [t("mon") || "Lun", t("tue") || "Mar", t("wed") || "Mié", t("thu") || "Jue", t("fri") || "Vie", t("sat") || "Sáb", t("sun") || "Dom"]
-  const monthLabel = cursor.toLocaleDateString("es-ES", { month: "long", year: "numeric", timeZone: "Europe/Madrid" })
+  const monthLabel = cursor.toLocaleDateString(localeForLanguage(language), { month: "long", year: "numeric", timeZone: "Europe/Madrid" })
 
   const toggleDay = (d: Date) => {
     const key = ymd(d)

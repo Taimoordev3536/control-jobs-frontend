@@ -13,6 +13,7 @@ import { DateInput } from "@/components/ui/date-input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { AnimatedLoader } from "@/components/animated-loader"
 import { useTranslation } from "@/hooks/use-translation"
+import { localeForLanguage } from "@/lib/date-locale"
 import { toast } from "@/hooks/use-toast"
 import { useAuth } from "@/hooks/use-auth"
 import { formatLocalDate, madridToday, madridTodayKey } from "@/lib/datetime"
@@ -35,7 +36,7 @@ export default function CalendarPage() {
 }
 
 function WorkerCalendarView() {
-  const { t } = useTranslation()
+  const { t, language } = useTranslation()
   const router = useRouter()
   const { data: session, status } = useSession()
   const queryClient = useQueryClient()
@@ -68,7 +69,7 @@ function WorkerCalendarView() {
   })
 
   const step = (dir: number) => setCursor((c) => view === "year" ? new Date(c.getFullYear() + dir, c.getMonth(), 1) : new Date(c.getFullYear(), c.getMonth() + dir, 1))
-  const monthLabel = cursor.toLocaleDateString("es-ES", { month: "long", year: "numeric" })
+  const monthLabel = cursor.toLocaleDateString(localeForLanguage(language), { month: "long", year: "numeric" })
   const firstWeekday = (monthStart.getDay() + 6) % 7
   const cells: (Date | null)[] = []
   for (let i = 0; i < firstWeekday; i++) cells.push(null)

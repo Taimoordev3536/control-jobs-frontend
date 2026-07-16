@@ -24,6 +24,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Clock, Calendar, MapPin, AlertCircle, Loader2, FileText } from "lucide-react"
 import { madridWallClockToISO } from "@/lib/datetime"
+import { apiFetch } from "@/lib/api"
 import { useAuth } from "@/hooks/use-auth"
 import { useTranslation } from "@/hooks/use-translation"
 
@@ -129,20 +130,16 @@ export default function ManualAttendanceRequestForm({
     queryKey: ["manual-attendance", "request-jobs", userRole],
     enabled: open && !job && !!session?.accessToken,
     queryFn: async () => {
-      const endpoint =
+      const path =
         userRole === "worker"
-          ? `${process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/worker/all-jobs`
+          ? "/jobs/worker/all-jobs"
           : userRole === "client"
-            ? `${process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/client/all-jobs`
-            : `${process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/employer/all-jobs`
-      const r = await fetch(endpoint, {
-        headers: {
-          Authorization: `Bearer ${session!.accessToken}`,
-          "Content-Type": "application/json",
-        },
-      })
-      if (!r.ok) return []
-      const data = await r.json()
+            ? "/jobs/client/all-jobs"
+            : "/jobs/employer/all-jobs"
+      // apiFetch refreshes the access token before the call (the raw session
+      // token here can be expired), and handles a 401 by re-authenticating.
+      const data = await apiFetch<any>(path).catch(() => null)
+      if (!data) return []
       return (data?.data || []).map((j: any) => ({
         id: j.id,
         publicId: j.publicId || j.jobId,
@@ -223,25 +220,14 @@ export default function ManualAttendanceRequestForm({
       if (workerNotes) payload.workerNotes = workerNotes
       if (existingWorkSessionId) payload.existingWorkSessionId = existingWorkSessionId
 
-      const endpoint = mode === "direct"
-        ? `${process.env.NEXT_PUBLIC_API_BASE_URL}/manual-attendance/direct-entry`
-        : `${process.env.NEXT_PUBLIC_API_BASE_URL}/manual-attendance/requests`
+      const path = mode === "direct"
+        ? "/manual-attendance/direct-entry"
+        : "/manual-attendance/requests"
 
-      const res = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(session?.accessToken
-            ? { Authorization: `Bearer ${session.accessToken}` }
-            : {}),
-        },
-        body: JSON.stringify(payload),
-      })
-
-      if (!res.ok) {
-        const errData = await res.json()
-        throw new Error(errData.message || "Failed to submit request")
-      }
+      // apiFetch fetches a fresh (refreshed) access token per call; the raw
+      // session token could be expired here, which the backend rejects as
+      // "Invalid token or user not found".
+      await apiFetch(path, { method: "POST", body: payload })
 
       onOpenChange(false)
       onSuccess?.()
