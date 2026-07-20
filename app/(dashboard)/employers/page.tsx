@@ -7,6 +7,7 @@ import { apiFetch } from "@/lib/api"
 import { Plus, Filter } from "lucide-react"
 import { useRouter } from "next/navigation"
 import DataListTemplate, { ExcelIcon, CsvIcon, PdfIcon } from "@/components/ui/data-list-template"
+import { ShowInactiveToggle } from "@/components/ui/show-inactive-toggle"
 import { exportToCSV, exportToXLSX, exportToPDF } from "@/lib/export"
 import AddEmployerModal from "@/components/add-employer-modal"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
@@ -32,6 +33,7 @@ export default function EmployersPage() {
   const { session, isAuthenticated } = useAuth()
   const queryClient = useQueryClient()
   const [showAddModal, setShowAddModal] = useState(false)
+  const [showInactive, setShowInactive] = useState(false)
   const isAdmin =
     String(session?.user?.role?.name || "").toLowerCase() === "admin"
   const roleName = session?.user?.role?.name?.toLowerCase()
@@ -46,7 +48,7 @@ export default function EmployersPage() {
     enabled: isAuthenticated,
   })
 
-  const { data: employers = [], isLoading } = useQuery<Employer[]>({
+  const { data: allEmployers = [], isLoading } = useQuery<Employer[]>({
     // partnerId is in the key so a partner and an admin don't share a cache entry
     queryKey: ["employers", "list", roleName, partnerId],
     queryFn: async () => {
@@ -64,10 +66,16 @@ export default function EmployersPage() {
           ? e.trialDaysRemaining
           : "—",
         billing: e.billing || "0 €",
+        asset: e.active !== false,
       }))
     },
     enabled: isAuthenticated,
   })
+
+  const inactiveCount = allEmployers.filter((e: any) => !e.asset).length
+  // Two views, never mixed: the toggle swaps active for inactive. Every row in
+  // view then has the same status, so no status column is needed.
+  const employers = allEmployers.filter((e: any) => (showInactive ? !e.asset : e.asset))
 
   const loadPending = () => queryClient.invalidateQueries({ queryKey: ["employers", "pending"] })
 
@@ -181,6 +189,13 @@ export default function EmployersPage() {
             title={t("listOfEmployers")}
             data={employers}
             columns={columns}
+            toolbarExtra={
+              <ShowInactiveToggle
+                checked={showInactive}
+                onCheckedChange={setShowInactive}
+                count={inactiveCount}
+              />
+            }
             isLoading={isLoading}
             onRowClick={handleRowClick}
             actionButtons={actionButtons}

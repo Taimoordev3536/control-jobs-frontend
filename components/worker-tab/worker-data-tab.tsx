@@ -27,8 +27,10 @@ import { useAuth } from "@/hooks/use-auth"
 import { useSession } from "next-auth/react"
 import { useParams, useRouter } from "next/navigation"
 import { useState, useEffect } from "react"
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useToast } from "@/hooks/use-toast"
+import { apiFetch } from "@/lib/api"
+import { useBackendError } from "@/lib/backend-error"
 import { impersonateUser } from "@/lib/api/impersonate"
 import impersonationTranslations from "@/lib/translations/impersonation"
 import { InlineImageUploader } from "@/components/inline-image-uploader"
@@ -125,9 +127,11 @@ export function WorkerDataTab({ selfService = false }: { selfService?: boolean }
   })
 
   const [isSaving, setIsSaving] = useState(false)
-  const [isDeleting, setIsDeleting] = useState(false)
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [isDeactivating, setIsDeactivating] = useState(false)
+  const [showDeactivateDialog, setShowDeactivateDialog] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const queryClient = useQueryClient()
+  const translateBackendError = useBackendError()
   const [hasChanges, setHasChanges] = useState(false)
   const [originalData, setOriginalData] = useState<WorkerData | null>(null)
 
@@ -222,8 +226,9 @@ export function WorkerDataTab({ selfService = false }: { selfService?: boolean }
     setError(null)
 
     try {
-      // Send only updateable fields, exclude id
-      const { id, logoUrl: _logoUrl, ...rest } = workerData
+      // Send only updateable fields, exclude id. `active` is owned by the
+      // Deactivate/Reactivate action, never by this form.
+      const { id, logoUrl: _logoUrl, active: _active, ...rest } = workerData
       const updatePayload: Record<string, any> = {
         ...rest,
         latitude: rest.latitude ? parseFloat(rest.latitude) : null,
@@ -231,7 +236,6 @@ export function WorkerDataTab({ selfService = false }: { selfService?: boolean }
       }
       if (meMode) {
         delete updatePayload.code
-        delete updatePayload.active
       }
       // Remove empty strings for fields with strict validation
       if (!updatePayload.email) delete updatePayload.email
@@ -274,38 +278,37 @@ export function WorkerDataTab({ selfService = false }: { selfService?: boolean }
     }
   }
 
-  const handleDelete = () => {
-    setShowDeleteDialog(true)
-  }
+  const handleConfirmToggleActive = async () => {
+    if (!workerId) return
+    const next = !workerData.active
 
-  const handleConfirmDelete = async () => {
-    if (!session?.accessToken || !workerId) return
-
-    setIsDeleting(true)
+    setIsDeactivating(true)
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/worker/${workerId}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${session.accessToken}`,
-          "Content-Type": "application/json",
-        },
+      await apiFetch(`/worker/${workerId}/${next ? "activate" : "deactivate"}`, {
+        method: "PATCH",
       })
 
-      if (!response.ok) {
-        throw new Error(`Failed to delete worker: ${response.status}`)
-      }
+      setWorkerData((prev) => ({ ...prev, active: next }))
+      setOriginalData((prev) => (prev ? { ...prev, active: next } : prev))
+      queryClient.invalidateQueries({ queryKey: ["workers"] })
+      queryClient.invalidateQueries({ queryKey: ["worker", workerId, "data"] })
 
       toast({
-        title: t("workerDeletedSuccessfully") || "Worker deleted successfully!",
+        title: t(next ? "workerReactivatedSuccessfully" : "workerDeactivatedSuccessfully"),
         variant: "success",
       })
-
-      router.push("/workers")
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete worker")
+      toast({
+        title: translateBackendError(
+          err,
+          next ? "errorReactivatingWorker" : "errorDeactivatingWorker",
+        ),
+        variant: "destructive",
+      })
     } finally {
-      setIsDeleting(false)
+      setIsDeactivating(false)
+      setShowDeactivateDialog(false)
     }
   }
 
@@ -422,23 +425,17 @@ export function WorkerDataTab({ selfService = false }: { selfService?: boolean }
             className="h-9 text-xs bg-muted/30 border-input text-foreground"
           />
         </div>
+        {/* Read-only: status is owned by the Deactivate/Reactivate button below,
+            which also controls whether the worker can log in. */}
         <div className="space-y-1 min-w-0" style={{ flex: "0 0 8%" }}>
-          <Label htmlFor="active" className="text-xs font-medium text-foreground">
-            {t("active")}
-          </Label>
-          <Select
-            value={workerData.active ? "yeah" : "no"}
-            onValueChange={(value) => handleInputChange("active", value === "yeah")}
-            disabled={meMode}
+          <Label className="text-xs font-medium text-foreground">{t("active")}</Label>
+          <div
+            className={`flex h-9 items-center text-xs font-medium ${
+              workerData.active ? "text-green-600" : "text-red-600"
+            }`}
           >
-            <SelectTrigger className="h-9 text-xs bg-muted/30 border-input text-foreground">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="min-w-0 w-[90px]">
-              <SelectItem value="yeah">{t("yeah")}</SelectItem>
-              <SelectItem value="no">{t("no")}</SelectItem>
-            </SelectContent>
-          </Select>
+            {workerData.active ? t("yeah") : t("no")}
+          </div>
         </div>
       </div>
 
@@ -695,22 +692,33 @@ export function WorkerDataTab({ selfService = false }: { selfService?: boolean }
         </div>
       </div>
 
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+      <AlertDialog open={showDeactivateDialog} onOpenChange={setShowDeactivateDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t("confirmDeleteWorker")}</AlertDialogTitle>
-            <AlertDialogDescription>{t("confirmDeleteWorkerDesc")}</AlertDialogDescription>
+            <AlertDialogTitle>
+              {t(workerData.active ? "confirmDeactivateWorker" : "confirmReactivateWorker")}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t(
+                workerData.active
+                  ? "confirmDeactivateWorkerDesc"
+                  : "confirmReactivateWorkerDesc",
+              )}
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>{t("cancel")}</AlertDialogCancel>
+            <AlertDialogCancel disabled={isDeactivating}>{t("cancel")}</AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleConfirmDelete}
-              disabled={isDeleting}
-              className="bg-red-600 hover:bg-red-700 text-white"
+              onClick={handleConfirmToggleActive}
+              disabled={isDeactivating}
+              className={
+                workerData.active
+                  ? "bg-red-600 hover:bg-red-700 text-white"
+                  : "bg-green-600 hover:bg-green-700 text-white"
+              }
             >
-              {isDeleting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-              {t("delete")}
+              {isDeactivating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              {t(workerData.active ? "deactivate" : "reactivate")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -733,9 +741,17 @@ export function WorkerDataTab({ selfService = false }: { selfService?: boolean }
           </Button>
         </div>
         {!meMode && (
-          <Button onClick={handleDelete} disabled={isDeleting} className="h-9 bg-yellow-500 hover:bg-yellow-600 text-white px-5 text-xs">
-            {isDeleting ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
-            {t("delete")}
+          <Button
+            onClick={() => setShowDeactivateDialog(true)}
+            disabled={isDeactivating}
+            className={`h-9 text-white px-5 text-xs ${
+              workerData.active
+                ? "bg-yellow-500 hover:bg-yellow-600"
+                : "bg-green-600 hover:bg-green-700"
+            }`}
+          >
+            {isDeactivating ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+            {t(workerData.active ? "deactivate" : "reactivate")}
           </Button>
         )}
       </div>

@@ -17,6 +17,7 @@ import GoogleAddressInput from "@/components/GoogleAddressInput"
 import { normalizeFloorDoor } from "@/lib/utils/normalize-floor-door"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { usePaymentMethods } from "@/hooks/use-payment-methods"
+import { apiFetch } from "@/lib/api"
 
 interface AddEmployerModalProps {
   open: boolean
@@ -130,23 +131,15 @@ export default function AddEmployerModal({ open, onOpenChange, onEmployerAdded, 
     const fetchPartners = async () => {
       if (!session?.accessToken) return
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/partners`, {
-          headers: {
-            Authorization: `Bearer ${session.accessToken}`,
-            "Content-Type": "application/json",
-          },
-        })
-        if (res.ok) {
-          const data = await res.json()
-          setPartners(
-            (data.data || []).map((p: any) => ({
-              name: p.name,
-              id: p.publicId || p.id,
-              commission: Number(p.commission) || 0,
-              isSystem: p.taxId === "SYSTEM",
-            })),
-          )
-        }
+        const data = await apiFetch<{ data: any[] }>("/partners/options")
+        setPartners(
+          (data.data || []).map((p: any) => ({
+            name: p.name,
+            id: p.id,
+            commission: Number(p.commission) || 0,
+            isSystem: Boolean(p.isSystem),
+          })),
+        )
       } catch (e) {
         setPartners([])
       }

@@ -11,6 +11,7 @@ import { useAuth } from "@/hooks/use-auth"
 import { AnimatedLoader } from "@/components/animated-loader"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { apiFetch } from "@/lib/api"
+import { ShowInactiveToggle } from "@/components/ui/show-inactive-toggle"
 
 export default function ClientsPage() {
   const router = useRouter()
@@ -19,6 +20,7 @@ export default function ClientsPage() {
   const queryClient = useQueryClient()
 
   const [showAddModal, setShowAddModal] = useState(false)
+  const [showInactive, setShowInactive] = useState(false)
 
   // Cache holds raw rows; mapping stays outside so type labels re-translate
   // when the language changes.
@@ -38,11 +40,15 @@ export default function ClientsPage() {
     type: c.type === "company" ? t("company") : c.type === "particular" ? t("particular") : c.type || "-",
     responsible: c.responsible || "-",
     mobile: c.mobile || "-",
-    asset: c.active === true || c.active === "true",
+    asset: c.active !== undefined ? (c.active === true || c.active === "true") : c.asset === "yeah",
   })
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const clients = useMemo(() => rawClients.map(mapClient), [rawClients, t])
+  const allClients = useMemo(() => rawClients.map(mapClient), [rawClients, t])
+  const inactiveCount = allClients.filter((c: any) => !c.asset).length
+  // Two views, never mixed: the toggle swaps active for inactive. Every row in
+  // view then has the same status, so no status column is needed.
+  const clients = allClients.filter((c: any) => (showInactive ? !c.asset : c.asset))
 
   const columns = [
     { key: "name", label: t("name"), sortable: true },
@@ -50,20 +56,6 @@ export default function ClientsPage() {
     { key: "type", label: t("type"), sortable: true, align: "left" as const },
     { key: "responsible", label: t("responsible"), sortable: true },
     { key: "mobile", label: t("mobile"), sortable: false, align: "center" as const },
-    {
-      key: "asset",
-      label: t("asset"),
-      sortable: true,
-      align: "center" as const,
-      render: (value: any) => {
-        const isActive = value === true
-        return (
-          <span className={`font-medium ${isActive ? "text-green-600" : "text-red-600"}`}>
-            {isActive ? t("yeah") : t("no")}
-          </span>
-        )
-      },
-    },
   ]
 
   // Define action buttons with type property
@@ -119,6 +111,13 @@ export default function ClientsPage() {
         title={t("clientList")}
         data={clients}
         columns={columns}
+        toolbarExtra={
+          <ShowInactiveToggle
+            checked={showInactive}
+            onCheckedChange={setShowInactive}
+            count={inactiveCount}
+          />
+        }
         onRowClick={handleRowClick}
         actionButtons={actionButtons}
         defaultSortColumn="name"

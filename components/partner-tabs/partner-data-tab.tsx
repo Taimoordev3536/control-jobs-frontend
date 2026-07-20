@@ -1,7 +1,8 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { apiFetch } from "@/lib/api"
 import { Loader2, AlertCircle, RefreshCw, Info } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Button } from "@/components/ui/button"
@@ -58,6 +59,7 @@ interface PartnerData {
   bicSwift: string
   partnerTierId: number
   logoUrl?: string | null
+  active: boolean
 }
 
 interface PartnerDataTabProps {
@@ -94,8 +96,9 @@ export default function PartnerDataTab({ partnerId, onNameChange, onSystemChange
   const [partnerData, setPartnerData] = useState<PartnerData | null>(null)
   const [originalData, setOriginalData] = useState<PartnerData | null>(null)
   const [isSaving, setIsSaving] = useState(false)
-  const [isDeleting, setIsDeleting] = useState(false)
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [isDeactivating, setIsDeactivating] = useState(false)
+  const [showDeactivateDialog, setShowDeactivateDialog] = useState(false)
+  const queryClient = useQueryClient()
   const [error, setError] = useState<string | null>(null)
   const [hasChanges, setHasChanges] = useState(false)
   const [resetKey, setResetKey] = useState(0)
@@ -164,6 +167,7 @@ export default function PartnerDataTab({ partnerId, onNameChange, onSystemChange
         bicSwift: d.bicSwift || "",
         partnerTierId: d.partnerTier?.id ?? d.partnerTierId ?? 0,
         logoUrl: d.logoUrl ?? null,
+        active: d.active !== false,
       }
       return { mapped, isSystem: !!d.isSystem }
     },
@@ -274,28 +278,35 @@ export default function PartnerDataTab({ partnerId, onNameChange, onSystemChange
     }
   }
 
-  const handleConfirmDelete = async () => {
-    if (!session?.accessToken) return
-    setIsDeleting(true)
+  const handleConfirmToggleActive = async () => {
+    if (!partnerId) return
+    const next = !partnerData?.active
+
+    setIsDeactivating(true)
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/partners/${partnerId}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${session.accessToken}`,
-          "Content-Type": "application/json",
-        },
+      await apiFetch(`/partners/${partnerId}/${next ? "activate" : "deactivate"}`, {
+        method: "PATCH",
       })
-      if (!response.ok) throw new Error(`Failed to delete partner: ${response.status}`)
-      toast({ title: t("partnerDeletedSuccessfully") || "Partner deleted successfully", variant: "success" })
-      router.push("/partners")
+
+      setPartnerData((prev) => (prev ? { ...prev, active: next } : prev))
+      setOriginalData((prev) => (prev ? { ...prev, active: next } : prev))
+      queryClient.invalidateQueries({ queryKey: ["partners"] })
+
+      toast({
+        title: t(next ? "partnerReactivatedSuccessfully" : "partnerDeactivatedSuccessfully"),
+        variant: "success",
+      })
     } catch (err) {
       toast({
-        title: translateBackendError(err, "errorDeletingPartner"),
+        title: translateBackendError(
+          err,
+          next ? "errorReactivatingPartner" : "errorDeactivatingPartner",
+        ),
         variant: "destructive",
       })
     } finally {
-      setIsDeleting(false)
-      setShowDeleteDialog(false)
+      setIsDeactivating(false)
+      setShowDeactivateDialog(false)
     }
   }
 
@@ -684,35 +695,47 @@ export default function PartnerDataTab({ partnerId, onNameChange, onSystemChange
         {!meMode && (
           <Button
             type="button"
-            onClick={() => setShowDeleteDialog(true)}
-            disabled={isDeleting}
-            className="h-9 bg-yellow-500 hover:bg-yellow-600 text-white px-5 text-xs"
+            onClick={() => setShowDeactivateDialog(true)}
+            disabled={isDeactivating}
+            className={`h-9 text-white px-5 text-xs ${
+              partnerData?.active
+                ? "bg-yellow-500 hover:bg-yellow-600"
+                : "bg-green-600 hover:bg-green-700"
+            }`}
           >
-            {isDeleting ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
-            {t("delete")}
+            {isDeactivating ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+            {t(partnerData?.active ? "deactivate" : "reactivate")}
           </Button>
         )}
       </div>
 
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+      <AlertDialog open={showDeactivateDialog} onOpenChange={setShowDeactivateDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t("deletePartner") || "Delete Partner"}</AlertDialogTitle>
+            <AlertDialogTitle>
+              {t(partnerData?.active ? "confirmDeactivatePartner" : "confirmReactivatePartner")}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              {t("confirmDeletePartnerDesc") ||
-                "Are you sure you want to delete this partner? This action cannot be undone."}
+              {t(
+                partnerData?.active
+                  ? "confirmDeactivatePartnerDesc"
+                  : "confirmReactivatePartnerDesc",
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>{t("cancel")}</AlertDialogCancel>
+            <AlertDialogCancel disabled={isDeactivating}>{t("cancel")}</AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleConfirmDelete}
-              disabled={isDeleting}
-              className="bg-red-600 hover:bg-red-700 text-white"
+              onClick={handleConfirmToggleActive}
+              disabled={isDeactivating}
+              className={
+                partnerData?.active
+                  ? "bg-red-600 hover:bg-red-700 text-white"
+                  : "bg-green-600 hover:bg-green-700 text-white"
+              }
             >
-              {isDeleting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-              {t("delete")}
+              {isDeactivating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              {t(partnerData?.active ? "deactivate" : "reactivate")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

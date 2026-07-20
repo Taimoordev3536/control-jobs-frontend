@@ -4,16 +4,20 @@ import DataListTemplate, { ExcelIcon, CsvIcon, PdfIcon } from "@/components/ui/d
 import { exportToCSV, exportToXLSX, exportToPDF } from "@/lib/export"
 import { Filter } from "lucide-react"
 import { useTranslation } from "@/hooks/use-translation"
+import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { apiFetch } from "@/lib/api"
 import { useAuth } from "@/hooks/use-auth"
 import { AnimatedLoader } from "@/components/animated-loader"
+import { ShowInactiveToggle } from "@/components/ui/show-inactive-toggle"
 
 export default function AdminWorkersPage() {
   const { t } = useTranslation()
   const { isAuthenticated } = useAuth()
 
-  const { data: workers = [], isLoading } = useQuery<any[]>({
+  const [showInactive, setShowInactive] = useState(false)
+
+  const { data: allWorkers = [], isLoading } = useQuery<any[]>({
     queryKey: ["admin", "workers"],
     queryFn: async () => {
       const data = await apiFetch<{ data: any[] }>("/worker/admin")
@@ -30,26 +34,17 @@ export default function AdminWorkersPage() {
     enabled: isAuthenticated,
   })
 
+  const inactiveCount = allWorkers.filter((w: any) => !w.asset).length
+  // Two views, never mixed: the toggle swaps active for inactive. Every row in
+  // view then has the same status, so no status column is needed.
+  const workers = allWorkers.filter((w: any) => (showInactive ? !w.asset : w.asset))
+
   const columns = [
     { key: "name", label: t("name"), sortable: true },
     { key: "city", label: t("city"), sortable: true },
     { key: "province", label: t("province"), sortable: true },
     { key: "occupation", label: t("occupation"), sortable: true, align: "left" as const },
     { key: "employer", label: t("employer"), sortable: true },
-    {
-      key: "asset",
-      label: t("asset"),
-      sortable: true,
-      align: "center" as const,
-      render: (value: any) => {
-        const isActive = value === true
-        return (
-          <span className={`font-medium ${isActive ? "text-green-600" : "text-red-600"}`}>
-            {isActive ? t("yeah") : t("no")}
-          </span>
-        )
-      },
-    },
   ]
 
   const actionButtons = [
@@ -84,6 +79,13 @@ export default function AdminWorkersPage() {
       title={t("workers")}
       data={workers}
       columns={columns}
+      toolbarExtra={
+        <ShowInactiveToggle
+          checked={showInactive}
+          onCheckedChange={setShowInactive}
+          count={inactiveCount}
+        />
+      }
       actionButtons={actionButtons}
       defaultSortColumn="name"
       defaultSortDirection="asc"

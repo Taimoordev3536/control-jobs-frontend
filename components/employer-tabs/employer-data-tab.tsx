@@ -5,7 +5,8 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { apiFetch } from "@/lib/api"
 import { Loader2, AlertCircle, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -69,6 +70,7 @@ interface EmployerData {
   trialDaysRemaining?: number
   responsible: string
   accessAccountStatus: string
+  active?: boolean
   email: string | null
   logoUrl?: string | null
   logoPublicId?: string | null
@@ -101,8 +103,9 @@ export default function EmployerDataTab({ employerId, selfServiceLogo = false, s
   const [employerData, setEmployerData] = useState<EmployerData | null>(null)
   const [originalData, setOriginalData] = useState<EmployerData | null>(null)
   const [isSaving, setIsSaving] = useState(false)
-  const [isDeleting, setIsDeleting] = useState(false)
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [isDeactivating, setIsDeactivating] = useState(false)
+  const [showDeactivateDialog, setShowDeactivateDialog] = useState(false)
+  const queryClient = useQueryClient()
   const [error, setError] = useState<string | null>(null)
   const [hasChanges, setHasChanges] = useState(false)
   const [resetKey, setResetKey] = useState(0)
@@ -131,16 +134,9 @@ export default function EmployerDataTab({ employerId, selfServiceLogo = false, s
     queryKey: ["partners", "dropdown"],
     enabled: !!session?.accessToken && !meMode,
     queryFn: async () => {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/partners`, {
-        headers: {
-          Authorization: `Bearer ${session!.accessToken}`,
-          "Content-Type": "application/json",
-        },
-      })
-      if (!res.ok) return []
-      const data = await res.json()
+      const data = await apiFetch<{ data: any[] }>("/partners/options")
       return (data.data || []).map((p: any) => ({
-        id: p.publicId || p.id,
+        id: p.id,
         name: p.name,
         commission: Number(p.commission ?? 0),
         isSystem: Boolean(p.isSystem),
@@ -341,43 +337,36 @@ export default function EmployerDataTab({ employerId, selfServiceLogo = false, s
     }
   }
 
-  const handleDelete = () => {
-    setShowDeleteDialog(true)
-  }
+  const handleConfirmToggleActive = async () => {
+    if (!employerId) return
+    const next = employerData?.active === false
 
-  const handleConfirmDelete = async () => {
-    if (!session?.accessToken) return
-
-    setIsDeleting(true)
+    setIsDeactivating(true)
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/employers/${employerId}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${session.accessToken}`,
-          "Content-Type": "application/json",
-        },
+      await apiFetch(`/employers/${employerId}/${next ? "activate" : "deactivate"}`, {
+        method: "PATCH",
       })
 
-      if (!response.ok) {
-        throw new Error(`Failed to delete employer: ${response.status}`)
-      }
+      setEmployerData((prev) => (prev ? { ...prev, active: next } : prev))
+      setOriginalData((prev) => (prev ? { ...prev, active: next } : prev))
+      queryClient.invalidateQueries({ queryKey: ["employers"] })
 
       toast({
-        title: t("employerDeletedSuccessfully"),
+        title: t(next ? "employerReactivatedSuccessfully" : "employerDeactivatedSuccessfully"),
         variant: "success",
       })
-
-      router.back()
     } catch (err) {
-      console.error("Error deleting employer:", err)
       toast({
-        title: translateBackendError(err, "errorDeletingEmployer"),
+        title: translateBackendError(
+          err,
+          next ? "errorReactivatingEmployer" : "errorDeactivatingEmployer",
+        ),
         variant: "destructive",
       })
     } finally {
-      setIsDeleting(false)
-      setShowDeleteDialog(false)
+      setIsDeactivating(false)
+      setShowDeactivateDialog(false)
     }
   }
 
@@ -871,32 +860,51 @@ export default function EmployerDataTab({ employerId, selfServiceLogo = false, s
         {!meMode && (
           <Button
             type="button"
-            onClick={handleDelete}
-            disabled={isDeleting}
-            className="h-9 bg-yellow-500 hover:bg-yellow-600 text-white px-5 text-xs"
+            onClick={() => setShowDeactivateDialog(true)}
+            disabled={isDeactivating}
+            className={`h-9 text-white px-5 text-xs ${
+              employerData?.active === false
+                ? "bg-green-600 hover:bg-green-700"
+                : "bg-yellow-500 hover:bg-yellow-600"
+            }`}
           >
-            {isDeleting ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
-            {t("delete")}
+            {isDeactivating ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+            {t(employerData?.active === false ? "reactivate" : "deactivate")}
           </Button>
         )}
       </div>
 
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+      <AlertDialog open={showDeactivateDialog} onOpenChange={setShowDeactivateDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t("deleteEmployer")}</AlertDialogTitle>
-            <AlertDialogDescription>{t("confirmDeleteEmployerDesc")}</AlertDialogDescription>
+            <AlertDialogTitle>
+              {t(
+                employerData?.active === false
+                  ? "confirmReactivateEmployer"
+                  : "confirmDeactivateEmployer",
+              )}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t(
+                employerData?.active === false
+                  ? "confirmReactivateEmployerDesc"
+                  : "confirmDeactivateEmployerDesc",
+              )}
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>{t("cancel")}</AlertDialogCancel>
+            <AlertDialogCancel disabled={isDeactivating}>{t("cancel")}</AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleConfirmDelete}
-              disabled={isDeleting}
-              className="bg-red-600 hover:bg-red-700 text-white"
+              onClick={handleConfirmToggleActive}
+              disabled={isDeactivating}
+              className={
+                employerData?.active === false
+                  ? "bg-green-600 hover:bg-green-700 text-white"
+                  : "bg-red-600 hover:bg-red-700 text-white"
+              }
             >
-              {isDeleting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-              {t("delete")}
+              {isDeactivating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              {t(employerData?.active === false ? "reactivate" : "deactivate")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

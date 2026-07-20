@@ -450,6 +450,56 @@ surveyMonitoringValueTips: "Set a limit. If responses are under this value, an a
   workerDeletedSuccessfully: "Worker deleted successfully!",
   confirmDeleteWorker: "Delete worker?",
   confirmDeleteWorkerDesc: "This action cannot be undone. The worker and all related data will be permanently removed.",
+
+  deactivate: "Deactivate",
+  reactivate: "Reactivate",
+  showInactive: "Show inactive",
+
+  workerDeactivatedSuccessfully: "Worker deactivated",
+  workerReactivatedSuccessfully: "Worker reactivated",
+  errorDeactivatingWorker: "Error deactivating worker",
+  errorReactivatingWorker: "Error reactivating worker",
+  confirmDeactivateWorker: "Deactivate worker?",
+  confirmDeactivateWorkerDesc:
+    "They will be hidden from the workers list and will no longer be able to log in. Their attendance history is kept, and you can reactivate them at any time.",
+  confirmReactivateWorker: "Reactivate worker?",
+  confirmReactivateWorkerDesc:
+    "They will appear in the workers list again and will be able to log in.",
+
+  clientDeactivatedSuccessfully: "Client deactivated",
+  clientReactivatedSuccessfully: "Client reactivated",
+  errorDeactivatingClient: "Error deactivating client",
+  errorReactivatingClient: "Error reactivating client",
+  confirmDeactivateClient: "Deactivate client?",
+  confirmDeactivateClientDesc:
+    "They will be hidden from the clients list and their users will no longer be able to log in. Their jobs and invoices are kept, and you can reactivate them at any time.",
+  confirmReactivateClient: "Reactivate client?",
+  confirmReactivateClientDesc:
+    "They will appear in the clients list again and their users will be able to log in.",
+
+  employerDeactivatedSuccessfully: "Employer deactivated",
+  employerReactivatedSuccessfully: "Employer reactivated",
+  errorDeletingEmployer: "Error deleting employer",
+  errorDeactivatingEmployer: "Error deactivating employer",
+  errorReactivatingEmployer: "Error reactivating employer",
+  confirmDeactivateEmployer: "Deactivate employer?",
+  confirmDeactivateEmployerDesc:
+    "The company will be hidden from the employers list and its users will no longer be able to log in. All of its data is kept, and you can reactivate it at any time.",
+  confirmReactivateEmployer: "Reactivate employer?",
+  confirmReactivateEmployerDesc:
+    "The company will appear in the employers list again and its users will be able to log in.",
+
+  partnerDeactivatedSuccessfully: "Partner deactivated",
+  partnerReactivatedSuccessfully: "Partner reactivated",
+  errorDeletingPartner: "Error deleting partner",
+  errorDeactivatingPartner: "Error deactivating partner",
+  errorReactivatingPartner: "Error reactivating partner",
+  confirmDeactivatePartner: "Deactivate partner?",
+  confirmDeactivatePartnerDesc:
+    "The partner will be hidden from the partners list and its users will no longer be able to log in. Its autofacturas and referred employers are kept, and you can reactivate it at any time.",
+  confirmReactivatePartner: "Reactivate partner?",
+  confirmReactivatePartnerDesc:
+    "The partner will appear in the partners list again and its users will be able to log in.",
   workCenterCreatedSuccessfully: "Work center created successfully!",
   workCenterUpdatedSuccessfully: "Work center updated successfully!",
   workCenterDeletedSuccessfully: "Work center deleted successfully!",
@@ -720,7 +770,10 @@ surveyMonitoringValueTips: "Set a limit. If responses are under this value, an a
     responsible: "Responsible",
     telephones: "Telephones",
     mobile: "Mobile",
-    asset: "Asset",
+    // The key is a mistranslation kept for compatibility: Spanish "Activo" was
+    // read as the accounting sense (asset) rather than the adjective (active).
+    // It labels the active/inactive column, nothing financial.
+    asset: "Active",
     addClient: "Add Client",
     addPartner: "Add Partner",
     addEmployer: "Add Employer",
@@ -1986,6 +2039,56 @@ surveyMonitoringValueTips: "Set a limit. If responses are under this value, an a
     workerDeletedSuccessfully: "Trabajador eliminado satisfactoriamente",
     confirmDeleteWorker: "¿Eliminar trabajador?",
     confirmDeleteWorkerDesc: "Esta acción no se puede deshacer. El trabajador y todos los datos relacionados serán eliminados permanentemente.",
+
+    deactivate: "Desactivar",
+    reactivate: "Reactivar",
+    showInactive: "Mostrar inactivos",
+
+    workerDeactivatedSuccessfully: "Trabajador desactivado",
+    workerReactivatedSuccessfully: "Trabajador reactivado",
+    errorDeactivatingWorker: "Error al desactivar el trabajador",
+    errorReactivatingWorker: "Error al reactivar el trabajador",
+    confirmDeactivateWorker: "¿Desactivar trabajador?",
+    confirmDeactivateWorkerDesc:
+      "Se ocultará de la lista de trabajadores y no podrá iniciar sesión. Su historial de fichajes se conserva y puedes reactivarlo cuando quieras.",
+    confirmReactivateWorker: "¿Reactivar trabajador?",
+    confirmReactivateWorkerDesc:
+      "Volverá a aparecer en la lista de trabajadores y podrá iniciar sesión.",
+
+    clientDeactivatedSuccessfully: "Cliente desactivado",
+    clientReactivatedSuccessfully: "Cliente reactivado",
+    errorDeactivatingClient: "Error al desactivar el cliente",
+    errorReactivatingClient: "Error al reactivar el cliente",
+    confirmDeactivateClient: "¿Desactivar cliente?",
+    confirmDeactivateClientDesc:
+      "Se ocultará de la lista de clientes y sus usuarios no podrán iniciar sesión. Sus trabajos y facturas se conservan y puedes reactivarlo cuando quieras.",
+    confirmReactivateClient: "¿Reactivar cliente?",
+    confirmReactivateClientDesc:
+      "Volverá a aparecer en la lista de clientes y sus usuarios podrán iniciar sesión.",
+
+    employerDeactivatedSuccessfully: "Empresa desactivada",
+    employerReactivatedSuccessfully: "Empresa reactivada",
+    errorDeletingEmployer: "Error al eliminar la empresa",
+    errorDeactivatingEmployer: "Error al desactivar la empresa",
+    errorReactivatingEmployer: "Error al reactivar la empresa",
+    confirmDeactivateEmployer: "¿Desactivar empresa?",
+    confirmDeactivateEmployerDesc:
+      "La empresa se ocultará de la lista y sus usuarios no podrán iniciar sesión. Todos sus datos se conservan y puedes reactivarla cuando quieras.",
+    confirmReactivateEmployer: "¿Reactivar empresa?",
+    confirmReactivateEmployerDesc:
+      "La empresa volverá a aparecer en la lista y sus usuarios podrán iniciar sesión.",
+
+    partnerDeactivatedSuccessfully: "Partner desactivado",
+    partnerReactivatedSuccessfully: "Partner reactivado",
+    errorDeletingPartner: "Error al eliminar el partner",
+    errorDeactivatingPartner: "Error al desactivar el partner",
+    errorReactivatingPartner: "Error al reactivar el partner",
+    confirmDeactivatePartner: "¿Desactivar partner?",
+    confirmDeactivatePartnerDesc:
+      "El partner se ocultará de la lista y sus usuarios no podrán iniciar sesión. Sus autofacturas y empresas referidas se conservan y puedes reactivarlo cuando quieras.",
+    confirmReactivatePartner: "¿Reactivar partner?",
+    confirmReactivatePartnerDesc:
+      "El partner volverá a aparecer en la lista y sus usuarios podrán iniciar sesión.",
     workCenterCreatedSuccessfully: "Centro de Trabajo creado satisfactoriamente.",
     workCenterUpdatedSuccessfully: "Centro de trabajo actualizado correctamente",
     workCenterDeletedSuccessfully: "Centro de trabajo eliminado correctamente",

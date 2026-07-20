@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { Plus, Filter, Trash2 } from "lucide-react"
+import { Plus, Filter, Ban, RotateCcw } from "lucide-react"
 import { useRouter } from "next/navigation"
 import DataListTemplate, { ExcelIcon, CsvIcon, PdfIcon } from "@/components/ui/data-list-template"
 import { exportToCSV, exportToXLSX, exportToPDF } from "@/lib/export"
@@ -13,6 +13,8 @@ import { AnimatedLoader } from "@/components/animated-loader"
 import { toast } from "@/hooks/use-toast"
 import { formatLocalDate } from "@/lib/datetime"
 import { useBackendError } from "@/lib/backend-error"
+import { apiFetch } from "@/lib/api"
+import { ShowInactiveToggle } from "@/components/ui/show-inactive-toggle"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,16 +38,17 @@ export default function PartnerEmployersTab({ partnerId }: PartnerEmployersTabPr
   const queryClient = useQueryClient()
 
   const [showAddModal, setShowAddModal] = useState(false)
-  const [deleteTarget, setDeleteTarget] = useState<any | null>(null)
-  const [isDeleting, setIsDeleting] = useState(false)
+  const [toggleTarget, setToggleTarget] = useState<any | null>(null)
+  const [isToggling, setIsToggling] = useState(false)
+  const [showInactive, setShowInactive] = useState(false)
 
   const employersKey = ["employers", "by-partner", partnerId]
-  const { data: employers = [], isLoading } = useQuery<any[]>({
+  const { data: allEmployers = [], isLoading } = useQuery<any[]>({
     queryKey: employersKey,
     enabled: !!session?.accessToken && !!partnerId,
     queryFn: async () => {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/employers?partnerId=${partnerId}`,
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/employers?partnerId=${encodeURIComponent(partnerId)}`,
         {
           headers: {
             Authorization: `Bearer ${session!.accessToken}`,
@@ -64,10 +67,18 @@ export default function PartnerEmployersTab({ partnerId }: PartnerEmployersTabPr
         highDate: e.createdAt ? formatLocalDate(e.createdAt) : "-",
         partner: e.partnerName || "-",
         billing: e.billing || "0 €",
+        asset: e.active !== false,
       }))
     },
   })
-  // Modal-add prepend + row delete update the cached list directly.
+
+  const inactiveCount = allEmployers.filter((e: any) => !e.asset).length
+  // Two views, never mixed: the toggle swaps active for inactive.
+  const employers = allEmployers.filter((e: any) =>
+    showInactive ? !e.asset : e.asset,
+  )
+
+  // Modal-add prepends to the cached list directly.
   const setEmployers = (updater: (prev: any[]) => any[]) =>
     queryClient.setQueryData(employersKey, (prev: any[] = []) => updater(prev))
 
@@ -79,37 +90,34 @@ export default function PartnerEmployersTab({ partnerId }: PartnerEmployersTabPr
     setEmployers((prev) => [newEmployer, ...prev])
   }
 
-  const handleDeleteConfirm = async () => {
-    if (!deleteTarget || !session?.accessToken) return
-    setIsDeleting(true)
+  const handleToggleConfirm = async () => {
+    if (!toggleTarget) return
+    const next = !toggleTarget.asset
+
+    setIsToggling(true)
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/employers/${deleteTarget.id}`,
-        {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${session.accessToken}`,
-            "Content-Type": "application/json",
-          },
-        }
+      await apiFetch(
+        `/employers/${toggleTarget.id}/${next ? "activate" : "deactivate"}`,
+        { method: "PATCH" },
       )
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}))
-        throw new Error(errorData.message || "Failed to delete employer")
-      }
-      setEmployers((prev) => prev.filter((e) => e.id !== deleteTarget.id))
+      queryClient.invalidateQueries({ queryKey: ["employers"] })
       toast({
-        title: t("employerDeletedSuccessfully"),
+        title: t(
+          next ? "employerReactivatedSuccessfully" : "employerDeactivatedSuccessfully",
+        ),
         variant: "success",
       })
     } catch (err: any) {
       toast({
-        title: translateBackendError(err),
+        title: translateBackendError(
+          err,
+          next ? "errorReactivatingEmployer" : "errorDeactivatingEmployer",
+        ),
         variant: "destructive",
       })
     } finally {
-      setIsDeleting(false)
-      setDeleteTarget(null)
+      setIsToggling(false)
+      setToggleTarget(null)
     }
   }
 
@@ -137,12 +145,16 @@ export default function PartnerEmployersTab({ partnerId }: PartnerEmployersTabPr
         <button
           onClick={(e) => {
             e.stopPropagation()
-            setDeleteTarget(row)
+            setToggleTarget(row)
           }}
-          className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-          title={t("deleteEmployer")}
+          className={`p-1.5 rounded-md text-muted-foreground transition-colors ${
+            row.asset
+              ? "hover:text-destructive hover:bg-destructive/10"
+              : "hover:text-green-600 hover:bg-green-600/10"
+          }`}
+          title={t(row.asset ? "deactivate" : "reactivate")}
         >
-          <Trash2 className="w-4 h-4" />
+          {row.asset ? <Ban className="w-4 h-4" /> : <RotateCcw className="w-4 h-4" />}
         </button>
       ),
     },
@@ -187,6 +199,14 @@ export default function PartnerEmployersTab({ partnerId }: PartnerEmployersTabPr
         title={t("listOfPartnerEmployers")}
         data={employers}
         columns={columns}
+        toolbarExtra={
+          <ShowInactiveToggle
+            checked={showInactive}
+            onCheckedChange={setShowInactive}
+            count={inactiveCount}
+            id="show-inactive-partner-employers"
+          />
+        }
         onRowClick={handleRowClick}
         actionButtons={actionButtons}
         emptyMessage={isLoading ? <AnimatedLoader size={32} /> : t("noEmployerDataAvailable")}
@@ -199,26 +219,39 @@ export default function PartnerEmployersTab({ partnerId }: PartnerEmployersTabPr
         defaultPartnerId={partnerId}
       />
 
-      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+      <AlertDialog
+        open={!!toggleTarget}
+        onOpenChange={(open) => !open && setToggleTarget(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t("deleteEmployer")}</AlertDialogTitle>
+            <AlertDialogTitle>
+              {t(
+                toggleTarget?.asset
+                  ? "confirmDeactivateEmployer"
+                  : "confirmReactivateEmployer",
+              )}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              {t("confirmDeleteEmployer")}
-              <br />
-              <span className="text-xs text-muted-foreground mt-1 block">
-                {t("deleteEmployerWarning")}
-              </span>
+              {t(
+                toggleTarget?.asset
+                  ? "confirmDeactivateEmployerDesc"
+                  : "confirmReactivateEmployerDesc",
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>{t("cancel")}</AlertDialogCancel>
+            <AlertDialogCancel disabled={isToggling}>{t("cancel")}</AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleDeleteConfirm}
-              disabled={isDeleting}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={handleToggleConfirm}
+              disabled={isToggling}
+              className={
+                toggleTarget?.asset
+                  ? "bg-red-600 hover:bg-red-700 text-white"
+                  : "bg-green-600 hover:bg-green-700 text-white"
+              }
             >
-              {isDeleting ? t("deleting") : t("delete")}
+              {t(toggleTarget?.asset ? "deactivate" : "reactivate")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

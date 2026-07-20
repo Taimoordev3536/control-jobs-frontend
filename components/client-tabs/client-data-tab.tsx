@@ -14,7 +14,9 @@ import { useTranslation } from "@/hooks/use-translation"
 import { useAuth } from "@/hooks/use-auth"
 import { useSession } from "next-auth/react"
 import { useState, useEffect, useRef } from "react"
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { apiFetch } from "@/lib/api"
+import { useBackendError } from "@/lib/backend-error"
 import { useRouter } from "next/navigation"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AnimatedLoader } from "@/components/animated-loader"
@@ -88,11 +90,13 @@ export function ClientDataTab({ clientId, selfService = false }: ClientDataTabPr
   const [clientData, setClientData] = useState<ClientData | null>(null)
   const [originalData, setOriginalData] = useState<ClientData | null>(null)
   const [isSaving, setIsSaving] = useState(false)
-  const [isDeleting, setIsDeleting] = useState(false)
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [isDeactivating, setIsDeactivating] = useState(false)
+  const [showDeactivateDialog, setShowDeactivateDialog] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [hasChanges, setHasChanges] = useState(false)
   const [isImpersonateLoading, setIsImpersonateLoading] = useState(false)
+  const queryClient = useQueryClient()
+  const translateBackendError = useBackendError()
 
   // Employer can impersonate their own clients.
   // Sub-users: only EDIT permission can impersonate; VIEW_ONLY is hidden.
@@ -210,10 +214,10 @@ export function ClientDataTab({ clientId, selfService = false }: ClientDataTabPr
     setError(null)
 
     try {
-      const { id, userId, publicId, email, logoPublicId, logoUrl, createdAt, updatedAt, ...updatePayload } = clientData as any
+      // `active` is owned by the Deactivate/Reactivate action, never this form.
+      const { id, userId, publicId, email, logoPublicId, logoUrl, createdAt, updatedAt, active, ...updatePayload } = clientData as any
       if (meMode) {
         delete (updatePayload as any).type
-        delete (updatePayload as any).active
       }
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/client/${meMode ? "me" : clientId}`, {
         method: "PUT",
@@ -253,40 +257,37 @@ export function ClientDataTab({ clientId, selfService = false }: ClientDataTabPr
     }
   }
 
-  const handleDelete = () => {
-    setShowDeleteDialog(true)
-  }
+  const handleConfirmToggleActive = async () => {
+    if (!clientData || !clientId) return
+    const next = !clientData.active
 
-  const handleConfirmDelete = async () => {
-    if (!clientData || !session?.accessToken) return
-
-    setIsDeleting(true)
+    setIsDeactivating(true)
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/client/${clientId}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${session.accessToken}`,
-          "Content-Type": "application/json",
-        },
+      await apiFetch(`/client/${clientId}/${next ? "activate" : "deactivate"}`, {
+        method: "PATCH",
       })
 
-      if (!response.ok) {
-        throw new Error(`Failed to delete client: ${response.status}`)
-      }
+      setClientData((prev) => (prev ? { ...prev, active: next } : prev))
+      setOriginalData((prev) => (prev ? { ...prev, active: next } : prev))
+      queryClient.invalidateQueries({ queryKey: ["clients"] })
+      queryClient.invalidateQueries({ queryKey: ["client", clientId, "data"] })
 
       toast({
-        title: t("clientDeletedSuccessfully") || "Client deleted successfully!",
+        title: t(next ? "clientReactivatedSuccessfully" : "clientDeactivatedSuccessfully"),
         variant: "success",
       })
-
-      // Redirect back to clients list after successful deletion
-      router.push("/clients")
     } catch (err) {
-      console.error("Error deleting client:", err)
-      setError(err instanceof Error ? err.message : "Failed to delete client")
+      toast({
+        title: translateBackendError(
+          err,
+          next ? "errorReactivatingClient" : "errorDeactivatingClient",
+        ),
+        variant: "destructive",
+      })
     } finally {
-      setIsDeleting(false)
+      setIsDeactivating(false)
+      setShowDeactivateDialog(false)
     }
   }
 
@@ -451,23 +452,17 @@ export function ClientDataTab({ clientId, selfService = false }: ClientDataTabPr
             className="h-9 text-xs bg-muted/30 border-input text-foreground"
           />
         </div>
+        {/* Read-only: status is owned by the Deactivate/Reactivate button below,
+            which also controls whether the client can log in. */}
         <div className="space-y-1 min-w-0" style={{ flex: "0 0 8%" }}>
-          <Label htmlFor="active" className="text-xs font-medium text-foreground">
-            {t("active")}
-          </Label>
-          <Select
-            value={clientData.active ? "yeah" : "no"}
-            onValueChange={(value) => handleInputChange("active", value === "yeah")}
-            disabled={meMode}
+          <Label className="text-xs font-medium text-foreground">{t("active")}</Label>
+          <div
+            className={`flex h-9 items-center text-xs font-medium ${
+              clientData.active ? "text-green-600" : "text-red-600"
+            }`}
           >
-            <SelectTrigger className="h-9 text-xs bg-muted/30 border-input text-foreground">
-              <SelectValue />
-            </SelectTrigger>
-             <SelectContent className="min-w-0 w-[90px]">
-              <SelectItem value="yeah">{t("yeah")}</SelectItem>
-              <SelectItem value="no">{t("no")}</SelectItem>
-            </SelectContent>
-          </Select>
+            {clientData.active ? t("yeah") : t("no")}
+          </div>
         </div>
       </div>
 
@@ -724,22 +719,33 @@ export function ClientDataTab({ clientId, selfService = false }: ClientDataTabPr
         </div>
       </div>
 
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+      <AlertDialog open={showDeactivateDialog} onOpenChange={setShowDeactivateDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t("confirmDeleteClient")}</AlertDialogTitle>
-            <AlertDialogDescription>{t("confirmDeleteClientDesc")}</AlertDialogDescription>
+            <AlertDialogTitle>
+              {t(clientData.active ? "confirmDeactivateClient" : "confirmReactivateClient")}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t(
+                clientData.active
+                  ? "confirmDeactivateClientDesc"
+                  : "confirmReactivateClientDesc",
+              )}
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>{t("cancel")}</AlertDialogCancel>
+            <AlertDialogCancel disabled={isDeactivating}>{t("cancel")}</AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleConfirmDelete}
-              disabled={isDeleting}
-              className="bg-red-600 hover:bg-red-700 text-white"
+              onClick={handleConfirmToggleActive}
+              disabled={isDeactivating}
+              className={
+                clientData.active
+                  ? "bg-red-600 hover:bg-red-700 text-white"
+                  : "bg-green-600 hover:bg-green-700 text-white"
+              }
             >
-              {isDeleting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-              {t("delete")}
+              {isDeactivating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              {t(clientData.active ? "deactivate" : "reactivate")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -762,9 +768,17 @@ export function ClientDataTab({ clientId, selfService = false }: ClientDataTabPr
           </Button>
         </div>
         {!meMode && (
-          <Button onClick={handleDelete} disabled={isDeleting} className="h-9 bg-yellow-500 hover:bg-yellow-600 text-white px-5 text-xs">
-            {isDeleting ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
-            {t("delete")}
+          <Button
+            onClick={() => setShowDeactivateDialog(true)}
+            disabled={isDeactivating}
+            className={`h-9 text-white px-5 text-xs ${
+              clientData.active
+                ? "bg-yellow-500 hover:bg-yellow-600"
+                : "bg-green-600 hover:bg-green-700"
+            }`}
+          >
+            {isDeactivating ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+            {t(clientData.active ? "deactivate" : "reactivate")}
           </Button>
         )}
       </div>

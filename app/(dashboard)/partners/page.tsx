@@ -12,6 +12,7 @@ import { useTranslation } from "@/hooks/use-translation"
 import { useAuth } from "@/hooks/use-auth"
 import { AnimatedLoader } from "@/components/animated-loader"
 import { formatLocalDate } from "@/lib/datetime"
+import { ShowInactiveToggle } from "@/components/ui/show-inactive-toggle"
 
 export default function PartnersList() {
   const { t } = useTranslation()
@@ -19,8 +20,9 @@ export default function PartnersList() {
   const { isAuthenticated } = useAuth()
   const queryClient = useQueryClient()
   const [isAddPartnerModalOpen, setIsAddPartnerModalOpen] = useState(false)
+  const [showInactive, setShowInactive] = useState(false)
 
-  const { data: partners = [], isLoading } = useQuery<any[]>({
+  const { data: allPartners = [], isLoading } = useQuery<any[]>({
     queryKey: ["partners", "list"],
     queryFn: async () => {
       const data = await apiFetch<{ data: any[] }>("/partners")
@@ -31,6 +33,7 @@ export default function PartnersList() {
         createdAt: p.createdAt ? formatLocalDate(p.createdAt) : "-",
         employersCount: p.employersCount ?? 0,
         billing: "0 €", // Replace with real value if available
+        asset: p.active !== false,
         _createdAtRaw: p.createdAt || "", // for sorting
       }))
       mapped.sort((a, b) => (b._createdAtRaw > a._createdAtRaw ? 1 : b._createdAtRaw < a._createdAtRaw ? -1 : 0))
@@ -38,6 +41,11 @@ export default function PartnersList() {
     },
     enabled: isAuthenticated,
   })
+
+  const inactiveCount = allPartners.filter((p) => !p.asset).length
+  // Two views, never mixed: the toggle swaps active for inactive. Every row in
+  // view then has the same status, so no status column is needed.
+  const partners = allPartners.filter((p) => (showInactive ? !p.asset : p.asset))
 
   const handleRowClick = (row: any) => {
     const name = row?.name || ""
@@ -122,6 +130,13 @@ export default function PartnersList() {
         title={t("listOfPartners")}
         data={partners}
         columns={columns}
+        toolbarExtra={
+          <ShowInactiveToggle
+            checked={showInactive}
+            onCheckedChange={setShowInactive}
+            count={inactiveCount}
+          />
+        }
         onRowClick={handleRowClick}
         actionButtons={actionButtons}
         emptyMessage={isLoading ? <AnimatedLoader size={32} /> : t("noPartnersFound")}

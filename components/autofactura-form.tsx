@@ -84,9 +84,9 @@ export default function AutofacturaForm({ mode, autofactura, onSaved, onCancel }
     queryKey: ["autofactura", "partners"],
     enabled: !isView && !!session?.accessToken,
     queryFn: async () => {
-      const j = await apiFetch<any>("/partners")
+      const j = await apiFetch<any>("/partners/options")
       const r = Array.isArray(j?.data) ? j.data : Array.isArray(j) ? j : []
-      return r.map((p: any) => ({ id: p.publicId, name: p.name }))
+      return r.map((p: any) => ({ id: p.id, name: p.name }))
     },
   })
 

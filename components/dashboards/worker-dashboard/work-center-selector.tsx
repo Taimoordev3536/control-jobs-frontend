@@ -76,8 +76,10 @@ export function WorkCenterSelector({
               className="w-full justify-start gap-3 h-auto py-3 px-4 bg-white dark:bg-gray-900 hover:bg-orange-100 dark:hover:bg-orange-900/30 border-orange-200 dark:border-orange-800"
             >
               <MapPin className="w-4 h-4 text-orange-500 shrink-0" />
-              <div className="flex-1 text-left">
-                <p className="font-medium text-sm text-gray-900 dark:text-gray-100">{wc.name}</p>
+              {/* min-w-0 is what actually lets the address truncate — without it
+                  a flex child refuses to shrink below its content width. */}
+              <div className="flex-1 min-w-0 text-left">
+                <p className="font-medium text-sm text-gray-900 dark:text-gray-100 truncate">{wc.name}</p>
                 <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{wc.address}</p>
               </div>
               {dist && (

@@ -48,6 +48,9 @@ interface DataListTemplateProps {
   title: string
   data: any[]
   columns: Column[]
+  // Rendered in the header, left of the search box. For list-level switches the
+  // action-button row can't express (it only takes icons of a fixed set).
+  toolbarExtra?: React.ReactNode
   isLoading?: boolean
   onRowClick?: (id: number) => void
   actionButtons?: ActionButton[]
@@ -66,6 +69,7 @@ export default function DataListTemplate({
   title,
   data,
   columns,
+  toolbarExtra,
   isLoading = false,
   onRowClick,
   actionButtons = [],
@@ -414,6 +418,7 @@ export default function DataListTemplate({
         <div className="flex justify-between items-center px-3 py-1.5 border-b border-border bg-gray-100 dark:bg-gray-800">
           <h1 className="text-base sm:text-lg font-semibold text-foreground truncate">{title}</h1>
           <div className="flex items-center gap-2">
+            {toolbarExtra}
             {/* Search input */}
             <div className="relative hidden sm:block">
               <input

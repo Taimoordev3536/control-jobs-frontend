@@ -13,6 +13,8 @@ import { locationConsentStatus, grantLocationConsent } from "@/lib/consent-clien
 
 interface JobAssignment {
   id: number
+  /** UUID the API expects; falls back to the numeric id when absent. */
+  publicId?: string
   jobId: string
   title: string
   client: {
@@ -58,7 +60,10 @@ export function CheckInProcess({ job, method, token, onBack, onComplete, preScan
   // GPS states
   const [location, setLocation] = useState<LocationData | null>(null)
   const [gpsError, setGpsError] = useState<string | null>(null)
-  const [watchId, setWatchId] = useState<number | null>(null)
+  // Ref, not state: the watchPosition success callback closes over its value,
+  // and a state variable is still null there — so clearWatch never ran and the
+  // watch kept firing, restarting IP verification and unmounting the scanner.
+  const watchIdRef = useRef<number | null>(null)
 
   // IP states
   const [userIP, setUserIP] = useState<string>("")
@@ -72,6 +77,10 @@ export function CheckInProcess({ job, method, token, onBack, onComplete, preScan
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const animationRef = useRef<number | null>(null)
+  const scanTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Guards against two scan loops (or a loop plus the pre-scanned effect)
+  // submitting the same check-in twice.
+  const processingScanRef = useRef(false)
 
   // Hybrid GPS / work-center selection states
   const [showWorkCenterSelector, setShowWorkCenterSelector] = useState(false)
@@ -115,6 +124,13 @@ export function CheckInProcess({ job, method, token, onBack, onComplete, preScan
     onBack()
   }
 
+  const clearGpsWatch = () => {
+    if (watchIdRef.current !== null) {
+      navigator.geolocation.clearWatch(watchIdRef.current)
+      watchIdRef.current = null
+    }
+  }
+
   // GPS Verification
   const startGPSVerification = () => {
     if (!navigator.geolocation) {
@@ -147,10 +163,7 @@ export function CheckInProcess({ job, method, token, onBack, onComplete, preScan
         setGpsStatus("completed")
 
         // Stop watching location once we have it
-        if (watchId) {
-          navigator.geolocation.clearWatch(watchId)
-          setWatchId(null)
-        }
+        clearGpsWatch()
 
         // Automatically start IP verification once GPS is completed
         setTimeout(() => startIPVerification(), 1000)
@@ -158,6 +171,7 @@ export function CheckInProcess({ job, method, token, onBack, onComplete, preScan
       (error) => {
         console.error("GPS Error:", error)
         setGpsError(error.message)
+        clearGpsWatch()
         // GPS failed — continue anyway (location will be null).
         // For merged QR this means the manual WC selector will appear.
         setGpsStatus("completed")
@@ -169,7 +183,7 @@ export function CheckInProcess({ job, method, token, onBack, onComplete, preScan
         timeout: 30000, // Increased timeout to 30 seconds
       },
     )
-    setWatchId(id)
+    watchIdRef.current = id
   }
 
   const fetchAddressFromCoordinates = async (lat: number, lng: number) => {
@@ -232,10 +246,17 @@ export function CheckInProcess({ job, method, token, onBack, onComplete, preScan
 
   // QR Code Scanner Functions
   const startQRScanner = async () => {
-    if (qrStatus !== "pending" || gpsStatus !== "completed" || ipStatus !== "completed") {
+    // "error" is retryable: a denied camera permission used to latch qrStatus
+    // there, and the Start button then did nothing forever.
+    if (
+      (qrStatus !== "pending" && qrStatus !== "error") ||
+      gpsStatus !== "completed" ||
+      ipStatus !== "completed"
+    ) {
       return
     }
 
+    processingScanRef.current = false
     setQrStatus("inProgress")
 
     if (!navigator.mediaDevices?.getUserMedia) {
@@ -260,7 +281,15 @@ export function CheckInProcess({ job, method, token, onBack, onComplete, preScan
       }
     } catch (err: any) {
       console.error("Camera error:", err)
-      toast({ title: "Camera Access Denied", description: err.message || "Please allow camera access to scan the QR code.", variant: "destructive" })
+      const description =
+        err?.name === "NotAllowedError"
+          ? "Camera permission was denied. Allow camera access in your browser settings, then tap Start again."
+          : err?.name === "NotFoundError"
+            ? "No camera was found on this device."
+            : err?.name === "NotReadableError"
+              ? "The camera is already in use by another app. Close it and tap Start again."
+              : err?.message || "Please allow camera access to scan the QR code."
+      toast({ title: "Camera Unavailable", description, variant: "destructive" })
       setQrStatus("error")
     }
   }
@@ -270,6 +299,11 @@ export function CheckInProcess({ job, method, token, onBack, onComplete, preScan
     setCameraReady(false)
     setScannerActive(false)
     if (animationRef.current) cancelAnimationFrame(animationRef.current)
+    // Without this the pending retry timer re-arms the loop after the stop.
+    if (scanTimeoutRef.current) {
+      clearTimeout(scanTimeoutRef.current)
+      scanTimeoutRef.current = null
+    }
     if (videoRef.current && videoRef.current.srcObject) {
       const stream = videoRef.current.srcObject as MediaStream
       stream.getTracks().forEach((track) => track.stop())
@@ -304,12 +338,14 @@ export function CheckInProcess({ job, method, token, onBack, onComplete, preScan
       setScanResult(t("waitingForCamera"))
     }
 
-    setTimeout(() => {
+    scanTimeoutRef.current = setTimeout(() => {
       animationRef.current = requestAnimationFrame(scanQRCode)
-    }, 2000)
+    }, 400)
   }
 
   const handleQRCodeDetected = async (qrData: string) => {
+    if (processingScanRef.current) return
+    processingScanRef.current = true
     try {
       setScanResult(`${t("scanning")}: ${qrData}`)
       stopScanner()
@@ -326,6 +362,9 @@ export function CheckInProcess({ job, method, token, onBack, onComplete, preScan
         const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001"
 
         let selectionData: any = null
+        // An HTTP failure here used to be dropped silently, so the worker was
+        // told the QR contained no work centers for this job.
+        let selectionError: string | null = null
 
         if (location) {
           // We have GPS — call backend to find the nearest work center
@@ -342,6 +381,8 @@ export function CheckInProcess({ job, method, token, onBack, onComplete, preScan
           if (res.ok) {
             const body = await res.json()
             selectionData = body.data
+          } else {
+            selectionError = await readErrorMessage(res)
           }
         } else {
           // No GPS — fetch work center list for manual pick (send 0,0 so backend returns all WCs)
@@ -353,7 +394,13 @@ export function CheckInProcess({ job, method, token, onBack, onComplete, preScan
           if (res.ok) {
             const body = await res.json()
             selectionData = body.data
+          } else {
+            selectionError = await readErrorMessage(res)
           }
+        }
+
+        if (selectionError) {
+          console.error("gps-select failed:", selectionError)
         }
 
         if (selectionData?.selectionType === "auto" && selectionData.workCenterId) {
@@ -362,8 +409,8 @@ export function CheckInProcess({ job, method, token, onBack, onComplete, preScan
             title: "Work Center Found",
             description: `Checking in at: ${selectionData.message}`,
           })
-          setQrStatus("completed")
           await recordScan(qrData, selectionData.workCenterId)
+          setQrStatus("completed")
           return
         }
 
@@ -372,25 +419,31 @@ export function CheckInProcess({ job, method, token, onBack, onComplete, preScan
         setPendingQrToken(qrData)
         setAvailableWorkCenters(selectionData?.workCenters || [])
         setSelectorReason(
-          location
-            ? (selectionData?.message || "No work center found near your location. Please select manually.")
-            : "GPS is unavailable. Please select your work center."
+          selectionError
+            ? selectionError
+            : location
+              ? (selectionData?.message || "No work center found near your location. Please select manually.")
+              : "GPS is unavailable. Please select your work center."
         )
         setShowWorkCenterSelector(true)
+        // The scan is not finished — the worker still has to pick. Release the
+        // guard so cancelling and rescanning works.
+        processingScanRef.current = false
         return
       }
 
       // ── Static QR: work center is embedded in the token itself ──────────
       // No GPS needed — the WC is identified on the backend from the token.
       toast({ title: "QR Code Verified", description: "Sending check-in to the server..." })
-      setQrStatus("completed")
       await recordScan(qrData)
+      setQrStatus("completed")
     } catch (error) {
       console.error("Error processing QR code:", error)
       const raw = error instanceof Error ? error.message : t("invalidQrCode")
       const { title, description } = parseBackendError(raw)
       toast({ title, description, variant: "destructive" })
       setQrStatus("error")
+      processingScanRef.current = false
     }
   }
 
@@ -405,14 +458,27 @@ export function CheckInProcess({ job, method, token, onBack, onComplete, preScan
     }
   }
 
+  /** Reads a NestJS error body: { statusCode, message, error } */
+  const readErrorMessage = async (res: Response): Promise<string> => {
+    try {
+      const body = await res.json()
+      return Array.isArray(body.message)
+        ? body.message.join("; ")
+        : body.message || `HTTP ${res.status}`
+    } catch {
+      return `HTTP ${res.status}`
+    }
+  }
+
   /** Called after the worker manually selects a work center from the selector */
   const handleWorkCenterSelected = async (workCenterId: number) => {
-    if (!pendingQrToken) return
+    if (!pendingQrToken || processingScanRef.current) return
+    processingScanRef.current = true
     setShowWorkCenterSelector(false)
     try {
       toast({ title: "QR Code Verified", description: "Sending check-in to the server..." })
-      setQrStatus("completed")
       await recordScan(pendingQrToken, workCenterId)
+      setQrStatus("completed")
     } catch (error) {
       console.error("Error completing manual check-in:", error)
       const raw = error instanceof Error ? error.message : t("checkInFailed")
@@ -421,6 +487,7 @@ export function CheckInProcess({ job, method, token, onBack, onComplete, preScan
       setQrStatus("error")
     } finally {
       setPendingQrToken(null)
+      processingScanRef.current = false
     }
   }
 
@@ -441,77 +508,63 @@ export function CheckInProcess({ job, method, token, onBack, onComplete, preScan
       return { title: "Select Work Center", description: "Please select a work center before checking in." }
     if (msg.includes("does not belong to this job"))
       return { title: "Wrong Location", description: "The selected work center is not part of this job." }
-    if (msg.includes("away from") || msg.includes("within") && msg.includes("m of the work center"))
+    if (msg.includes("does not belong to the selected work center"))
+      return { title: "Wrong Work Center", description: "This QR code belongs to a different work center, or it expired. Please scan again." }
+    if (msg.includes("away from") || (msg.includes("within") && msg.includes("m of the work center")))
       return { title: "Too Far Away", description: raw }
     if (msg.includes("worker not found") || msg.includes("user not found"))
       return { title: "Account Error", description: "Your worker account could not be found. Please log in again." }
     return { title: "Check-In Failed", description: raw }
   }
 
+  /** Throws on failure — callers own the error toast and the status reset. */
   const recordScan = async (qrData: string, workCenterId?: number) => {
-    try {
-      if (!token) {
-        throw new Error(t("noAuthTokenFound"))
-      }
-
-      const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001"
-
-      const response = await fetch(`${baseUrl}/jobs/scan`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          jobId: job.publicId || job.id,
-          scanType: "check-in",
-          signingMethod: "qrcode",
-          qrToken: qrData,
-          ...(workCenterId ? { workCenterId } : {}),
-          latitude: location?.latitude ?? null,
-          longitude: location?.longitude ?? null,
-          ipAddress: userIP || undefined,
-          location: JSON.stringify({
-            address: location?.address || job.workCenter.name,
-            ip: userIP,
-            latitude: location?.latitude || null,
-            longitude: location?.longitude || null,
-            qrData: qrData.substring(0, 50),
-          }),
-          notes: `Sequential check-in: GPS → IP → QR${workCenterId ? ` (manual WC ${workCenterId})` : ""}`,
-          userTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        }),
-      })
-
-      if (!response.ok) {
-        // Parse NestJS error body: { statusCode, message, error }
-        let rawMessage = `HTTP ${response.status}`
-        try {
-          const body = await response.json()
-          rawMessage = Array.isArray(body.message)
-            ? body.message.join("; ")
-            : body.message || rawMessage
-        } catch {
-          rawMessage = await response.text().catch(() => rawMessage)
-        }
-        throw new Error(rawMessage)
-      }
-
-      const result = await response.json()
-      console.log("✅ Scan recorded successfully:", result)
-
-      toast({
-        title: "✅ Check-In Successful",
-        description: `You have checked in to ${job.title}.`,
-        variant: "success",
-      })
-      onComplete()
-    } catch (error) {
-      console.error("❌ Error recording scan:", error)
-      const raw = error instanceof Error ? error.message : t("unknownErrorOccurred")
-      const { title, description } = parseBackendError(raw)
-      toast({ title, description, variant: "destructive" })
+    if (!token) {
+      throw new Error(t("noAuthTokenFound"))
     }
+
+    const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001"
+
+    const response = await fetch(`${baseUrl}/jobs/scan`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        jobId: job.publicId || job.id,
+        scanType: "check-in",
+        signingMethod: "qrcode",
+        qrToken: qrData,
+        ...(workCenterId != null ? { workCenterId: String(workCenterId) } : {}),
+        latitude: location?.latitude ?? null,
+        longitude: location?.longitude ?? null,
+        ipAddress: userIP || undefined,
+        location: JSON.stringify({
+          address: location?.address || job.workCenter.name,
+          ip: userIP,
+          latitude: location?.latitude || null,
+          longitude: location?.longitude || null,
+          qrData: qrData.substring(0, 50),
+        }),
+        notes: `Sequential check-in: GPS → IP → QR${workCenterId != null ? ` (manual WC ${workCenterId})` : ""}`,
+        userTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      }),
+    })
+
+    if (!response.ok) {
+      throw new Error(await readErrorMessage(response))
+    }
+
+    const result = await response.json()
+    console.log("✅ Scan recorded successfully:", result)
+
+    toast({
+      title: "✅ Check-In Successful",
+      description: `You have checked in to ${job.title}.`,
+      variant: "success",
+    })
+    onComplete()
   }
 
   // Auto-process pre-scanned QR token once GPS + IP are done
@@ -530,13 +583,14 @@ export function CheckInProcess({ job, method, token, onBack, onComplete, preScan
     }
   }, [preScannedQrToken, gpsStatus, ipStatus, qrStatus])
 
-  // Cleanup on unmount
+  // Cleanup on unmount only — depending on the watch id tore the camera down
+  // on every re-registration.
   useEffect(() => {
     return () => {
-      if (watchId) navigator.geolocation.clearWatch(watchId)
+      clearGpsWatch()
       stopScanner()
     }
-  }, [watchId])
+  }, [])
 
   const getStepIcon = (status: StepStatus) => {
     switch (status) {
@@ -547,7 +601,7 @@ export function CheckInProcess({ job, method, token, onBack, onComplete, preScan
       case "error":
         return <AlertCircle className="w-6 h-6 text-red-600" />
       default:
-        return <div className="w-6 h-6 border-2 border-gray-300 rounded-full" />
+        return <div className="w-6 h-6 border-2 border-gray-300 dark:border-gray-600 rounded-full" />
     }
   }
 
@@ -559,60 +613,69 @@ export function CheckInProcess({ job, method, token, onBack, onComplete, preScan
         onAccept={handleConsentAccept}
         onDecline={handleConsentDecline}
       />
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-        <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-4 mb-4">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" onClick={onBack} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800">
+      <div className="min-h-screen w-full overflow-x-hidden bg-gray-50 dark:bg-gray-950">
+        <div className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 p-3 sm:p-4 mb-3 sm:mb-4">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onBack}
+              className="shrink-0 p-2 hover:bg-gray-100 dark:hover:bg-gray-800"
+            >
               <ArrowLeft className="w-5 h-5" />
             </Button>
-            <div>
-              <h1 className="text-xl font-semibold text-gray-900 dark:text-white">{t("sequentialCheckInProcess")}</h1>
-              <p className="text-gray-600 dark:text-gray-400 text-sm">{job.title}</p>
+            <div className="min-w-0">
+              <h1 className="truncate text-base sm:text-xl font-semibold text-gray-900 dark:text-white">
+                {t("sequentialCheckInProcess")}
+              </h1>
+              <p className="truncate text-gray-600 dark:text-gray-400 text-xs sm:text-sm">{job.title}</p>
             </div>
           </div>
         </div>
 
-        <div className="max-w-[1400px] mx-auto p-4 space-y-4">
+        <div className="w-full p-3 sm:p-4 space-y-3 sm:space-y-4">
           {/* Progress Steps */}
           <Card className="bg-white dark:bg-gray-900">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
+            <CardContent className="p-4 sm:p-6">
+              {/* Stacked rows on phones — three steps plus connectors cannot fit
+                  across a phone screen and used to overflow off the right edge. */}
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-0">
                 {/* Step 1: GPS */}
-                <div className="flex items-center gap-3">
-                  {getStepIcon(gpsStatus)}
-                  <div>
-                    <h3 className="font-medium">{t("gpsLocation")}</h3>
-                    <p className="text-sm text-gray-500">{t("verifyYourLocation")}</p>
+                <div className="flex items-center gap-3 min-w-0">
+                  <span className="shrink-0">{getStepIcon(gpsStatus)}</span>
+                  <div className="min-w-0">
+                    <h3 className="font-medium text-sm sm:text-base">{t("gpsLocation")}</h3>
+                    <p className="text-xs sm:text-sm text-muted-foreground">{t("verifyYourLocation")}</p>
                   </div>
                 </div>
 
-                <div className="flex-1 h-0.5 bg-gray-200 mx-4">
+                <div className="hidden sm:block flex-1 h-0.5 bg-gray-200 dark:bg-gray-700 mx-4">
                   <div
-                    className={`h-full transition-all duration-500 ${gpsStatus === "completed" ? "bg-green-500 w-full" : "bg-gray-300 w-0"}`}
+                    className={`h-full transition-all duration-500 ${gpsStatus === "completed" ? "bg-green-500 w-full" : "bg-gray-300 dark:bg-gray-600 w-0"}`}
                   />
                 </div>
 
                 {/* Step 2: IP */}
-                <div className="flex items-center gap-3">
-                  {getStepIcon(ipStatus)}
-                  <div>
-                    <h3 className="font-medium">{t("networkIp")}</h3>
-                    <p className="text-sm text-gray-500">{t("checkWorkplaceNetwork")}</p>
+                <div className="flex items-center gap-3 min-w-0">
+                  <span className="shrink-0">{getStepIcon(ipStatus)}</span>
+                  <div className="min-w-0">
+                    <h3 className="font-medium text-sm sm:text-base">{t("networkIp")}</h3>
+                    <p className="text-xs sm:text-sm text-muted-foreground">{t("checkWorkplaceNetwork")}</p>
                   </div>
                 </div>
 
-                <div className="flex-1 h-0.5 bg-gray-200 mx-4">
+                <div className="hidden sm:block flex-1 h-0.5 bg-gray-200 dark:bg-gray-700 mx-4">
                   <div
-                    className={`h-full transition-all duration-500 ${ipStatus === "completed" ? "bg-green-500 w-full" : "bg-gray-300 w-0"}`}
+                    className={`h-full transition-all duration-500 ${ipStatus === "completed" ? "bg-green-500 w-full" : "bg-gray-300 dark:bg-gray-600 w-0"}`}
                   />
                 </div>
 
                 {/* Step 3: QR */}
-                <div className="flex items-center gap-3">
-                  {getStepIcon(qrStatus)}
-                  <div>
-                    <h3 className="font-medium">{t("qrCode")}</h3>
-                    <p className="text-sm text-gray-500">{t("scanWorkplaceQr")}</p>
+                <div className="flex items-center gap-3 min-w-0">
+                  <span className="shrink-0">{getStepIcon(qrStatus)}</span>
+                  <div className="min-w-0">
+                    <h3 className="font-medium text-sm sm:text-base">{t("qrCode")}</h3>
+                    <p className="text-xs sm:text-sm text-muted-foreground">{t("scanWorkplaceQr")}</p>
                   </div>
                 </div>
               </div>
@@ -622,12 +685,12 @@ export function CheckInProcess({ job, method, token, onBack, onComplete, preScan
           {/* GPS Section */}
           {gpsStatus !== "completed" && (
             <Card
-              className={`${gpsStatus === "inProgress" ? "border-blue-500 bg-blue-50" : gpsStatus === "error" ? "border-red-500 bg-red-50" : "border-gray-200"}`}
+              className={`${gpsStatus === "inProgress" ? "border-blue-500 bg-blue-50 dark:bg-blue-950/20" : gpsStatus === "error" ? "border-red-500 bg-red-50 dark:bg-red-950/20" : "border-gray-200 dark:border-gray-800"}`}
             >
               <CardContent className="p-4">
                 <div className="flex items-center gap-3 mb-4">
-                  <Navigation className="w-6 h-6 text-blue-600" />
-                  <h3 className="font-semibold">{t("gpsLocationVerification")}</h3>
+                  <Navigation className="w-5 h-5 sm:w-6 sm:h-6 shrink-0 text-blue-600" />
+                  <h3 className="font-semibold text-sm sm:text-base">{t("gpsLocationVerification")}</h3>
                   {gpsStatus === "inProgress" && (
                     <div className="ml-auto">
                       <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
@@ -636,16 +699,16 @@ export function CheckInProcess({ job, method, token, onBack, onComplete, preScan
                 </div>
 
                 {location && (
-                  <div className="space-y-2 mb-4 p-3 bg-green-50 rounded-lg border border-green-200">
-                    <p className="text-sm">
+                  <div className="space-y-2 mb-4 p-3 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-900">
+                    <p className="text-xs sm:text-sm break-words">
                       <strong>✅ {t("coordinates")}:</strong> {location.latitude.toFixed(6)},{" "}
                       {location.longitude.toFixed(6)}
                     </p>
-                    <p className="text-sm">
+                    <p className="text-xs sm:text-sm">
                       <strong>📍 {t("accuracy")}:</strong> ±{Math.round(location.accuracy)} {t("meters")}
                     </p>
                     {location.address && (
-                      <p className="text-sm">
+                      <p className="text-xs sm:text-sm break-words">
                         <strong>📮 {t("address")}:</strong> {location.address}
                       </p>
                     )}
@@ -653,22 +716,22 @@ export function CheckInProcess({ job, method, token, onBack, onComplete, preScan
                 )}
 
                 {gpsError && (
-                  <div className="p-3 bg-yellow-50 rounded-lg border border-yellow-200 mb-4">
-                    <span className="text-yellow-700 text-sm">
+                  <div className="p-3 bg-yellow-50 dark:bg-yellow-950/20 rounded-lg border border-yellow-200 dark:border-yellow-900 mb-4">
+                    <span className="text-yellow-700 dark:text-yellow-300 text-xs sm:text-sm">
                       ⚠️ GPS unavailable — you will select your work center manually after scanning the QR code.
                     </span>
                   </div>
                 )}
 
                 {gpsStatus === "inProgress" && !location && (
-                  <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-                    <p className="text-blue-600 text-sm">🔍 {t("detectingLocation")}</p>
+                  <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-900">
+                    <p className="text-blue-600 dark:text-blue-300 text-xs sm:text-sm">🔍 {t("detectingLocation")}</p>
                   </div>
                 )}
 
                 {gpsStatus === "inProgress" && location && (
-                  <div className="p-3 bg-green-50 rounded-lg border border-green-200">
-                    <p className="text-green-600 text-sm">✅ {t("locationDetected")}</p>
+                  <div className="p-3 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-900">
+                    <p className="text-green-600 dark:text-green-300 text-xs sm:text-sm">✅ {t("locationDetected")}</p>
                   </div>
                 )}
               </CardContent>
@@ -678,12 +741,12 @@ export function CheckInProcess({ job, method, token, onBack, onComplete, preScan
           {/* IP Section */}
           {gpsStatus === "completed" && ipStatus !== "completed" && (
             <Card
-              className={`${ipStatus === "inProgress" ? "border-purple-500 bg-purple-50" : ipStatus === "error" ? "border-red-500 bg-red-50" : "border-gray-200"}`}
+              className={`${ipStatus === "inProgress" ? "border-purple-500 bg-purple-50 dark:bg-purple-950/20" : ipStatus === "error" ? "border-red-500 bg-red-50 dark:bg-red-950/20" : "border-gray-200 dark:border-gray-800"}`}
             >
               <CardContent className="p-4">
                 <div className="flex items-center gap-3 mb-4">
-                  <Globe className="w-6 h-6 text-purple-600" />
-                  <h3 className="font-semibold">{t("networkIpDetection")}</h3>
+                  <Globe className="w-5 h-5 sm:w-6 sm:h-6 shrink-0 text-purple-600" />
+                  <h3 className="font-semibold text-sm sm:text-base">{t("networkIpDetection")}</h3>
                   {ipStatus === "inProgress" && (
                     <div className="ml-auto">
                       <div className="w-5 h-5 border-2 border-purple-600 border-t-transparent rounded-full animate-spin" />
@@ -692,26 +755,28 @@ export function CheckInProcess({ job, method, token, onBack, onComplete, preScan
                 </div>
 
                 {userIP && (
-                  <div className="p-3 bg-green-50 rounded-lg border border-green-200 mb-4">
-                    <p className="text-sm">
+                  <div className="p-3 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-900 mb-4">
+                    <p className="text-xs sm:text-sm break-all">
                       <strong>✅ {t("yourIpAddress")}:</strong> {userIP}
                     </p>
-                    <p className="text-sm text-green-600">
+                    <p className="text-xs sm:text-sm text-green-600 dark:text-green-300">
                       <strong>{t("status")}:</strong> {t("ipDetectedSuccessfully")}
                     </p>
                   </div>
                 )}
 
                 {ipError && (
-                  <div className="p-3 bg-red-50 rounded-lg border border-red-200 mb-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-red-600 text-sm">
+                  <div className="p-3 bg-red-50 dark:bg-red-950/20 rounded-lg border border-red-200 dark:border-red-900 mb-4">
+                    {/* Stacks on phones — side-by-side squeezed the message to a
+                        few characters next to the Retry button. */}
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <span className="text-red-600 dark:text-red-300 text-xs sm:text-sm break-words">
                         {t("error")}: {ipError}
                       </span>
                       <Button
                         onClick={startIPVerification}
                         size="sm"
-                        className="bg-red-600 hover:bg-red-700 text-white"
+                        className="w-full sm:w-auto shrink-0 bg-red-600 hover:bg-red-700 text-white"
                       >
                         {t("retry")}
                       </Button>
@@ -720,14 +785,14 @@ export function CheckInProcess({ job, method, token, onBack, onComplete, preScan
                 )}
 
                 {ipStatus === "inProgress" && !userIP && (
-                  <div className="p-3 bg-purple-50 rounded-lg border border-purple-200">
-                    <p className="text-purple-600 text-sm">🔍 {t("detectingIpAddress")}</p>
+                  <div className="p-3 bg-purple-50 dark:bg-purple-950/20 rounded-lg border border-purple-200 dark:border-purple-900">
+                    <p className="text-purple-600 dark:text-purple-300 text-xs sm:text-sm">🔍 {t("detectingIpAddress")}</p>
                   </div>
                 )}
 
                 {ipStatus === "inProgress" && userIP && (
-                  <div className="p-3 bg-green-50 rounded-lg border border-green-200">
-                    <p className="text-green-600 text-sm">✅ {t("ipDetectedMovingToQr")}</p>
+                  <div className="p-3 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-900">
+                    <p className="text-green-600 dark:text-green-300 text-xs sm:text-sm">✅ {t("ipDetectedMovingToQr")}</p>
                   </div>
                 )}
               </CardContent>
@@ -746,7 +811,11 @@ export function CheckInProcess({ job, method, token, onBack, onComplete, preScan
                   onCancel={() => {
                     setShowWorkCenterSelector(false)
                     setPendingQrToken(null)
-                    setQrStatus("pending")
+                    processingScanRef.current = false
+                    // The pre-scanned path has no scanner to fall back to, so
+                    // "pending" there renders an endless spinner. Show the
+                    // retryable error card instead.
+                    setQrStatus(preScannedQrToken ? "error" : "pending")
                   }}
                 />
               )}
@@ -755,18 +824,18 @@ export function CheckInProcess({ job, method, token, onBack, onComplete, preScan
                 <Card className="border-orange-500 bg-orange-50 dark:bg-orange-950/20">
                   <CardContent className="p-4">
                     <div className="flex items-center gap-3 mb-4">
-                      <QrCode className="w-6 h-6 text-orange-600" />
-                      <h3 className="font-semibold">{t("qrCodeScanner")}</h3>
+                      <QrCode className="w-5 h-5 sm:w-6 sm:h-6 shrink-0 text-orange-600" />
+                      <h3 className="font-semibold text-sm sm:text-base">{t("qrCodeScanner")}</h3>
                     </div>
-                    <div className="flex items-center justify-center gap-3 py-8">
+                    <div className="flex items-center justify-center gap-3 py-6 sm:py-8 text-center">
                       {qrStatus === "completed" ? (
-                        <p className="text-green-600 font-medium">✅ QR code verified — completing check-in…</p>
+                        <p className="text-green-600 dark:text-green-400 font-medium text-sm sm:text-base">✅ QR code verified — completing check-in…</p>
                       ) : qrStatus === "error" ? (
-                        <p className="text-red-600 font-medium">QR processing failed. Go back and try again.</p>
+                        <p className="text-red-600 dark:text-red-400 font-medium text-sm sm:text-base">QR processing failed. Go back and try again.</p>
                       ) : (
                         <>
-                          <div className="w-5 h-5 border-2 border-orange-600 border-t-transparent rounded-full animate-spin" />
-                          <p className="text-orange-700 font-medium">Processing scanned QR code…</p>
+                          <div className="w-5 h-5 shrink-0 border-2 border-orange-600 border-t-transparent rounded-full animate-spin" />
+                          <p className="text-orange-700 dark:text-orange-300 font-medium text-sm sm:text-base">Processing scanned QR code…</p>
                         </>
                       )}
                     </div>
@@ -776,15 +845,17 @@ export function CheckInProcess({ job, method, token, onBack, onComplete, preScan
 
               {!showWorkCenterSelector && !preScannedQrToken && (
                 <Card
-                  className={`${qrStatus === "inProgress" ? "border-orange-500" : qrStatus === "error" ? "border-red-500" : "border-gray-200"}`}
+                  className={`${qrStatus === "inProgress" ? "border-orange-500" : qrStatus === "error" ? "border-red-500" : "border-gray-200 dark:border-gray-800"}`}
                 >
                   <CardContent className="p-4">
                 <div className="flex items-center gap-3 mb-4">
-                  <QrCode className="w-6 h-6 text-orange-600" />
-                  <h3 className="font-semibold">{t("qrCodeScanner")}</h3>
+                  <QrCode className="w-5 h-5 sm:w-6 sm:h-6 shrink-0 text-orange-600" />
+                  <h3 className="font-semibold text-sm sm:text-base">{t("qrCodeScanner")}</h3>
                 </div>
 
-                <div className="relative w-full aspect-video overflow-hidden rounded-md border border-gray-300 mb-4">
+                {/* 4:3 on phones — a 16:9 box is a thin letterbox in portrait and
+                    leaves too little of the frame for the code to be readable. */}
+                <div className="relative w-full aspect-[4/3] sm:aspect-video overflow-hidden rounded-md border border-gray-300 dark:border-gray-700 mb-4">
                   <video
                     ref={videoRef}
                     className={`absolute top-0 left-0 w-full h-full object-cover ${scannerActive ? "" : "hidden"}`}
@@ -803,10 +874,10 @@ export function CheckInProcess({ job, method, token, onBack, onComplete, preScan
                   )}
 
                   {!scannerActive && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-gray-100 dark:bg-gray-800">
+                    <div className="absolute inset-0 flex items-center justify-center bg-gray-100 dark:bg-gray-800 p-4">
                       <div className="text-center">
-                        <Camera className="w-12 h-12 text-gray-400 mx-auto mb-2" />
-                        <p className="text-sm text-gray-500">{t("clickToStartQrScanner")}</p>
+                        <Camera className="w-10 h-10 sm:w-12 sm:h-12 text-gray-400 mx-auto mb-2" />
+                        <p className="text-xs sm:text-sm text-muted-foreground">{t("clickToStartQrScanner")}</p>
                       </div>
                     </div>
                   )}
@@ -817,14 +888,18 @@ export function CheckInProcess({ job, method, token, onBack, onComplete, preScan
                     <Button
                       onClick={startQRScanner}
                       disabled={gpsStatus !== "completed" || ipStatus !== "completed"}
-                      className="flex items-center gap-2 bg-orange-600 hover:bg-orange-700 text-white"
+                      className="w-full sm:w-auto flex items-center justify-center gap-2 bg-orange-600 hover:bg-orange-700 text-white"
                     >
-                      <Camera className="w-4 h-4" />
+                      <Camera className="w-4 h-4 shrink-0" />
                       <span className="text-sm font-medium">{t("startQrScanner")}</span>
                     </Button>
                   ) : (
-                    <Button onClick={stopScanner} variant="outline" className="flex items-center gap-2 bg-transparent">
-                      <Scan className="w-4 h-4" />
+                    <Button
+                      onClick={stopScanner}
+                      variant="outline"
+                      className="w-full sm:w-auto flex items-center justify-center gap-2 bg-transparent"
+                    >
+                      <Scan className="w-4 h-4 shrink-0" />
                       <span className="text-sm font-medium">{t("stopScanner")}</span>
                     </Button>
                   )}
@@ -832,7 +907,7 @@ export function CheckInProcess({ job, method, token, onBack, onComplete, preScan
 
                 {scanResult && (
                   <div className="mt-4 text-center">
-                    <strong className="text-gray-800 dark:text-gray-200">{scanResult}</strong>
+                    <strong className="text-xs sm:text-sm break-all text-gray-800 dark:text-gray-200">{scanResult}</strong>
                   </div>
                 )}
               </CardContent>
@@ -845,10 +920,10 @@ export function CheckInProcess({ job, method, token, onBack, onComplete, preScan
           <Card className="bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800">
             <CardContent className="p-4">
               <div className="flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5" />
-                <div>
-                  <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-1">{t("instructions")}</h4>
-                  <div className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
+                <AlertCircle className="w-5 h-5 shrink-0 text-blue-600 dark:text-blue-400 mt-0.5" />
+                <div className="min-w-0">
+                  <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-1 text-sm sm:text-base">{t("instructions")}</h4>
+                  <div className="text-xs sm:text-sm text-blue-800 dark:text-blue-200 space-y-1">
                     <p>
                       1. <strong>{t("gps")}:</strong> {t("allowLocationAccessInstruction")}
                     </p>

@@ -11,6 +11,7 @@ import { useAuth } from "@/hooks/use-auth"
 import { AnimatedLoader } from "@/components/animated-loader"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { apiFetch } from "@/lib/api"
+import { ShowInactiveToggle } from "@/components/ui/show-inactive-toggle"
 
 // Map backend worker data to table row format
 const mapWorker = (w: any) => ({
@@ -30,8 +31,9 @@ export default function WorkersPage() {
   const queryClient = useQueryClient()
 
   const [showAddModal, setShowAddModal] = useState(false)
+  const [showInactive, setShowInactive] = useState(false)
 
-  const { data: workers = [], isLoading } = useQuery({
+  const { data: allWorkers = [], isLoading } = useQuery({
     queryKey: ["workers"],
     queryFn: async () => {
       const body = await apiFetch("/worker")
@@ -40,26 +42,17 @@ export default function WorkersPage() {
     enabled: isAuthenticated,
   })
 
+  const inactiveCount = allWorkers.filter((w: any) => !w.asset).length
+  // Two views, never mixed: the toggle swaps active for inactive. Every row in
+  // view then has the same status, so no status column is needed.
+  const workers = allWorkers.filter((w: any) => (showInactive ? !w.asset : w.asset))
+
   const columns = [
     { key: "name", label: t("name"), sortable: true },
     { key: "occupation", label: t("occupation"), sortable: true },
     { key: "telephones", label: t("mobile"), sortable: true, align: "center" as const },
     { key: "population", label: t("population"), sortable: true },
     { key: "postalCode", label: t("postalCode"), sortable: true },
-    {
-      key: "asset",
-      label: t("asset"),
-      sortable: true,
-      align: "center" as const,
-      render: (value: any) => {
-        const isActive = value === true
-        return (
-          <span className={`font-medium ${isActive ? "text-green-600" : "text-red-600"}`}>
-            {isActive ? t("yeah") : t("no")}
-          </span>
-        )
-      },
-    },
   ]
 
   // Define action buttons with type property
@@ -113,6 +106,13 @@ export default function WorkersPage() {
         title={t("listOfWorkers")}
         data={workers}
         columns={columns}
+        toolbarExtra={
+          <ShowInactiveToggle
+            checked={showInactive}
+            onCheckedChange={setShowInactive}
+            count={inactiveCount}
+          />
+        }
         onRowClick={handleRowClick}
         actionButtons={actionButtons}
         defaultSortColumn="name"
