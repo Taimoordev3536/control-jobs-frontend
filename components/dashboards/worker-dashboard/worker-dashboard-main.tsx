@@ -21,6 +21,16 @@ import PrivacyDialog from "./privacy-section"
 import { webauthnStatus, authenticateDevice, registerDevice, webauthnSupported } from "@/lib/webauthn-client"
 import { locationConsentStatus, grantLocationConsent } from "@/lib/consent-client"
 import { CurrentJobCard } from "./current-job-card"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { JobFilterBar, jobMatchesFilters, jobWorkCenters, jobClients, jobOccupations, StatCard, AttentionCard, ActionButton, SectionLabel, ListPanel, ListRow, RowAvatar, StatusChip } from "../dashboard-widgets"
 import { useRouter } from "next/navigation"
 import { Clock, Briefcase, ClipboardCheck, Coins, FileText, Fingerprint } from "lucide-react"
@@ -282,6 +292,8 @@ export default function WorkerDashboardMain() {
   // When a QR is scanned in the SignInMethodDialog, store it here and
   // route to CheckInProcess which will collect GPS → IP → then process the token
   const [preScannedQrToken, setPreScannedQrToken] = useState<string | undefined>(undefined);
+  // Set when a worker tries to start a job while another session is still open.
+  const [blockingJob, setBlockingJob] = useState<JobAssignment | null>(null);
 
   // Survey states
 
@@ -636,7 +648,31 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
     return () => clearInterval(locationTimer);
   }, []);
 
+  /**
+   * Blocks a second check-in before the worker walks to the QR and scans it.
+   * The server enforces this too, but only after the scan — refusing them at the
+   * tap saves the trip. Returns true when the check-in may proceed.
+   */
+  const guardAgainstOpenSession = (job: JobAssignment): boolean => {
+    const open = currentJob;
+    if (!open || !open.checkInTime || open.checkOutTime) return true;
+
+    const sameJob = (open.publicId && open.publicId === (job as any).publicId) || open.id === job.id;
+    if (sameJob) {
+      toast({
+        title: tg("alreadyCheckedIn") || "Ya has fichado",
+        description: tg("alreadyCheckedInHere") || "Ya tienes la entrada fichada en este trabajo.",
+      });
+      setCurrentView("dashboard");
+      return false;
+    }
+
+    setBlockingJob(open);
+    return false;
+  };
+
   const handleCheckIn = (job: JobAssignment) => {
+    if (!guardAgainstOpenSession(job)) return;
     setSelectedJob(job);
     setSelectedCheckInMethod("default"); // Set a default method if needed
     setCurrentView("checkInProcess"); // Go directly to check-in process
@@ -1439,11 +1475,68 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Raised when a worker tries to start a job while another is still open.
+          Names the running job and offers the one action that resolves it. */}
+      <AlertDialog open={!!blockingJob} onOpenChange={(o) => !o && setBlockingJob(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {tg("stillCheckedIn") || "Todavía tienes un fichaje abierto"}
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2">
+                <p className="font-medium text-foreground">{blockingJob?.title}</p>
+                {blockingJob?.checkInTime && (
+                  <p className="text-sm">
+                    {tg("since") || "Desde"} {formatTimeShort(blockingJob.checkInTime)}
+                  </p>
+                )}
+                <p>
+                  {tg("checkOutFirst") ||
+                    "Ficha la salida antes de empezar otro trabajo."}
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{tg("cancel") || "Cancelar"}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setBlockingJob(null);
+                setCurrentView("dashboard");
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
+            >
+              {tg("goToCurrentJob") || "Ir al trabajo actual"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <div className="max-w-[1400px] mx-auto p-4 space-y-5">
         <div>
           <h1 className="text-2xl font-semibold text-foreground">{tg("hello") || "Hello"}, {workerName}</h1>
           <p className="text-sm text-muted-foreground mt-0.5 capitalize">{todayLabel}</p>
         </div>
+
+        {/* An open session outranks everything else on this page: it holds the
+            running clock plus Check Out and Break. It used to sit below the
+            stats and quick actions, roughly two phone screens down. */}
+        {currentJob && (
+          <CurrentJobCard
+            job={currentJob}
+            onCheckOut={handleCheckOut}
+            onTakeBreak={handleTakeBreak}
+            onBackToWork={handleBackToWork}
+            onTaskToggle={handleTaskToggle}
+            onFillSurvey={handleFillSurvey}
+            surveyState={surveyStateFor(currentJob)}
+            getCurrentSessionTime={getCurrentSessionTime}
+            getCurrentBreakTime={getCurrentBreakTime}
+            formatTimeShort={formatTimeShort}
+            actionLoading={actionLoading}
+          />
+        )}
 
         {bioReg !== true && (
           <div className="bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-900 rounded-xl p-3.5 flex items-center justify-between gap-3 flex-wrap">
@@ -1493,22 +1586,6 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
             <ActionButton Icon={MapPin} label={tf("privacy")} onClick={() => setPrivacyOpen(true)} />
           </div>
         </section>
-
-        {currentJob && (
-          <CurrentJobCard
-            job={currentJob}
-            onCheckOut={handleCheckOut}
-            onTakeBreak={handleTakeBreak}
-            onBackToWork={handleBackToWork}
-            onTaskToggle={handleTaskToggle}
-            onFillSurvey={handleFillSurvey}
-            surveyState={surveyStateFor(currentJob)}
-            getCurrentSessionTime={getCurrentSessionTime}
-            getCurrentBreakTime={getCurrentBreakTime}
-            formatTimeShort={formatTimeShort}
-            actionLoading={actionLoading}
-          />
-        )}
 
         <Card className="border-border shadow-sm bg-card">
           <CardContent className="p-4 space-y-4">
@@ -1608,9 +1685,10 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
                             }
                             break;
                           case 'qrcode':
-                            // Route to CheckInProcess so GPS → IP → WC selection happens
-                            // before the check-in API call. The pre-scanned token is stored
-                            // and picked up automatically once GPS+IP verification completes.
+                            // Route to CheckInProcess, which owns the scanner and the
+                            // work-center resolution. The pre-scanned token is handed
+                            // over and processed as soon as the screen is ready.
+                            if (!guardAgainstOpenSession(job)) break;
                             if (data?.qrToken) {
                               setSelectedJob(job);
                               setSelectedCheckInMethod('qrcode');

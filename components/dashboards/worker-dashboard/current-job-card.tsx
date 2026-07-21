@@ -14,7 +14,6 @@ import {
 } from "@/components/ui/select";
 import {
   Coffee,
-  PlayCircle,
   Play,
   Pause,
   Fingerprint,
@@ -135,6 +134,18 @@ export function CurrentJobCard({
   );
   const [toggling, setToggling] = useState(false);
 
+  // getCurrentSessionTime/getCurrentBreakTime read `new Date()` while rendering,
+  // so the clocks only advance when this card re-renders. Nothing was driving
+  // that, which froze them until a refetch or a page refresh. Tick once a second
+  // while a session is open; stop once the worker checks out.
+  const isSessionLive = !!job?.checkInTime && !job?.checkOutTime;
+  const [, setClockTick] = useState(0);
+  useEffect(() => {
+    if (!isSessionLive) return;
+    const id = setInterval(() => setClockTick((n) => n + 1), 1000);
+    return () => clearInterval(id);
+  }, [isSessionLive]);
+
   // Fetch today's tasks grouped by work center
   const { data: todayTasks = null, isFetching, refetch } = useQuery<any>({
     queryKey: ["jobs", job?.publicId || job?.id, "today-tasks"],
@@ -187,7 +198,16 @@ export function CurrentJobCard({
   };
 
   return (
-    <Card className="border border-border shadow-sm bg-card">
+    // This is the only live element on the dashboard — a running clock plus the
+    // actions that stop it. It carries brand colour and elevation so it reads as
+    // primary against the plain informational cards below it.
+    <Card
+      className="border-2 border-[#662D91] dark:border-purple-500
+                 bg-gradient-to-b from-white to-purple-50
+                 dark:from-gray-900 dark:to-purple-950/30
+                 shadow-[0_10px_34px_-10px_rgba(102,45,145,0.45),0_2px_6px_-2px_rgba(102,45,145,0.25)]
+                 dark:shadow-[0_10px_34px_-10px_rgba(0,0,0,0.75)]"
+    >
       <CardContent className="p-4">
         <div className="flex items-center justify-between mb-4">
           <Badge
@@ -210,7 +230,12 @@ export function CurrentJobCard({
               </>
             ) : (
               <>
-                <PlayCircle className="w-3 h-3 mr-1" />
+                {/* Pulsing dot: the session is running right now. Suppressed for
+                    users who ask the OS to reduce motion. */}
+                <span className="relative flex w-2 h-2 mr-1.5" aria-hidden="true">
+                  <span className="motion-safe:animate-ping absolute inline-flex w-full h-full rounded-full bg-green-500 opacity-75" />
+                  <span className="relative inline-flex w-2 h-2 rounded-full bg-green-600" />
+                </span>
                 {t("inProgress")}
               </>
             )}
@@ -410,9 +435,9 @@ export function CurrentJobCard({
           {/* Time Tracking */}
           <div className="space-y-4">
             {job.isOnBreak ? (
-              <div className="bg-orange-50 dark:bg-orange-900/20 p-4 rounded-lg border border-orange-200 dark:border-orange-800">
+              <div className="bg-white dark:bg-gray-900 p-4 rounded-xl border border-orange-200 dark:border-orange-800 shadow-[0_4px_14px_-4px_rgba(194,65,12,0.30)] dark:shadow-[0_4px_14px_-4px_rgba(0,0,0,0.6)]">
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-orange-700 dark:text-orange-400 mb-1">
+                  <div className="text-3xl font-bold tabular-nums text-orange-700 dark:text-orange-400 mb-1">
                     {getCurrentBreakTime(job)}
                   </div>
                   <div className="text-sm text-orange-600 dark:text-orange-400">
@@ -421,9 +446,11 @@ export function CurrentJobCard({
                 </div>
               </div>
             ) : (
-              <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-lg border border-purple-200 dark:border-purple-800">
+              // Solid panel, not a tint: the card behind it is now purple, so a
+              // purple-tinted timer would blend into it.
+              <div className="bg-white dark:bg-gray-900 p-4 rounded-xl border border-purple-200 dark:border-purple-800 shadow-[0_4px_14px_-4px_rgba(102,45,145,0.30)] dark:shadow-[0_4px_14px_-4px_rgba(0,0,0,0.6)]">
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-purple-700 dark:text-purple-400 mb-1">
+                  <div className="text-3xl font-bold tabular-nums text-purple-700 dark:text-purple-400 mb-1">
                     {getCurrentSessionTime(job)}
                   </div>
                   <div className="text-sm text-purple-600 dark:text-purple-400">
@@ -434,7 +461,7 @@ export function CurrentJobCard({
             )}
 
             <div className="grid grid-cols-2 gap-2">
-              <div className="bg-muted p-3 rounded-lg border border-border text-center">
+              <div className="bg-white dark:bg-gray-900 p-3 rounded-xl border border-border text-center shadow-[0_2px_10px_-3px_rgba(102,45,145,0.22)] dark:shadow-[0_2px_10px_-3px_rgba(0,0,0,0.55)]">
                 <div className="text-sm font-bold text-gray-900 dark:text-white">
                   {job.checkInTime ? formatTimeShort(job.checkInTime) : "---"}
                 </div>
@@ -442,7 +469,7 @@ export function CurrentJobCard({
                   {t("checkIn")}
                 </div>
               </div>
-              <div className="bg-muted p-3 rounded-lg border border-border text-center">
+              <div className="bg-white dark:bg-gray-900 p-3 rounded-xl border border-border text-center shadow-[0_2px_10px_-3px_rgba(102,45,145,0.22)] dark:shadow-[0_2px_10px_-3px_rgba(0,0,0,0.55)]">
                 <div className="text-sm font-bold text-gray-900 dark:text-white">
                   {job.shift.scheduleType === "fixed" && job.shift.endTime
                     ? job.shift.endTime
@@ -507,7 +534,13 @@ export function CurrentJobCard({
 
               <Button
                 onClick={() => onCheckOut(job)}
-                className="w-full bg-purple-600 hover:bg-purple-700 text-white"
+                // Lifts on hover and presses down on tap — the one place literal
+                // depth belongs, because it maps to a physical button.
+                className="w-full bg-purple-600 hover:bg-purple-700 text-white
+                           shadow-[0_6px_16px_-6px_rgba(102,45,145,0.7)]
+                           hover:shadow-[0_10px_22px_-8px_rgba(102,45,145,0.8)]
+                           active:translate-y-px active:shadow-[0_3px_10px_-6px_rgba(102,45,145,0.7)]
+                           transition-all"
                 disabled={job.isOnBreak || actionLoading}
               >
                 <Fingerprint className="w-4 h-4 mr-2" />
@@ -529,7 +562,7 @@ export function CurrentJobCard({
 
             {/* Break Summary */}
             {job.totalBreakTime > 0 && (
-              <div className="bg-muted p-3 rounded-lg border border-border text-center">
+              <div className="bg-white dark:bg-gray-900 p-3 rounded-xl border border-border text-center shadow-[0_2px_10px_-3px_rgba(102,45,145,0.22)] dark:shadow-[0_2px_10px_-3px_rgba(0,0,0,0.55)]">
                 <div className="text-sm font-bold text-gray-900 dark:text-white">
                   {job.totalBreakTime} {t("minutes")}
                 </div>

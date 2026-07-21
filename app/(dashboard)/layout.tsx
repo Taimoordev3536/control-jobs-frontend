@@ -9,6 +9,7 @@ import { ChatProvider } from "@/components/providers/chat-provider"
 import { ImpersonationBanner } from "@/components/impersonation-banner"
 import { AnnouncementBanner } from "@/components/announcements/announcement-banner"
 import { useAuth } from "@/hooks/use-auth"
+import { ActiveJobFab } from "@/components/active-job-fab"
 
 export default function DashboardLayout({
   children,
@@ -73,6 +74,9 @@ export default function DashboardLayout({
           >
             {children}
           </div>
+          {/* Self-gating: renders only for a worker with an open session, and
+              never on /dashboard where the job card already leads the page. */}
+          <ActiveJobFab />
         </ChatProvider>
       </NotificationProvider>
     </div>
