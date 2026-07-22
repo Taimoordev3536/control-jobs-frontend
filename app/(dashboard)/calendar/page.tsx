@@ -4,7 +4,7 @@ import { useState } from "react"
 import { useSession } from "next-auth/react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { apiFetch } from "@/lib/api"
-import { Plus, Loader2, ChevronLeft, ChevronRight, ArrowLeft } from "lucide-react"
+import { Plus, Loader2, ArrowLeft } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -13,16 +13,12 @@ import { DateInput } from "@/components/ui/date-input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { AnimatedLoader } from "@/components/animated-loader"
 import { useTranslation } from "@/hooks/use-translation"
-import { localeForLanguage } from "@/lib/date-locale"
 import { toast } from "@/hooks/use-toast"
 import { useAuth } from "@/hooks/use-auth"
-import { formatLocalDate, madridToday, madridTodayKey } from "@/lib/datetime"
+import { formatLocalDate, madridTodayKey } from "@/lib/datetime"
 import ClientCalendar from "@/components/dashboards/client-dashboard/client-calendar"
-import { CalendarYearGrid } from "@/components/ui/calendar-year-grid"
+import { WorkerWorkCalendar } from "@/components/calendar/worker-work-calendar"
 import ConsultIcon from "@/icons/new/consultas.svg"
-
-const pad = (n: number) => String(n).padStart(2, "0")
-const ymd = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 
 const statusMeta: Record<string, { key: string; fallback: string; badge: string; accent: string; dot: string }> = {
   pending: { key: "pending", fallback: "Pendiente", badge: "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300", accent: "border-l-amber-400", dot: "bg-amber-400" },
@@ -45,37 +41,6 @@ function WorkerCalendarView() {
   const todayStr = madridTodayKey()
 
   const [tab, setTab] = useState<"laboral" | "solicitudes">("laboral")
-
-  // --- Laboral (month calendar) ---
-  const [cursor, setCursor] = useState(() => madridToday())
-  const [view, setView] = useState<"month" | "year">("month")
-
-  const monthStart = new Date(cursor.getFullYear(), cursor.getMonth(), 1)
-  const monthEnd = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0)
-  const rangeStart = view === "year" ? new Date(cursor.getFullYear(), 0, 1) : monthStart
-  const rangeEnd = view === "year" ? new Date(cursor.getFullYear(), 11, 31) : monthEnd
-
-  // The visible range is part of the key, so paging back to a month you've
-  // already viewed renders from cache instead of refetching.
-  const { data: days = {}, isLoading: loadingCal } = useQuery<Record<string, any>>({
-    queryKey: ["calendar", "my-calendar", ymd(rangeStart), ymd(rangeEnd)],
-    queryFn: async () => {
-      const j = await apiFetch<any>(`/jobs/worker/my-calendar?start=${ymd(rangeStart)}&end=${ymd(rangeEnd)}`)
-      const map: Record<string, any> = {}
-      ;(j?.data || []).forEach((d: any) => (map[d.date] = d))
-      return map
-    },
-    enabled: isAuthenticated,
-  })
-
-  const step = (dir: number) => setCursor((c) => view === "year" ? new Date(c.getFullYear() + dir, c.getMonth(), 1) : new Date(c.getFullYear(), c.getMonth() + dir, 1))
-  const monthLabel = cursor.toLocaleDateString(localeForLanguage(language), { month: "long", year: "numeric" })
-  const firstWeekday = (monthStart.getDay() + 6) % 7
-  const cells: (Date | null)[] = []
-  for (let i = 0; i < firstWeekday; i++) cells.push(null)
-  for (let d = new Date(monthStart); d <= monthEnd; d.setDate(d.getDate() + 1)) cells.push(new Date(d))
-  while (cells.length % 7 !== 0) cells.push(null)
-  const weekdays = [t("mon") || "Lun", t("tue") || "Mar", t("wed") || "Mié", t("thu") || "Jue", t("fri") || "Vie", t("sat") || "Sáb", t("sun") || "Dom"]
 
   // --- Solicitudes (absence requests) ---
   const [type, setType] = useState("vacation")
@@ -162,57 +127,7 @@ function WorkerCalendarView() {
         ))}
       </div>
 
-      {tab === "laboral" && (
-        <>
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="inline-flex rounded-md border border-border overflow-hidden">
-              <button onClick={() => setView("month")} className={`px-3 h-9 text-sm ${view === "month" ? "bg-[#662D91] text-white" : "bg-background text-foreground"}`}>{t("month") || "Mes"}</button>
-              <button onClick={() => setView("year")} className={`px-3 h-9 text-sm ${view === "year" ? "bg-[#662D91] text-white" : "bg-background text-foreground"}`}>{t("year") || "Año"}</button>
-            </div>
-            <Button variant="outline" size="sm" className="h-9 w-9 p-1" onClick={() => step(-1)}><ChevronLeft className="h-4 w-4" /></Button>
-            <Button variant="outline" size="sm" className="h-9 text-xs" onClick={() => setCursor(madridToday())}>{t("today") || "Hoy"}</Button>
-            <Button variant="outline" size="sm" className="h-9 w-9 p-1" onClick={() => step(1)}><ChevronRight className="h-4 w-4" /></Button>
-            <span className="text-sm font-medium capitalize ml-1">{view === "year" ? cursor.getFullYear() : monthLabel}</span>
-          </div>
-          <div className="flex gap-4 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />{t("laborable") || "Laborable"}</span>
-            <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-full bg-rose-500" />{t("holiday") || "Festivo"}</span>
-            <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-full bg-amber-500" />{t("absence") || "Ausencia"}</span>
-          </div>
-          {loadingCal ? (
-            <div className="flex justify-center py-12"><AnimatedLoader /></div>
-          ) : view === "year" ? (
-            <CalendarYearGrid
-              year={cursor.getFullYear()}
-              dayStatus={(key) => { const d = days[key]; return d?.holiday ? "holiday" : d?.absence ? "absence" : d?.working ? "working" : null }}
-              onPickMonth={(m) => { setCursor(new Date(cursor.getFullYear(), m, 1)); setView("month") }}
-            />
-          ) : (
-            <div className="grid grid-cols-7 gap-1">
-              {weekdays.map((w) => <div key={w} className="text-center text-[11px] font-medium text-muted-foreground py-1">{w}</div>)}
-              {cells.map((d, i) => {
-                if (!d) return <div key={i} className="min-h-[76px] rounded-md bg-muted/10" />
-                const key = ymd(d)
-                const day = days[key]
-                const cls = day?.holiday ? "border-rose-300 bg-rose-50/60 dark:border-rose-800 dark:bg-rose-950/20"
-                  : day?.absence ? "border-amber-300 bg-amber-50/60 dark:border-amber-800 dark:bg-amber-950/20"
-                  : day?.working ? "border-emerald-300 bg-emerald-50/50 dark:border-emerald-800 dark:bg-emerald-950/20"
-                  : "border-border"
-                return (
-                  <div key={i} className={`min-h-[76px] rounded-md border p-1 ${cls}`}>
-                    <div className={`text-xs font-medium ${key === todayStr ? "text-[#662D91]" : "text-foreground"}`}>{d.getDate()}</div>
-                    {day?.holiday && <div className="text-[10px] text-rose-600 dark:text-rose-400 truncate">{day.holidayName || t("holiday") || "Festivo"}</div>}
-                    {!day?.holiday && day?.absence && <div className="text-[10px] text-amber-700 dark:text-amber-400 truncate">{typeLabel(day.absence.type)}</div>}
-                    {!day?.holiday && !day?.absence && (day?.jobs || []).slice(0, 2).map((j: any, k: number) => (
-                      <div key={k} className="text-[10px] text-emerald-700 dark:text-emerald-400 truncate">{j.jobName}</div>
-                    ))}
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </>
-      )}
+      {tab === "laboral" && <WorkerWorkCalendar />}
 
       {tab === "solicitudes" && (
         <div className="space-y-6 pt-2">

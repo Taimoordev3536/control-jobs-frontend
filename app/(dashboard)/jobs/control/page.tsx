@@ -11,6 +11,7 @@ import { DateInput } from "@/components/ui/date-input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import TabTableTemplate, { TabTableColumn } from "@/components/ui/tab-table-template"
 import ClientControl from "@/components/dashboards/client-dashboard/client-control"
+import { CountBadgePopover } from "@/components/ui/count-badge-popover"
 
 interface ControlWorker {
   id: number
@@ -20,6 +21,7 @@ interface ControlWorker {
   checkInTime: string | null
   checkOutTime: string | null
   durationMinutes: number | null
+  checkInWorkCenter: string | null
 }
 interface ControlRow {
   jobId: number
@@ -30,6 +32,7 @@ interface ControlRow {
   titular: string | null
   workCenterName: string
   workCenterLocality: string
+  workCenters: { id: number; name: string; locality: string | null }[]
   workers: ControlWorker[]
   workerNames: string
   firstCheckIn: string | null
@@ -123,23 +126,73 @@ function EmployerControlView() {
       key: "startTime",
       label: t("hour") || "Hora",
       align: "center",
+      // Pixel widths across the columns: with the table's fixed layout the table
+      // width becomes their sum, so on a phone it grows past the viewport and the
+      // wrapper scrolls horizontally (data stays readable) while still filling a
+      // desktop — instead of cramming every column into 100% width.
+      width: "80px",
       render: (_v, row) => (
         <span className={row.overdue ? "text-red-700 dark:text-red-400 font-medium" : ""}>{rowHour(row)}</span>
       ),
     },
-    { key: "titular", label: t("titular") || "Titular", render: (v) => v || "—" },
+    { key: "titular", label: t("titular") || "Titular", width: "150px", render: (v) => v || "—" },
     {
       key: "workCenterName",
       label: t("workCenter") || "Centro de Trabajo",
-      render: (v, row) => (
-        <span>
-          {v || "—"}
-          {row.workCenterLocality && <span className="text-muted-foreground"> · {row.workCenterLocality}</span>}
-        </span>
-      ),
+      width: "200px",
+      render: (v, row) => {
+        // A job can span many centres; the full comma list was an unreadable
+        // wall of text. Show the first + a count badge — the complete list (and
+        // where each worker actually checked in) is in the row's detail popup.
+        const list = row.workCenters || []
+        if (list.length <= 1) {
+          const only = list[0]
+          return (
+            <span>
+              {only?.name || v || "—"}
+              {only?.locality && <span className="text-muted-foreground"> · {only.locality}</span>}
+            </span>
+          )
+        }
+        return (
+          <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+            <span>{list[0].name}</span>
+            <CountBadgePopover
+              items={list.map((w: { name: string }) => w.name)}
+              label={t("workCenter") || "Centro de Trabajo"}
+            />
+          </span>
+        )
+      },
     },
-    { key: "jobName", label: t("job") || "Job", render: (v) => v || "—" },
-    { key: "workerNames", label: t("worker") || "Trabajador", render: (v) => v || "—" },
+    { key: "jobName", label: t("job") || "Job", width: "160px", render: (v) => v || "—" },
+    {
+      key: "workerNames",
+      label: t("worker") || "Trabajador",
+      width: "200px",
+      render: (v, row) => {
+        // Same compact "first + N" treatment as the work-centre column, so a job
+        // with several assigned workers doesn't stretch the cell into a wall of
+        // names. De-dupe by id (distinct workers can share a code, e.g. "10120").
+        const seen = new Set<any>()
+        const names = (row.workers || [])
+          .filter((w: ControlWorker) => {
+            if (seen.has(w.id)) return false
+            seen.add(w.id)
+            return true
+          })
+          .map((w: ControlWorker) => w.name || (w.code ? `Worker ${w.code}` : ""))
+          .filter(Boolean) as string[]
+        if (names.length === 0) return v || "—"
+        if (names.length === 1) return <span>{names[0]}</span>
+        return (
+          <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+            <span>{names[0]}</span>
+            <CountBadgePopover items={names} label={t("worker") || "Trabajador"} />
+          </span>
+        )
+      },
+    },
     {
       key: "alerts",
       label: t("alerts") || "Alertas",
@@ -193,25 +246,27 @@ function EmployerControlView() {
     <div className="p-2 bg-background min-h-screen space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-2xl font-semibold text-foreground">{t("control") || "Control"}</h1>
-        <div className="flex items-center gap-2">
+        {/* The fixed search + date widths (8.5rem + 11rem + buttons) ran off a
+            phone. Let the toolbar wrap and the two inputs flex to fit. */}
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
           <input
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={t("search") || "Search..."}
-            className="w-[8.5rem] h-9 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:border-[#662D91] focus:ring-1 focus:ring-[#662D91] bg-background"
+            className="flex-1 min-w-[7rem] sm:flex-none sm:w-[8.5rem] h-9 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:border-[#662D91] focus:ring-1 focus:ring-[#662D91] bg-background"
           />
-          <Button variant="outline" size="sm" onClick={() => setDate((d) => shiftDay(d, -1))} className="p-1 h-9 w-9">
+          <Button variant="outline" size="sm" onClick={() => setDate((d) => shiftDay(d, -1))} className="p-1 h-9 w-9 shrink-0">
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <div className="w-[11rem]">
+          <div className="flex-1 min-w-[8.5rem] sm:flex-none sm:w-[11rem]">
             <DateInput value={date} onChange={(e) => setDate(e.target.value)} allowPastDates className="h-9 text-sm" />
           </div>
-          <Button variant="outline" size="sm" onClick={() => setDate((d) => shiftDay(d, 1))} className="p-1 h-9 w-9">
+          <Button variant="outline" size="sm" onClick={() => setDate((d) => shiftDay(d, 1))} className="p-1 h-9 w-9 shrink-0">
             <ChevronRight className="h-4 w-4" />
           </Button>
           {!isToday && (
-            <Button variant="outline" size="sm" onClick={() => setDate(todayStr())} className="h-9 text-xs">
+            <Button variant="outline" size="sm" onClick={() => setDate(todayStr())} className="h-9 text-xs shrink-0">
               {t("today") || "Today"}
             </Button>
           )}
@@ -236,7 +291,7 @@ function EmployerControlView() {
       />
 
       <Dialog open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
-        <DialogContent className="max-w-lg p-0 gap-0 bg-background">
+        <DialogContent className="w-full max-w-[94vw] sm:max-w-lg p-0 gap-0 max-h-[90vh] overflow-y-auto bg-background">
           <DialogHeader className="p-6 pb-4">
             <DialogTitle className="text-xl font-semibold text-foreground text-center tracking-tight">
               {selected?.jobName}
@@ -257,11 +312,22 @@ function EmployerControlView() {
                   <div className="font-medium text-foreground">{selected.titular || "—"}</div>
                 </div>
                 <div className="col-span-2">
-                  <div className="text-xs text-muted-foreground">{t("workCenter") || "Centro de Trabajo"}</div>
-                  <div className="font-medium text-foreground">
-                    {selected.workCenterName || "—"}
-                    {selected.workCenterLocality ? ` · ${selected.workCenterLocality}` : ""}
+                  <div className="text-xs text-muted-foreground mb-1">
+                    {t("workCenter") || "Centro de Trabajo"}
+                    {selected.workCenters?.length > 1 ? ` (${selected.workCenters.length})` : ""}
                   </div>
+                  {selected.workCenters?.length ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {selected.workCenters.map((wc) => (
+                        <span key={wc.id} className="rounded-md bg-muted px-2 py-1 text-sm text-foreground">
+                          {wc.name}
+                          {wc.locality && <span className="text-muted-foreground"> · {wc.locality}</span>}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="font-medium text-foreground">{selected.workCenterName || "—"}</div>
+                  )}
                 </div>
               </div>
 
@@ -275,6 +341,11 @@ function EmployerControlView() {
                         <div className="text-sm text-foreground truncate">{w.name || w.code}</div>
                         {w.checkedIn && (
                           <div className="text-xs text-muted-foreground">
+                            {/* The exact centre this worker checked in at — the
+                                useful answer to "where did they actually go". */}
+                            {w.checkInWorkCenter && (
+                              <span className="text-foreground font-medium">{w.checkInWorkCenter} · </span>
+                            )}
                             {t("alertSignIn") || "Entrada"} {isoHHMM(w.checkInTime)}
                             {w.checkOutTime ? ` · ${t("alertSignOut") || "Salida"} ${isoHHMM(w.checkOutTime)}` : ""}
                             {w.durationMinutes != null ? ` · ${fmtDuration(w.durationMinutes)}` : ""}

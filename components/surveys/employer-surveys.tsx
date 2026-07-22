@@ -180,7 +180,7 @@ export function EmployerSurveys({ audience }: { audience: Audience }) {
       {settingsOpen && <RetentionSettingsDialog onClose={() => setSettingsOpen(false)} />}
 
       <Dialog open={!!resultsId} onOpenChange={(o) => !o && setResultsId(null)}>
-        <DialogContent className="max-w-2xl p-0 gap-0 max-h-[90vh] flex flex-col bg-background overflow-hidden">
+        <DialogContent className="w-full max-w-[94vw] sm:max-w-2xl p-0 gap-0 max-h-[90vh] flex flex-col bg-background overflow-hidden">
           <DialogHeader className="p-6 pb-4 border-b border-border">
             <DialogTitle className="text-xl sm:text-2xl font-semibold text-foreground text-center tracking-tight">{t("results") || "Resultados"}</DialogTitle>
           </DialogHeader>
@@ -244,7 +244,7 @@ function SurveyBuilderDialog({ audience, editing, onClose, onSaved }: { audience
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-2xl p-0 gap-0 max-h-[90vh] flex flex-col bg-background overflow-hidden">
+      <DialogContent className="w-full max-w-[94vw] sm:max-w-2xl p-0 gap-0 max-h-[90vh] flex flex-col bg-background overflow-hidden">
         <DialogHeader className="p-6 pb-4 border-b border-border">
           <DialogTitle className="text-xl sm:text-2xl font-semibold text-foreground text-center tracking-tight">
             {editing ? (t("editSurvey") || "Editar encuesta") : (t("createSurvey") || "Crear encuesta")}
@@ -368,7 +368,7 @@ function RetentionSettingsDialog({ onClose }: { onClose: () => void }) {
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-md p-0 gap-0 flex flex-col bg-background overflow-hidden">
+      <DialogContent className="w-full max-w-[94vw] sm:max-w-md p-0 gap-0 max-h-[90vh] overflow-y-auto flex flex-col bg-background">
         <DialogHeader className="p-6 pb-4 border-b border-border">
           <DialogTitle className="text-xl sm:text-2xl font-semibold text-foreground text-center tracking-tight">{t("retentionTitle") || "Conservación de respuestas"}</DialogTitle>
         </DialogHeader>

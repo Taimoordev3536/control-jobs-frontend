@@ -526,13 +526,19 @@ export function CheckInProcess({ job, method, token, onBack, onComplete, preScan
         longitude: locationRef.current?.longitude ?? null,
         // ipAddress is deliberately not sent: the server records the IP it
         // observes, and a client-supplied one is both untrusted and unused.
+        // Only what was actually captured. This blob previously fell back to the
+        // job's default work-center NAME when no address was known, so an
+        // attendance record showed a name under "Address" — and a different work
+        // center from the one the check-in resolved to.
         location: JSON.stringify({
-          address: locationRef.current?.address || job.workCenter.name,
-          latitude: locationRef.current?.latitude || null,
-          longitude: locationRef.current?.longitude || null,
+          address: locationRef.current?.address ?? null,
+          latitude: locationRef.current?.latitude ?? null,
+          longitude: locationRef.current?.longitude ?? null,
           accuracy: locationRef.current?.accuracy ?? null,
         }),
-        notes: `QR check-in${workCenterId != null ? ` (work center ${workCenterId})` : ""}`,
+        // The work center is stored on the record itself; repeating its internal
+        // numeric id here surfaced "work center 10" in the worker-facing timeline.
+        notes: "QR check-in",
         userTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       }),
     })

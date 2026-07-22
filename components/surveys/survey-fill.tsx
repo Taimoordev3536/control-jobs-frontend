@@ -12,6 +12,7 @@ import { AnimatedLoader } from "@/components/animated-loader"
 import { useTranslation } from "@/hooks/use-translation"
 import { toast } from "@/hooks/use-toast"
 import { formatLocalDate } from "@/lib/datetime"
+import { apiFetch } from "@/lib/api"
 
 export function SurveyFill() {
   const { t } = useTranslation()
@@ -22,11 +23,14 @@ export function SurveyFill() {
   const [viewing, setViewing] = useState<any | null>(null)
   const [filter, setFilter] = useState("")
 
+  // apiFetch, not raw fetch: it sends the impersonation token when one is
+  // active. Using session.accessToken sent the EMPLOYER's own token while
+  // impersonating, so the API resolved the employer — who is neither a worker
+  // nor a client — and answered 403 for every survey request.
   const { data: list = [], isLoading: loading } = useQuery<any[]>({
     queryKey: ["survey-forms", "mine"],
     queryFn: async () => {
-      const r = await fetch(`${base}/survey-forms/mine`, { headers: { Authorization: `Bearer ${session!.accessToken}` } })
-      const j = await r.json()
+      const j = await apiFetch<any>("/survey-forms/mine")
       return Array.isArray(j?.data) ? j.data : []
     },
     enabled: status === "authenticated",
@@ -121,8 +125,7 @@ function MyResponseDialog({ survey, onClose }: { survey: any; onClose: () => voi
   const { data = null, isLoading: loading } = useQuery<any | null>({
     queryKey: ["survey-forms", survey.id, "my-response"],
     queryFn: async () => {
-      const r = await fetch(`${base}/survey-forms/${survey.id}/my-response`, { headers: { Authorization: `Bearer ${session!.accessToken}` } })
-      const j = await r.json()
+      const j = await apiFetch<any>(`/survey-forms/${survey.id}/my-response`)
       return j?.data || null
     },
     enabled: status === "authenticated" && !!survey.id,
@@ -183,16 +186,15 @@ function FillDialog({ survey, onClose, onDone }: { survey: any; onClose: () => v
     if (missing) { toast({ title: t("answerAllRequired") || "Responde las preguntas obligatorias", variant: "destructive" }); return }
     setSaving(true)
     try {
-      const res = await fetch(`${base}/survey-forms/${survey.id}/submit`, {
+      await apiFetch(`/survey-forms/${survey.id}/submit`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${session.accessToken}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ answers: (survey.questions || []).map((q: any) => ({ questionId: q.id, value: answers[q.id] })) }),
+        body: { answers: (survey.questions || []).map((q: any) => ({ questionId: q.id, value: answers[q.id] })) },
       })
-      if (!res.ok) throw new Error()
       toast({ title: t("surveySubmitted") || "Encuesta enviada. ¡Gracias!", variant: "success" })
       onDone()
-    } catch {
-      toast({ title: t("error") || "Error", variant: "destructive" })
+    } catch (e: any) {
+      // Surface the reason rather than a bare "Error".
+      toast({ title: e?.message || t("error") || "Error", variant: "destructive" })
     } finally {
       setSaving(false)
     }

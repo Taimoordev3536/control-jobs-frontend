@@ -129,7 +129,7 @@ export default function AbsencesPage() {
       />
 
       <Dialog open={!!selected} onOpenChange={(o) => { if (!o) { setSelected(null); setNotes("") } }}>
-        <DialogContent className="max-w-lg p-0 gap-0 max-h-[90vh] flex flex-col bg-background overflow-hidden">
+        <DialogContent className="w-full max-w-[94vw] sm:max-w-lg p-0 gap-0 max-h-[90vh] flex flex-col bg-background overflow-hidden">
           <DialogHeader className="p-6 pb-4 space-y-2 border-b border-border">
             <DialogTitle className="text-xl sm:text-2xl font-semibold text-foreground text-center tracking-tight">
               {t("absenceRequest") || "Solicitud de ausencia"}

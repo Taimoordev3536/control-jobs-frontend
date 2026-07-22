@@ -170,26 +170,31 @@ export default function MyJobsPage() {
                 const dayNum = d.getDate()
                 const monthShort = d.toLocaleDateString(localeForLanguage(language), { month: "short" })
                 return (
-                  <div key={`${item.publicId}-${item.date}`} className="rounded-xl border border-border bg-card p-3 flex items-center gap-4 relative overflow-hidden">
+                  // The button never shrinks and its label is long, so on a phone
+                  // it took the row and squeezed the job name down to one letter.
+                  // Date + name share the first line; the button sits below.
+                  <div key={`${item.publicId}-${item.date}`} className="rounded-xl border border-border bg-card p-3 pl-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 relative overflow-hidden">
                     <span className="absolute left-0 top-0 bottom-0 w-1 bg-red-500" />
-                    <div className="text-center w-14 shrink-0 pl-1">
-                      <div className="text-xl font-bold leading-none tabular-nums">{dayNum}</div>
-                      <div className="text-[11px] text-muted-foreground uppercase">{monthShort}</div>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-semibold text-sm truncate">{item.jobName}</div>
-                      <div className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap mt-0.5">
-                        {item.workCenterName && <span className="inline-flex items-center gap-1"><MapPin className="h-3 w-3" />{item.workCenterName}</span>}
-                        {item.shiftStart && <span>{t("shift") || "Turno"} {item.shiftStart}</span>}
+                    <div className="flex items-center gap-4 min-w-0 sm:flex-1">
+                      <div className="text-center w-12 shrink-0">
+                        <div className="text-xl font-bold leading-none tabular-nums">{dayNum}</div>
+                        <div className="text-[11px] text-muted-foreground uppercase">{monthShort}</div>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="font-semibold text-sm truncate">{item.jobName}</div>
+                        <div className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap mt-0.5">
+                          {item.workCenterName && <span className="inline-flex items-center gap-1 min-w-0"><MapPin className="h-3 w-3 shrink-0" /><span className="truncate">{item.workCenterName}</span></span>}
+                          {item.shiftStart && <span>{t("shift") || "Turno"} {item.shiftStart}</span>}
+                        </div>
                       </div>
                     </div>
                     <Button
                       size="sm"
                       variant="outline"
-                      className="h-8 text-xs border-purple-300 text-[#662D91] hover:bg-purple-50 dark:border-purple-800 dark:hover:bg-purple-950/40 shrink-0"
+                      className="h-8 text-xs w-full sm:w-auto shrink-0 border-purple-300 text-[#662D91] hover:bg-purple-50 dark:border-purple-800 dark:hover:bg-purple-950/40"
                       onClick={() => openManual(item, item.date)}
                     >
-                      <CalendarClock className="h-3.5 w-3.5 mr-1" />
+                      <CalendarClock className="h-3.5 w-3.5 mr-1 shrink-0" />
                       {t("requestManualCheckin") || "Solicitar fichaje manual"}
                     </Button>
                   </div>

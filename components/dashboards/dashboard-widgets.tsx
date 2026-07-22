@@ -1,8 +1,8 @@
 "use client"
 
-import { ReactNode } from "react"
+import { ReactNode, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
-import { ChevronRight, Search } from "lucide-react"
+import { ChevronRight, ChevronDown, Search, SlidersHorizontal } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useTranslation } from "@/hooks/use-translation"
@@ -313,13 +313,48 @@ export function JobFilterBar({
   workers?: string[]
 }) {
   const { t } = useTranslation()
-  const dd = "h-9 w-[150px] bg-card border-border text-sm"
+  const [open, setOpen] = useState(false)
+
+  // How many dropdowns are narrowing the list — drives the count on the mobile
+  // "Filters" button so an active filter is visible while collapsed.
+  const activeCount = [
+    status && status !== "all",
+    occupation && occupation !== "all",
+    client && client !== "all",
+    worker && worker !== "all",
+    workCenter && workCenter !== "all",
+  ].filter(Boolean).length
+
+  // A fixed 150px left each dropdown stranded on its own row with dead space
+  // beside it on a phone. Full width in a 2-column grid there; the original
+  // inline row from sm upwards, where `contents` dissolves the grid wrapper.
+  const dd = "h-9 w-full sm:w-[150px] bg-card border-border text-sm"
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <div className="relative flex-1 min-w-[200px]">
+    <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2">
+      <div className="relative w-full sm:flex-1 sm:min-w-[200px]">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
         <Input placeholder={t("searchJobs") || "Search jobs…"} value={search} onChange={(e) => onSearch(e.target.value)} className="pl-9 h-9 bg-card border-border" />
       </div>
+
+      {/* The dropdowns are rarely touched, yet took five rows on every phone
+          view. Collapse them behind a toggle on mobile; unchanged on desktop. */}
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="sm:hidden flex items-center justify-between h-9 px-3 rounded-md border border-border bg-card text-sm"
+      >
+        <span className="flex items-center gap-2">
+          <SlidersHorizontal className="w-4 h-4" />
+          {t("filters") || "Filtros"}
+          {activeCount > 0 && (
+            <span className="grid place-items-center min-w-[18px] h-[18px] px-1 rounded-full bg-[#662D91] text-white text-[11px] font-bold">{activeCount}</span>
+          )}
+        </span>
+        <ChevronDown className={`w-4 h-4 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+
+      <div className={`${open ? "grid" : "hidden"} grid-cols-2 gap-2 sm:grid sm:contents`}>
       <Select value={status} onValueChange={onStatus}>
         <SelectTrigger className={dd}><SelectValue placeholder={t("allStatuses") || "All statuses"} /></SelectTrigger>
         <SelectContent className="bg-card border-border">
@@ -365,6 +400,7 @@ export function JobFilterBar({
           </SelectContent>
         </Select>
       )}
+      </div>
     </div>
   )
 }

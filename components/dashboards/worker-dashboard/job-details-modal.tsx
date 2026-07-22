@@ -199,7 +199,7 @@ export function JobDetailsModal({ job, isOpen, onClose }: JobDetailsModalProps) 
                     <span className="text-sm font-medium">
                       {job.shift.scheduleType === "fixed" && job.shift.startTime && job.shift.endTime
                         ? `${job.shift.startTime} - ${job.shift.endTime}`
-                        : "Flexible"}
+                        : t("free")}
                     </span>
                   </div>
                 </CardContent>

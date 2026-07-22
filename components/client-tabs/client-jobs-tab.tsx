@@ -1,11 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
+import { Eye, ClipboardList } from "lucide-react"
+import { CountBadgePopover } from "@/components/ui/count-badge-popover"
 import TabTableTemplate, { type TabTableColumn } from "@/components/ui/tab-table-template"
 import { useTranslation } from "@/hooks/use-translation"
 import { useAuth } from "@/hooks/use-auth"
-import { JobAttendanceDetail } from "@/components/job-attendance-detail"
 
 interface ClientJobsTabProps {
   clientId: string
@@ -27,10 +28,13 @@ interface ClientJobRow {
 export function ClientJobsTab({ clientId }: ClientJobsTabProps) {
   const { t } = useTranslation()
   const { session } = useAuth()
-  // When a row is clicked we swap the list out for JobAttendanceDetail (which
-  // internally fetches /jobs/:jobId/scan-history). Keeping this state local to
-  // the tab avoids a route change and preserves the parent Clients page tabs.
-  const [selectedJob, setSelectedJob] = useState<ClientJobRow | null>(null)
+  const router = useRouter()
+
+  // Two per-row actions, matching the employer job-card exactly:
+  //   Detail  → /jobs/:id/detail   (the canonical job info page)
+  //   Records → /records/employer?jobId=:id  (the attendance records table)
+  const openDetail = (row: ClientJobRow) => router.push(`/jobs/${row.publicId}/detail`)
+  const openRecords = (row: ClientJobRow) => router.push(`/records/employer?jobId=${row.publicId}`)
 
   const { data: jobs = [], isLoading } = useQuery<ClientJobRow[]>({
     queryKey: ["jobs", "by-client", clientId],
@@ -65,34 +69,20 @@ export function ClientJobsTab({ clientId }: ClientJobsTabProps) {
     },
   })
 
-  if (selectedJob) {
+  // A job can span many centres / workers. Show the first + a clickable "+N"
+  // badge that opens a small popover listing every name — same compact style as
+  // the Management page. An sr-only span keeps every value in the DOM so the
+  // table's text search still matches folded names.
+  const compact = (items: Array<string | null | undefined>, label: string) => {
+    const list = items.filter((v): v is string => !!v && v.trim() !== "")
+    if (list.length === 0) return <span>-</span>
+    if (list.length === 1) return <span>{list[0]}</span>
     return (
-      <JobAttendanceDetail
-        jobId={selectedJob.publicId}
-        jobData={{
-          id: selectedJob.jobId,
-          publicId: selectedJob.publicId,
-          jobName: selectedJob.jobName,
-          workCenters: selectedJob.workCenters,
-          workers: selectedJob.workers,
-        }}
-        onBack={() => setSelectedJob(null)}
-      />
-    )
-  }
-
-  // Renders an array of strings as a stack of <div> rows so each work center
-  // / worker name lands on its own line in the cell instead of being joined
-  // with commas (which produced ugly soft-wraps on long names).
-  const renderLines = (items: Array<string | null | undefined>) => {
-    const cleaned = items.filter((v): v is string => !!v && v.trim() !== "")
-    if (cleaned.length === 0) return "-"
-    return (
-      <div className="flex flex-col gap-0.5">
-        {cleaned.map((line, i) => (
-          <span key={i} className="leading-snug">{line}</span>
-        ))}
-      </div>
+      <span className="flex items-center gap-1.5 max-w-full">
+        <span className="truncate min-w-0">{list[0]}</span>
+        <CountBadgePopover items={list} label={label} />
+        <span className="sr-only">{list.slice(1).join(", ")}</span>
+      </span>
     )
   }
 
@@ -101,25 +91,64 @@ export function ClientJobsTab({ clientId }: ClientJobsTabProps) {
       key: "denomination",
       label: t("denomination"),
       sortable: true,
-      width: "35%",
+      // Pixel widths (not %): with the table's fixed layout the table becomes the
+      // sum of these, so on a phone it grows past the viewport and the wrapper
+      // scrolls horizontally (headers/data stay readable) while still filling a
+      // desktop. Avoids cramming everything into 100% width on mobile.
+      width: "190px",
     },
     {
       key: "workCentersLabel",
       label: t("workCenters"),
       sortable: true,
-      width: "35%",
+      width: "200px",
       render: (_value, row: ClientJobRow) =>
-        renderLines((row.workCenters || []).map((w) => w?.name)),
+        compact((row.workCenters || []).map((w) => w?.name), t("workCenters")),
     },
     {
       key: "workersLabel",
       label: t("workers"),
       sortable: true,
-      width: "30%",
-      render: (_value, row: ClientJobRow) =>
-        renderLines(
-          (row.workers || []).map((w) => w?.name || (w?.code ? `Worker ${w.code}` : null)),
-        ),
+      width: "180px",
+      render: (_value, row: ClientJobRow) => {
+        // De-dupe by the worker's unique id, NOT the label: distinct workers can
+        // share a code (e.g. "10120"), and keying on text collapses them into one.
+        const seen = new Set<any>()
+        const names = (row.workers || [])
+          .filter((w) => {
+            const k = w?.publicId ?? w?.id
+            if (k == null || seen.has(k)) return false
+            seen.add(k)
+            return true
+          })
+          .map((w) => w?.name || (w?.code ? `Worker ${w.code}` : null))
+        return compact(names, t("workers"))
+      },
+    },
+    {
+      key: "actions",
+      label: t("actions") || "Acciones",
+      align: "center",
+      width: "210px",
+      render: (_value, row: ClientJobRow) => (
+        // stopPropagation so the buttons don't also fire the row's onRowClick.
+        <div className="flex flex-nowrap items-center justify-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+          <button
+            onClick={() => openDetail(row)}
+            className="inline-flex items-center gap-1 h-7 px-2.5 rounded-md text-xs font-medium whitespace-nowrap bg-neutral-500 hover:bg-neutral-600 text-white transition-colors"
+          >
+            <Eye className="w-3.5 h-3.5 shrink-0" />
+            {t("details") || "Detalles"}
+          </button>
+          <button
+            onClick={() => openRecords(row)}
+            className="inline-flex items-center gap-1 h-7 px-2.5 rounded-md text-xs font-medium whitespace-nowrap bg-purple-700 hover:bg-purple-800 text-white transition-colors"
+          >
+            <ClipboardList className="w-3.5 h-3.5 shrink-0" />
+            {t("records") || "Registros"}
+          </button>
+        </div>
+      ),
     },
   ]
 
@@ -129,7 +158,6 @@ export function ClientJobsTab({ clientId }: ClientJobsTabProps) {
       data={jobs}
       loading={isLoading}
       emptyMessage={t("noDataAvailableInTable")}
-      onRowClick={(row) => setSelectedJob(row as ClientJobRow)}
     />
   )
 }

@@ -29,9 +29,10 @@ export default function EditJobPage({ params }: { params: { id: string } }) {
         </div>
       </div> */}
 
-      {/* Main Content */}
-      <div className="flex justify-center px-4 py-4">
-        <div className="bg-card rounded-lg shadow-sm border pt-2 p-6 w-full max-w-[50rem]">
+      {/* Main Content — tighter padding on phones so the inner form keeps its
+          width; the desktop p-6 is preserved from sm up. */}
+      <div className="flex justify-center px-2 sm:px-4 py-4">
+        <div className="bg-card rounded-lg shadow-sm border pt-2 p-3 sm:p-6 w-full max-w-[50rem]">
           {/* Header */}
           <div className="flex items-center justify-between mb-6 relative">
             <div className="flex-1" />

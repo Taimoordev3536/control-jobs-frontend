@@ -61,7 +61,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={inter.className}>
+      {/* Browser extensions (ColorZilla's cz-shortcut-listen, Grammarly's
+          data-gr-* …) inject attributes on <body> before React hydrates, which
+          React then reports as a mismatch. Nothing we render causes it, and the
+          noise buries real hydration errors. */}
+      <body className={inter.className} suppressHydrationWarning>
         {/* Handle stale chunk errors after redeployment by forcing a full reload */}
         <Script id="chunk-error-handler" strategy="beforeInteractive">
           {`

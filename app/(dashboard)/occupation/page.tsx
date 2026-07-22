@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo, useState, useRef, useEffect } from "react"
 import { useSession } from "next-auth/react"
 import { useQuery } from "@tanstack/react-query"
 import { apiFetch } from "@/lib/api"
@@ -35,6 +35,25 @@ export default function OccupationPage() {
   const [selected, setSelected] = useState<string[]>([])
   const [showPicker, setShowPicker] = useState(false)
   const [plannerOpen, setPlannerOpen] = useState(false)
+
+  // Close the worker picker on any click outside it or Escape — it previously
+  // only closed by tapping the "All" button again.
+  const pickerRef = useRef<HTMLDivElement | null>(null)
+  useEffect(() => {
+    if (!showPicker) return
+    const onDown = (e: MouseEvent | TouchEvent) => {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) setShowPicker(false)
+    }
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setShowPicker(false) }
+    document.addEventListener("mousedown", onDown)
+    document.addEventListener("touchstart", onDown)
+    document.addEventListener("keydown", onKey)
+    return () => {
+      document.removeEventListener("mousedown", onDown)
+      document.removeEventListener("touchstart", onDown)
+      document.removeEventListener("keydown", onKey)
+    }
+  }, [showPicker])
 
   const range = useMemo(() => {
     if (view === "month") {
@@ -116,7 +135,7 @@ export default function OccupationPage() {
         <Button variant="outline" size="sm" className="h-9 w-9 p-1" onClick={() => step(1)}><ChevronRight className="h-4 w-4" /></Button>
         <span className="text-sm font-medium capitalize ml-1">{periodLabel}</span>
 
-        <div className="relative ml-auto">
+        <div className="relative ml-auto" ref={pickerRef}>
           <Button variant="outline" size="sm" className="h-9 text-xs" onClick={() => setShowPicker((v) => !v)}>
             <Users className="h-4 w-4 mr-1" />
             {selected.length ? `${selected.length} ${t("workers") || "Trabajadores"}` : t("allWorkers") || "Todos"}

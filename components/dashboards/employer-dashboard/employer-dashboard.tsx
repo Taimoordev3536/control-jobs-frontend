@@ -476,10 +476,17 @@ export default function EmployerDashboard() {
     return {
       totalJobs,
       inProgressJobs: jobs.filter((job) => job.status === "in_progress").length,
-      totalWorkers: new Set(jobs.flatMap((job) => job.workers.map((w) => w.id))).size,
+      totalWorkers: new Set(jobs.flatMap((job) => (job.workers || []).map((w) => w.id))).size,
       completionRate: totalJobs > 0 ? Math.round((completedJobs / totalJobs) * 100) : 0,
       avgRating: 4.8, // Static for now
-      totalClients: new Set(jobs.map((job) => job.client.name)).size,
+      // Employer-owned jobs have no client, so job.client is undefined — reading
+      // .name off it crashed the whole dashboard. Count distinct clients by a
+      // stable id, skipping clientless jobs.
+      totalClients: new Set(
+        jobs
+          .map((job) => job.client?.id ?? (job.client as any)?.publicId)
+          .filter(Boolean),
+      ).size,
       pendingJobs: jobs.filter((job) => job.status === "scheduled").length,
       completedJobs,
       totalRevenue: 2450000, // Static for now

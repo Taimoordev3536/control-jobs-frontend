@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
 import { useTranslation } from "@/hooks/use-translation"
 import { AnimatedLoader } from "@/components/animated-loader"
-import { ArrowLeft, Clock, Coffee, ListChecks, MapPin, ClipboardList, ShieldCheck, LayoutGrid, LogIn, LogOut, Download, PencilLine, Calendar } from "lucide-react"
+import { ArrowLeft, Clock, Coffee, ListChecks, MapPin, ClipboardList, ShieldCheck, LayoutGrid, LogIn, LogOut, Download, PencilLine, Calendar, ChevronDown } from "lucide-react"
 import JobsIcon from "@/icons/Menu/Jobs.svg"
 import ClientIcon from "@/icons/Menu/clients.svg"
 import BuildingsIcon from "@/icons/Menu/buildings.svg"
@@ -49,6 +49,152 @@ function parseAddress(loc?: string | null) {
   }
 }
 
+/**
+ * Check-in and check-out are the facts; breaks are supporting detail. A flat
+ * chronological list pushed check-out below the fold on any day with a few
+ * breaks, so the break run is folded into one row that expands on demand —
+ * the timeline stays three rows whether there are two events or thirty.
+ */
+function ScanTimeline({ scans, t }: { scans: any[]; t: (k: string) => string }) {
+  const [openBreaks, setOpenBreaks] = useState(false)
+
+  const isBreak = (s: any) => s.scanType === "break-start" || s.scanType === "break-end"
+  const leading = scans.filter((s) => !isBreak(s) && s.scanType === "check-in")
+  const trailing = scans.filter((s) => !isBreak(s) && s.scanType !== "check-in")
+  const breaks = scans.filter(isBreak)
+
+  // Pair starts with ends to total the time away.
+  const breakMinutes = (() => {
+    let total = 0
+    let start: any = null
+    for (const s of scans) {
+      if (s.scanType === "break-start") start = s
+      else if (s.scanType === "break-end" && start) {
+        const a = toMinutes(start.time)
+        const b = toMinutes(s.time)
+        if (a != null && b != null && b >= a) total += b - a
+        start = null
+      }
+    }
+    return total
+  })()
+  const breakCount = scans.filter((s) => s.scanType === "break-start").length
+
+  const Row = ({ s }: { s: any }) => {
+    const isIn = s.scanType === "check-in"
+    const isOut = s.scanType === "check-out"
+    const dot = isIn ? "bg-emerald-500" : isOut ? "bg-red-500" : "bg-amber-500"
+    const label = isIn
+      ? t("checkIn")
+      : isOut
+        ? t("checkOut")
+        : s.scanType === "break-start"
+          ? t("breakStart")
+          : s.scanType === "break-end"
+            ? t("breakEnd")
+            : s.scanType
+    const addr = parseAddress(s.location)
+    const anchor = isIn || isOut
+    return (
+      <div className="relative py-3">
+        <div className={`absolute -left-[21px] top-4 w-3.5 h-3.5 rounded-full ring-4 ring-card ${dot}`} />
+        <div className={`tabular-nums ${anchor ? "text-[15px] font-extrabold" : "text-[13px] font-semibold text-muted-foreground"}`}>
+          {s.time} · {label}
+        </div>
+        <div className="text-[13px] text-muted-foreground mt-1 flex items-center gap-1.5 flex-wrap">
+          {s.workCenter && <span>{s.workCenter}</span>}
+          {s.method && <Meth m={s.method} />}
+          {s.latitude != null && (
+            <span>· GPS {Number(s.latitude).toFixed(4)}, {Number(s.longitude).toFixed(4)}</span>
+          )}
+          {/* IP is evidence on the anchors; on every break row it is just noise.
+              It remains on each event in the Audit tab. */}
+          {anchor && s.ipAddress && <span>· IP {s.ipAddress}</span>}
+          {addr && <span>· {addr}</span>}
+          {s.notes && <span>· {translateNote(s.notes, t)}</span>}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="relative pl-7">
+      <div className="absolute left-2.5 top-2 bottom-2 w-0.5 bg-border" />
+
+      {leading.map((s, i) => <Row key={`in-${i}`} s={s} />)}
+
+      {breaks.length > 0 && (
+        <div className="relative py-3">
+          <div className="absolute -left-[21px] top-4 w-3.5 h-3.5 rounded-full ring-4 ring-card bg-amber-500" />
+          {/* Plain row, as the other timeline entries — only the chevron carries
+              a filled background, so the row still reads as a control. */}
+          <button
+            type="button"
+            onClick={() => setOpenBreaks((v) => !v)}
+            aria-expanded={openBreaks}
+            className="flex items-center gap-2 text-[15px] font-extrabold hover:opacity-80 transition-opacity"
+          >
+            <Coffee className="w-4 h-4 shrink-0 text-amber-500" />
+            <span>
+              {breakCount} {breakCount === 1 ? t("breakSingular") : t("breakPlural")}
+              {breakMinutes > 0 && ` · ${formatMinutes(breakMinutes)}`}
+            </span>
+            <span className="grid place-items-center w-6 h-6 shrink-0 rounded-full bg-amber-500 text-white shadow-sm">
+              <ChevronDown
+                className={`w-3.5 h-3.5 transition-transform duration-200 ${openBreaks ? "rotate-180" : ""}`}
+              />
+            </span>
+          </button>
+
+          {openBreaks && (
+            <div className="mt-2 border-l border-border pl-4 ml-1">
+              {breaks.map((s, i) => <Row key={`br-${i}`} s={s} />)}
+            </div>
+          )}
+        </div>
+      )}
+
+      {trailing.map((s, i) => <Row key={`out-${i}`} s={s} />)}
+    </div>
+  )
+}
+
+/**
+ * System-written scan notes are stored in canonical English so the record stays
+ * language-neutral; they are translated here, at read time, for whoever is
+ * looking. Anything unrecognised is a human-typed note and passes through
+ * untouched.
+ */
+function translateNote(raw: string | null | undefined, t: (k: string) => string): string | null {
+  if (!raw) return null
+  const msg = raw.trim().toLowerCase()
+
+  if (msg === "work session completed") return t("noteSessionCompleted")
+  if (msg === "qr check-in") return t("noteQrCheckIn")
+  if (msg === "break ended, back to work") return t("noteBreakEnded")
+
+  const started = /^break started:\s*(.*)$/i.exec(raw.trim())
+  if (started) {
+    const kind = started[1]?.trim()
+    return kind ? `${t("noteBreakStarted")}: ${kind}` : t("noteBreakStarted")
+  }
+
+  return raw
+}
+
+/** "13:25" → minutes since midnight. */
+function toMinutes(hhmm?: string | null): number | null {
+  if (!hhmm) return null
+  const m = /^(\d{1,2}):(\d{2})/.exec(hhmm)
+  return m ? Number(m[1]) * 60 + Number(m[2]) : null
+}
+
+function formatMinutes(total: number): string {
+  const h = Math.floor(total / 60)
+  const m = total % 60
+  return h > 0 ? `${h}h ${String(m).padStart(2, "0")}m` : `${m}m`
+}
+
 function Meth({ m }: { m?: string | null }) {
   if (!m) return null
   return <span className="text-[10.5px] font-bold text-[#662D91] dark:text-purple-300 bg-purple-100/70 dark:bg-purple-950/50 px-2 py-0.5 rounded uppercase tracking-wide">{m}</span>
@@ -73,9 +219,11 @@ function Punct({ p, out }: { p: any; out?: boolean }) {
 }
 function KV({ k, children }: { k: string; children: any }) {
   return (
-    <div className="flex justify-between items-center gap-3 py-2.5 border-b border-border/70 last:border-0 text-sm">
-      <span className="text-muted-foreground">{k}</span>
-      <span className="font-semibold text-right">{children}</span>
+    // flex-wrap lets a long value (a full address, a worker name) drop onto its
+    // own line instead of crushing the label into one character per row.
+    <div className="flex flex-wrap justify-between items-start gap-x-3 gap-y-0.5 py-2.5 border-b border-border/70 last:border-0 text-sm">
+      <span className="text-muted-foreground shrink-0">{k}</span>
+      <span className="font-semibold min-w-0 break-words text-left sm:text-right">{children}</span>
     </div>
   )
 }
@@ -261,20 +409,26 @@ export default function RecordDetail({ recordId, backHref }: { recordId: string;
           {[
             { v: d.checkIn || "—", l: t("checkIn"), Icon: LogIn },
             { v: d.checkOut || "—", l: t("checkOut"), Icon: LogOut },
-            { v: h.hasSchedule ? fmtMin(h.scheduledMinutes) : "—", l: t("scheduled") },
+            // A bare "—" read as missing data. A flexible job has no planned
+            // hours by design, and without them overtime cannot be computed —
+            // so name the reason instead of leaving a blank.
+            { v: h.hasSchedule ? fmtMin(h.scheduledMinutes) : t("flexibleShort"), l: t("scheduled"), soft: !h.hasSchedule },
             { v: fmtMin(h.workedMinutes), l: t("actual") },
-            { v: !h.hasSchedule ? "—" : h.overtimeMinutes ? fmtMin(h.overtimeMinutes) : "0h", l: t("overtime"), warn: h.hasSchedule && h.overtimeMinutes > 0 },
+            { v: !h.hasSchedule ? t("notApplicable") : h.overtimeMinutes ? fmtMin(h.overtimeMinutes) : "0h", l: t("overtime"), warn: h.hasSchedule && h.overtimeMinutes > 0, soft: !h.hasSchedule },
           ].map((x: any, i: number) => (
-            <div key={i} className="p-4 text-center">
-              <div className={`text-[19px] font-extrabold tabular-nums ${x.warn ? "text-amber-600 dark:text-amber-400" : "text-foreground"}`}>{x.v}</div>
+            // Five cells in a 2-column grid leave the last one orphaned next to
+            // an empty cell; let it span the row on phones.
+            <div key={i} className="p-4 text-center last:col-span-2 sm:last:col-span-1">
+              <div className={`font-extrabold tabular-nums ${x.soft ? "text-[15px] text-muted-foreground" : "text-[19px]"} ${x.warn ? "text-amber-600 dark:text-amber-400" : x.soft ? "" : "text-foreground"}`}>{x.v}</div>
               <div className="text-[10.5px] uppercase tracking-wider text-muted-foreground font-bold mt-1">{x.l}</div>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Tabs — system canonical style */}
-      <div className="border-b border-border mb-5">
+      {/* Tabs — system canonical style. Sticky under the app header (50px) so
+          switching tabs never requires scrolling back up on a long record. */}
+      <div className="sticky top-[50px] z-20 bg-background border-b border-border mb-5">
         <nav className="flex overflow-x-auto scrollbar-hide">
           {TABS.map(({ k }) => (
             <button
@@ -336,30 +490,7 @@ export default function RecordDetail({ recordId, backHref }: { recordId: string;
             {(d.scans || []).length === 0 ? (
               <div className="text-center text-muted-foreground py-6 text-sm">{t("noScanEvents")}</div>
             ) : (
-              <div className="relative pl-7">
-                <div className="absolute left-2.5 top-2 bottom-2 w-0.5 bg-border" />
-                {(d.scans || []).map((s: any, i: number) => {
-                  const isIn = s.scanType === "check-in"
-                  const isOut = s.scanType === "check-out"
-                  const dot = isIn ? "bg-emerald-500" : isOut ? "bg-red-500" : "bg-amber-500"
-                  const label = isIn ? t("checkIn") : isOut ? t("checkOut") : s.scanType === "break-start" ? t("breakStart") : s.scanType === "break-end" ? t("breakEnd") : s.scanType
-                  const addr = parseAddress(s.location)
-                  return (
-                    <div key={i} className="relative py-3">
-                      <div className={`absolute -left-[21px] top-4 w-3.5 h-3.5 rounded-full ring-4 ring-card ${dot}`} />
-                      <div className="text-[15px] font-extrabold tabular-nums">{s.time} · {label}</div>
-                      <div className="text-[13px] text-muted-foreground mt-1 flex items-center gap-1.5 flex-wrap">
-                        {s.workCenter && <span>{s.workCenter}</span>}
-                        {s.method && <Meth m={s.method} />}
-                        {s.latitude != null && <span>· GPS {Number(s.latitude).toFixed(4)}, {Number(s.longitude).toFixed(4)}</span>}
-                        {s.ipAddress && <span>· IP {s.ipAddress}</span>}
-                        {addr && <span>· {addr}</span>}
-                        {s.notes && <span>· {s.notes}</span>}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
+              <ScanTimeline scans={d.scans || []} t={t} />
             )}
           </Card>
         </div>
@@ -372,21 +503,47 @@ export default function RecordDetail({ recordId, backHref }: { recordId: string;
             {(d.breaks || []).length === 0 ? (
               <div className="text-center text-muted-foreground py-4 text-sm">{t("noBreaks")}</div>
             ) : (
-              <>
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-left text-[11px] uppercase tracking-wide text-muted-foreground">
-                      <th className="py-2 font-bold">#</th><th className="py-2 font-bold">{t("start")}</th><th className="py-2 font-bold">{t("end")}</th><th className="py-2 font-bold">{t("duration")}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(d.breaks || []).map((b: any, i: number) => (
-                      <tr key={i} className="border-t border-border"><td className="py-3">{i + 1}</td><td>{b.start}</td><td>{b.end}</td><td className="font-bold">{b.durationMinutes} {t("min")}</td></tr>
-                    ))}
-                  </tbody>
-                </table>
-                <div className="mt-3"><KV k={t("totalBreaks")}>{fmtMin(h.breakMinutes)}</KV><KV k={t("deducted")}>{t("yes")}</KV></div>
-              </>
+              // A table stretched one break across the full page width, leaving the
+              // values stranded from their headers. A short list reads better and
+              // matches the timeline on the Check-ins tab.
+              <div className="max-w-2xl space-y-2">
+                {(d.breaks || []).map((b: any, i: number) => (
+                  <div
+                    key={i}
+                    className="flex items-center gap-3 p-3 rounded-xl border border-border bg-muted/40"
+                  >
+                    <span className="grid place-items-center w-9 h-9 shrink-0 rounded-full bg-amber-100 dark:bg-amber-950/40">
+                      <Coffee className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[15px] font-bold tabular-nums">
+                        {b.start} <span className="text-muted-foreground font-normal">→</span> {b.end}
+                      </div>
+                      {b.notes && (
+                        <div className="text-[12px] text-muted-foreground truncate mt-0.5">
+                          {translateNote(b.notes, t)}
+                        </div>
+                      )}
+                    </div>
+                    <span className="shrink-0 px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-700 dark:text-amber-400 text-[13px] font-bold tabular-nums">
+                      {b.durationMinutes} {t("min")}
+                    </span>
+                  </div>
+                ))}
+
+                {/* The label stays next to its value. Splitting them left/right
+                    with other text between made the total read as the answer to
+                    "deducted from worked hours". */}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 pt-3 mt-1 border-t border-border">
+                  <span className="text-[13px] text-muted-foreground">
+                    {t("deducted")}: {t("yes")}
+                  </span>
+                  <span className="flex items-baseline gap-2">
+                    <span className="text-sm text-muted-foreground">{t("totalBreaks")}</span>
+                    <span className="text-[15px] font-extrabold tabular-nums">{fmtMin(h.breakMinutes)}</span>
+                  </span>
+                </div>
+              </div>
             )}
           </Card>
         </div>
@@ -399,23 +556,42 @@ export default function RecordDetail({ recordId, backHref }: { recordId: string;
             {totalTasks === 0 ? (
               <div className="text-center text-muted-foreground py-4 text-sm">{t("noTasksDefined")}</div>
             ) : (
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left text-[11px] uppercase tracking-wide text-muted-foreground">
-                    <th className="py-2 font-bold">{t("task")}</th><th className="py-2 font-bold">{t("status")}</th><th className="py-2 font-bold">{t("time")}</th><th className="py-2 font-bold">{t("by")}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(d.tasks || []).map((task: any, i: number) => (
-                    <tr key={i} className="border-t border-border">
-                      <td className="py-3">{task.name}</td>
-                      <td>{task.completed ? <Chip tone="ok">{t("taskDone")}</Chip> : <Chip tone="no">{t("taskPending")}</Chip>}</td>
-                      <td>{task.completedAt || "—"}</td>
-                      <td>{task.completedBy || "—"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              // Four columns in ~350px forced the name, the chip and the worker
+              // to wrap into each other. One card per task instead: the status
+              // chip gets its own line, and who/when sit under the name.
+              <div className="max-w-2xl space-y-2">
+                {(d.tasks || []).map((task: any, i: number) => (
+                  <div
+                    key={i}
+                    className="flex items-start gap-3 p-3 rounded-xl border border-border bg-muted/40"
+                  >
+                    <span className="mt-0.5 shrink-0">
+                      {task.completed ? (
+                        <ListChecks className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                      ) : (
+                        <ListChecks className="w-4 h-4 text-muted-foreground" />
+                      )}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-semibold break-words">{task.name}</div>
+                      {(task.completedAt || task.completedBy) && (
+                        <div className="text-[12px] text-muted-foreground mt-0.5 flex flex-wrap items-center gap-x-1.5">
+                          {task.completedAt && <span className="tabular-nums">{task.completedAt}</span>}
+                          {task.completedAt && task.completedBy && <span>·</span>}
+                          {task.completedBy && <span className="break-words">{task.completedBy}</span>}
+                        </div>
+                      )}
+                    </div>
+                    <span className="shrink-0">
+                      {task.completed ? (
+                        <Chip tone="ok">{t("taskDone")}</Chip>
+                      ) : (
+                        <Chip tone="no">{t("taskPending")}</Chip>
+                      )}
+                    </span>
+                  </div>
+                ))}
+              </div>
             )}
           </Card>
         </div>
@@ -467,7 +643,13 @@ export default function RecordDetail({ recordId, backHref }: { recordId: string;
             )}
             <KV k={t("workCentre")}>{d.workCenter || "—"}</KV>
             <KV k={t("checkInGps")}>{checkInScan?.latitude != null ? `${Number(checkInScan.latitude).toFixed(4)}, ${Number(checkInScan.longitude).toFixed(4)}` : "—"}</KV>
-            <KV k={t("address")}>{parseAddress(checkInScan?.location) || "—"}</KV>
+            {/* The work center's registered address. A street address captured
+                from the device is shown separately, and only when one exists —
+                conflating the two made a name appear under "Address". */}
+            <KV k={t("workCentreAddress")}>{d.workCenterAddress || "—"}</KV>
+            {parseAddress(checkInScan?.location) && (
+              <KV k={t("capturedAddress")}>{parseAddress(checkInScan?.location)}</KV>
+            )}
             <KV k={t("ipAddress")}>{checkInScan?.ipAddress || "—"}</KV>
             <KV k={t("checkInMethod")}><Meth m={d.checkInMethod} /></KV>
             <KV k={t("location")}>{d.locationUnavailable ? <Chip tone="warn">{t("locUnavailableChip")}</Chip> : (checkInScan?.latitude != null ? <Chip tone="ok">{t("locRecorded")}</Chip> : <Chip tone="grey">—</Chip>)}</KV>

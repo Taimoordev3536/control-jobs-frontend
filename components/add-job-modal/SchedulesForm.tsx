@@ -74,7 +74,9 @@ export default function SchedulesForm({
     <div className="space-y-4">
       <h3 className="text-lg font-medium text-center mb-4 underline">{t("schedules") || "Schedules"}</h3>
 
-      <div className="flex items-center justify-between gap-4 mb-4 ml-4">
+      {/* Three toggle groups shared one fixed-margin row (ml-4/ml-24/mr-4) that
+          could not fit a phone. Wrap them; margins only apply from sm up. */}
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-3 mb-4 sm:justify-between sm:ml-4">
         <div className="flex items-center gap-[1px]">
           <span className="text-sm font-medium">{t("free") || "Free"}</span>
           <Switch
@@ -87,7 +89,7 @@ export default function SchedulesForm({
 
         {/* center: seasonal switch when programming */}
         {(formData.scheduleType as string) === "programming" && (
-          <div className="flex-1 flex items-center justify-between ml-24 h-10">
+          <div className="flex items-center sm:flex-1 sm:justify-between sm:ml-24 sm:h-10">
             <div className="flex items-center gap-[1px]">
               <span className="text-sm font-medium">{t("normal") || "Normal"}</span>
               <Switch
@@ -120,7 +122,7 @@ export default function SchedulesForm({
 
         {/* right: when summer selected show read-only season range from client profile */}
         {(formData.scheduleType as string) === "programming" && formData.currentSeason === "summer" && (
-          <div className="flex flex-col items-end gap-1 mr-4">
+          <div className="flex flex-col items-start sm:items-end gap-1 sm:mr-4">
             <div className="flex items-center gap-2">
               <div className="flex flex-col items-center">
                 <span className="text-[10px] text-muted-foreground leading-none mb-0.5">
@@ -158,8 +160,10 @@ export default function SchedulesForm({
       </div>
 
       {(formData.scheduleType as string) === "programming" && (
-        <div className="w-full">
-          <table className="w-full border-collapse">
+        // Keep the desktop table exactly; on a phone it's wider than the screen,
+        // so scroll it horizontally inside its own box rather than reshaping it.
+        <div className="w-full overflow-x-auto">
+          <table className="w-full min-w-[560px] border-collapse">
             <thead>
               <tr className="bg-muted border-b-[3px] border-[#7547a3]">
                 <th className="border border-border px-2 py-1 text-center font-medium text-sm w-20">

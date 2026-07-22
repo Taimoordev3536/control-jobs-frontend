@@ -10,7 +10,10 @@ export default function AddJobModal({ open, onOpenChange, onJobAdded }: AddJobMo
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[50rem] p-0 gap-0 max-h-[90vh] flex flex-col bg-background ml-1 mr-3">
+      {/* Desktop layout unchanged (max-w-[50rem]); on a phone the 800px shell
+          and the ml-1/mr-3 margins pushed it off the right edge. Cap to the
+          viewport and drop the fixed margins below sm. */}
+      <DialogContent className="w-full max-w-[94vw] sm:max-w-[50rem] p-0 gap-0 max-h-[90vh] flex flex-col bg-background sm:ml-1 sm:mr-3">
         <DialogHeader className="p-6 pb-6 space-y-4">
           <div className="flex items-center justify-between relative">
             <div className="flex-1" />

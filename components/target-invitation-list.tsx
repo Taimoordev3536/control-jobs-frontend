@@ -368,6 +368,9 @@ export default function TargetInvitationList({ target }: { target: Target }) {
         actionButtons={actionButtons}
         defaultSortColumn="description"
         defaultSortDirection="asc"
+        // Wide table (7 cols); keep the full table on mobile and scroll it
+        // horizontally rather than collapsing to hard-to-read cards.
+        mobileCardView={false}
         emptyMessage={
           isLoading ? (
             <AnimatedLoader size={32} />

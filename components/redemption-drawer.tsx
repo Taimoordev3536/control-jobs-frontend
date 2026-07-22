@@ -170,7 +170,7 @@ export default function RedemptionDrawer({
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-2xl p-0 gap-0 overflow-hidden">
+      <DialogContent className="w-full max-w-[94vw] sm:max-w-2xl p-0 gap-0 max-h-[90vh] overflow-y-auto">
         <DialogHeader className="px-5 pt-4 pb-2 border-b border-border space-y-0.5">
           <DialogTitle className="text-base font-semibold text-foreground">
             {t("acceptedInvitations") || "Aceptadas"}

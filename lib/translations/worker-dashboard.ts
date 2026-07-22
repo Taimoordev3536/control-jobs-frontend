@@ -108,6 +108,7 @@ const workerDashboardTranslations = {
     // Job Status
     scheduled: "Scheduled",
     completed: "Completed",
+    free: "Free",
 
     // Tabs
     todayAssignments: "Today's Assignments",
@@ -379,6 +380,7 @@ const workerDashboardTranslations = {
     // Job Status
     scheduled: "Programado",
     completed: "Completado",
+    free: "Libre",
 
     // Tabs
     todayAssignments: "Asignaciones de Hoy",

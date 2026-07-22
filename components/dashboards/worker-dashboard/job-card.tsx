@@ -15,6 +15,7 @@ import NotificationIcon from "../../../icons/Header/Notification.svg"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { CountBadgePopover } from "@/components/ui/count-badge-popover"
 import { Calendar, Clock, MapPin, QrCode, Globe, Lock, FileEdit, ClipboardList } from "lucide-react"
 import { useTranslation } from "@/hooks/use-translation"
 import { useRouter } from "next/navigation"
@@ -77,9 +78,12 @@ interface ClientJobCardProps {
   recordsHref?: string
   onFillSurvey?: (job: any) => void
   surveyState?: "pending" | "done" | null
+  // The worker dashboard shows only the logged-in worker, so it suppresses the
+  // "+N other workers" badge. Client/employer views leave it on (default).
+  showWorkerCount?: boolean
 }
 
-export function ClientJobCard({ job, onViewDetails, onViewRecords, onEnter, onRequestManualAttendance, onAddManualAttendance, manualOnly = false, showEnter = true, recordsHref = "/records/worker", onFillSurvey, surveyState }: ClientJobCardProps) {
+export function ClientJobCard({ job, onViewDetails, onViewRecords, onEnter, onRequestManualAttendance, onAddManualAttendance, manualOnly = false, showEnter = true, recordsHref = "/records/worker", onFillSurvey, surveyState, showWorkerCount = true }: ClientJobCardProps) {
   const { t } = useTranslation("dashboard")
   const { t: tf } = useTranslation("fichaje-cards")
   const router = useRouter()
@@ -148,6 +152,7 @@ export function ClientJobCard({ job, onViewDetails, onViewRecords, onEnter, onRe
   // Normalize workers to avoid runtime errors when job.workers is undefined/null
   const workers = Array.isArray(job.workers) ? job.workers : []
   const firstWorker = workers[0]
+  const workerNames: string[] = workers.map((w) => w.name || `Worker ${w.code || w.id}`)
 
   const taskNames: string[] = (job.tasks || []).map((t: unknown): string => {
     if (!t) return ""
@@ -250,7 +255,9 @@ export function ClientJobCard({ job, onViewDetails, onViewRecords, onEnter, onRe
             <div className="p-1 text-sm text-foreground font-medium">
               {mainCenter}
               {additionalBranches > 0 && (
-                <Badge className="ml-2 bg-muted hover:bg-muted/80 text-foreground text-xs">+{additionalBranches}</Badge>
+                <span className="ml-2 inline-flex align-middle">
+                  <CountBadgePopover items={centersArray} label={t("workCenters") || "Centros de trabajo"} />
+                </span>
               )}
             </div>
           </div>
@@ -278,10 +285,10 @@ export function ClientJobCard({ job, onViewDetails, onViewRecords, onEnter, onRe
               {workers.length > 0
                 ? firstWorker?.name || `Worker ${firstWorker?.code || firstWorker?.id}`
                 : "No workers assigned"}
-              {workers.length > 1 && (
-                <Badge className="ml-2 bg-muted hover:bg-muted/80 text-foreground text-xs">
-                  +{workers.length - 1}
-                </Badge>
+              {showWorkerCount && workers.length > 1 && (
+                <span className="ml-2 inline-flex align-middle">
+                  <CountBadgePopover items={workerNames} label={t("workers") || "Trabajadores"} />
+                </span>
               )}
             </div>
           </div>
@@ -313,7 +320,11 @@ export function ClientJobCard({ job, onViewDetails, onViewRecords, onEnter, onRe
                       ? t("normal")
                       : st === "summer"
                         ? t("summer")
-                        : raw || "Schedule"
+                        : st === "seasonal"
+                          ? t("seasonal")
+                          : st === "fixed"
+                            ? t("scheduled")
+                            : raw || t("scheduled")
                 return <span className="text-sm">{label}</span>
               })()}
             </div>
@@ -369,33 +380,36 @@ export function ClientJobCard({ job, onViewDetails, onViewRecords, onEnter, onRe
 
         <div className="border-t border-border my-2"></div>
 
-        {/* Action Buttons: Details and Registros (Records) */}
+        {/* Action Buttons: Details and Registros (Records).
+            Grid, not flex: `flex-1` items keep min-width:auto, so three buttons
+            refused to shrink below their label width and the last one ran off
+            the card. Grid columns share the width and let the labels truncate. */}
         {!manualOnly && (
-        <div className="flex gap-2 pt-2">
+        <div className={`grid gap-2 pt-2 ${showEnter ? "grid-cols-3" : "grid-cols-2"}`}>
           <Button
             size="sm"
-            className="flex-1 h-8 text-xs bg-neutral-500 hover:bg-neutral-600 text-white"
+            className="min-w-0 h-8 text-xs px-2 bg-neutral-500 hover:bg-neutral-600 text-white"
             onClick={() => onViewDetails(job)}
           >
-            <TodosIcon className="w-3 h-3 mr-1" />
-            {t("details")}
+            <TodosIcon className="w-3 h-3 mr-1 shrink-0" />
+            <span className="truncate">{t("details")}</span>
           </Button>
           <Button
             size="sm"
-            className="flex-1 h-8 text-xs bg-purple-700 hover:bg-purple-800 text-white"
+            className="min-w-0 h-8 text-xs px-2 bg-purple-700 hover:bg-purple-800 text-white"
             onClick={() => router.push(`${recordsHref}?jobId=${(job as any).publicId || job.id}`)}
           >
-            <ControlIcon className="w-3 h-3 mr-1" />
-            {t("records")}
+            <ControlIcon className="w-3 h-3 mr-1 shrink-0" />
+            <span className="truncate">{t("records")}</span>
           </Button>
           {showEnter && (
           <Button
             size="sm"
-            className="flex-1 h-8 text-xs bg-red-500 hover:bg-red-600 text-white"
+            className="min-w-0 h-8 text-xs px-2 bg-red-500 hover:bg-red-600 text-white"
             onClick={() => setDialogOpen(true)}
           >
-            <Clock className="w-3 h-3 mr-1" />
-            {t("enter") || "Enter"}
+            <Clock className="w-3 h-3 mr-1 shrink-0" />
+            <span className="truncate">{t("enter") || "Enter"}</span>
           </Button>
           )}
         </div>

@@ -86,16 +86,18 @@ export default function BanksPage() {
   const total = useMemo(() => rows.reduce((s, r) => s + (Number(r.totalAmount) || 0), 0), [rows])
 
   return (
-    <div className="w-full p-6 bg-background min-h-screen space-y-4">
+    <div className="w-full p-3 sm:p-6 bg-background min-h-screen space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold text-foreground">{t("banks") || "Bancos"}</h1>
           <p className="text-sm text-muted-foreground">{t("banksHint") || "Histórico de operaciones bancarias (cobros y pagos a ordenar al banco)."}</p>
         </div>
-        <div className="flex items-end gap-2">
-          <div><label className="text-xs text-muted-foreground">{t("from") || "Desde"}</label><DateInput value={pStart} onChange={(e) => setPStart(e.target.value)} allowPastDates className="h-9 w-36" /></div>
-          <div><label className="text-xs text-muted-foreground">{t("to") || "Hasta"}</label><DateInput value={pEnd} onChange={(e) => setPEnd(e.target.value)} allowPastDates className="h-9 w-36" /></div>
-          <Button onClick={closeMonth} disabled={busy} className="bg-[#662D91] hover:bg-[#532073] text-white h-9">{busy ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <CalendarClock className="h-4 w-4 mr-1" />}{t("closePeriod") || "Cerrar periodo"}</Button>
+        {/* Fixed w-36 inputs + button overran the phone and pushed the page wide.
+            Let the toolbar take a full row on mobile and flex the two dates. */}
+        <div className="flex flex-wrap items-end gap-2 w-full sm:w-auto">
+          <div className="flex-1 min-w-[8rem] sm:flex-none"><label className="text-xs text-muted-foreground">{t("from") || "Desde"}</label><DateInput value={pStart} onChange={(e) => setPStart(e.target.value)} allowPastDates className="h-9 w-full sm:w-36" /></div>
+          <div className="flex-1 min-w-[8rem] sm:flex-none"><label className="text-xs text-muted-foreground">{t("to") || "Hasta"}</label><DateInput value={pEnd} onChange={(e) => setPEnd(e.target.value)} allowPastDates className="h-9 w-full sm:w-36" /></div>
+          <Button onClick={closeMonth} disabled={busy} className="bg-[#662D91] hover:bg-[#532073] text-white h-9 shrink-0">{busy ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <CalendarClock className="h-4 w-4 mr-1" />}{t("closePeriod") || "Cerrar periodo"}</Button>
         </div>
       </div>
 
@@ -115,7 +117,7 @@ export default function BanksPage() {
         <div className="w-full py-10 flex justify-center"><AnimatedLoader /></div>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-border">
-          <table className="w-full text-sm">
+          <table className="w-full min-w-[720px] text-sm">
             <thead className="bg-muted/50">
               <tr className="text-left">
                 <th className="px-3 py-2 font-medium">{t("date") || "Fecha"}</th>

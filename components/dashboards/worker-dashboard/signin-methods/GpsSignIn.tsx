@@ -82,11 +82,13 @@ export default function GpsSignIn({ onBack, onComplete }: Props) {
           {error && <div className="text-sm text-red-500 mt-1">{error}</div>}
         </div>
 
-        <div className="flex items-center gap-2">
-          <Button onClick={getLocation} disabled={status === 'locating'}>
+        {/* Wraps instead of overflowing the dialog on a narrow screen. */}
+        <div className="flex flex-wrap items-center gap-2">
+          <Button className="flex-1 min-w-0" onClick={getLocation} disabled={status === 'locating'}>
             <MapPin className="w-4 h-4 mr-2" /> {status === 'locating' ? 'Locating...' : 'Retry'}
           </Button>
-          <Button 
+          <Button
+            className="flex-1 min-w-0"
             onClick={handleContinue}
             disabled={!coords || status === 'locating'}
             variant="default"

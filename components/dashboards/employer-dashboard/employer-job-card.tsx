@@ -12,6 +12,7 @@ import NotificationIcon from "../../../icons/Header/Notification.svg"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { CountBadgePopover } from "@/components/ui/count-badge-popover"
 import { Building2, MapPin, Clock, Calendar, AlertCircle, Users, Eye, LogIn, Edit, Bell, QrCode, Lock, Globe, FileEdit } from "lucide-react"
 import { useTranslation } from "@/hooks/use-translation"
 import { useRouter } from "next/navigation"
@@ -162,6 +163,8 @@ const getStatusConfig = (status: string) => {
 
   const mainCenter = centersArray[0] || "Unknown location"
   const additionalBranches = Math.max(0, centersArray.length - 1)
+  // Full worker-name list (first + folded) for the "+N" popover.
+  const workerNames: string[] = (job.workers || []).map((w: any) => w.name || `Worker ${w.code || w.id}`)
 
   // Format task tags (show first 2, then +n) - tasks may be objects
   const taskNames: string[] = (job.tasks || []).map((t: unknown): string => {
@@ -287,7 +290,9 @@ const getStatusConfig = (status: string) => {
             <div className="p-1 text-sm text-gray-900 dark:text-white font-medium">
               {mainCenter}
               {additionalBranches > 0 && (
-                <Badge className="ml-2 bg-muted hover:bg-muted/80 text-foreground text-xs">+{additionalBranches}</Badge>
+                <span className="ml-2 inline-flex align-middle">
+                  <CountBadgePopover items={centersArray} label={t("workCenters") || "Centros de trabajo"} />
+                </span>
               )}
             </div>
           </div>
@@ -318,9 +323,9 @@ const getStatusConfig = (status: string) => {
             <div className="p-1 text-sm text-gray-900 dark:text-white font-medium">
               {job.workers.length > 0 ? (job.workers[0].name || `Worker ${job.workers[0].code || job.workers[0].id}`) : "No workers assigned"}
               {job.workers.length > 1 && (
-                <Badge className="ml-2 bg-muted hover:bg-muted/80 text-foreground text-xs">
-                  +{job.workers.length - 1}
-                </Badge>
+                <span className="ml-2 inline-flex align-middle">
+                  <CountBadgePopover items={workerNames} label={t("workers") || "Trabajadores"} />
+                </span>
               )}
             </div>
           </div>
@@ -349,7 +354,13 @@ const getStatusConfig = (status: string) => {
               {(() => {
                 const raw = (((job as any).scheduleType || job.scheduleType || job.shift?.scheduleType || '') as string)
                 const st = raw.toLowerCase()
-                const label = st === 'free' ? t('free') : st === 'normal' ? t('normal') : st === 'summer' ? t('summer') : (raw || 'Programación')
+                const label =
+                  st === 'free' ? t('free')
+                  : st === 'normal' ? t('normal')
+                  : st === 'summer' ? t('summer')
+                  : st === 'seasonal' ? t('seasonal')
+                  : st === 'fixed' ? t('scheduled')
+                  : (raw || t('scheduled'))
                 return <span className="text-sm">{label}</span>
               })()}
             </div>

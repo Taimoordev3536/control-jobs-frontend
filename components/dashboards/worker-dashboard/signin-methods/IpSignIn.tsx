@@ -60,12 +60,14 @@ export default function IpSignIn({ onBack, onComplete }: Props) {
           {error && <div className="text-sm text-red-500 mt-1">{error}</div>}
         </div>
 
-        <div className="flex items-center gap-2">
-          <Button onClick={detectIP} disabled={loading}>
-            <Globe className="w-4 h-4 mr-2" /> {loading ? 'Detecting...' : 'Retry'}
+        {/* Wraps instead of overflowing the dialog on a narrow screen. */}
+        <div className="flex flex-wrap items-center gap-2">
+          <Button className="flex-1 min-w-0" onClick={detectIP} disabled={loading}>
+            <Globe className="w-4 h-4 mr-2 shrink-0" /> {loading ? 'Detecting...' : 'Retry'}
           </Button>
-          <Button 
-            onClick={handleContinue} 
+          <Button
+            className="flex-1 min-w-0"
+            onClick={handleContinue}
             disabled={!ip || loading}
             variant="default"
           >

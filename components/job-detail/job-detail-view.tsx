@@ -114,6 +114,20 @@ export default function JobDetailView({ jobId, backHref = "/jobs/all" }: { jobId
   const { t } = useTranslation("job-detail")
   const [tab, setTab] = useState("overview")
 
+  // The API returns the raw schedule-type token (free / fixed / seasonal, and
+  // the season variants normal / summer). Map it to the canonical label rather
+  // than showing the English enum value capitalized to every locale.
+  const scheduleLabel = (raw?: string | null): string => {
+    switch ((raw || "").toLowerCase()) {
+      case "free": return t("schedFree")
+      case "fixed": return t("schedScheduled")
+      case "seasonal": return t("schedSeasonal")
+      case "normal": return t("schedNormal")
+      case "summer": return t("schedSummer")
+      default: return raw || "—"
+    }
+  }
+
   const { data: d = null, isLoading: loading } = useQuery<any>({
     queryKey: ["jobs", "detail", jobId],
     queryFn: async () => (await apiFetch<any>(`/jobs/${jobId}`))?.data ?? null,
@@ -152,7 +166,7 @@ export default function JobDetailView({ jobId, backHref = "/jobs/all" }: { jobId
             <div className="text-[13px] text-white/85 mt-1 flex gap-x-3 gap-y-1 flex-wrap">
               {d.clientName && <span className="inline-flex items-center gap-1.5"><ClientIcon className="w-4 h-4" /> {d.clientName}</span>}
               <span className="inline-flex items-center gap-1.5"><Calendar className="w-4 h-4" /> {dateRange}</span>
-              {d.scheduleType && <span className="inline-flex items-center gap-1.5 capitalize"><CalendarDays className="w-4 h-4" /> {d.scheduleType}</span>}
+              {d.scheduleType && <span className="inline-flex items-center gap-1.5"><CalendarDays className="w-4 h-4" /> {scheduleLabel(d.scheduleType)}</span>}
             </div>
           </div>
           <div className="px-3.5 py-1.5 rounded-full text-[12.5px] font-bold self-start bg-white/22 backdrop-blur">
@@ -165,7 +179,7 @@ export default function JobDetailView({ jobId, backHref = "/jobs/all" }: { jobId
             { v: workers.length, l: t("jdStatWorkers") },
             { v: tasks.length, l: t("jdStatTasks") },
             { v: weekHours ? `${weekHours}h` : "—", l: t("jdStatPerWeek") },
-            { v: d.scheduleType || "—", l: t("jdStatSchedule") },
+            { v: d.scheduleType ? scheduleLabel(d.scheduleType) : "—", l: t("jdStatSchedule") },
           ].map((x: any, i: number) => (
             <div key={i} className="p-4 text-center">
               <div className="text-[19px] font-extrabold tabular-nums capitalize">{x.v}</div>

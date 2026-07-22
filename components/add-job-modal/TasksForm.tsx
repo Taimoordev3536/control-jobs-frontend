@@ -171,8 +171,9 @@ export default function TasksForm({
             />
           </div>
 
-          {/* Observations and Duration */}
-          <div className="grid gap-8" style={{ gridTemplateColumns: "70% 20%" }}>
+          {/* Observations and Duration. Stacked on phones; the old 70%/20% + gap-8
+              summed past 100% and pushed Duration off the right edge. */}
+          <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,7fr)_minmax(0,3fr)] gap-4 sm:gap-8">
             <div>
               <Label htmlFor="taskObservations" className="text-sm font-medium text-foreground flex items-center gap-1">
                 {t("observations") || "Observations"}
@@ -669,8 +670,10 @@ export default function TasksForm({
           {/* Tasks Table */}
           {formData.tasks.length > 0 && (
             <div className="mt-6">
-              <div className="border rounded-lg overflow-hidden">
-                <table className="w-full">
+              {/* overflow-x-auto, not hidden: the columns are wider than a phone,
+                  and hidden clipped the last column instead of letting it scroll. */}
+              <div className="border rounded-lg overflow-x-auto">
+                <table className="w-full min-w-[520px]">
                   <thead className="text-white" style={{ backgroundColor: "#662D91" }}>
                     <tr>
                       <th className="px-4 py-2 text-left text-sm font-medium">{t("order") || "Order"}</th>

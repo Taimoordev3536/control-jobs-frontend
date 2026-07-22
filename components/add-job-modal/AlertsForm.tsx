@@ -33,7 +33,9 @@ export default function AlertsForm({
     <div className="space-y-8">
       <h3 className="text-lg font-medium text-center mb-8 underline text-foreground">{t("alerts") || "Alerts"}</h3>
 
-      <div className="grid grid-cols-2 gap-12">
+      {/* Stack Entrance/Exit on phones; side-by-side with gap-12 made each
+          column too narrow, so "minutes" overlapped the Exit column. */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 sm:gap-12">
         {/* Entrance */}
         <div className="space-y-6">
           <div className="text-center">
@@ -57,7 +59,7 @@ export default function AlertsForm({
               </Label>
             </div>
 
-            <div className="flex items-center space-x-3">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
               <Checkbox
                 id="entrance-delay"
                 className="mt-3"
@@ -128,7 +130,7 @@ export default function AlertsForm({
               </Label>
             </div>
 
-            <div className="flex items-center space-x-3">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
               <Checkbox
                 id="exit-duration"
                 className="mt-3"

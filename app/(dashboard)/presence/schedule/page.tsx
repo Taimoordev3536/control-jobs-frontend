@@ -102,33 +102,96 @@ export default function PresenceSchedulePage() {
       {loading ? (
         <div className="flex justify-center py-12"><AnimatedLoader /></div>
       ) : (
-        <div className="grid grid-cols-7 gap-1">
-          {weekdays.map((w) => <div key={w} className="text-center text-[11px] font-medium text-muted-foreground py-1">{w}</div>)}
-          {cells.map((d, i) => {
-            if (!d) return <div key={i} className="min-h-[92px] rounded-md bg-muted/10" />
-            const key = ymd(d)
-            const day = days[key]
-            const border =
-              day?.holiday ? "border-rose-300 dark:border-rose-800 bg-rose-50/60 dark:bg-rose-950/20"
-              : day?.absence ? "border-amber-300 dark:border-amber-800 bg-amber-50/60 dark:bg-amber-950/20"
-              : "border-border"
-            return (
-              <div key={i} className={`min-h-[92px] rounded-md border p-1 ${border}`}>
-                <div className={`text-xs font-medium ${key === todayStr ? "text-[#662D91]" : "text-foreground"}`}>{d.getDate()}</div>
-                {day?.holiday && <div className="text-[10px] text-rose-600 dark:text-rose-400 truncate">{day.holidayName || t("holiday") || "Festivo"}</div>}
-                {!day?.holiday && day?.absence && <div className="text-[10px] text-amber-700 dark:text-amber-400 truncate">{typeLabel(day.absence.type)}</div>}
-                <div className="mt-1 flex flex-col gap-1">
-                  {(day?.jobs || []).map((j, k) => (
-                    <div key={k} className="rounded bg-[#662D91]/10 text-[#662D91] px-1 py-0.5 text-[10px] leading-tight" title={`${j.jobName} · ${j.workCenterName}`}>
-                      <div className="font-medium truncate">{j.jobName}</div>
-                      {hhmm(j.startTime) && <div className="opacity-80">{hhmm(j.startTime)}{j.endTime ? `–${hhmm(j.endTime)}` : ""}</div>}
+        <>
+          {/* Seven columns across a phone give each day ~55px, which truncated
+              every job to "Pru…". A week is short enough to read as a vertical
+              agenda instead — the layout calendars use on mobile. */}
+          {view === "week" && (
+            <div className="sm:hidden flex flex-col gap-2">
+              {cells.filter(Boolean).map((d, i) => {
+                const day = d as Date
+                const key = ymd(day)
+                const info = days[key]
+                const isToday = key === todayStr
+                const tone =
+                  info?.holiday ? "border-rose-300 dark:border-rose-800 bg-rose-50/60 dark:bg-rose-950/20"
+                  : info?.absence ? "border-amber-300 dark:border-amber-800 bg-amber-50/60 dark:bg-amber-950/20"
+                  : isToday ? "border-[#662D91]"
+                  : "border-border"
+                return (
+                  <div key={i} className={`rounded-lg border p-3 ${tone}`}>
+                    <div className="flex items-baseline gap-2 mb-1.5">
+                      <span className={`text-sm font-bold ${isToday ? "text-[#662D91]" : "text-foreground"}`}>
+                        {weekdays[(day.getDay() + 6) % 7]} {day.getDate()}
+                      </span>
+                      {isToday && <span className="text-[10px] font-semibold text-[#662D91]">{t("today") || "Hoy"}</span>}
                     </div>
-                  ))}
+
+                    {info?.holiday ? (
+                      <div className="text-xs text-rose-600 dark:text-rose-400">{info.holidayName || t("holiday") || "Festivo"}</div>
+                    ) : info?.absence ? (
+                      <div className="text-xs text-amber-700 dark:text-amber-400">{typeLabel(info.absence.type)}</div>
+                    ) : (info?.jobs || []).length === 0 ? (
+                      <div className="text-xs text-muted-foreground">{t("noJobs") || "Sin trabajos"}</div>
+                    ) : (
+                      <div className="flex flex-col gap-1.5">
+                        {(info?.jobs || []).map((j, k) => (
+                          <div key={k} className="rounded-md bg-[#662D91]/10 px-2.5 py-1.5">
+                            <div className="text-[13px] font-semibold text-[#662D91] break-words">{j.jobName}</div>
+                            <div className="text-[11px] text-muted-foreground flex flex-wrap gap-x-2">
+                              {j.workCenterName && <span className="break-words">{j.workCenterName}</span>}
+                              {hhmm(j.startTime) && <span className="tabular-nums">{hhmm(j.startTime)}{j.endTime ? `–${hhmm(j.endTime)}` : ""}</span>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {/* Month keeps the calendar grid at every size — that shape IS the
+              information. Week uses the grid from sm upwards. */}
+          <div className={`${view === "week" ? "hidden sm:grid" : "grid"} grid-cols-7 gap-1`}>
+            {weekdays.map((w) => <div key={w} className="text-center text-[11px] font-medium text-muted-foreground py-1">{w}</div>)}
+            {cells.map((d, i) => {
+              if (!d) return <div key={i} className="min-h-[92px] rounded-md bg-muted/10" />
+              const key = ymd(d)
+              const day = days[key]
+              const border =
+                day?.holiday ? "border-rose-300 dark:border-rose-800 bg-rose-50/60 dark:bg-rose-950/20"
+                : day?.absence ? "border-amber-300 dark:border-amber-800 bg-amber-50/60 dark:bg-amber-950/20"
+                : "border-border"
+              const jobCount = (day?.jobs || []).length
+              return (
+                <div key={i} className={`min-h-[64px] sm:min-h-[92px] rounded-md border p-1 ${border}`}>
+                  <div className={`text-xs font-medium ${key === todayStr ? "text-[#662D91]" : "text-foreground"}`}>{d.getDate()}</div>
+                  {day?.holiday && <div className="hidden sm:block text-[10px] text-rose-600 dark:text-rose-400 truncate">{day.holidayName || t("holiday") || "Festivo"}</div>}
+                  {!day?.holiday && day?.absence && <div className="hidden sm:block text-[10px] text-amber-700 dark:text-amber-400 truncate">{typeLabel(day.absence.type)}</div>}
+
+                  {/* A truncated name in a 55px cell says nothing; a count does. */}
+                  {jobCount > 0 && (
+                    <div className="sm:hidden mt-1 flex items-center gap-1">
+                      <span className="h-1.5 w-1.5 rounded-full bg-[#662D91]" />
+                      <span className="text-[10px] font-semibold text-[#662D91]">{jobCount}</span>
+                    </div>
+                  )}
+
+                  <div className="hidden sm:flex mt-1 flex-col gap-1">
+                    {(day?.jobs || []).map((j, k) => (
+                      <div key={k} className="rounded bg-[#662D91]/10 text-[#662D91] px-1 py-0.5 text-[10px] leading-tight" title={`${j.jobName} · ${j.workCenterName}`}>
+                        <div className="font-medium truncate">{j.jobName}</div>
+                        {hhmm(j.startTime) && <div className="opacity-80">{hhmm(j.startTime)}{j.endTime ? `–${hhmm(j.endTime)}` : ""}</div>}
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )
-          })}
-        </div>
+              )
+            })}
+          </div>
+        </>
       )}
     </div>
   )

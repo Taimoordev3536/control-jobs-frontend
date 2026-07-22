@@ -2254,8 +2254,12 @@ export default function JobFormCore({
 
   return (
     <div className="space-y-6">
-      {renderProgressSteps()}
-      {renderSigningSubSteps()}
+      {/* The step indicator stays pinned to the top of the scroll area so the
+          "which step am I on" context never scrolls out of view. */}
+      <div className="sticky top-0 z-10 -mx-4 px-4 pt-1 pb-2 bg-background">
+        {renderProgressSteps()}
+        {renderSigningSubSteps()}
+      </div>
 
       <div className="min-h-[400px]">
         {currentMainStep === 1 && (
@@ -2374,7 +2378,9 @@ export default function JobFormCore({
         )}
       </div>
 
-      <div className="flex items-center p-2 px-6 justify-between">
+      {/* Previous (left) · Clear schedules (center) · Next (right), one row at
+          every size via justify-between over the three groups. */}
+      <div className="flex items-center gap-2 p-2 px-3 sm:px-6 justify-between">
         <div className="flex gap-2">
           {mode === "edit" && currentMainStep === 1 && currentSigningStep === 1 && (
             <Button 
@@ -2410,7 +2416,7 @@ export default function JobFormCore({
             <Button
               variant="destructive"
               onClick={clearCurrentSeasonSchedules}
-              className="bg-yellow-500 hover:bg-yellow-600 text-white px-6"
+              className="bg-yellow-500 hover:bg-yellow-600 text-white shrink-0 px-3 sm:px-6"
             >
               {t("clearSchedules") || "Borrar"}
             </Button>

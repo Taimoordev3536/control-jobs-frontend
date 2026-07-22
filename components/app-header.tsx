@@ -87,7 +87,31 @@ export function AppHeader({ collapsed, toggleSidebar, style }: AppHeaderProps) {
   const [supportOpen, setSupportOpen] = useState(false)
   const [suggestionOpen, setSuggestionOpen] = useState(false)
   const notifRef = useRef<HTMLDivElement | null>(null)
+  const mobileMenuRef = useRef<HTMLDivElement | null>(null)
   const userRole = getUserRole()
+
+  // The mobile "more" menu only closed by tapping the three-dot button again —
+  // tapping elsewhere left it open. Close it on any outside click or Escape.
+  useEffect(() => {
+    if (!mobileDropdownOpen) return
+    const onDown = (e: MouseEvent | TouchEvent) => {
+      const target = e.target as Node
+      if (mobileMenuRef.current && !mobileMenuRef.current.contains(target)) {
+        setMobileDropdownOpen(false)
+      }
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMobileDropdownOpen(false)
+    }
+    document.addEventListener("mousedown", onDown)
+    document.addEventListener("touchstart", onDown)
+    document.addEventListener("keydown", onKey)
+    return () => {
+      document.removeEventListener("mousedown", onDown)
+      document.removeEventListener("touchstart", onDown)
+      document.removeEventListener("keydown", onKey)
+    }
+  }, [mobileDropdownOpen])
 
   // Close notifications dropdown on outside click or Escape
   useEffect(() => {
@@ -241,7 +265,7 @@ export function AppHeader({ collapsed, toggleSidebar, style }: AppHeaderProps) {
         </div>
 
         {/* Three Dots Button on Mobile */}
-        <div className="sm:hidden relative">
+        <div className="sm:hidden relative" ref={mobileMenuRef}>
           <button onClick={() => setMobileDropdownOpen(!mobileDropdownOpen)} className="header-icon-button">
             <MoreVertical className="h-5 w-5" />
           </button>

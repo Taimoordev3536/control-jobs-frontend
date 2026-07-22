@@ -138,7 +138,11 @@ export default function SignInMethodDialog({ isOpen, signingMethods = [], onClos
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent
-        className="max-w-md p-0 overflow-hidden [&>button]:z-50 [&>button]:bg-background/80 [&>button]:backdrop-blur-sm"
+        // Cap the height and let it scroll: on a phone the scanner and the GPS
+        // status ran off the bottom with no way to reach them. Width is a plain
+        // vw cap rather than an arbitrary calc(), which had collapsed the dialog
+        // to roughly its content width.
+        className="w-full max-w-[92vw] sm:max-w-md p-0 max-h-[92vh] overflow-y-auto [&>button]:z-50 [&>button]:bg-background/80 [&>button]:backdrop-blur-sm"
         style={{
           backgroundImage: `url(${(bg as any)?.src ?? bg})`,
           backgroundSize: "cover",
@@ -150,7 +154,7 @@ export default function SignInMethodDialog({ isOpen, signingMethods = [], onClos
         
         {/* frosted glass inner panel for readability (glassy effect) */}
         <div
-          className="relative z-10 m-4 rounded-md overflow-hidden bg-card/98 border border-border shadow-2xl"
+          className="relative z-10 m-2 sm:m-4 rounded-md overflow-hidden bg-card/98 border border-border shadow-2xl"
           style={{
             backdropFilter: "blur(12px)",
             WebkitBackdropFilter: "blur(12px)",
@@ -158,17 +162,28 @@ export default function SignInMethodDialog({ isOpen, signingMethods = [], onClos
         >
           {/* very subtle glossy highlight */}
           <div className="absolute inset-0 pointer-events-none opacity-5 dark:opacity-10" style={{background: "linear-gradient(180deg, rgba(255,255,255,0.2), rgba(255,255,255,0))"}} />
-          <DialogHeader className="p-6">
-            <div className="relative">
-              <div className="text-center">
-                <div className="text-lg text-primary font-bold">{new Date().toLocaleDateString(typeof navigator !== 'undefined' ? navigator.language : undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: DEFAULT_TIMEZONE })}</div>
-                <h2 className="text-3xl font-bold text-primary mt-2">{t("hello") || "Hello"} {workerName || "Worker"}</h2>
-                <p className="text-lg text-foreground mt-2 font-semibold">{t("chooseClockInMethod") || "Choose sign-in method"}</p>
-              </div>
-            </div>
-          </DialogHeader>
+          {/* Always present for screen readers — the visual heading below is a
+              plain h2 and disappears once a method is chosen. */}
+          <DialogTitle className="sr-only">
+            {t("chooseClockInMethod") || "Choose sign-in method"}
+          </DialogTitle>
 
-          <div className="p-6">
+          {/* The greeting is orientation for the method list only. Once a method
+              is chosen it is dead weight — on a phone it pushed the scanner and
+              the GPS readout off the bottom of the screen. */}
+          {!selectedMethod && (
+            <DialogHeader className="p-4 sm:p-6">
+              <div className="relative">
+                <div className="text-center">
+                  <div className="text-xs sm:text-lg text-primary font-bold">{new Date().toLocaleDateString(typeof navigator !== 'undefined' ? navigator.language : undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: DEFAULT_TIMEZONE })}</div>
+                  <h2 className="text-xl sm:text-3xl font-bold text-primary mt-1 sm:mt-2 break-words">{t("hello") || "Hello"} {workerName || "Worker"}</h2>
+                  <p className="text-sm sm:text-lg text-foreground mt-1 sm:mt-2 font-semibold">{t("chooseClockInMethod") || "Choose sign-in method"}</p>
+                </div>
+              </div>
+            </DialogHeader>
+          )}
+
+          <div className="p-4 sm:p-6">
           {isMobile === undefined ? (
             <div className="text-sm text-muted-foreground">Detecting device...</div>
           ) : selectedMethod ? (

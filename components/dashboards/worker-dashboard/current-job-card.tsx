@@ -473,7 +473,7 @@ export function CurrentJobCard({
                 <div className="text-sm font-bold text-gray-900 dark:text-white">
                   {job.shift.scheduleType === "fixed" && job.shift.endTime
                     ? job.shift.endTime
-                    : "Flexible"}
+                    : t("free")}
                 </div>
                 <div className="text-xs text-gray-600 dark:text-gray-400">
                   {t("expectedOut")}

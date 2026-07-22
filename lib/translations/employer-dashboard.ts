@@ -69,6 +69,7 @@ const employerDashboardTranslations: Record<string, Record<string, string>> = {
 
   // Schedule types
   free: "Free",
+  seasonal: "Seasonal",
   normal: "Normal",
   summer: "Summer",
   clearSchedules: "Clear Schedules",
@@ -363,6 +364,7 @@ const employerDashboardTranslations: Record<string, Record<string, string>> = {
 
   // Schedule types
   free: "Libre",
+  seasonal: "Estacional",
   normal: "Habitual",
   summer: "Verano",
   clearSchedules: "Borrar horarios",

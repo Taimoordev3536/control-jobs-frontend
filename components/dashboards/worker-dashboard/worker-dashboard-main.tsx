@@ -451,7 +451,9 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
     workCenter: {
       id: (apiJob.workCenters && apiJob.workCenters[0] && apiJob.workCenters[0].id) || 0,
       name: firstWorkCenterName,
-      address: `${firstWorkCenterName} Address`,
+      // The list endpoint does not carry the work center's address, and inventing
+      // one ("<name> Address") put fabricated text into attendance records.
+      address: "",
       coordinates: { lat: 37.4419, lng: -122.143 },
     },
     shift: shiftInfo,
@@ -949,7 +951,6 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
           latitude: position.coords.latitude,
           longitude: position.coords.longitude,
           accuracy: position.coords.accuracy,
-          address: job.workCenter.address,
         };
 
         try {
@@ -986,13 +987,17 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
           scanType: "check-out",
           userTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           location: JSON.stringify({
-            address: locationData?.address || job.workCenter.address,
+            // Only a genuinely resolved address, never a stand-in.
+            address: locationData?.address || null,
             ip: userIP,
             latitude: locationData?.latitude || null,
             longitude: locationData?.longitude || null,
             qrData: null,
           }),
-          notes: t("workSessionCompleted"),
+          // Canonical English, translated when displayed. Storing t() here baked
+          // the writer's language into the record, so a note written on an
+          // English phone stayed English for every Spanish reader afterwards.
+          notes: "Work session completed",
         }),
       });
 
@@ -1046,7 +1051,6 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
           latitude: position.coords.latitude,
           longitude: position.coords.longitude,
           accuracy: position.coords.accuracy,
-          address: job.workCenter.address,
         };
 
         try {
@@ -1090,7 +1094,8 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
           scanType: "break-start",
           userTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           location: JSON.stringify({
-            address: locationData?.address || job.workCenter.address,
+            // Only a genuinely resolved address, never a stand-in.
+            address: locationData?.address || null,
             ip: userIP,
             latitude: locationData?.latitude || null,
             longitude: locationData?.longitude || null,
@@ -1148,7 +1153,6 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
           latitude: position.coords.latitude,
           longitude: position.coords.longitude,
           accuracy: position.coords.accuracy,
-          address: job.workCenter.address,
         };
 
         try {
@@ -1192,7 +1196,8 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
           scanType: "break-end",
           userTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           location: JSON.stringify({
-            address: locationData?.address || job.workCenter.address,
+            // Only a genuinely resolved address, never a stand-in.
+            address: locationData?.address || null,
             ip: userIP,
             latitude: locationData?.latitude || null,
             longitude: locationData?.longitude || null,
@@ -1621,6 +1626,7 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
                     <JobCard
                       key={job.id}
                       job={(wd.liveIds || []).includes((job as any).publicId) ? { ...job, status: "in_progress" } : job}
+                      showWorkerCount={false}
                       onCheckIn={handleCheckIn}
                       onCheckOut={handleCheckOut}
                       onFillSurvey={handleFillSurvey}

@@ -187,7 +187,7 @@ export default function BulkSimpleInvitationModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="w-full max-w-[94vw] sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl sm:text-2xl font-semibold text-foreground text-center tracking-tight">
             {isEditMode ? titleEdit : titleCreate}

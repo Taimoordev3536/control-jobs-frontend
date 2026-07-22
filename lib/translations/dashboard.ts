@@ -2,6 +2,7 @@ const dashboardTranslations: Record<string, Record<string, string>> = {
   en: {
   // Schedule types
   free: "Free",
+  seasonal: "Seasonal",
   normal: "Normal",
   summer: "Summer",
 
@@ -95,8 +96,8 @@ const dashboardTranslations: Record<string, Record<string, string>> = {
     duration: "Duration",
     day: "day",
     days: "days",
-    fixedSchedule: "Fixed Schedule",
-    flexibleSchedule: "Flexible Schedule",
+    fixedSchedule: "Scheduled",
+    flexibleSchedule: "Free",
 
     // Survey Status
     surveyCompleted: "Survey Completed",
@@ -155,6 +156,7 @@ const dashboardTranslations: Record<string, Record<string, string>> = {
 
   // Schedule types
   free: "Libre",
+  seasonal: "Estacional",
   normal: "Habitual",
   summer: "Verano",
 
@@ -245,8 +247,8 @@ const dashboardTranslations: Record<string, Record<string, string>> = {
     duration: "Duración",
     day: "día",
     days: "días",
-    fixedSchedule: "Horario Fijo",
-    flexibleSchedule: "Horario Flexible",
+    fixedSchedule: "Programado",
+    flexibleSchedule: "Libre",
 
     // Survey Status
     surveyCompleted: "Encuesta Completada",

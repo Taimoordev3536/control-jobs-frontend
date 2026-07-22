@@ -23,6 +23,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Clock, Calendar, MapPin, AlertCircle, Loader2, FileText } from "lucide-react"
+import ConsultIcon from "@/icons/new/consultas.svg"
 import { madridWallClockToISO } from "@/lib/datetime"
 import { apiFetch } from "@/lib/api"
 import { useAuth } from "@/hooks/use-auth"
@@ -250,10 +251,10 @@ export default function ManualAttendanceRequestForm({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[36rem] p-0 gap-0 max-h-[90vh] flex flex-col bg-background">
+      <DialogContent className="w-full max-w-[94vw] sm:max-w-[36rem] p-0 gap-0 max-h-[90vh] flex flex-col bg-background">
         <DialogHeader className="p-6 pb-4 border-b border-border">
           <DialogTitle className="text-lg font-semibold flex items-center gap-2">
-            <Clock className="w-5 h-5 text-purple-600" />
+            <ConsultIcon className="w-5 h-5 text-purple-600" />
             {mode === "direct"
               ? (t("addManualAttendance") || "Add Manual Attendance")
               : (t("requestManualAttendance") || "Request Manual Attendance")}

@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query"
 import { useParams, useSearchParams, useRouter } from "next/navigation"
 import { ArrowLeft } from "lucide-react"
 import { WorkerDataTab } from "@/components/worker-tab/worker-data-tab"
-import { WorkerCalendarTab } from "@/components/worker-tab/worker-calendar-tab"
+import { WorkerWorkCalendar } from "@/components/calendar/worker-work-calendar"
 import { WorkerJobsTab } from "@/components/worker-tab/worker-jobs-tab"
 import { WorkerClientTab } from "@/components/worker-tab/worker-client-tab"
 import { WorkerMessageTab } from "@/components/worker-tab/worker-message-tab"
@@ -103,7 +103,7 @@ export default function WorkerDetailPage() {
       {/* Tab Content */}
       <div className="min-h-[400px] bg-card p-2">
         {activeTab === "data" && <WorkerDataTab onNameChange={setWorkerName} />}
-        {activeTab === "calendar" && <WorkerCalendarTab />}
+        {activeTab === "calendar" && <WorkerWorkCalendar workerId={params.id as string} />}
         {activeTab === "jobs" && <WorkerJobsTab workerId={params.id as string} />}
         {activeTab === "customers" && <WorkerClientTab workerId={params.id as string} />}
         {activeTab === "salaries" && <WorkerSalariosTab workerId={params.id as string} />}

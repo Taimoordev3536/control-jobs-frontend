@@ -9,6 +9,7 @@ import { DateInput } from "@/components/ui/date-input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useTranslation } from "@/hooks/use-translation"
 import { useToast } from "@/hooks/use-toast"
+import { loadGoogleMaps } from "@/lib/google-maps-loader"
 
 const gmaps = () => (typeof window !== "undefined" ? (window as any).google : undefined)
 
@@ -49,15 +50,24 @@ export function PlanificadorDialog({ open, onOpenChange, defaultDate }: Planific
 
   useEffect(() => {
     if (!open) return
+    let cancelled = false
     let tries = 0
     const init = () => {
+      if (cancelled) return
       const g = gmaps()
       if (!g?.maps || !mapDivRef.current) {
         if (tries++ < 40) return void setTimeout(init, 150)
         return
       }
       const center = origin || { lat: 40.4168, lng: -3.7038 }
-      const map = new g.maps.Map(mapDivRef.current, { center, zoom: origin ? 12 : 6, mapTypeControl: false, streetViewControl: false })
+      // mapTypeControl: true adds the Map/Satellite toggle the user expects.
+      const map = new g.maps.Map(mapDivRef.current, {
+        center,
+        zoom: origin ? 12 : 6,
+        mapTypeControl: true,
+        mapTypeControlOptions: { mapTypeIds: ["roadmap", "satellite", "hybrid", "terrain"] },
+        streetViewControl: false,
+      })
       mapRef.current = map
       map.addListener("click", (e: any) => setOrigin({ lat: e.latLng.lat(), lng: e.latLng.lng() }))
 
@@ -72,7 +82,18 @@ export function PlanificadorDialog({ open, onOpenChange, defaultDate }: Planific
       }
       setMapReady(true)
     }
-    init()
+    // This dialog polled for window.google but never loaded the script itself,
+    // so the map stayed blank unless another page had already pulled Maps in.
+    loadGoogleMaps()
+      .then(() => init())
+      .catch(() => {
+        toast({
+          title: t("mapLoadFailed") || "No se pudo cargar el mapa",
+          description: t("mapLoadFailedDesc") || "Comprueba tu conexión e inténtalo de nuevo.",
+          variant: "destructive",
+        })
+      })
+    return () => { cancelled = true }
   }, [open])
 
   useEffect(() => {
@@ -82,6 +103,15 @@ export function PlanificadorDialog({ open, onOpenChange, defaultDate }: Planific
     originMarkerRef.current = new g.maps.Marker({ position: origin, map: mapRef.current, label: "★" })
     mapRef.current.setCenter(origin)
     if (mapRef.current.getZoom() < 11) mapRef.current.setZoom(12)
+
+    // Reflect the picked point back into the search box (reverse geocode), so a
+    // pin dropped on the map shows its address instead of leaving the field blank.
+    let stale = false
+    new g.maps.Geocoder().geocode({ location: origin }, (res: any[], status: string) => {
+      if (stale || status !== "OK" || !res?.[0] || !searchRef.current) return
+      searchRef.current.value = res[0].formatted_address
+    })
+    return () => { stale = true }
   }, [origin, mapReady])
 
   const search = async () => {
@@ -130,13 +160,26 @@ export function PlanificadorDialog({ open, onOpenChange, defaultDate }: Planific
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl bg-background">
+      <DialogContent
+        className="w-full max-w-[94vw] sm:max-w-4xl bg-background max-h-[92vh] overflow-y-auto"
+        // Google renders its address-suggestion list (.pac-container) on the
+        // document body, OUTSIDE this dialog. Radix treats a click there as an
+        // outside click and closed the dialog before the suggestion registered.
+        onPointerDownOutside={(e) => {
+          const target = e.detail?.originalEvent?.target as Element | null
+          if (target?.closest?.(".pac-container")) e.preventDefault()
+        }}
+        onInteractOutside={(e) => {
+          const target = e.target as Element | null
+          if (target?.closest?.(".pac-container")) e.preventDefault()
+        }}
+      >
         <DialogHeader>
           <DialogTitle>{t("planner") || "Planificador"}</DialogTitle>
         </DialogHeader>
 
         <div className="flex flex-wrap items-end gap-2">
-          <div className="flex-1 min-w-[200px]">
+          <div className="flex-1 min-w-[160px] basis-full sm:basis-auto">
             <label className="text-xs text-muted-foreground">{t("searchAddress") || "Buscar dirección"}</label>
             <input
               ref={searchRef}
@@ -145,23 +188,23 @@ export function PlanificadorDialog({ open, onOpenChange, defaultDate }: Planific
               className="w-full h-9 px-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-background focus:outline-none focus:border-[#662D91] focus:ring-1 focus:ring-[#662D91]"
             />
           </div>
-          <div className="w-24">
+          <div className="w-20 sm:w-24">
             <label className="text-xs text-muted-foreground">{t("radiusKm") || "Radio (km)"}</label>
             <Input type="number" min={1} value={radiusKm} onChange={(e) => setRadiusKm(Number(e.target.value) || 1)} className="h-9" />
           </div>
-          <div className="w-40">
+          <div className="flex-1 min-w-[120px] sm:flex-none sm:w-40">
             <label className="text-xs text-muted-foreground">{t("date") || "Fecha"}</label>
             <DateInput value={date} onChange={(e) => setDate(e.target.value)} allowPastDates className="h-9" />
           </div>
-          <Button onClick={search} disabled={searching} className="bg-[#662D91] hover:bg-[#532073] text-white h-9">
+          <Button onClick={search} disabled={searching} className="bg-[#662D91] hover:bg-[#532073] text-white h-9 flex-1 sm:flex-none">
             {searching ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Search className="h-4 w-4 mr-1" />}
             {t("search") || "Buscar"}
           </Button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <div ref={mapDivRef} className="md:col-span-2 h-[360px] rounded-md border border-border bg-muted/20" />
-          <div className="h-[360px] overflow-y-auto rounded-md border border-border p-2 space-y-2">
+          <div ref={mapDivRef} className="md:col-span-2 h-[240px] sm:h-[300px] md:h-[360px] rounded-md border border-border bg-muted/20" />
+          <div className="max-h-[220px] md:max-h-none md:h-[360px] overflow-y-auto rounded-md border border-border p-2 space-y-2">
             <label className="flex items-center gap-2 text-xs text-muted-foreground px-1">
               <input type="checkbox" checked={onlyAvailable} onChange={(e) => { setOnlyAvailable(e.target.checked); placeWorkerMarkers(results.filter((w) => !e.target.checked || w.available)) }} />
               {t("onlyAvailable") || "Solo disponibles"}

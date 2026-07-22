@@ -1,9 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import Profile from "./profile"
-import Workcenter from "./workcenter"
-import Notification from "./notification"
 import CalendarConfig from "./calendar"
 import Tariffs from "./tariffs"
 import ManualAttendancePermissionSettings from "@/components/manual-attendance/manual-attendance-permission-settings"
@@ -11,15 +8,12 @@ import { useTranslation } from "@/hooks/use-translation"
 
 export default function EmployerConfigurationMainPage() {
   const { t } = useTranslation()
-  const [activeTab, setActiveTab] = useState("profile")
+  const [activeTab, setActiveTab] = useState("calendar")
 
   const tabs = [
-    { key: "profile", label: "Profile" },
-    { key: "workcenter", label: "Work Center" },
     { key: "calendar", label: t("calendar") || "Calendario" },
     { key: "tariffs", label: t("rates") || "Tarifas" },
-    { key: "notification", label: "Notification" },
-    { key: "manual-attendance", label: "Manual Attendance" },
+    { key: "manual-attendance", label: t("manualAttendance") || "Manual Attendance" },
   ]
 
   return (
@@ -50,11 +44,8 @@ export default function EmployerConfigurationMainPage() {
       </div>
 
       <div className="min-h-[300px] bg-card p-6">
-        {activeTab === "profile" && <Profile />}
-        {activeTab === "workcenter" && <Workcenter />}
         {activeTab === "calendar" && <CalendarConfig />}
         {activeTab === "tariffs" && <Tariffs />}
-        {activeTab === "notification" && <Notification />}
         {activeTab === "manual-attendance" && <ManualAttendancePermissionSettings level="employer" />}
       </div>
     </div>

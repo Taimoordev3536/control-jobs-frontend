@@ -69,7 +69,7 @@ export function ActiveJobFab() {
                  bg-[#662D91] text-white shadow-xl
                  hover:bg-[#57267c] active:scale-95 transition
                  focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2
-                 focus-visible:ring-[#662D91] max-w-[calc(100vw-2rem)]"
+                 focus-visible:ring-[#662D91] max-w-[90vw]"
     >
       {activeJob.onBreak ? (
         <Coffee className="w-4 h-4 shrink-0" />

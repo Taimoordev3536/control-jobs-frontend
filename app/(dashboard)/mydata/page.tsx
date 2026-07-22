@@ -12,12 +12,12 @@ import { logoEndpointsFor } from "@/lib/logo-endpoints"
 import { Button } from "@/components/ui/button"
 import { AnimatedLoader } from "@/components/animated-loader"
 import { PaymentMethodModal } from "@/components/payment-method-modal"
-import EmployerDataTab from "@/components/employer-tabs/employer-data-tab"
 import { AdminProfileTab } from "@/components/admin-profile-tab"
 import { AdminMyDataTabs } from "@/components/admin-mydata-tabs"
 import { PartnerMyDataTabs } from "@/components/partner-mydata-tabs"
 import { WorkerMyDataTabs } from "@/components/worker-mydata-tabs"
 import { ClientMyDataTabs } from "@/components/client-mydata-tabs"
+import { EmployerMyDataTabs } from "@/components/employer-mydata-tabs"
 
 // Static lookup matching the backend `cjobs_payment_methods` seed (id 1..5).
 // Used to label the current method on the /mydata Payment-method card.
@@ -395,16 +395,9 @@ export default function MyDataPage() {
         <WorkerMyDataTabs />
       ) : role === "client" ? (
         <ClientMyDataTabs />
-      ) : (
-        <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
-          <div className="p-4 border-b border-border bg-muted/20">
-            <h2 className="text-base font-semibold">{t("data") || "Data"}</h2>
-          </div>
-          <div className="p-2">
-            {role === "employer" && <EmployerDataTab employerId="" selfService />}
-          </div>
-        </div>
-      )}
+      ) : role === "employer" ? (
+        <EmployerMyDataTabs />
+      ) : null}
 
       {isEmployer && (
         <ImageUploadCard

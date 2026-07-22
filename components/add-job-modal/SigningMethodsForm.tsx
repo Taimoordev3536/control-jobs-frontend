@@ -39,7 +39,10 @@ export default function SigningMethodsForm({
         </TooltipProvider>
       </h3>
 
-      <div className="ml-8">
+      {/* Desktop layout unchanged; the device rows are wider than a phone, so
+          scroll them inside their own box instead of dragging the whole modal. */}
+      <div className="ml-2 sm:ml-8 overflow-x-auto">
+        <div className="min-w-[420px]">
         {/* Mobile Device */}
         <div className="flex items-center gap-8">
           <div className="w-20 h-20 flex items-center justify-center">
@@ -158,6 +161,7 @@ export default function SigningMethodsForm({
               </div>
             </div>
           </div>
+        </div>
         </div>
       </div>
 

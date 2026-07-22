@@ -63,6 +63,10 @@ interface DataListTemplateProps {
   pinnedRows?: any[]
   selectionColumns?: SelectionColumn[]
   getRowId?: (row: any) => string | number
+  // By default the table collapses to a stacked card view below md. Set false to
+  // keep the full table on every breakpoint and let it scroll horizontally on
+  // mobile instead (for wide tables where the card view hurts readability).
+  mobileCardView?: boolean
 }
 
 export default function DataListTemplate({
@@ -82,6 +86,7 @@ export default function DataListTemplate({
   pinnedRows = [],
   selectionColumns = [],
   getRowId,
+  mobileCardView = true,
 }: DataListTemplateProps) {
   const { t } = useTranslation()
   const router = useRouter()
@@ -516,7 +521,7 @@ export default function DataListTemplate({
         ) : (
           <>
             {/* ── Mobile card view (< md) ── */}
-            <div className="md:hidden divide-y divide-border">
+            <div className={`${mobileCardView ? "md:hidden" : "hidden"} divide-y divide-border`}>
               {/* Pinned rows always appear first */}
               {currentPage === 1 && pinnedRows.map((row, index) => (
                 <div
@@ -596,8 +601,8 @@ export default function DataListTemplate({
               ))}
             </div>
 
-            {/* ── Desktop table view (≥ md) ── */}
-            <div className="overflow-x-auto hidden md:block">
+            {/* ── Desktop table view (≥ md, or all breakpoints when cards disabled) ── */}
+            <div className={`overflow-x-auto ${mobileCardView ? "hidden md:block" : "block"}`}>
             <DragDropContext
               onDragEnd={(result: DropResult) => {
                 if (!result.destination) return

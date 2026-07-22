@@ -214,10 +214,30 @@ export function ClientDataTab({ clientId, selfService = false }: ClientDataTabPr
     setError(null)
 
     try {
+      // Send only the fields this form owns. The GET returns the whole entity
+      // and it was being echoed back minus a blacklist, so entity columns this
+      // form never touches (the billing* group) reached a DTO that does not
+      // declare them and the API rejected the whole save with a 400.
       // `active` is owned by the Deactivate/Reactivate action, never this form.
-      const { id, userId, publicId, email, logoPublicId, logoUrl, createdAt, updatedAt, active, ...updatePayload } = clientData as any
+      const FORM_FIELDS = [
+        "type", "status", "code", "taxId",
+        "name", "responsible", "observation",
+        "landline", "mobile",
+        "address", "street", "streetNumber", "floorDoor",
+        "postalCode", "city", "province", "country",
+        "latitude", "longitude",
+        "winterSchedule", "summerSchedule", "summerStartDate", "summerEndDate",
+        "accessAccountStatus",
+        "bankIban", "bankSwift", "bankHolder",
+      ] as const
+
+      const src = clientData as any
+      const updatePayload: Record<string, any> = {}
+      for (const key of FORM_FIELDS) {
+        if (src[key] !== undefined) updatePayload[key] = src[key]
+      }
       if (meMode) {
-        delete (updatePayload as any).type
+        delete updatePayload.type
       }
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/client/${meMode ? "me" : clientId}`, {
         method: "PUT",
@@ -229,7 +249,18 @@ export function ClientDataTab({ clientId, selfService = false }: ClientDataTabPr
       })
 
       if (!response.ok) {
-        throw new Error(`Failed to save client data: ${response.status}`)
+        // The status alone said nothing. NestJS puts the real reason in the
+        // body (often an array of per-field validation messages).
+        let reason = `HTTP ${response.status}`
+        try {
+          const body = await response.json()
+          reason = Array.isArray(body?.message)
+            ? body.message.join("; ")
+            : body?.message || reason
+        } catch {
+          /* non-JSON body — keep the status */
+        }
+        throw new Error(reason)
       }
 
       const result = await response.json()
@@ -489,7 +520,11 @@ export function ClientDataTab({ clientId, selfService = false }: ClientDataTabPr
                 } else {
                   // No street/number (Plus Codes, business names, etc.) — strip city/province/country/postalCode from the full address
                   let cleaned = value
-                  for (const part of [components.postalCode, components.city, components.province, components.country].filter(Boolean)) {
+                  // filter(Boolean) does not narrow the type, so the parts stayed
+                  // `string | undefined` and replace() rejected them.
+                  const parts = [components.postalCode, components.city, components.province, components.country]
+                    .filter((p): p is string => !!p)
+                  for (const part of parts) {
                     cleaned = cleaned.replace(part, "")
                   }
                   addressOnly = cleaned.replace(/,\s*,/g, ",").replace(/^[\s,]+|[\s,]+$/g, "").trim()
