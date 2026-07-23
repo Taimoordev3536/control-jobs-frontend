@@ -241,9 +241,20 @@ export function jobOccupation(job: any): string {
   return "General"
 }
 
+/** All occupations present in a job: the assigned workers' occupations (each
+ *  worker carries one, e.g. "Limpiadora") take priority — that's the real data;
+ *  only if a job has no worker occupations do we fall back to the single derived
+ *  jobOccupation(). Returned as a list because a job can mix occupations. */
+export function jobOccupationList(job: any): string[] {
+  const fromWorkers = Array.isArray(job?.workers)
+    ? (Array.from(new Set(job.workers.map((w: any) => w?.occupation).filter(Boolean))) as string[])
+    : []
+  return fromWorkers.length ? fromWorkers : [jobOccupation(job)]
+}
+
 /** Distinct occupations present across a job list. */
 export function jobOccupations(jobs: any[]): string[] {
-  return Array.from(new Set(jobs.map((j) => jobOccupation(j)).filter(Boolean)))
+  return Array.from(new Set(jobs.flatMap((j) => jobOccupationList(j)).filter(Boolean)))
 }
 
 /** True if a job matches the active search / status / work-center / occupation filters. */
@@ -270,7 +281,7 @@ export function jobMatchesFilters(
         ? [job.workCenter.name]
         : []
   const matchWc = f.workCenter === "all" || wcs.some((w: string) => (w || "") === f.workCenter)
-  const matchOcc = !f.occupation || f.occupation === "all" || jobOccupation(job) === f.occupation
+  const matchOcc = !f.occupation || f.occupation === "all" || jobOccupationList(job).includes(f.occupation)
   const matchClient = !f.client || f.client === "all" || clientName === f.client
   const matchWorker = !f.worker || f.worker === "all" || workerNames.some((w: string) => (w || "") === f.worker)
   return matchSearch && matchStatus && matchWc && matchOcc && matchClient && matchWorker

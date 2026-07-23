@@ -365,6 +365,7 @@ export default function EmployerDashboard() {
       workers: (apiJob.workers || []).map((worker: any) => ({
         id: worker.publicId || worker.id,
         name: worker.name || `${t("worker")} ${worker.code}`, // Fallback to code if name is null
+        occupation: worker.occupation || null, // keep so the occupation filter can read it
       })),
       status,
       startDate,

@@ -6,6 +6,12 @@
 .pac-container {
   z-index: 10000 !important;
   pointer-events: auto !important;
+  /* Never let the suggestion dropdown run past the screen edge on mobile. */
+  max-width: calc(100vw - 1.5rem) !important;
+  box-sizing: border-box;
+}
+.pac-item {
+  white-space: normal;
 }
 
 @layer base {

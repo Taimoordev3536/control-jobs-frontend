@@ -123,9 +123,6 @@ export default function TabTableTemplate({
     else setFiltersInternal(next)
   }
 
-  const total = totalRecords || data.length
-  const totalPages = Math.ceil(total / itemsPerPage)
-
   // Sorting logic
   const sortedData = useMemo(() => {
     if (!sortColumn) return data
@@ -424,11 +421,17 @@ export default function TabTableTemplate({
       </div>
 
       {/* Pagination */}
-      {showPagination && filteredData.length > 0 && (
+      {showPagination && filteredData.length > 0 && (() => {
+        // Count off the FILTERED rows, not the full data — otherwise search/
+        // filter showed "1–10 of 50" with only 3 matches and left Next enabled
+        // onto empty pages.
+        const shownTotal = filteredData.length
+        const filteredTotalPages = Math.max(1, Math.ceil(shownTotal / itemsPerPage))
+        return (
         <div className="px-4 py-2.5 flex items-center justify-between border-t border-border bg-card bg-gray-100 dark:bg-gray-800">
           <div className="text-xs text-muted-foreground">
             {t("showingRecordsFrom")} {((currentPage - 1) * itemsPerPage + 1)} {t("to")}{" "}
-            {Math.min(currentPage * itemsPerPage, total)} {t("outOfTotal")} {total} {t("records")}
+            {Math.min(currentPage * itemsPerPage, shownTotal)} {t("outOfTotal")} {shownTotal} {t("records")}
           </div>
           <div className="flex items-center gap-1.5">
             <button
@@ -443,14 +446,15 @@ export default function TabTableTemplate({
             </button>
             <button
               className="px-2 py-0.5 text-xs text-muted-foreground hover:text-foreground disabled:opacity-50 transition-colors"
-              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-              disabled={currentPage === totalPages}
+              onClick={() => setCurrentPage(Math.min(filteredTotalPages, currentPage + 1))}
+              disabled={currentPage === filteredTotalPages}
             >
               {t("next")}
             </button>
           </div>
         </div>
-      )}
+        )
+      })()}
     </div>
   )
 }

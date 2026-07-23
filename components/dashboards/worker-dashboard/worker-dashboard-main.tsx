@@ -31,7 +31,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { JobFilterBar, jobMatchesFilters, jobWorkCenters, jobClients, jobOccupations, StatCard, AttentionCard, ActionButton, SectionLabel, ListPanel, ListRow, RowAvatar, StatusChip } from "../dashboard-widgets"
+import { JobFilterBar, jobMatchesFilters, jobWorkCenters, jobClients, StatCard, AttentionCard, ActionButton, SectionLabel, ListPanel, ListRow, RowAvatar, StatusChip } from "../dashboard-widgets"
 import { useRouter } from "next/navigation"
 import { Clock, Briefcase, ClipboardCheck, Coins, FileText, Fingerprint } from "lucide-react"
 import { CheckInMethods } from "@/components/dashboards/worker-dashboard/check-in-methods"
@@ -190,7 +190,6 @@ export default function WorkerDashboardMain() {
   const [jobStatus, setJobStatus] = useState("all");
   const [jobWorkCenter, setJobWorkCenter] = useState("all");
   const [jobClient, setJobClient] = useState("all");
-  const [jobOcc, setJobOcc] = useState("all");
   const [jobsTab, setJobsTab] = useState<"today" | "all">("today");
   const [wd, setWd] = useState<any>({ hoursThisWeek: 0, missing: 0, payslips: [], todayIds: [] as string[] });
 
@@ -494,7 +493,7 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
           }
         : undefined,
     // include raw workers if provided by backend
-    workers: (apiJob.workers || []).map(w => ({ id: w.id, code: w.code, name: w.name })) || [],
+    workers: (apiJob.workers || []).map(w => ({ id: w.id, code: w.code, name: w.name, occupation: (w as any).occupation ?? null })) || [],
   };
 };
 
@@ -1603,6 +1602,9 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
                     </button>
                   ))}
                 </div>
+                {/* No occupation filter on the worker's own dashboard: a worker
+                    has a single occupation, so filtering his jobs by it is
+                    pointless. Occupation filtering lives on client/employer. */}
                 <JobFilterBar
                   search={jobSearch}
                   onSearch={setJobSearch}
@@ -1611,16 +1613,13 @@ const transformApiJobToJobAssignment = (apiJob: ApiWorkerJob): JobAssignment => 
                   workCenter={jobWorkCenter}
                   onWorkCenter={setJobWorkCenter}
                   workCenters={jobWorkCenters(todayAssignments)}
-                  occupation={jobOcc}
-                  onOccupation={setJobOcc}
-                  occupations={jobOccupations(todayAssignments)}
                   client={jobClient}
                   onClient={setJobClient}
                   clients={jobClients(todayAssignments)}
                 />
                 <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
                   {todayAssignments
-                    .filter((job) => jobMatchesFilters(job, { search: jobSearch, status: jobStatus, workCenter: jobWorkCenter, client: jobClient, occupation: jobOcc }))
+                    .filter((job) => jobMatchesFilters(job, { search: jobSearch, status: jobStatus, workCenter: jobWorkCenter, client: jobClient }))
                     .filter((job: any) => jobsTab === "all" || wd.todayIds.includes(job.publicId))
                     .map((job) => (
                     <JobCard
