@@ -78,7 +78,7 @@ export default function ClientInvoicesPage() {
       columns={columns}
       actionButtons={actionButtons}
       isLoading={isLoading}
-      emptyMessage={isLoading ? <AnimatedLoader size={32} /> : t("noInvoicesYet") || "No invoices yet"}
+      emptyMessage={(!isAuthenticated || isLoading) ? <AnimatedLoader size={32} /> : t("noInvoicesYet") || "No invoices yet"}
     />
   )
 }

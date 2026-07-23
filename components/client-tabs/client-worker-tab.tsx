@@ -55,12 +55,15 @@ export function ClientWorkerTab({ clientId }: ClientWorkerTabProps) {
     },
   })
 
+  // Pixel widths (not %): with the table's fixed layout the table width becomes
+  // their sum, so on a phone it grows past the viewport and scrolls horizontally
+  // (columns stay readable) instead of cramming/overlapping into 100% width.
   const columns: TabTableColumn[] = [
-    { key: "name", label: t("name"), sortable: true, width: "35%" },
-    { key: "occupation", label: t("occupation"), sortable: true, width: "20%" },
-    { key: "mobile", label: t("mobile"), sortable: true, width: "13%" },
-    { key: "city", label: t("locality"), sortable: true, width: "20%" },
-    { key: "postalCode", label: t("postalCode"), sortable: true, align: "center", width: "12%" },
+    { key: "name", label: t("name"), sortable: true, width: "170px" },
+    { key: "occupation", label: t("occupation"), sortable: true, width: "140px" },
+    { key: "mobile", label: t("mobile"), sortable: true, width: "140px" },
+    { key: "city", label: t("locality"), sortable: true, width: "140px" },
+    { key: "postalCode", label: t("postalCode"), sortable: true, align: "center", width: "120px" },
   ]
 
   return (

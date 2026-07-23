@@ -125,7 +125,7 @@ export default function EmployerClientRequestsPage() {
         columns={columns}
         actionButtons={actionButtons}
         isLoading={isLoading}
-        emptyMessage={isLoading ? <AnimatedLoader size={32} /> : t("noRequestsYet") || "No requests yet"}
+        emptyMessage={(!isAuthenticated || isLoading) ? <AnimatedLoader size={32} /> : t("noRequestsYet") || "No requests yet"}
         onRowClick={(row: any) => { setSelected(row.raw); setNotes(row.raw?.reviewerNotes || "") }}
         getRowId={(r: any) => r.id}
       />

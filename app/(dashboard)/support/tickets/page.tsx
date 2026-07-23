@@ -110,7 +110,7 @@ export default function SupportTicketsPage() {
         defaultSortColumn="date"
         defaultSortDirection="desc"
         onRowClick={openTicket as any}
-        emptyMessage={isLoading ? <AnimatedLoader size={32} /> : t("noTicketsFound") || "No tickets found"}
+        emptyMessage={(!isAuthenticated || isLoading) ? <AnimatedLoader size={32} /> : t("noTicketsFound") || "No tickets found"}
       />
 
       <Dialog open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>

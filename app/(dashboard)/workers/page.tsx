@@ -117,7 +117,7 @@ export default function WorkersPage() {
         actionButtons={actionButtons}
         defaultSortColumn="name"
         defaultSortDirection="asc"
-        emptyMessage={isLoading ? <AnimatedLoader size={32} /> : t("noWorkersFound")}
+        emptyMessage={(!isAuthenticated || isLoading) ? <AnimatedLoader size={32} /> : t("noWorkersFound")}
       />
       <AddWorkerModal
         open={showAddModal}

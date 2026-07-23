@@ -2205,7 +2205,7 @@ export default function JobFormCore({
           </div>
           {index < mainSteps.length - 1 && (
             <div
-              className={`w-16 h-0.5 mx-2 ${
+              className={`w-8 sm:w-16 h-0.5 mx-1 sm:mx-2 ${
                 step.number < currentMainStep ? "" : "bg-muted"
               }`}
               style={

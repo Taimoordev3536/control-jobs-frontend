@@ -78,7 +78,7 @@ export default function SalariesPage() {
       columns={columns}
       actionButtons={actionButtons}
       isLoading={isLoading}
-      emptyMessage={isLoading ? <AnimatedLoader size={32} /> : t("noReceiptsYet") || "No receipts yet"}
+      emptyMessage={(!isAuthenticated || isLoading) ? <AnimatedLoader size={32} /> : t("noReceiptsYet") || "No receipts yet"}
     />
   )
 }

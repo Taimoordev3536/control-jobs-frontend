@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import dynamic from "next/dynamic"
 import { useAuth } from "@/hooks/use-auth"
 import { LoadingSpinner } from "@/components/loading-spinner"
@@ -32,6 +33,7 @@ const PartnerDashboard = dynamic(() => import("@/components/dashboards/partner-d
 })
 
 export default function RoleBasedDashboard() {
+  const router = useRouter()
   const { session, isLoading, getUserRole } = useAuth()
   const [userRole, setUserRole] = useState<string | null>(null)
 
@@ -44,20 +46,23 @@ export default function RoleBasedDashboard() {
     }
   }, [session, getUserRole])
 
+  // On logout the session clears a moment before the redirect navigates away.
+  // Send them to /login ourselves and show a spinner meanwhile, instead of
+  // flashing a scary "Access Denied" screen during that gap.
+  useEffect(() => {
+    if (!isLoading && !session) {
+      router.replace("/login")
+    }
+  }, [isLoading, session, router])
+
   // Show loading spinner while session is loading OR while we don't have a role yet
   if (isLoading || (session && !userRole)) {
     return <LoadingSpinner />
   }
 
   if (!session) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Access Denied</h2>
-          <p className="text-gray-600">Please log in to access your dashboard.</p>
-        </div>
-      </div>
-    )
+    // Redirecting to /login (see effect above); show the spinner, not "Access Denied".
+    return <LoadingSpinner />
   }
 
   // Render dashboard based on user role

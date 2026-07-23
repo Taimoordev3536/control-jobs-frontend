@@ -127,7 +127,7 @@ export default function AllJobsPage() {
         columns={columns}
         actionButtons={actionButtons}
         isLoading={isLoading}
-        emptyMessage={isLoading ? <AnimatedLoader size={32} /> : t("noJobsAvailable") || "No jobs yet"}
+        emptyMessage={(!isAuthenticated || isLoading) ? <AnimatedLoader size={32} /> : t("noJobsAvailable") || "No jobs yet"}
         onRowClick={(row: any) => router.push(`/jobs/${row.publicId}/detail`)}
         getRowId={(r: any) => r.publicId}
       />

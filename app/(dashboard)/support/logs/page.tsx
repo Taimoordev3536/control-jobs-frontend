@@ -41,7 +41,7 @@ export default function SupportLogsPage() {
       columns={columns}
       defaultSortColumn="date"
       defaultSortDirection="desc"
-      emptyMessage={isLoading ? <AnimatedLoader size={32} /> : t("noLogsFound") || "No logs found"}
+      emptyMessage={(!isAuthenticated || isLoading) ? <AnimatedLoader size={32} /> : t("noLogsFound") || "No logs found"}
     />
   )
 }

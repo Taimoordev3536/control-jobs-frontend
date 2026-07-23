@@ -240,14 +240,17 @@ export default function TasksForm({
 
               <div className="mt-4 p-4 bg-muted/30 border border-border rounded-lg">
                 {formData.periodicity !== "once" && (
+                  // Stack on a phone (NOT a horizontal scroller): these are date
+                  // pickers whose calendar pops out, and an overflow container
+                  // would clip the popup. 3 columns return from sm up.
                   <div className="mb-4">
-                    <div className="grid grid-cols-3 gap-6 items-end">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 items-end">
                       <div>
                         <Label className="text-sm font-medium mb-2 block">{t("startDate") || "Start Date"}</Label>
                         <DateInput
                           value={formData.taskStartDate}
                           onChange={(e) => updateFormData("taskStartDate", e.target.value)}
-                          className="w-36"
+                          className="w-full"
                           placeholder="dd/mm/aaaa"
                         />
                         {errors.taskStartDate && <div className="text-sm text-destructive mt-1">{errors.taskStartDate}</div>}
@@ -260,7 +263,7 @@ export default function TasksForm({
                         <DateInput
                           value={formData.taskEndDate}
                           onChange={(e) => updateFormData("taskEndDate", e.target.value)}
-                          className="w-36"
+                          className="w-full"
                           placeholder="dd/mm/aaaa"
                         />
                         {errors.taskEndDate && <div className="text-sm text-destructive mt-1">{errors.taskEndDate}</div>}
@@ -360,11 +363,13 @@ export default function TasksForm({
                   <div className="space-y-4">
                     <div>
                       <Label className="text-sm font-medium mb-2 block">{t("scheduleBy")}</Label>
-                      <div className="flex gap-3">
+                      {/* 4 mode buttons; on a phone they're wider than the screen,
+                          so scroll them horizontally instead of cramming/clipping. */}
+                      <div className="flex gap-3 overflow-x-auto pb-1">
                         <button
                           type="button"
                           className={`
-                            flex-1 py-3 px-4 text-sm font-medium rounded border-2 transition-all text-center
+                            flex-1 min-w-max whitespace-nowrap py-3 px-4 text-sm font-medium rounded border-2 transition-all text-center
                             ${
                               formData.monthlyMode === "dates"
                                 ? "border-primary bg-primary text-primary-foreground"
@@ -381,7 +386,7 @@ export default function TasksForm({
                         <button
                           type="button"
                           className={`
-                            flex-1 py-3 px-4 text-sm font-medium rounded border-2 transition-all text-center
+                            flex-1 min-w-max whitespace-nowrap py-3 px-4 text-sm font-medium rounded border-2 transition-all text-center
                             ${
                               formData.monthlyMode === "weekdays"
                                 ? "border-primary bg-primary text-primary-foreground"
@@ -398,7 +403,7 @@ export default function TasksForm({
                         <button
                           type="button"
                           className={`
-                            flex-1 py-3 px-4 text-sm font-medium rounded border-2 transition-all text-center
+                            flex-1 min-w-max whitespace-nowrap py-3 px-4 text-sm font-medium rounded border-2 transition-all text-center
                             ${
                               formData.monthlyMode === "firstWeekDay"
                                 ? "border-primary bg-primary text-primary-foreground"
@@ -417,7 +422,7 @@ export default function TasksForm({
                         <button
                           type="button"
                           className={`
-                            flex-1 py-3 px-4 text-sm font-medium rounded border-2 transition-all text-center
+                            flex-1 min-w-max whitespace-nowrap py-3 px-4 text-sm font-medium rounded border-2 transition-all text-center
                             ${
                               formData.monthlyMode === "lastWeekDay"
                                 ? "border-primary bg-primary text-primary-foreground"
@@ -660,11 +665,6 @@ export default function TasksForm({
                 {t("cancel") || "Cancel"}
               </Button>
             </div>
-            {editingTaskId && (
-              <span className="text-sm text-blue-600 font-medium">
-                {t("editingTask") || "Editing task..."}
-              </span>
-            )}
           </div>
 
           {/* Tasks Table */}

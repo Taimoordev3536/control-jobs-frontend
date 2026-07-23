@@ -358,6 +358,15 @@ export function ClientDataTab({ clientId, selfService = false }: ClientDataTabPr
   }
 
   if (!clientData) {
+    // On a hard refresh the query stays DISABLED until the auth token hydrates,
+    // and a disabled React Query reports isLoading=false with no data — which
+    // used to flash "clientNotFound". There's also a one-render gap after the
+    // fetch resolves before the effect seeds clientData. Keep showing the loader
+    // until we've genuinely settled; a truly missing client surfaces as the
+    // error alert above, not here.
+    if (!session?.accessToken || isLoading || fetchedClient) {
+      return <AnimatedLoader size={32} className="p-8" />
+    }
     return (
       <div className="p-6">
         <Alert>

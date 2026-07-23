@@ -45,11 +45,21 @@ export default function SurveysForm({
       {enableSurveys && (
         <div className="space-y-6 mt-8">
           <Tabs defaultValue="customer" className="w-full">
-            <TabsList>
-              <TabsTrigger value="customer" onClick={() => setSurveyTab("customer")}>
+            {/* Full-width, each tab takes half and wraps its (long, localized)
+                label instead of overflowing the screen on a phone. */}
+            <TabsList className="w-full h-auto">
+              <TabsTrigger
+                value="customer"
+                onClick={() => setSurveyTab("customer")}
+                className="flex-1 h-auto whitespace-normal py-1.5 text-xs sm:text-sm leading-tight text-center"
+              >
                 {t("customerSurvey") || "Customer Survey"}
               </TabsTrigger>
-              <TabsTrigger value="worker" onClick={() => setSurveyTab("worker")}>
+              <TabsTrigger
+                value="worker"
+                onClick={() => setSurveyTab("worker")}
+                className="flex-1 h-auto whitespace-normal py-1.5 text-xs sm:text-sm leading-tight text-center"
+              >
                 {t("workerSurvey") || "Worker Survey"}
               </TabsTrigger>
             </TabsList>
@@ -232,10 +242,10 @@ export default function SurveysForm({
                     {formData.customerSurvey.periodicity === "monthly" && (
                       <div className="mt-4 space-y-4">
                         <Label className="text-sm font-medium mb-2 block">{t("scheduleBy") || "Programar"}</Label>
-                        <div className="flex gap-3">
+                        <div className="flex gap-3 overflow-x-auto pb-1">
                           <button
                             type="button"
-                            className={`flex-1 py-3 px-4 text-sm font-medium rounded border-2 transition-all text-center ${
+                            className={`flex-1 min-w-max whitespace-nowrap py-3 px-4 text-sm font-medium rounded border-2 transition-all text-center ${
                               formData.customerSurvey.monthlyMode === "dates"
                                 ? "border-primary bg-primary text-primary-foreground"
                                 : "border-border bg-background hover:border-primary hover:bg-muted"
@@ -246,7 +256,7 @@ export default function SurveysForm({
                           </button>
                           <button
                             type="button"
-                            className={`flex-1 py-3 px-4 text-sm font-medium rounded border-2 transition-all text-center ${
+                            className={`flex-1 min-w-max whitespace-nowrap py-3 px-4 text-sm font-medium rounded border-2 transition-all text-center ${
                               formData.customerSurvey.monthlyMode === "weekdays"
                                 ? "border-primary bg-primary text-primary-foreground"
                                 : "border-border bg-background hover:border-primary hover:bg-muted"
@@ -257,7 +267,7 @@ export default function SurveysForm({
                           </button>
                           <button
                             type="button"
-                            className={`flex-1 py-3 px-4 text-sm font-medium rounded border-2 transition-all text-center ${
+                            className={`flex-1 min-w-max whitespace-nowrap py-3 px-4 text-sm font-medium rounded border-2 transition-all text-center ${
                               formData.customerSurvey.monthlyMode === "firstWeekDay"
                                 ? "border-primary bg-primary text-primary-foreground"
                                 : "border-border bg-background hover:border-primary hover:bg-muted"
@@ -268,7 +278,7 @@ export default function SurveysForm({
                           </button>
                           <button
                             type="button"
-                            className={`flex-1 py-3 px-4 text-sm font-medium rounded border-2 transition-all text-center ${
+                            className={`flex-1 min-w-max whitespace-nowrap py-3 px-4 text-sm font-medium rounded border-2 transition-all text-center ${
                               formData.customerSurvey.monthlyMode === "lastWeekDay"
                                 ? "border-primary bg-primary text-primary-foreground"
                                 : "border-border bg-background hover:border-primary hover:bg-muted"
@@ -562,10 +572,10 @@ export default function SurveysForm({
                     {formData.workerSurvey.periodicity === "monthly" && (
                       <div className="mt-4 space-y-4">
                         <Label className="text-sm font-medium mb-2 block">{t("scheduleBy") || "Programar"}</Label>
-                        <div className="flex gap-3">
+                        <div className="flex gap-3 overflow-x-auto pb-1">
                           <button
                             type="button"
-                            className={`flex-1 py-3 px-4 text-sm font-medium rounded border-2 transition-all text-center ${
+                            className={`flex-1 min-w-max whitespace-nowrap py-3 px-4 text-sm font-medium rounded border-2 transition-all text-center ${
                               formData.workerSurvey.monthlyMode === "dates"
                                 ? "border-primary bg-primary text-primary-foreground"
                                 : "border-border bg-background hover:border-primary hover:bg-muted"
@@ -576,7 +586,7 @@ export default function SurveysForm({
                           </button>
                           <button
                             type="button"
-                            className={`flex-1 py-3 px-4 text-sm font-medium rounded border-2 transition-all text-center ${
+                            className={`flex-1 min-w-max whitespace-nowrap py-3 px-4 text-sm font-medium rounded border-2 transition-all text-center ${
                               formData.workerSurvey.monthlyMode === "weekdays"
                                 ? "border-primary bg-primary text-primary-foreground"
                                 : "border-border bg-background hover:border-primary hover:bg-muted"
@@ -587,7 +597,7 @@ export default function SurveysForm({
                           </button>
                           <button
                             type="button"
-                            className={`flex-1 py-3 px-4 text-sm font-medium rounded border-2 transition-all text-center ${
+                            className={`flex-1 min-w-max whitespace-nowrap py-3 px-4 text-sm font-medium rounded border-2 transition-all text-center ${
                               formData.workerSurvey.monthlyMode === "firstWeekDay"
                                 ? "border-primary bg-primary text-primary-foreground"
                                 : "border-border bg-background hover:border-primary hover:bg-muted"
@@ -598,7 +608,7 @@ export default function SurveysForm({
                           </button>
                           <button
                             type="button"
-                            className={`flex-1 py-3 px-4 text-sm font-medium rounded border-2 transition-all text-center ${
+                            className={`flex-1 min-w-max whitespace-nowrap py-3 px-4 text-sm font-medium rounded border-2 transition-all text-center ${
                               formData.workerSurvey.monthlyMode === "lastWeekDay"
                                 ? "border-primary bg-primary text-primary-foreground"
                                 : "border-border bg-background hover:border-primary hover:bg-muted"

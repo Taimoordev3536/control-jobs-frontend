@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { Plus, Pencil, Trash2, Loader2 } from "lucide-react"
 import { useTranslation } from "@/hooks/use-translation"
 import { useToast } from "@/hooks/use-toast"
@@ -31,6 +31,13 @@ export function InlineImageUploader({
   const [url, setUrl] = useState<string | null>(initialUrl)
   const [busy, setBusy] = useState(false)
   const inputRef = useRef<HTMLInputElement | null>(null)
+
+  // initialUrl arrives asynchronously (the parent fetches /worker/me after
+  // mount), so seed from it whenever it changes — useState only reads it once,
+  // which left the avatar stuck on the placeholder even when a photo existed.
+  useEffect(() => {
+    setUrl(initialUrl)
+  }, [initialUrl])
 
   const pick = () => inputRef.current?.click()
 

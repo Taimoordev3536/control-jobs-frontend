@@ -176,7 +176,7 @@ interface Stats {
 export default function EmployerDashboard() {
   const router = useRouter()
   const { t } = useTranslation("employer-dashboard")
-  const { t: tg, language } = useTranslation()
+  const { t: tg, language, tEnum } = useTranslation()
   const { session, logout, isAuthenticated } = useAuth()
   const queryClient = useQueryClient()
 
@@ -679,9 +679,23 @@ export default function EmployerDashboard() {
   return (
     <div className="min-h-screen bg-background">
       <div className="w-full p-4 space-y-5">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">{tg("hello") || "Hello"}, {employerDisplayName}</h1>
-          <p className="text-sm text-muted-foreground mt-0.5 capitalize">{todayLabel}</p>
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div>
+            <h1 className="text-2xl font-semibold text-foreground">{tg("hello") || "Hello"}, {employerDisplayName}</h1>
+            <p className="text-sm text-muted-foreground mt-0.5 capitalize">{todayLabel}</p>
+          </div>
+          {/* Clase badge (Particular / Empresa / Autónomo), mirroring the
+              partner dashboard's tier badge. subTypeId: 1=INDIVIDUAL,
+              2=FREELANCER, 3=COMPANY. */}
+          {(() => {
+            const key = ({ 1: "INDIVIDUAL", 2: "FREELANCER", 3: "COMPANY" } as Record<number, string>)[(me as any)?.subTypeId]
+            if (!key) return null
+            return (
+              <span className="inline-flex items-center gap-2 rounded-full border border-[#E4D5F3] dark:border-purple-900 bg-[#F2EAFA] dark:bg-purple-950/40 text-[#4A1F6B] dark:text-purple-300 font-bold text-sm px-4 py-2">
+                ◆ {tEnum("employerSubType", key)}
+              </span>
+            )
+          })()}
         </div>
 
         <section className="space-y-3">

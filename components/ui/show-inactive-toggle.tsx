@@ -23,7 +23,7 @@ export function ShowInactiveToggle({
   return (
     <label
       htmlFor={id}
-      className="hidden sm:flex items-center gap-1.5 text-xs text-foreground cursor-pointer select-none whitespace-nowrap"
+      className="flex items-center gap-1.5 text-xs text-foreground cursor-pointer select-none whitespace-nowrap"
     >
       <Checkbox
         id={id}

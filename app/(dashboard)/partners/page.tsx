@@ -139,7 +139,7 @@ export default function PartnersList() {
         }
         onRowClick={handleRowClick}
         actionButtons={actionButtons}
-        emptyMessage={isLoading ? <AnimatedLoader size={32} /> : t("noPartnersFound")}
+        emptyMessage={(!isAuthenticated || isLoading) ? <AnimatedLoader size={32} /> : t("noPartnersFound")}
       />
 
       <AddPartnerModal open={isAddPartnerModalOpen} onOpenChange={setIsAddPartnerModalOpen} onPartnerAdded={handlePartnerAdded} />

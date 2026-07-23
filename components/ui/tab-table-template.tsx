@@ -36,6 +36,9 @@ interface TabTableTemplateProps {
   onFiltersChange?: (filters: Record<string, string>) => void
   rowClassName?: (row: any, index: number) => string
   renderRowBefore?: (row: any, index: number) => React.ReactNode
+  // Global search box that filters across every column. On by default; set false
+  // for tables whose parent already renders its own search (e.g. Control).
+  searchable?: boolean
 }
 
 export default function TabTableTemplate({
@@ -54,6 +57,7 @@ export default function TabTableTemplate({
   onFiltersChange: onFiltersChangeProp,
   rowClassName,
   renderRowBefore,
+  searchable = true,
 }: TabTableTemplateProps) {
   const { t } = useTranslation()
   const [columnOrder, setColumnOrder] = useState<string[]>(() => columns.map((c) => c.key))
@@ -78,6 +82,7 @@ export default function TabTableTemplate({
   const [currentPage, setCurrentPage] = useState(1)
   const [filtersVisibleInternal, setFiltersVisibleInternal] = useState(false)
   const [filtersInternal, setFiltersInternal] = useState<Record<string, string>>({})
+  const [searchQuery, setSearchQuery] = useState("")
   const tableRef = useRef<HTMLTableElement | null>(null)
   const [columnWidths, setColumnWidths] = useState<number[] | null>(null)
 
@@ -146,20 +151,31 @@ export default function TabTableTemplate({
     })
   }, [data, sortColumn, sortDirection, localColumns])
 
-  // Filtering logic (per-column). Uses sortedData as input so filters apply after sorting.
+  // Filtering: global search (across all columns) then per-column filters.
+  // Uses sortedData as input so both apply after sorting.
   const filteredData = useMemo(() => {
-    if (!filtersVisible) return sortedData
-    const activeFilters = Object.entries(filters).filter(([, v]) => v && v.trim() !== "")
-    if (activeFilters.length === 0) return sortedData
+    let result = sortedData
 
-    return sortedData.filter((row) => {
-      return activeFilters.every(([key, value]) => {
-        const col = localColumns.find((c) => c.key === key)
-        if (!col) return true
-        return getCellText(row, col).toLowerCase().includes(value.toLowerCase())
-      })
-    })
-  }, [sortedData, filters, filtersVisible, localColumns, getCellText])
+    const q = searchQuery.trim().toLowerCase()
+    if (searchable && q) {
+      result = result.filter((row) => localColumns.some((col) => getCellText(row, col).toLowerCase().includes(q)))
+    }
+
+    if (filtersVisible) {
+      const activeFilters = Object.entries(filters).filter(([, v]) => v && v.trim() !== "")
+      if (activeFilters.length > 0) {
+        result = result.filter((row) =>
+          activeFilters.every(([key, value]) => {
+            const col = localColumns.find((c) => c.key === key)
+            if (!col) return true
+            return getCellText(row, col).toLowerCase().includes(value.toLowerCase())
+          }),
+        )
+      }
+    }
+
+    return result
+  }, [sortedData, filters, filtersVisible, localColumns, getCellText, searchQuery, searchable])
 
   // Snap back to page 1 if filters/search reduce results past current page (fixes "filters
   // only work on page 1" bug).
@@ -252,6 +268,17 @@ export default function TabTableTemplate({
 
   return (
     <div className={`bg-card rounded-lg shadow-sm border border-border overflow-hidden ${className}`}>
+      {searchable && (
+        <div className="p-2 border-b border-border">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1) }}
+            placeholder={t("search") || "Search..."}
+            className="w-full sm:w-64 h-9 px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:border-[#662D91] focus:ring-1 focus:ring-[#662D91] bg-background"
+          />
+        </div>
+      )}
       <div className="overflow-x-auto">
         <DragDropContext
           onDragEnd={(result: DropResult) => {

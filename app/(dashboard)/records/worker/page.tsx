@@ -122,7 +122,7 @@ export default function WorkerRecordsPage() {
       columns={columns}
       onRowClick={handleRowClick}
       actionButtons={actionButtons}
-      emptyMessage={isLoading ? <AnimatedLoader size={32} /> : t("noRecordsFound")}
+      emptyMessage={(!isAuthenticated || isLoading) ? <AnimatedLoader size={32} /> : t("noRecordsFound")}
     />
   )
 }

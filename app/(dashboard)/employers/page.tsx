@@ -199,7 +199,7 @@ export default function EmployersPage() {
             isLoading={isLoading}
             onRowClick={handleRowClick}
             actionButtons={actionButtons}
-            emptyMessage={isLoading ? <AnimatedLoader size={32} /> : t("noEmployersFound")}
+            emptyMessage={(!isAuthenticated || isLoading) ? <AnimatedLoader size={32} /> : t("noEmployersFound")}
           />
         </TabsContent>
 

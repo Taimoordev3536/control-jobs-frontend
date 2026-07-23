@@ -101,7 +101,7 @@ export default function DefinitionForm({
               </Tooltip>
             </TooltipProvider>
           </Label>
-          <div className="relative w-44">
+          <div className="relative w-full sm:w-44">
             <DateInput
               id="startDate"
               value={formData.startDate}
@@ -115,7 +115,7 @@ export default function DefinitionForm({
           <Label htmlFor="endDate" className="text-sm font-medium text-foreground">
             {t("endDate") || "End Date"}
           </Label>
-          <div className="relative w-44">
+          <div className="relative w-full sm:w-44">
             <DateInput
               id="endDate"
               value={formData.endDate}
@@ -273,10 +273,14 @@ export default function DefinitionForm({
             size="sm"
             variant="outline"
             onClick={() => setFindOpen(true)}
-            className="h-8 text-xs text-[#662D91] border-[#662D91]/40"
+            title={t("findAvailableWorkers") || "Find available workers"}
+            aria-label={t("findAvailableWorkers") || "Find available workers"}
+            // Icon-only on narrow screens (label doesn't fit next to "Workers");
+            // the full label returns from sm up.
+            className="h-8 text-xs text-[#662D91] border-[#662D91]/40 shrink-0 px-2 sm:px-3"
           >
-            <UserSearch className="h-4 w-4 mr-1" />
-            {t("findAvailableWorkers") || "Find available workers"}
+            <UserSearch className="h-4 w-4 sm:mr-1" />
+            <span className="hidden sm:inline">{t("findAvailableWorkers") || "Find available workers"}</span>
           </Button>
         </div>
         <div className="mt-1 border rounded-md p-3 min-h-[120px] bg-background">

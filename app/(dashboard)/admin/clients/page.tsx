@@ -96,7 +96,7 @@ export default function AdminClientsPage() {
       actionButtons={actionButtons}
       defaultSortColumn="name"
       defaultSortDirection="asc"
-      emptyMessage={isLoading ? <AnimatedLoader size={32} /> : t("noClientsFound")}
+      emptyMessage={(!isAuthenticated || isLoading) ? <AnimatedLoader size={32} /> : t("noClientsFound")}
     />
   )
 }

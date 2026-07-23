@@ -41,7 +41,7 @@ export default function SupportSuggestionsPage() {
       columns={columns}
       defaultSortColumn="date"
       defaultSortDirection="desc"
-      emptyMessage={isLoading ? <AnimatedLoader size={32} /> : t("noSuggestionsFound") || "No suggestions found"}
+      emptyMessage={(!isAuthenticated || isLoading) ? <AnimatedLoader size={32} /> : t("noSuggestionsFound") || "No suggestions found"}
     />
   )
 }

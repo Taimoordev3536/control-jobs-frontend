@@ -364,6 +364,25 @@ export default function DataListTemplate({
 
   function MobileDropdown({ actionButtons }: { actionButtons: ActionButton[] }) {
     const [open, setOpen] = useState(false)
+    const menuRef = useRef<HTMLDivElement | null>(null)
+
+    // Close on click/tap outside or Escape (previously it only closed by tapping
+    // the ⋮ button again).
+    useEffect(() => {
+      if (!open) return
+      const onDown = (e: MouseEvent | TouchEvent) => {
+        if (menuRef.current && !menuRef.current.contains(e.target as Node)) setOpen(false)
+      }
+      const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false) }
+      document.addEventListener("mousedown", onDown)
+      document.addEventListener("touchstart", onDown)
+      document.addEventListener("keydown", onKey)
+      return () => {
+        document.removeEventListener("mousedown", onDown)
+        document.removeEventListener("touchstart", onDown)
+        document.removeEventListener("keydown", onKey)
+      }
+    }, [open])
 
     const getIcons = (type: string) => {
       switch (type) {
@@ -385,7 +404,7 @@ export default function DataListTemplate({
     )
 
     return (
-      <div className="relative sm:hidden">
+      <div className="relative sm:hidden" ref={menuRef}>
         <button
           onClick={() => setOpen(!open)}
           className="p-1.5 text-[#662D91] hover:bg-purple-50 dark:hover:bg-purple-950 rounded-md"
@@ -419,9 +438,10 @@ export default function DataListTemplate({
   return (
     <div className="p-2 bg-background min-h-screen relative">
       <div className="bg-card rounded-lg shadow-sm border border-border overflow-hidden">
-        {/* Header */}
-        <div className="flex justify-between items-center px-3 py-1.5 border-b border-border bg-gray-100 dark:bg-gray-800">
-          <h1 className="text-base sm:text-lg font-semibold text-foreground truncate">{title}</h1>
+        {/* Header — flex-wrap so a toolbarExtra (e.g. the Show-inactive toggle)
+            drops to a second line on a phone instead of overflowing the header. */}
+        <div className="flex flex-wrap justify-between items-center gap-x-2 gap-y-1 px-3 py-1.5 border-b border-border bg-gray-100 dark:bg-gray-800">
+          <h1 className="text-base sm:text-lg font-semibold text-foreground truncate min-w-0">{title}</h1>
           <div className="flex items-center gap-2">
             {toolbarExtra}
             {/* Search input */}
@@ -489,24 +509,47 @@ export default function DataListTemplate({
               </>
             )}
             {selectionColumns.length > 0 && (
-              <div className="flex items-center gap-1 sm:hidden">
+              <div className="flex items-center gap-2 sm:hidden">
                 {selectionColumns.map((col) => {
                   const Icon = col.icon
                   return (
-                    <button
-                      key={`m-act-${col.key}`}
-                      type="button"
-                      onClick={() => runColumnAction(col)}
-                      title={col.title}
-                      className="p-1.5 text-[#662D91] hover:bg-purple-50 dark:hover:bg-purple-950 rounded-md"
-                    >
-                      <Icon className="w-5 h-5" />
-                    </button>
+                    // Select-all checkbox + action icon per column, so mobile has
+                    // the "select all" the desktop header offers (it was missing).
+                    <div key={`m-act-${col.key}`} className="flex items-center gap-1">
+                      <input
+                        type="checkbox"
+                        checked={isAllEligibleSelected(col)}
+                        onChange={() => toggleSelectAll(col)}
+                        title={t("selectAllFiltered") || "Select all filtered"}
+                        aria-label={t("selectAllFiltered") || "Select all filtered"}
+                        className="cursor-pointer accent-[#662D91]"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => runColumnAction(col)}
+                        title={col.title}
+                        className="p-1.5 text-[#662D91] hover:bg-purple-50 dark:hover:bg-purple-950 rounded-md"
+                      >
+                        <Icon className="w-5 h-5" />
+                      </button>
+                    </div>
                   )
                 })}
               </div>
             )}
           </div>
+        </div>
+
+        {/* Mobile search — the header search box is hidden below sm, so give
+            phones a full-width search bar of their own here. */}
+        <div className="sm:hidden px-3 py-2 border-b border-border bg-gray-100 dark:bg-gray-800">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1) }}
+            placeholder={t("search") || "Search..."}
+            className="w-full h-9 px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:border-[#662D91] focus:ring-1 focus:ring-[#662D91] bg-background"
+          />
         </div>
 
         {/* Table */}

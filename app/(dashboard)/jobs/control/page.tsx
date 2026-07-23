@@ -284,6 +284,8 @@ function EmployerControlView() {
         data={shown}
         loading={loading}
         showPagination={false}
+        // Control has its own search in the page toolbar — don't add a second one.
+        searchable={false}
         emptyMessage={t("noJobsForDay") || "No jobs scheduled for this day"}
         onRowClick={(row) => setSelected(row)}
         rowClassName={rowClassName as any}

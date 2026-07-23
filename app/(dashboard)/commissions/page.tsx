@@ -115,7 +115,7 @@ export default function CommissionsPage() {
       columns={columns}
       actionButtons={actionButtons}
       isLoading={isLoading}
-      emptyMessage={isLoading ? <AnimatedLoader size={32} /> : t("noCommissions") || "No commissions yet"}
+      emptyMessage={(!isAuthenticated || isLoading) ? <AnimatedLoader size={32} /> : t("noCommissions") || "No commissions yet"}
       onRowClick={(row: any) => router.push(`/commissions/${row.id}`)}
       getRowId={(r: any) => r.id}
       selectionColumns={selectionColumns}

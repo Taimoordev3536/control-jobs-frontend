@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { useChat } from "@/components/providers/chat-provider"
 import type { ParticipantType } from "@/lib/api/chat"
+import { AnimatedLoader } from "@/components/animated-loader"
 import { ChatPanel } from "./chat-panel"
 
 interface EntityChatPanelProps {
@@ -45,7 +46,9 @@ export function EntityChatPanel({ targetType, targetEntityPublicId, className }:
       ) : publicId ? (
         <ChatPanel conversationPublicId={publicId} />
       ) : (
-        <div className="flex h-full items-center justify-center text-sm text-muted-foreground">…</div>
+        <div className="flex h-full items-center justify-center">
+          <AnimatedLoader size={28} />
+        </div>
       )}
     </div>
   )

@@ -133,7 +133,7 @@ export default function EmployerRecordsPage() {
       columns={columns}
       onRowClick={handleRowClick}
       actionButtons={actionButtons}
-      emptyMessage={isLoading ? <AnimatedLoader size={32} /> : t("noRecordsFound")}
+      emptyMessage={(!isAuthenticated || isLoading) ? <AnimatedLoader size={32} /> : t("noRecordsFound")}
       role="employer"
     />
   )

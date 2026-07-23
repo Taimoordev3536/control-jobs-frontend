@@ -116,7 +116,7 @@ export default function PresenceHistoryPage() {
         columns={columns}
         actionButtons={actionButtons}
         isLoading={isLoading}
-        emptyMessage={isLoading ? <AnimatedLoader size={32} /> : t("noRecords") || "No records for this month"}
+        emptyMessage={(!isAuthenticated || isLoading) ? <AnimatedLoader size={32} /> : t("noRecords") || "No records for this month"}
         onRowClick={(row: any) => router.push(`/records/${isClient ? "client" : "worker"}/${row.recordId}`)}
         getRowId={(r: any) => r.id}
       />

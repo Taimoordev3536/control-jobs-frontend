@@ -107,7 +107,7 @@ function ImpersonateHandler() {
     const msg = messages[error] || messages.generic
 
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-background">
+      <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-6">
         <ContreolJobs className="h-20 w-48 mb-4" />
         <Card className="w-full max-w-md border border-border bg-card">
           <CardHeader className="text-center pb-3">

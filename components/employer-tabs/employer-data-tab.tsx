@@ -405,6 +405,13 @@ export default function EmployerDataTab({ employerId, selfServiceLogo = false, s
   }
 
   if (!employerData) {
+    // On a hard refresh the query stays disabled until the auth token hydrates
+    // (a disabled React Query reports isLoading=false), plus a one-render gap
+    // before the effect seeds state — both used to flash "not found". Keep the
+    // loader until settled; a genuinely missing record surfaces as the error above.
+    if (!session?.accessToken || isLoading || fetchedEmployer) {
+      return <AnimatedLoader size={32} className="p-8" />
+    }
     return (
       <div className="p-6">
         <Alert>

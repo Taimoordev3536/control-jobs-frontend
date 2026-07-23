@@ -447,31 +447,32 @@ const getStatusConfig = (status: string) => {
         {/* Divider */}
         <div className="border-t border-border my-2"></div>
 
-        {/* Action Buttons */}
+        {/* Action Buttons — min-w-0 lets flex-1 shrink so the third button
+            never runs off the card on narrow phones; labels truncate if tight. */}
         <div className="flex gap-2 pt-2">
           <Button
             size="sm"
-            className="flex-1 h-8 text-xs bg-neutral-500 hover:bg-neutral-600 text-white"
+            className="flex-1 min-w-0 h-8 px-2 text-xs bg-neutral-500 hover:bg-neutral-600 text-white"
             onClick={() => onViewRecords(job)}
           >
-            <TodosIcon className="w-3 h-3 mr-1" />
-            {t("details")}
+            <TodosIcon className="w-3 h-3 mr-1 shrink-0" />
+            <span className="truncate">{t("details")}</span>
           </Button>
           <Button
             size="sm"
-            className="flex-1 h-8 text-xs bg-purple-700 hover:bg-purple-800 text-white"
+            className="flex-1 min-w-0 h-8 px-2 text-xs bg-purple-700 hover:bg-purple-800 text-white"
             onClick={() => router.push(`/records/employer?jobId=${job.publicId || job.id}`)}
           >
-            <ControlIcon className="w-3 h-3 mr-1" />
-            {t("records")}
+            <ControlIcon className="w-3 h-3 mr-1 shrink-0" />
+            <span className="truncate">{t("records")}</span>
           </Button>
           <Button
             size="sm"
-            className="flex-1 h-8 text-xs bg-purple-50 text-purple-600 font-medium hover:bg-purple-100 transition"
+            className="flex-1 min-w-0 h-8 px-2 text-xs bg-purple-50 text-purple-600 font-medium hover:bg-purple-100 transition"
             onClick={() => router.push(`/jobs/${job.publicId || job.id}/edit`)}
           >
-            <Edit className="w-3 h-3 mr-1" />
-            {t("edit")}
+            <Edit className="w-3 h-3 mr-1 shrink-0" />
+            <span className="truncate">{t("edit")}</span>
           </Button>
         </div>
         {/* Manual Attendance Button */}

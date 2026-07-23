@@ -324,7 +324,10 @@ export function WorkerDataTab({ selfService = false }: { selfService?: boolean }
     refetch()
   }
 
-  if (isLoading && !invalidId) {
+  // Also cover the hard-refresh race: the query is disabled until the auth token
+  // hydrates (a disabled React Query reports isLoading=false), which would flash
+  // an empty form here instead of a loader.
+  if (!invalidId && (!session?.accessToken || isLoading)) {
     return (
       <AnimatedLoader size={32} className="p-8" />
     )

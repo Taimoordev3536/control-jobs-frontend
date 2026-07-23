@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import { MoreVertical } from "lucide-react"
 import { useTranslation } from "@/hooks/use-translation"
 import dynamic from "next/dynamic"
@@ -66,9 +66,28 @@ function MobileDropdown({
   actionButtons: { IconDefault: React.ComponentType<{ className?: string }>; title: string; onClick: () => void }[]
 }) {
   const [open, setOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement | null>(null)
+
+  // Close on click/tap outside or Escape (previously it only closed by tapping
+  // the ⋮ button again).
+  useEffect(() => {
+    if (!open) return
+    const onDown = (e: MouseEvent | TouchEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setOpen(false)
+    }
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false) }
+    document.addEventListener("mousedown", onDown)
+    document.addEventListener("touchstart", onDown)
+    document.addEventListener("keydown", onKey)
+    return () => {
+      document.removeEventListener("mousedown", onDown)
+      document.removeEventListener("touchstart", onDown)
+      document.removeEventListener("keydown", onKey)
+    }
+  }, [open])
 
   return (
-    <div className="relative sm:hidden">
+    <div className="relative sm:hidden" ref={menuRef}>
       <button
         onClick={() => setOpen(!open)}
         className="p-2 text-[#662D91] hover:bg-purple-50 dark:hover:bg-purple-950 rounded-md border border-purple-200 dark:border-purple-800"
